@@ -1,0 +1,95 @@
+<aside class="navbar navbar-vertical navbar-expand-lg navbar-dark dh-sidebar">
+  <div class="container-fluid">
+    <div class="navbar-brand navbar-brand-autodark dh-brand">
+      <a href="." class="d-flex align-items-center gap-2 text-decoration-none">
+        <span class="dh-brand-mark">
+          <i class="fa-solid fa-shield-halved"></i>
+        </span>
+        <span class="lh-1">
+          <span class="dh-brand-name">Project<span class="text-warning">V3</span></span>
+          <span class="dh-brand-sub">Management System</span>
+        </span>
+      </a>
+    </div>
+
+    <button
+      class="navbar-toggler"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#sidebar-menu"
+      aria-controls="sidebar-menu"
+      aria-expanded="false"
+      aria-label="Toggle navigation"
+      >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="sidebar-menu">
+      <ul class="navbar-nav pt-lg-2 py-lg-2">
+
+        <li class="nav-item">
+          <span class="dh-nav-section">
+            Menu
+          </span>
+        </li>
+        <li class="nav-item mb-1">
+          <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fa fa-dashboard"></i>
+            </span>
+            <span class="nav-link-title">Dashboard</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.app_name == 'users' %}active{% endif %}" href="{% url 'users:user_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-users"></i>
+            </span>
+            <span class="nav-link-title">Users</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.app_name == 'info' %}active{% endif %}" href="{% url 'info:info_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-address-card"></i>
+            </span>
+            <span class="nav-link-title">Info</span>
+          </a>
+        </li>
+
+        {% if user.is_authenticated %}
+        <li class="nav-item d-lg-none">
+          <a class="nav-link" href="{% url 'logout' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="nav-icon fas fa-sign-out-alt"></i>
+            </span>
+            <span class="nav-link-title">Logout</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <li class="nav-item mt-auto dh-nav-sidebar-footer">
+          <div class="dh-user-card">
+            <a href="{% url 'users:user_list' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white min-w-0 w-100">
+              <span class="dh-avatar">{{ user.username|first|upper }}</span>
+              <span class="min-w-0 flex-grow-1">
+                <span class="dh-user-name">{{ user.username }}</span>
+                <span class="dh-user-role">
+                  {% if user.is_superuser %}Administrator{% elif user.is_authenticated %}Instructor{% endif %}
+                </span>
+              </span>
+            </a>
+            {% if user.is_authenticated %}
+            <a href="{% url 'logout' %}" class="dh-user-logout" title="Logout">
+              <i class="fas fa-sign-out-alt"></i>
+            </a>
+            {% endif %}
+          </div>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</aside>

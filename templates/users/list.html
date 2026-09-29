@@ -1,0 +1,412 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+ <!-- BEGIN PAGE HEADER -->
+<div class="page-header d-print-none" aria-label="Page header">
+  <div class="container-xl">
+
+    <div class="row align-items-center">
+
+      <!-- LEFT -->
+      <div class="col">
+
+        <div class="page-pretitle">Overview</div>
+
+        <!-- TITLE + SEARCH (DESKTOP ONLY) -->
+        <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
+          <h2 class="page-title mb-0">User Management</h2>
+        </div>
+
+        <!-- TITLE ONLY (MOBILE) -->
+        <h2 class="page-title mb-0 d-md-none">User Management</h2>
+
+      </div>
+
+        <!-- RIGHT -->
+        <!-- <div class="col-auto">
+        <div class="btn-list">
+          <button type="button"
+             class="btn btn-primary"
+             data-bs-toggle="modal"
+             data-bs-target="#editUserModal"
+             data-mode="create">
+            <i class="ti ti-plus me-1"></i> Add User
+          </button>
+        </div>
+      </div> -->
+
+    </div>
+  </div>
+</div>
+<br>
+
+<!-- SEARCH BAR -->
+<form method="GET" class="mb-3">
+    <div class="input-group" style="max-width: 400px;">
+        <span class="input-group-text"><i class="ti ti-search"></i></span>
+        <input type="text"
+               name="q"
+               value="{{ query }}"
+               class="form-control"
+               placeholder="Search by name, username, or email...">
+        {% if query %}
+        <a href="{% url 'users:user_list' %}" class="btn btn-outline-secondary">Clear</a>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+
+<div id="userAlert" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                All Users
+                {% if query %}
+                <span class="text-muted fw-normal">— search results for "{{ query }}"</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter table-hover card-table text-nowrap" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Joined</th>
+                        <th>Status</th>
+                        <th>Role</th>
+                        <th class="w-1">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    {% for u in users %}
+                    <tr data-row-id="{{ u.id }}">
+                        <td class="text-muted">{{ u.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="avatar avatar-sm bg-blue-lt">
+                                    {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+                                </span>
+                                <div>
+                                    <div class="fw-medium">{{ u.first_name }} {{ u.last_name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ u.username }}</td>
+                        <td class="text-muted">{{ u.email }}</td>
+                        <td class="text-muted">{{ u.date_joined|date:"M j, Y" }}</td>
+                        <td>
+                            {% if u.is_active %}
+                            <span class="badge bg-success-lt text-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger-lt text-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_superuser %}
+                            <span class="badge bg-purple-lt text-purple">Superuser</span>
+                            {% elif u.is_staff %}
+                            <span class="badge bg-warning-lt text-warning">Staff</span>
+                            {% else %}
+                            <span class="badge bg-secondary-lt text-secondary">User</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="#"
+                                   class="btn btn-ghost-secondary btn-icon btn-sm"
+                                   data-bs-toggle="modal"
+                                   data-bs-target="#editUserModal"
+                                   data-mode="edit"
+                                   data-id="{{ u.id }}"
+                                   data-username="{{ u.username }}"
+                                   data-first="{{ u.first_name }}"
+                                   data-last="{{ u.last_name }}"
+                                   data-email="{{ u.email }}"
+                                   data-active="{{ u.is_active|yesno:'true,false' }}"
+                                   data-staff="{{ u.is_staff|yesno:'true,false' }}"
+                                   title="Edit">
+                                    <i class="ti ti-pencil text-primary"></i>
+                                </a>
+                                <a href="#"
+                                   class="btn btn-ghost-secondary btn-icon btn-sm"
+                                   data-bs-toggle="modal"
+                                   data-bs-target="#deleteUserModal"
+                                   data-id="{{ u.id }}"
+                                   data-name="{{ u.username }}"
+                                   title="Delete">
+                                    <i class="ti ti-trash text-danger"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty py-5">
+                                <div class="empty-icon">
+                                    <i class="fas fa-users fa-2x text-muted"></i>
+                                </div>
+                                <p class="empty-title">No users found</p>
+                                <p class="empty-subtitle">Try adjusting your search.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if users.paginator.num_pages > 1 %}
+        <div class="card-footer d-flex align-items-center">
+            <p class="m-0 text-muted">
+                Showing <span class="fw-medium">{{ users.start_index }}</span>
+                to <span class="fw-medium">{{ users.end_index }}</span>
+                of <span class="fw-medium">{{ users.paginator.count }}</span> users
+            </p>
+            <ul class="pagination m-0 ms-auto">
+                {% if users.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
+                        <i class="ti ti-chevron-left"></i> prev
+                    </a>
+                </li>
+                {% endif %}
+                {% for num in users.paginator.page_range %}
+                <li class="page-item {% if users.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if users.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
+                        next <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Edit / Create User Modal -->
+<div class="modal modal-blur fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalTitle">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editUserForm">
+                {% csrf_token %}
+                <input type="hidden" name="id" id="edit_id">
+                <div class="modal-body">
+                    <div id="editUserFormError" class="alert alert-danger d-none"></div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" id="edit_username" class="form-control" required>
+                        </div>
+                        <div class="col-6" id="edit_password_wrap">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" id="edit_password" class="form-control" autocomplete="new-password">
+                            <small class="form-hint" id="edit_password_hint">Leave blank to keep current password</small>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" id="edit_first_name" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" id="edit_last_name" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" id="edit_email" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Status</label>
+                            <div class="form-check form-switch mt-1">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active">
+                                <label class="form-check-label" for="edit_is_active">Active</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Role</label>
+                            <div class="form-check form-switch mt-1">
+                                <input class="form-check-input" type="checkbox" name="is_staff" id="edit_is_staff">
+                                <label class="form-check-label" for="edit_is_staff">Staff</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="editUserSubmitBtn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal modal-blur fade" id="deleteUserModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">Delete User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Are you sure you want to delete <strong id="deleteUserName"></strong>? This cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const SAVE_URL   = "{% url 'users:user_save_ajax' %}";
+    const DELETE_URL_BASE = "/users/ajax/delete/";
+
+    const editModal      = document.getElementById('editUserModal');
+    const editForm        = document.getElementById('editUserForm');
+    const editFormError   = document.getElementById('editUserFormError');
+    const passwordWrap    = document.getElementById('edit_password_wrap');
+    const passwordInput   = document.getElementById('edit_password');
+    const passwordHint    = document.getElementById('edit_password_hint');
+    const modalTitle       = document.getElementById('editUserModalTitle');
+    const usernameInput   = document.getElementById('edit_username');
+
+    let deleteTargetId = null;
+
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? decodeURIComponent(match[2]) : null;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    function showFormError(msg) {
+        editFormError.textContent = msg;
+        editFormError.classList.remove('d-none');
+    }
+    function clearFormError() {
+        editFormError.textContent = '';
+        editFormError.classList.add('d-none');
+    }
+
+    // Populate edit/create modal on open
+    editModal.addEventListener('show.bs.modal', function (e) {
+        clearFormError();
+        editForm.reset();
+        const btn = e.relatedTarget;
+        const mode = btn ? btn.dataset.mode : 'create';
+
+        if (mode === 'edit') {
+            modalTitle.textContent = 'Edit User';
+            usernameInput.readOnly = false;
+            passwordHint.classList.remove('d-none');
+            passwordInput.required = false;
+
+            document.getElementById('edit_id').value          = btn.dataset.id;
+            usernameInput.value                                = btn.dataset.username;
+            document.getElementById('edit_first_name').value  = btn.dataset.first;
+            document.getElementById('edit_last_name').value   = btn.dataset.last;
+            document.getElementById('edit_email').value       = btn.dataset.email;
+            document.getElementById('edit_is_active').checked = btn.dataset.active === 'true';
+            document.getElementById('edit_is_staff').checked  = btn.dataset.staff === 'true';
+        } else {
+            modalTitle.textContent = 'Add User';
+            document.getElementById('edit_id').value = '';
+            passwordHint.classList.add('d-none');
+            passwordInput.required = true;
+            document.getElementById('edit_is_active').checked = true;
+        }
+    });
+
+    // Submit create/edit form via AJAX
+    editForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        clearFormError();
+
+        const submitBtn = document.getElementById('editUserSubmitBtn');
+        submitBtn.disabled = true;
+
+        const formData = new FormData(editForm);
+        formData.set('is_active', document.getElementById('edit_is_active').checked ? 'true' : 'false');
+        formData.set('is_staff',  document.getElementById('edit_is_staff').checked ? 'true' : 'false');
+
+        fetch(SAVE_URL, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            body: formData,
+        })
+        .then(async (resp) => {
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || 'Something went wrong.');
+            }
+            return data;
+        })
+        .then(() => {
+            bootstrap.Modal.getInstance(editModal).hide();
+            window.location.reload();
+        })
+        .catch((err) => {
+            showFormError(err.message);
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+        });
+    });
+
+    // Delete modal — set target id/name
+    document.getElementById('deleteUserModal').addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        deleteTargetId = btn.dataset.id;
+        document.getElementById('deleteUserName').textContent = btn.dataset.name;
+    });
+
+    // Confirm delete via AJAX
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function () {
+        if (!deleteTargetId) return;
+        const btn = this;
+        btn.disabled = true;
+
+        fetch(DELETE_URL_BASE + deleteTargetId + '/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+        })
+        .then(async (resp) => {
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.error || 'Could not delete user.');
+            }
+            return data;
+        })
+        .then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('deleteUserModal')).hide();
+            const row = document.querySelector(`tr[data-row-id="${deleteTargetId}"]`);
+            if (row) row.remove();
+        })
+        .catch((err) => {
+            alert(err.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            deleteTargetId = null;
+        });
+    });
+})();
+</script>
+{% endblock %}
