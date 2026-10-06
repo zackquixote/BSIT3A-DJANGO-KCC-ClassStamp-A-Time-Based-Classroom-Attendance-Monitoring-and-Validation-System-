@@ -1,4 +1,6 @@
-# projectv3
+# KCC ClassStamp - A Time-Based Classroom Attendance Monitoring and Validation System
 
-# BSIT3A-DJANGO-KCC-ClassStamp-A-Time-Based-Classroom-Attendance-Monitoring-and-Validation-System-
-# BSIT3A-DJANGO-KCC-ClassStamp-A-Time-Based-Classroom-Attendance-Monitoring-and-Validation-System-
+## Group Members
+- RONELO DACILL
+- LOURD IAN AKOL
+- JOSHUA DADO
