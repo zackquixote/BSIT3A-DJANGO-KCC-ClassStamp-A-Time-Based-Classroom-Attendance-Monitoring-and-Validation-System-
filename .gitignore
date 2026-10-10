@@ -1,0 +1,15 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+db.sqlite3
+media/
+*.log
+
+# Local IDE Brains & Model Context
+.agents/
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+.cursorrules

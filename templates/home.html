@@ -1,26 +1,54 @@
 {% extends "theme/base.html" %}
+{% block title %}Dashboard — KCC ClassStamp{% endblock %}
+
 {% block content %}
-<div class="container-xl">
-  <div class="page-header d-print-none" aria-label="Page header">
-    <div class="container-xl">
-      <div class="row align-items-center">
-        <div class="col">
-          <div class="page-pretitle">Overview</div>
-          <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
-            <h2 class="page-title mb-0">Dashboard</h2>
-          </div>
-          <h2 class="page-title mb-0 d-md-none">Dashboard</h2>
-        </div>
-      </div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Welcome back, {{ request.user.get_full_name }}</p>
+  </div>
+</div>
+
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-users"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">—</span>
+      <span class="stat-label">Total Students</span>
     </div>
   </div>
-  <br>
-
-  <div class="card">
-    <div class="card-body text-muted">
-      Dashboard
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-chalkboard-user"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">—</span>
+      <span class="stat-label">Active Teachers</span>
     </div>
   </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-calendar-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">—</span>
+      <span class="stat-label">Open Sessions</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-user-clock"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">—</span>
+      <span class="stat-label">Pending Approvals</span>
+    </div>
+  </div>
+</div>
 
+<div class="card">
+  <p class="text-muted text-sm">Role-specific dashboard content will appear here once accounts are configured.</p>
 </div>
 {% endblock %}

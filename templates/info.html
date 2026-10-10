@@ -1,192 +1,196 @@
 {% extends "theme/base.html" %}
+{% block title %}Info Management — KCC ClassStamp{% endblock %}
+
 {% block content %}
-<div class="container-xl">
-  <div class="page-header d-print-none" aria-label="Page header">
-    <div class="container-xl">
-      <div class="row align-items-center">
-        <div class="col">
-          <div class="page-pretitle">Overview</div>
-          <div class="d-flex align-items-center gap-3 flex-wrap d-none d-md-flex">
-            <h2 class="page-title mb-0">Info Management</h2>
-          </div>
-          <h2 class="page-title mb-0 d-md-none">Info Management</h2>
-        </div>
-      </div>
-    </div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Info Management</h1>
+    <p class="page-subtitle">Directory records and contact details</p>
   </div>
-  <br>
-
-  <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2 mb-1">
-    <form method="GET" class="w-100" style="max-width: 420px;">
-      <div class="input-group">
-        <span class="input-group-text"><i class="ti ti-search"></i></span>
-        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, address, or email...">
-        {% if query %}
-        <a href="{% url 'info:info_list' %}" class="btn btn-outline-secondary">Clear</a>
-        {% endif %}
-        <button type="submit" class="btn btn-primary">Search</button>
-      </div>
-    </form>
-
-    <button type="button" class="btn btn-primary mt-n4" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="create">
-      <i class='fas fa-plus-circle me-2'></i> Add Info
+  <div>
+    <button type="button" class="btn btn-primary" data-modal-target="infoModal" data-mode="create" id="addInfoBtn">
+      <i class="fas fa-plus-circle"></i> Add Info
     </button>
   </div>
+</div>
 
-  <div id="infoAlert" class="alert alert-danger d-none" role="alert"></div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">
-        All Records
-        {% if query %}
-        <span class="text-muted fw-normal">— search results for "{{ query }}"</span>
-        {% endif %}
-      </div>
+<!-- Search Bar -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3" style="max-width: 500px;">
+    <div class="input-wrap w-full">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, address, or email...">
     </div>
-    <div class="table-responsive">
-      <table class="table table-vcenter table-hover card-table text-nowrap" id="infoTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Age</th>
-            <th>Address</th>
-            <th>Email</th>
-            <th class="w-1">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="infoTableBody">
+    {% if query %}
+      <a href="{% url 'info:info_list' %}" class="btn btn-outline">Clear</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+</div>
+
+<div id="infoAlert" class="toast toast--error mb-4" style="display: none;"></div>
+
+<!-- Info Table Card -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">
+      All Records {% if query %}<span class="text-muted text-sm">— search results for "{{ query }}"</span>{% endif %}
+    </div>
+    <span class="text-muted text-xs">{{ infos.paginator.count }} total records</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="infoTable">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Name</th>
+          <th>Age</th>
+          <th>Address</th>
+          <th>Email</th>
+          <th style="text-align: right; width: 120px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="infoTableBody">
         {% for info in infos %}
         <tr data-row-id="{{ info.id }}">
-            <td class="text-muted">{{ forloop.counter0|add:infos.start_index }}</td>
-            <td class="fw-semibold">{{ info.name }}</td>
-            <td><span class="badge bg-primary-lt text-primary">{{ info.age }}</span></td>
-            <td class="text-muted">{{ info.address }}</td>
-            <td class="text-muted">{{ info.email|default:"—" }}</td>
-            <td>
-              <div class="d-flex gap-1">
-                <button type="button" class="btn btn-ghost-secondary btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="edit" data-id="{{ info.id }}" data-name="{{ info.name }}" data-age="{{ info.age }}" data-address="{{ info.address }}" data-email="{{ info.email }}" title="Edit">
-                  <i class="fas fa-edit text-primary"></i>
-                </button>
-                <a href="{% url 'info:info_get_ajax' info.id %}" class="btn btn-ghost-secondary btn-icon btn-sm" title="View Details">
-                  <i class="fas fa-circle-info text-secondary"></i>
-                </a>
-                <button type="button" class="btn btn-ghost-secondary btn-icon btn-sm" data-bs-toggle="modal" data-bs-target="#deleteInfoModal" data-id="{{ info.id }}" data-name="{{ info.name }}" title="Delete">
-                  <i class="fas fa-trash-alt text-danger"></i>
-                </button>
-              </div>
-            </td>
+          <td class="text-muted">{{ forloop.counter0|add:infos.start_index }}</td>
+          <td class="font-semibold">{{ info.name }}</td>
+          <td><span class="badge badge--info">{{ info.age }} yrs</span></td>
+          <td class="text-muted">{{ info.address }}</td>
+          <td class="text-muted">{{ info.email|default:"—" }}</td>
+          <td style="text-align: right;">
+            <div class="flex items-center justify-end gap-2" style="justify-content: flex-end;">
+              <button type="button"
+                      class="btn btn-outline"
+                      style="padding: 6px 10px;"
+                      data-modal-target="infoModal"
+                      data-mode="edit"
+                      data-id="{{ info.id }}"
+                      data-name="{{ info.name }}"
+                      data-age="{{ info.age }}"
+                      data-address="{{ info.address }}"
+                      data-email="{{ info.email }}"
+                      title="Edit">
+                <i class="fas fa-pen text-gold"></i>
+              </button>
+              <button type="button"
+                      class="btn btn-outline"
+                      style="padding: 6px 10px;"
+                      data-modal-target="deleteInfoModal"
+                      data-id="{{ info.id }}"
+                      data-name="{{ info.name }}"
+                      title="Delete">
+                <i class="fas fa-trash text-danger"></i>
+              </button>
+            </div>
+          </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="6">
-                <div class="empty py-5">
-                    <div class="empty-icon">
-                        <i class="fas fa-address-card fa-2x text-muted"></i>
-                    </div>
-                    <p class="empty-title">No records found</p>
-                    <p class="empty-subtitle">Try adjusting your search or add a new record.</p>
-                    <div class="empty-action">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#infoModal" data-mode="create">
-                            <i class="fas fa-plus-circle me-2"></i> Add Info
-                        </button>
-                    </div>
-                </div>
-            </td>
+          <td colspan="6" style="text-align: center; padding: 48px 16px;">
+            <div style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 12px;">
+              <i class="fas fa-address-book"></i>
+            </div>
+            <p class="font-semibold text-primary">No records found</p>
+            <p class="text-muted text-sm mt-1">Try adjusting your search criteria or add a new record.</p>
+          </td>
         </tr>
         {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {% if infos.paginator.num_pages > 1 %}
-    <div class="card-footer d-flex align-items-center">
-      <p class="m-0 text-muted">
-        Showing <span class="fw-medium">{{ infos.start_index }}</span>
-        to <span class="fw-medium">{{ infos.end_index }}</span>
-        of <span class="fw-medium">{{ infos.paginator.count }}</span> records
-      </p>
-      <ul class="pagination m-0 ms-auto">
-        {% if infos.has_previous %}
-        <li class="page-item">
-          <a class="page-link" href="?page={{ infos.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
-            <i class="ti ti-chevron-left"></i> prev
-          </a>
-        </li>
-        {% endif %}
-        {% for num in infos.paginator.page_range %}
-        <li class="page-item {% if infos.number == num %}active{% endif %}">
-          <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
-        </li>
-        {% endfor %}
-        {% if infos.has_next %}
-        <li class="page-item">
-          <a class="page-link" href="?page={{ infos.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
-            next <i class="ti ti-chevron-right"></i>
-          </a>
-        </li>
-        {% endif %}
-      </ul>
-    </div>
-    {% endif %}
+      </tbody>
+    </table>
   </div>
+
+  <!-- Pagination -->
+  {% if infos.paginator.num_pages > 1 %}
+  <div style="padding: 16px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <p class="text-muted text-xs">
+      Showing <span class="font-semibold text-primary">{{ infos.start_index }}</span> to <span class="font-semibold text-primary">{{ infos.end_index }}</span> of {{ infos.paginator.count }} records
+    </p>
+    <ul class="pagination">
+      {% if infos.has_previous %}
+      <li>
+        <a class="page-link" href="?page={{ infos.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
+          <i class="fas fa-chevron-left"></i>
+        </a>
+      </li>
+      {% endif %}
+      {% for num in infos.paginator.page_range %}
+      <li>
+        <a class="page-link {% if infos.number == num %}active{% endif %}" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+      </li>
+      {% endfor %}
+      {% if infos.has_next %}
+      <li>
+        <a class="page-link" href="?page={{ infos.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
+          <i class="fas fa-chevron-right"></i>
+        </a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
 </div>
 
-<div class="modal modal-blur fade" id="infoModal" tabindex="-1">
-  <div class="modal-dialog modal-md modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="infoModalTitle">Add Info</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form id="infoForm">
-        {% csrf_token %}
-        <input type="hidden" name="id" id="info_id">
-        <div class="modal-body">
-          <div id="infoFormError" class="alert alert-danger d-none"></div>
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">Name</label>
-              <input type="text" name="name" id="info_name" class="form-control" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Age</label>
-              <input type="number" name="age" id="info_age" class="form-control" min="1" max="150" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Address</label>
-              <input type="text" name="address" id="info_address" class="form-control" required>
-            </div>
-            <div class="col-12">
-              <label class="form-label">Email <span class="text-muted">(optional)</span></label>
-              <input type="email" name="email" id="info_email" class="form-control">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="infoSubmitBtn">Save Info</button>
-        </div>
-      </form>
+<!-- Info Modal -->
+<div class="modal" id="infoModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="infoModalTitle">Add Info</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="infoModal">
+        <i class="fas fa-xmark"></i>
+      </button>
     </div>
-  </div>
-</div>
-
-<div class="modal modal-blur fade" id="deleteInfoModal" tabindex="-1">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Delete Info</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+    <form id="infoForm">
+      {% csrf_token %}
+      <input type="hidden" name="id" id="info_id">
       <div class="modal-body">
-        <p>Are you sure you want to delete <strong id="deleteInfoName"></strong>?</p>
+        <div id="infoFormError" class="toast toast--error mb-4" style="display: none;"></div>
+        
+        <div class="form-group mb-3">
+          <label class="form-label" for="info_name">Full Name</label>
+          <input type="text" name="name" id="info_name" class="form-control" required>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label" for="info_age">Age</label>
+          <input type="number" name="age" id="info_age" class="form-control" min="1" max="150" required>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label" for="info_address">Address</label>
+          <input type="text" name="address" id="info_address" class="form-control" required>
+        </div>
+
+        <div class="form-group mb-2">
+          <label class="form-label" for="info_email">Email Address <span class="text-muted text-xs">(optional)</span></label>
+          <input type="email" name="email" id="info_email" class="form-control">
+        </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-danger" id="confirmDeleteInfoBtn">Delete</button>
+        <button type="button" class="btn btn-outline" data-modal-dismiss="infoModal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="infoSubmitBtn">Save Info</button>
       </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Info Modal -->
+<div class="modal" id="deleteInfoModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title">Confirm Deletion</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="deleteInfoModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="text-secondary">Are you sure you want to delete <strong id="deleteInfoName" class="text-primary"></strong>?</p>
+      <p class="text-muted text-xs mt-2">This record will be permanently deleted.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-modal-dismiss="deleteInfoModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirmDeleteInfoBtn">Delete</button>
     </div>
   </div>
 </div>
@@ -195,92 +199,95 @@
 {% block extra_js %}
 <script>
 (function() {
-  const modalEl = document.getElementById('infoModal');
-  const deleteModalEl = document.getElementById('deleteInfoModal');
   const form = document.getElementById('infoForm');
   const alertBox = document.getElementById('infoAlert');
+  const errorBox = document.getElementById('infoFormError');
   const title = document.getElementById('infoModalTitle');
   const submitBtn = document.getElementById('infoSubmitBtn');
   const deleteBtn = document.getElementById('confirmDeleteInfoBtn');
   const deleteName = document.getElementById('deleteInfoName');
   let currentInfoId = null;
 
-  function resetForm() {
-    form.reset();
-    document.getElementById('info_id').value = '';
-    title.textContent = 'Add Info';
-    submitBtn.textContent = 'Save Info';
-    alertBox.classList.add('d-none');
-    alertBox.textContent = '';
-    currentInfoId = null;
+  function showAlert(msg) {
+    alertBox.textContent = msg;
+    alertBox.style.display = 'flex';
+    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
   }
 
-  modalEl.addEventListener('show.bs.modal', function(event) {
-    const button = event.relatedTarget;
-    if (!button) {
-      resetForm();
-      return;
+  // Handle Edit/Create click
+  document.addEventListener('click', function(e) {
+    const infoBtn = e.target.closest('[data-modal-target="infoModal"]');
+    if (infoBtn) {
+      errorBox.style.display = 'none';
+      const mode = infoBtn.getAttribute('data-mode');
+      if (mode === 'edit') {
+        title.textContent = 'Edit Info';
+        submitBtn.textContent = 'Update Info';
+        currentInfoId = infoBtn.getAttribute('data-id');
+        document.getElementById('info_id').value = currentInfoId;
+        document.getElementById('info_name').value = infoBtn.getAttribute('data-name');
+        document.getElementById('info_age').value = infoBtn.getAttribute('data-age');
+        document.getElementById('info_address').value = infoBtn.getAttribute('data-address');
+        document.getElementById('info_email').value = infoBtn.getAttribute('data-email');
+      } else {
+        title.textContent = 'Add Info';
+        submitBtn.textContent = 'Save Info';
+        form.reset();
+        document.getElementById('info_id').value = '';
+        currentInfoId = null;
+      }
     }
 
-    const mode = button.getAttribute('data-mode');
-    if (mode === 'edit') {
-      const id = button.getAttribute('data-id');
-      title.textContent = 'Edit Info';
-      submitBtn.textContent = 'Update Info';
-      currentInfoId = id;
-      document.getElementById('info_id').value = id;
-      document.getElementById('info_name').value = button.getAttribute('data-name');
-      document.getElementById('info_age').value = button.getAttribute('data-age');
-      document.getElementById('info_address').value = button.getAttribute('data-address');
-      document.getElementById('info_email').value = button.getAttribute('data-email');
-    } else {
-      resetForm();
+    const delBtn = e.target.closest('[data-modal-target="deleteInfoModal"]');
+    if (delBtn) {
+      currentInfoId = delBtn.getAttribute('data-id');
+      deleteName.textContent = delBtn.getAttribute('data-name');
     }
   });
 
-  deleteModalEl.addEventListener('show.bs.modal', function(event) {
-    const button = event.relatedTarget;
-    if (button) {
-      currentInfoId = button.getAttribute('data-id');
-      deleteName.textContent = button.getAttribute('data-name');
-    }
-  });
-
+  // Save info AJAX
   form.addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(form);
-
     fetch('{% url "info:info_save_ajax" %}', {
       method: 'POST',
       headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
       body: formData
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
       if (data.error) {
-        alertBox.textContent = data.error;
-        alertBox.classList.remove('d-none');
+        errorBox.textContent = data.error;
+        errorBox.style.display = 'flex';
         return;
       }
       window.location.reload();
     })
     .catch(() => {
-      alertBox.textContent = 'Something went wrong.';
-      alertBox.classList.remove('d-none');
+      errorBox.textContent = 'Communication error.';
+      errorBox.style.display = 'flex';
     });
   });
 
+  // Confirm delete AJAX
   deleteBtn.addEventListener('click', function() {
     if (!currentInfoId) return;
     fetch('/info/ajax/delete/' + currentInfoId + '/', {
       method: 'POST',
       headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value}
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
       if (data.status === 'deleted') {
         window.location.reload();
+      } else {
+        showAlert(data.error || 'Failed to delete record.');
+        window.closeModal('deleteInfoModal');
       }
+    })
+    .catch(() => {
+      showAlert('Error deleting record.');
+      window.closeModal('deleteInfoModal');
     });
   });
 })();

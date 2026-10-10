@@ -1,159 +1,136 @@
 {% load static %}
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>
-    Sign in - Azuelo Technology
-  </title>
-  <link href="{% static 'libs/jsvectormap/dist/jsvectormap.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-flags.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-socials.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-payments.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-vendors.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-marketing.css' %}" rel="stylesheet" />
-  <link href="{% static 'css/tabler-themes.css' %}" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="KCC ClassStamp — Sign in to your attendance portal">
+  <title>Sign In — KCC ClassStamp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
+<body class="auth-body">
 
-<body>
-  <script src="{% static 'js/tabler-theme.js' %}"></script>
-  <div class="page page-center">
-    <div class="container container-tight py-4">
+  <!-- Animated background orbs -->
+  <div class="auth-bg">
+    <div class="auth-orb auth-orb--1"></div>
+    <div class="auth-orb auth-orb--2"></div>
+    <div class="auth-orb auth-orb--3"></div>
+  </div>
 
-     <div class="card card-md">
-      <div class="card-body">
+  <div class="auth-wrapper">
+    <div class="auth-card">
 
-        <center class="mt-n4">
-        <i class='far fa-calendar' style='font-size:40px'></i>
-        </center>
-        <h2 class="h3 text-center mb-4">Sign in to start your session</h2>
+      <!-- Brand -->
+      <div class="auth-brand">
+        <div class="auth-brand-icon">
+          <i class="fas fa-stamp"></i>
+        </div>
+        <div>
+          <h1 class="auth-brand-name">KCC <span>ClassStamp</span></h1>
+          <p class="auth-brand-sub">Attendance Monitoring System</p>
+        </div>
+      </div>
 
-        <form method="post">
-          {% csrf_token %}
+      <h2 class="auth-title">Welcome back</h2>
+      <p class="auth-subtitle">Sign in to your account to continue</p>
 
-          {% if messages %}
-          {% for message in messages %}
-          <div id="error-message" class="alert alert-danger">
-            {{ message }}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="auth-alert auth-alert--error" id="error-message">
+            <i class="fas fa-circle-xmark"></i>
+            <span>{{ message }}</span>
           </div>
-          {% endfor %}
-          {% endif %}
-          <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input type="text" class="form-control" name="username" autocomplete="off" {% if locked %}disabled{% endif %}>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="{% url 'login' %}" class="auth-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+          <label class="form-label" for="id_username">Username</label>
+          <div class="input-wrap">
+            <i class="fas fa-user input-icon"></i>
+            <input
+              type="text"
+              id="id_username"
+              name="username"
+              class="form-control"
+              placeholder="Enter your username"
+              autocomplete="username"
+              {% if locked %}disabled{% endif %}
+              required
+            >
           </div>
-          <div class="mb-2">
-            <label class="form-label">
-              Password
-            </label>
-            <div class="input-group input-group-flat">
-              <input type="password" class="form-control" name="password" autocomplete="off" {% if locked %}disabled{% endif %}>
-            </div>
-          </div>
-          <div class="form-footer d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary w-50">
-              <i class="fas fa-sign-in-alt me-1"></i> Sign in
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_password">Password</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock input-icon"></i>
+            <input
+              type="password"
+              id="id_password"
+              name="password"
+              class="form-control"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              {% if locked %}disabled{% endif %}
+              required
+            >
+            <button type="button" class="input-toggle" id="togglePassword" tabindex="-1" aria-label="Toggle password visibility">
+              <i class="fas fa-eye" id="eyeIcon"></i>
             </button>
           </div>
-       </form>
-     </div>
-   </div>
- </div>
- <!-- <div class="text-center text-secondary mt-n1">
-  Don't have an account?
-  <a href="{% url 'register' %}" class="text-primary fw-bold">Register</a>
- </div> -->
-</div>
+        </div>
 
-{% include 'theme/settings.html' %}
+        <button type="submit" class="btn btn-primary btn-full" {% if locked %}disabled{% endif %} id="login-btn">
+          <i class="fas fa-right-to-bracket"></i>
+          Sign In
+        </button>
 
-<script src="{% static 'js/tabler.js' %}" defer></script>
-<script src="{% static 'js/demo.js' %}" defer></script>
-{% if locked %}
-<script>
-  let remaining = {{ remaining }};
-  const messageBox = document.getElementById("error-message");
+      </form>
 
-  let interval = setInterval(function() {
-    remaining--;
+      <div class="auth-footer">
+        Don't have an account?
+        <a href="{% url 'register' %}">Create one</a>
+      </div>
 
-    if (remaining > 0) {
-      messageBox.innerHTML =
-      "Too many failed attempts. Try again in " + remaining + " seconds.";
-    } else {
-      clearInterval(interval);
-      window.location.href = "{% url 'login' %}";
-    }
+    </div>
+  </div>
 
-  }, 1000);
-</script>
-{% endif %}
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    var themeConfig = {
-      theme: "light",
-      "theme-base": "gray",
-      "theme-font": "sans-serif",
-      "theme-primary": "blue",
-      "theme-radius": "1",
-    };
-
-    var url = new URL(window.location);
-    var form = document.getElementById("offcanvasSettings");
-    var resetButton = document.getElementById("reset-changes");
-
-    var checkItems = function () {
-      for (var key in themeConfig) {
-        var value =
-        window.localStorage["tabler-" + key] || themeConfig[key];
-
-        if (!!value) {
-          var radios = form.querySelectorAll(`[name="${key}"]`);
-
-          if (!!radios) {
-            radios.forEach((radio) => {
-              radio.checked = radio.value === value;
-            });
-          }
-        }
+  <script src="{% static 'js/app.js' %}"></script>
+  {% if locked %}
+  <script>
+    let remaining = {{ remaining }};
+    const messageBox = document.getElementById('error-message');
+    const interval = setInterval(function () {
+      remaining--;
+      if (remaining > 0) {
+        messageBox.querySelector('span').textContent =
+          'Too many failed attempts. Try again in ' + remaining + ' seconds.';
+      } else {
+        clearInterval(interval);
+        window.location.href = "{% url 'login' %}";
       }
-    };
-
-    form.addEventListener("change", function (event) {
-      var target = event.target,
-      name = target.name,
-      value = target.value;
-
-      for (var key in themeConfig) {
-        if (name === key) {
-          document.documentElement.setAttribute("data-bs-" + key, value);
-          window.localStorage.setItem("tabler-" + key, value);
-          url.searchParams.set(key, value);
-        }
+    }, 1000);
+  </script>
+  {% endif %}
+  <script>
+    document.getElementById('togglePassword').addEventListener('click', function () {
+      const input = document.getElementById('id_password');
+      const icon = document.getElementById('eyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
       }
-
-      window.history.pushState({}, "", url);
     });
-
-    resetButton.addEventListener("click", function () {
-      for (var key in themeConfig) {
-        var value = themeConfig[key];
-        document.documentElement.removeAttribute("data-bs-" + key);
-        window.localStorage.removeItem("tabler-" + key);
-        url.searchParams.delete(key);
-      }
-
-      checkItems();
-
-      window.history.pushState({}, "", url);
-    });
-
-    checkItems();
-  });
-</script>
+  </script>
 </body>
 </html>

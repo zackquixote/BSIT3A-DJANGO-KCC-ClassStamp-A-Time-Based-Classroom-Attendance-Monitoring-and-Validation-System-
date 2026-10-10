@@ -1,95 +1,107 @@
-<aside class="navbar navbar-vertical navbar-expand-lg navbar-dark dh-sidebar">
-  <div class="container-fluid">
-    <div class="navbar-brand navbar-brand-autodark dh-brand">
-      <a href="." class="d-flex align-items-center gap-2 text-decoration-none">
-        <span class="dh-brand-mark">
-          <i class="fa-solid fa-shield-halved"></i>
-        </span>
-        <span class="lh-1">
-          <span class="dh-brand-name">Project<span class="text-warning">V3</span></span>
-          <span class="dh-brand-sub">Management System</span>
-        </span>
-      </a>
-    </div>
+{% load static %}
+{% with profile=request.user.classstamp_profile %}
+<aside class="sidebar" id="sidebar">
 
-    <button
-      class="navbar-toggler"
-      type="button"
-      data-bs-toggle="collapse"
-      data-bs-target="#sidebar-menu"
-      aria-controls="sidebar-menu"
-      aria-expanded="false"
-      aria-label="Toggle navigation"
-      >
-      <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="sidebar-menu">
-      <ul class="navbar-nav pt-lg-2 py-lg-2">
-
-        <li class="nav-item">
-          <span class="dh-nav-section">
-            Menu
-          </span>
-        </li>
-        <li class="nav-item mb-1">
-          <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="fa fa-dashboard"></i>
-            </span>
-            <span class="nav-link-title">Dashboard</span>
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.app_name == 'users' %}active{% endif %}" href="{% url 'users:user_list' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-users"></i>
-            </span>
-            <span class="nav-link-title">Users</span>
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.app_name == 'info' %}active{% endif %}" href="{% url 'info:info_list' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-address-card"></i>
-            </span>
-            <span class="nav-link-title">Info</span>
-          </a>
-        </li>
-
-        {% if user.is_authenticated %}
-        <li class="nav-item d-lg-none">
-          <a class="nav-link" href="{% url 'logout' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-sign-out-alt"></i>
-            </span>
-            <span class="nav-link-title">Logout</span>
-          </a>
-        </li>
-        {% endif %}
-
-        <li class="nav-item mt-auto dh-nav-sidebar-footer">
-          <div class="dh-user-card">
-            <a href="{% url 'users:user_list' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white min-w-0 w-100">
-              <span class="dh-avatar">{{ user.username|first|upper }}</span>
-              <span class="min-w-0 flex-grow-1">
-                <span class="dh-user-name">{{ user.username }}</span>
-                <span class="dh-user-role">
-                  {% if user.is_superuser %}Administrator{% elif user.is_authenticated %}Instructor{% endif %}
-                </span>
-              </span>
-            </a>
-            {% if user.is_authenticated %}
-            <a href="{% url 'logout' %}" class="dh-user-logout" title="Logout">
-              <i class="fas fa-sign-out-alt"></i>
-            </a>
-            {% endif %}
-          </div>
-        </li>
-
-      </ul>
-    </div>
+  <div class="sidebar-brand">
+    <span class="sidebar-brand-icon">
+      <i class="fas fa-stamp"></i>
+    </span>
+    <span class="sidebar-brand-text">
+      KCC <span class="sidebar-brand-accent">ClassStamp</span>
+    </span>
   </div>
+
+  <nav class="sidebar-nav">
+
+    {% if profile and profile.role == 'ADMIN' %}
+      <span class="sidebar-section-label">Admin Panel</span>
+      <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <i class="fas fa-gauge-high sidebar-link-icon"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-user-clock sidebar-link-icon"></i>
+        <span>Account Validation</span>
+        <span class="sidebar-badge">New</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-building sidebar-link-icon"></i>
+        <span>Departments</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-graduation-cap sidebar-link-icon"></i>
+        <span>Programs</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-book sidebar-link-icon"></i>
+        <span>Subjects</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-chalkboard-user sidebar-link-icon"></i>
+        <span>Teachers</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-calendar-days sidebar-link-icon"></i>
+        <span>Academic Years</span>
+      </a>
+
+    {% elif profile and profile.role == 'TEACHER' %}
+      <span class="sidebar-section-label">Teacher</span>
+      <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <i class="fas fa-gauge-high sidebar-link-icon"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-qrcode sidebar-link-icon"></i>
+        <span>Scan QR</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-list-check sidebar-link-icon"></i>
+        <span>My Classes</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-clock sidebar-link-icon"></i>
+        <span>Sessions</span>
+      </a>
+
+    {% elif profile and profile.role == 'STUDENT' %}
+      <span class="sidebar-section-label">Student</span>
+      <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <i class="fas fa-gauge-high sidebar-link-icon"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-qrcode sidebar-link-icon"></i>
+        <span>My QR Code</span>
+      </a>
+      <a href="#" class="sidebar-link">
+        <i class="fas fa-calendar-check sidebar-link-icon"></i>
+        <span>Attendance Log</span>
+      </a>
+
+    {% else %}
+      <a href="{% url 'dashboard' %}" class="sidebar-link active">
+        <i class="fas fa-gauge-high sidebar-link-icon"></i>
+        <span>Dashboard</span>
+      </a>
+    {% endif %}
+
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
+      <div class="sidebar-user-info">
+        <span class="sidebar-user-name">{{ request.user.get_full_name }}</span>
+        {% if profile %}
+          <span class="role-badge role-{{ profile.role|lower }}">{{ profile.get_role_display }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <a href="{% url 'logout' %}" class="sidebar-logout" title="Logout">
+      <i class="fas fa-right-from-bracket"></i>
+    </a>
+  </div>
+
 </aside>
+{% endwith %}
