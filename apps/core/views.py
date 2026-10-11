@@ -206,10 +206,12 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
-    programs = Program.objects.filter(is_active=True).select_related('department').order_by('department__name', 'name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    programs = Program.objects.filter(is_active=True).select_related('department').order_by('name')
 
     if request.method == 'GET':
         return render(request, 'auth/register.html', {
+            'departments': departments,
             'programs': programs,
         })
 
@@ -221,6 +223,7 @@ def register_view(request):
         'password': request.POST.get('password', ''),
         'confirm_password': request.POST.get('confirm_password', ''),
         'student_number': request.POST.get('student_number', '').strip(),
+        'department_id': request.POST.get('department_id', '').strip(),
         'program_id': request.POST.get('program_id', '').strip(),
         'year_level': request.POST.get('year_level', '').strip(),
     }
@@ -230,6 +233,7 @@ def register_view(request):
         return render(request, 'auth/register.html', {
             'errors': errors,
             'form_data': form_data,
+            'departments': departments,
             'programs': programs,
         })
 

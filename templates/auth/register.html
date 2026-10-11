@@ -129,22 +129,33 @@
           </div>
         </div>
 
-        <!-- Academic Program -->
+        <!-- Cascading Department Selection -->
+        <div class="form-group">
+          <label class="form-label" for="id_department">College Department</label>
+          <div class="input-wrap">
+            <i class="fas fa-building-columns input-icon"></i>
+            <select id="id_department" name="department_id" class="form-control" required>
+              <option value="" disabled {% if not form_data.department_id %}selected{% endif %}>Select your College Department</option>
+              {% for d in departments %}
+                <option value="{{ d.id }}" {% if form_data.department_id == d.id|stringformat:'s' %}selected{% endif %}>
+                  {{ d.name }} ({{ d.code }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Cascading Program Selection (populated based on chosen department) -->
         <div class="form-group">
           <label class="form-label" for="id_program">College Program</label>
           <div class="input-wrap">
             <i class="fas fa-book-bookmark input-icon"></i>
-            <select id="id_program" name="program_id" class="form-control {% if errors.program_id %}is-invalid{% endif %}" required>
-              <option value="" disabled {% if not form_data.program_id %}selected{% endif %}>Select your academic program</option>
-              {% regroup programs by department as dept_list %}
-              {% for dept in dept_list %}
-                <optgroup label="{{ dept.grouper.name }} ({{ dept.grouper.code }})">
-                  {% for p in dept.list %}
-                    <option value="{{ p.id }}" {% if form_data.program_id == p.id|stringformat:'s' %}selected{% endif %}>
-                      {{ p.name }} ({{ p.code }})
-                    </option>
-                  {% endfor %}
-                </optgroup>
+            <select id="id_program" name="program_id" class="form-control {% if errors.program_id %}is-invalid{% endif %}" required disabled>
+              <option value="" disabled selected id="programDefaultOption">First select your College Department above</option>
+              {% for p in programs %}
+                <option value="{{ p.id }}" data-department="{{ p.department_id }}" {% if form_data.program_id == p.id|stringformat:'s' %}selected{% endif %}>
+                  {{ p.name }} ({{ p.code }})
+                </option>
               {% endfor %}
             </select>
           </div>
@@ -260,6 +271,57 @@
 
   <script>
     (function () {
+      // Cascading Department -> Program Dropdown
+      const deptSelect = document.getElementById('id_department');
+      const progSelect = document.getElementById('id_program');
+      const defaultOption = document.getElementById('programDefaultOption');
+      const allProgOptions = Array.from(progSelect.querySelectorAll('option:not(#programDefaultOption)'));
+
+      function updatePrograms() {
+        const deptId = deptSelect.value;
+        if (!deptId) {
+          progSelect.disabled = true;
+          defaultOption.textContent = 'First select your College Department above';
+          defaultOption.selected = true;
+          allProgOptions.forEach(opt => opt.remove());
+          return;
+        }
+
+        progSelect.disabled = false;
+        defaultOption.textContent = 'Select your academic program';
+
+        const currentSelected = progSelect.value;
+        progSelect.innerHTML = '';
+        progSelect.appendChild(defaultOption);
+
+        let hasSelected = false;
+        allProgOptions.forEach(opt => {
+          if (opt.getAttribute('data-department') === deptId) {
+            progSelect.appendChild(opt);
+            if (opt.value === currentSelected || opt.hasAttribute('selected')) {
+              opt.selected = true;
+              hasSelected = true;
+            }
+          }
+        });
+
+        if (!hasSelected) {
+          defaultOption.selected = true;
+        }
+      }
+
+      deptSelect.addEventListener('change', function () {
+        allProgOptions.forEach(opt => opt.removeAttribute('selected'));
+        progSelect.value = '';
+        updatePrograms();
+      });
+
+      // Initial run if already selected on page load (e.g. after validation error)
+      if (deptSelect.value) {
+        updatePrograms();
+      }
+
+      // Password toggles
       function setupToggle(toggleId, inputId, iconId) {
         const toggle = document.getElementById(toggleId);
         const input = document.getElementById(inputId);
