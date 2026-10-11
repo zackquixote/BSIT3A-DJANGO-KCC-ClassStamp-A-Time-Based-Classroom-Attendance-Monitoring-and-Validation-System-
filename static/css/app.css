@@ -55,7 +55,11 @@
 /* ── Reset ───────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 15px; scroll-behavior: smooth; }
+html {
+  font-size: 15px;
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -522,6 +526,41 @@ ul { list-style: none; }
 .form-control:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+select.form-control {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color-scheme: dark;
+  background-color: #1e293b;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+select.form-control:focus {
+  background-color: #1e293b;
+}
+
+select.form-control option,
+select.form-control optgroup {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  padding: 10px 14px;
+}
+
+select.form-control option:disabled {
+  color: #64748b;
+}
+
+select.form-control option:checked,
+select.form-control option:hover {
+  background-color: #334155;
+  color: #fbbf24;
 }
 
 .form-error {
