@@ -51,6 +51,9 @@ def _set_lock_state(request):
     return int(LOCK_DURATION.total_seconds())
 
 
+from .models import Department, Profile, Program
+
+
 def _validate_registration_data(data):
     errors = {}
 
@@ -96,6 +99,30 @@ def _validate_registration_data(data):
     if password != confirm_password:
         errors['confirm_password'] = 'Passwords do not match.'
 
+    # Student-specific validations
+    student_number = data.get('student_number', '').strip()
+    if not student_number:
+        errors['student_number'] = 'Student ID number is required.'
+    elif Profile.objects.filter(student_number=student_number).exists():
+        errors['student_number'] = 'This Student ID number is already registered.'
+
+    program_id = data.get('program_id')
+    if not program_id:
+        errors['program_id'] = 'Please select your College Program.'
+    elif not Program.objects.filter(pk=program_id, is_active=True).exists():
+        errors['program_id'] = 'Selected program is invalid.'
+
+    year_level = data.get('year_level')
+    if not year_level:
+        errors['year_level'] = 'Please select your Year Level.'
+    else:
+        try:
+            y = int(year_level)
+            if y < 1 or y > 5:
+                errors['year_level'] = 'Invalid year level.'
+        except (ValueError, TypeError):
+            errors['year_level'] = 'Invalid year level.'
+
     return errors
 
 
@@ -112,11 +139,42 @@ def login_view(request):
     if request.method == 'GET':
         return render(request, 'auth/login.html')
 
-    username = request.POST.get('username', '').strip()
+    login_input = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
-    user = authenticate(request, username=username, password=password)
+
+    # Flexible login lookup: by username, email, or student ID number
+    user_obj = None
+    if '@' in login_input:
+        user_obj = User.objects.filter(email__iexact=login_input).first()
+    else:
+        user_obj = User.objects.filter(username__iexact=login_input).first()
+        if not user_obj:
+            student_profile = Profile.objects.filter(student_number__iexact=login_input).select_related('user').first()
+            if student_profile:
+                user_obj = student_profile.user
+
+    user = None
+    if user_obj:
+        user = authenticate(request, username=user_obj.username, password=password)
 
     if user is not None:
+        # Check approval status for students and teachers
+        profile = getattr(user, 'classstamp_profile', None)
+        if profile and profile.role != Profile.ROLE_ADMIN and not user.is_superuser:
+            if profile.approval_status == Profile.APPROVAL_PENDING:
+                messages.warning(
+                    request,
+                    'Your account registration is currently PENDING Admin validation. Please wait for approval before signing in.'
+                )
+                return render(request, 'auth/login.html')
+            elif profile.approval_status == Profile.APPROVAL_REJECTED:
+                reason = f" Reason: {profile.approval_note}" if profile.approval_note else ""
+                messages.error(
+                    request,
+                    f'Your account registration was rejected by the Admin.{reason}'
+                )
+                return render(request, 'auth/login.html')
+
         _reset_lock_state(request)
         login(request, user)
         return redirect('dashboard')
@@ -148,28 +206,56 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
+    programs = Program.objects.filter(is_active=True).select_related('department').order_by('department__name', 'name')
+
     if request.method == 'GET':
-        return render(request, 'auth/register.html')
+        return render(request, 'auth/register.html', {
+            'programs': programs,
+        })
 
     form_data = {
-        'username': request.POST.get('username', ''),
-        'first_name': request.POST.get('first_name', ''),
-        'last_name': request.POST.get('last_name', ''),
-        'email': request.POST.get('email', ''),
+        'username': request.POST.get('username', '').strip(),
+        'first_name': request.POST.get('first_name', '').strip(),
+        'last_name': request.POST.get('last_name', '').strip(),
+        'email': request.POST.get('email', '').strip(),
         'password': request.POST.get('password', ''),
         'confirm_password': request.POST.get('confirm_password', ''),
+        'student_number': request.POST.get('student_number', '').strip(),
+        'program_id': request.POST.get('program_id', '').strip(),
+        'year_level': request.POST.get('year_level', '').strip(),
     }
 
     errors = _validate_registration_data(form_data)
     if errors:
-        return render(request, 'auth/register.html', {'errors': errors, 'form_data': form_data})
+        return render(request, 'auth/register.html', {
+            'errors': errors,
+            'form_data': form_data,
+            'programs': programs,
+        })
 
     user = User.objects.create_user(
-        username=form_data['username'].strip(),
-        first_name=form_data['first_name'].strip(),
-        last_name=form_data['last_name'].strip(),
-        email=form_data['email'].strip(),
+        username=form_data['username'],
+        first_name=form_data['first_name'],
+        last_name=form_data['last_name'],
+        email=form_data['email'],
         password=form_data['password'],
     )
-    login(request, user)
-    return redirect('dashboard')
+
+    program = Program.objects.get(pk=form_data['program_id'])
+    Profile.objects.create(
+        user=user,
+        role=Profile.ROLE_STUDENT,
+        student_number=form_data['student_number'],
+        program=program,
+        department=program.department,
+        year_level=int(form_data['year_level']),
+        approval_status=Profile.APPROVAL_PENDING,
+    )
+
+    messages.success(
+        request,
+        'Registration submitted successfully! Your account is now pending Admin approval. You can sign in once validated.'
+    )
+    return redirect('login')
+
+

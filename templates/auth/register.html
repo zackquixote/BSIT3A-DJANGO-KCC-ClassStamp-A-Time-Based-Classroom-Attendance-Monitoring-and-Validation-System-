@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="KCC ClassStamp — Create your account">
-  <title>Register — KCC ClassStamp</title>
+  <meta name="description" content="KCC ClassStamp — Student Account Registration">
+  <title>Student Registration — KCC ClassStamp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
 </head>
 <body class="auth-body">
 
-  <!-- Animated background orbs -->
+  <!-- Background Orbs -->
   <div class="auth-bg">
     <div class="auth-orb auth-orb--1"></div>
     <div class="auth-orb auth-orb--2"></div>
@@ -33,17 +33,20 @@
         </div>
       </div>
 
-      <h2 class="auth-title">Create your account</h2>
-      <p class="auth-subtitle">Join the KCC ClassStamp portal</p>
+      <div class="flex items-center gap-2 mb-2">
+        <span class="badge badge--success"><i class="fas fa-graduation-cap"></i> Student Portal</span>
+      </div>
+      <h2 class="auth-title">Student Registration</h2>
+      <p class="auth-subtitle">Enter your official student credentials from your KCC ID</p>
 
       {% if errors %}
         <div class="auth-alert auth-alert--error">
           <i class="fas fa-circle-xmark"></i>
-          <span>Please fix the errors below before continuing.</span>
+          <span>Please review the highlighted errors below before continuing.</span>
         </div>
       {% endif %}
 
-      <form method="POST" action="{% url 'register' %}" class="auth-form">
+      <form method="POST" action="{% url 'register' %}" class="auth-form" id="registerForm">
         {% csrf_token %}
 
         <!-- Name row -->
@@ -87,124 +90,192 @@
           </div>
         </div>
 
-        <!-- Username -->
-        <div class="form-group">
-          <label class="form-label" for="id_username">Username</label>
-          <div class="input-wrap">
-            <i class="fas fa-at input-icon"></i>
-            <input
-              type="text"
-              id="id_username"
-              name="username"
-              class="form-control {% if errors.username %}is-invalid{% endif %}"
-              placeholder="Choose a username"
-              value="{{ form_data.username|default:'' }}"
-              autocomplete="username"
-              required
-            >
+        <!-- Student ID & Year Level row -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="id_student_number">Student ID Number</label>
+            <div class="input-wrap">
+              <i class="fas fa-id-card input-icon"></i>
+              <input
+                type="text"
+                id="id_student_number"
+                name="student_number"
+                class="form-control {% if errors.student_number %}is-invalid{% endif %}"
+                placeholder="e.g. 2023-0145"
+                value="{{ form_data.student_number|default:'' }}"
+                required
+              >
+            </div>
+            {% if errors.student_number %}
+              <span class="form-error">{{ errors.student_number }}</span>
+            {% endif %}
           </div>
-          {% if errors.username %}
-            <span class="form-error">{{ errors.username }}</span>
+
+          <div class="form-group">
+            <label class="form-label" for="id_year_level">Year Level</label>
+            <div class="input-wrap">
+              <i class="fas fa-layer-group input-icon"></i>
+              <select id="id_year_level" name="year_level" class="form-control {% if errors.year_level %}is-invalid{% endif %}" required>
+                <option value="" disabled {% if not form_data.year_level %}selected{% endif %}>Select year level</option>
+                <option value="1" {% if form_data.year_level == '1' %}selected{% endif %}>1st Year</option>
+                <option value="2" {% if form_data.year_level == '2' %}selected{% endif %}>2nd Year</option>
+                <option value="3" {% if form_data.year_level == '3' %}selected{% endif %}>3rd Year</option>
+                <option value="4" {% if form_data.year_level == '4' %}selected{% endif %}>4th Year</option>
+              </select>
+            </div>
+            {% if errors.year_level %}
+              <span class="form-error">{{ errors.year_level }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Academic Program -->
+        <div class="form-group">
+          <label class="form-label" for="id_program">College Program</label>
+          <div class="input-wrap">
+            <i class="fas fa-book-bookmark input-icon"></i>
+            <select id="id_program" name="program_id" class="form-control {% if errors.program_id %}is-invalid{% endif %}" required>
+              <option value="" disabled {% if not form_data.program_id %}selected{% endif %}>Select your academic program</option>
+              {% regroup programs by department as dept_list %}
+              {% for dept in dept_list %}
+                <optgroup label="{{ dept.grouper.name }} ({{ dept.grouper.code }})">
+                  {% for p in dept.list %}
+                    <option value="{{ p.id }}" {% if form_data.program_id == p.id|stringformat:'s' %}selected{% endif %}>
+                      {{ p.name }} ({{ p.code }})
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endfor %}
+            </select>
+          </div>
+          {% if errors.program_id %}
+            <span class="form-error">{{ errors.program_id }}</span>
           {% endif %}
         </div>
 
-        <!-- Email -->
-        <div class="form-group">
-          <label class="form-label" for="id_email">Email Address</label>
-          <div class="input-wrap">
-            <i class="fas fa-envelope input-icon"></i>
-            <input
-              type="email"
-              id="id_email"
-              name="email"
-              class="form-control {% if errors.email %}is-invalid{% endif %}"
-              placeholder="your@email.com"
-              value="{{ form_data.email|default:'' }}"
-              autocomplete="email"
-              required
-            >
+        <!-- Email & Username -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="id_email">Email Address</label>
+            <div class="input-wrap">
+              <i class="fas fa-envelope input-icon"></i>
+              <input
+                type="email"
+                id="id_email"
+                name="email"
+                class="form-control {% if errors.email %}is-invalid{% endif %}"
+                placeholder="yourname@kcc.edu.ph"
+                value="{{ form_data.email|default:'' }}"
+                autocomplete="email"
+                required
+              >
+            </div>
+            {% if errors.email %}
+              <span class="form-error">{{ errors.email }}</span>
+            {% endif %}
           </div>
-          {% if errors.email %}
-            <span class="form-error">{{ errors.email }}</span>
-          {% endif %}
+
+          <div class="form-group">
+            <label class="form-label" for="id_username">Username</label>
+            <div class="input-wrap">
+              <i class="fas fa-at input-icon"></i>
+              <input
+                type="text"
+                id="id_username"
+                name="username"
+                class="form-control {% if errors.username %}is-invalid{% endif %}"
+                placeholder="Choose a username"
+                value="{{ form_data.username|default:'' }}"
+                autocomplete="username"
+                required
+              >
+            </div>
+            {% if errors.username %}
+              <span class="form-error">{{ errors.username }}</span>
+            {% endif %}
+          </div>
         </div>
 
-        <!-- Password -->
-        <div class="form-group">
-          <label class="form-label" for="id_password">Password</label>
-          <div class="input-wrap">
-            <i class="fas fa-lock input-icon"></i>
-            <input
-              type="password"
-              id="id_password"
-              name="password"
-              class="form-control {% if errors.password %}is-invalid{% endif %}"
-              placeholder="Min. 8 characters"
-              autocomplete="new-password"
-              required
-            >
-            <button type="button" class="input-toggle" id="togglePassword" tabindex="-1" aria-label="Toggle password">
-              <i class="fas fa-eye" id="eyeIcon"></i>
-            </button>
+        <!-- Passwords -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="id_password">Password</label>
+            <div class="input-wrap">
+              <i class="fas fa-lock input-icon"></i>
+              <input
+                type="password"
+                id="id_password"
+                name="password"
+                class="form-control {% if errors.password %}is-invalid{% endif %}"
+                placeholder="At least 8 characters"
+                autocomplete="new-password"
+                required
+              >
+              <button type="button" class="input-toggle" id="togglePassword" tabindex="-1">
+                <i class="fas fa-eye" id="eyeIcon"></i>
+              </button>
+            </div>
+            {% if errors.password %}
+              <span class="form-error">{{ errors.password }}</span>
+            {% endif %}
           </div>
-          {% if errors.password %}
-            <span class="form-error">{{ errors.password }}</span>
-          {% endif %}
+
+          <div class="form-group">
+            <label class="form-label" for="id_confirm_password">Confirm Password</label>
+            <div class="input-wrap">
+              <i class="fas fa-lock input-icon"></i>
+              <input
+                type="password"
+                id="id_confirm_password"
+                name="confirm_password"
+                class="form-control {% if errors.confirm_password %}is-invalid{% endif %}"
+                placeholder="Repeat password"
+                autocomplete="new-password"
+                required
+              >
+              <button type="button" class="input-toggle" id="toggleConfirm" tabindex="-1">
+                <i class="fas fa-eye" id="eyeIconConfirm"></i>
+              </button>
+            </div>
+            {% if errors.confirm_password %}
+              <span class="form-error">{{ errors.confirm_password }}</span>
+            {% endif %}
+          </div>
         </div>
 
-        <!-- Confirm Password -->
-        <div class="form-group">
-          <label class="form-label" for="id_confirm_password">Confirm Password</label>
-          <div class="input-wrap">
-            <i class="fas fa-lock input-icon"></i>
-            <input
-              type="password"
-              id="id_confirm_password"
-              name="confirm_password"
-              class="form-control {% if errors.confirm_password %}is-invalid{% endif %}"
-              placeholder="Repeat your password"
-              autocomplete="new-password"
-              required
-            >
-            <button type="button" class="input-toggle" id="toggleConfirm" tabindex="-1" aria-label="Toggle confirm password">
-              <i class="fas fa-eye" id="eyeIconConfirm"></i>
-            </button>
-          </div>
-          {% if errors.confirm_password %}
-            <span class="form-error">{{ errors.confirm_password }}</span>
-          {% endif %}
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-full" id="register-btn">
+        <button type="submit" class="btn btn-primary btn-full mt-2" id="register-btn">
           <i class="fas fa-user-plus"></i>
-          Create Account
+          Submit Student Registration for Approval
         </button>
 
       </form>
 
       <div class="auth-footer">
         Already have an account?
-        <a href="{% url 'login' %}">Sign in</a>
+        <a href="{% url 'login' %}">Sign in here</a>
       </div>
 
     </div>
   </div>
 
-  <script src="{% static 'js/app.js' %}"></script>
   <script>
-    function togglePass(inputId, iconId) {
-      const input = document.getElementById(inputId);
-      const icon = document.getElementById(iconId);
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
-      } else {
-        input.type = 'password';
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    (function () {
+      function setupToggle(toggleId, inputId, iconId) {
+        const toggle = document.getElementById(toggleId);
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (toggle && input && icon) {
+          toggle.addEventListener('click', function () {
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+          });
+        }
       }
-    }
-    document.getElementById('togglePassword').addEventListener('click', () => togglePass('id_password', 'eyeIcon'));
-    document.getElementById('toggleConfirm').addEventListener('click', () => togglePass('id_confirm_password', 'eyeIconConfirm'));
+
+      setupToggle('togglePassword', 'id_password', 'eyeIcon');
+      setupToggle('toggleConfirm', 'id_confirm_password', 'eyeIconConfirm');
+    })();
   </script>
 </body>
 </html>

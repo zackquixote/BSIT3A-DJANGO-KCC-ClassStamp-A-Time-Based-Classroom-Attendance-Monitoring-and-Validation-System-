@@ -38,8 +38,8 @@
 
       {% if messages %}
         {% for message in messages %}
-          <div class="auth-alert auth-alert--error" id="error-message">
-            <i class="fas fa-circle-xmark"></i>
+          <div class="auth-alert {% if 'error' in message.tags %}auth-alert--error{% elif 'warning' in message.tags %}auth-alert--warning{% elif 'success' in message.tags %}auth-alert--success{% else %}auth-alert--info{% endif %}" id="status-message">
+            <i class="fas {% if 'error' in message.tags %}fa-circle-xmark{% elif 'warning' in message.tags %}fa-triangle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
             <span>{{ message }}</span>
           </div>
         {% endfor %}
@@ -49,7 +49,7 @@
         {% csrf_token %}
 
         <div class="form-group">
-          <label class="form-label" for="id_username">Username</label>
+          <label class="form-label" for="id_username">Username, Student ID, or Email</label>
           <div class="input-wrap">
             <i class="fas fa-user input-icon"></i>
             <input
@@ -57,7 +57,7 @@
               id="id_username"
               name="username"
               class="form-control"
-              placeholder="Enter your username"
+              placeholder="Username, Student ID, or Email"
               autocomplete="username"
               {% if locked %}disabled{% endif %}
               required
