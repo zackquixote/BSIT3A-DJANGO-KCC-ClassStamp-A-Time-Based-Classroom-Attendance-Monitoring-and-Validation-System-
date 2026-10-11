@@ -623,7 +623,9 @@ select.form-control option:hover {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.94)),
               url('/static/img/background.jpg') center center / cover no-repeat fixed;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 40px 16px;
 }
 
 .auth-bg {
@@ -631,6 +633,7 @@ select.form-control option:hover {
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  overflow: hidden;
 }
 
 .auth-orb {
@@ -677,10 +680,10 @@ select.form-control option:hover {
   z-index: 1;
   width: 100%;
   max-width: 420px;
-  padding: 20px;
+  margin: auto;
 }
 
-.auth-wrapper--wide { max-width: 520px; }
+.auth-wrapper--wide { max-width: 540px; }
 
 .auth-card {
   background: rgba(30, 41, 59, 0.65);
