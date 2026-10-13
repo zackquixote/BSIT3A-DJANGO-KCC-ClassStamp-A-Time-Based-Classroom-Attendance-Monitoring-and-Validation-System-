@@ -19,7 +19,7 @@
       <span class="stat-label">Pending Approvals</span>
     </div>
   </a>
-  <a href="{% url 'users:user_list' %}" class="stat-card">
+  <a href="{% url 'student_directory' %}" class="stat-card">
     <div class="stat-icon stat-icon--green">
       <i class="fas fa-user-graduate"></i>
     </div>
@@ -53,6 +53,9 @@
   <div class="flex items-center gap-3" style="flex-wrap: wrap;">
     <a href="{% url 'validation_queue' %}" class="btn btn-success">
       <i class="fas fa-user-check"></i> Account Validation
+    </a>
+    <a href="{% url 'student_directory' %}" class="btn btn-outline">
+      <i class="fas fa-user-graduate"></i> Student Directory
     </a>
     <a href="{% url 'users:user_list' %}" class="btn btn-outline">
       <i class="fas fa-users-gear"></i> User Management

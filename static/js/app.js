@@ -90,4 +90,20 @@
     });
   });
 
+  /* ── Back-Forward Cache (bfcache) Invalidation ───────────────── */
+  // If user navigated back/forward into a cached protected page after logout,
+  // force a reload so the server can evaluate session authentication and redirect.
+  window.addEventListener('pageshow', function (event) {
+    var navEntries = (window.performance && performance.getEntriesByType)
+      ? performance.getEntriesByType('navigation')
+      : [];
+    var isBackForward = event.persisted ||
+      (navEntries.length > 0 && navEntries[0].type === 'back_forward') ||
+      (window.performance && window.performance.navigation && window.performance.navigation.type === 2);
+
+    if (isBackForward) {
+      window.location.reload();
+    }
+  });
+
 })();

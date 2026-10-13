@@ -22,6 +22,12 @@ urlpatterns = [
     path('validation/approve/<str:student_number>/', views.approve_student, name='approve_student'),
     path('validation/reject/<str:student_number>/', views.reject_student, name='reject_student'),
 
+    # // Admin: Student Directory & Masterlist
+    path('students/', views.student_directory, name='student_directory'),
+    path('students/export-csv/', views.student_directory_export_csv, name='student_directory_export_csv'),
+    path('students/import/', views.student_directory_import_csv, name='student_directory_import_csv'),
+    path('students/import/sample-template/', views.student_import_sample_csv, name='student_import_sample_csv'),
+
     # // Admin: Academic Organisation (Departments & Programs)
     path('departments/', views.department_list, name='department_list'),
     path('departments/save/', views.department_save, name='department_save'),

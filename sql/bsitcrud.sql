@@ -937,7 +937,7 @@ CREATE TABLE `tblinfo` (
   `name` varchar(255) NOT NULL,
   `age` int(10) UNSIGNED NOT NULL CHECK (`age` >= 0),
   `address` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,x
   `created_at` datetime(6) NOT NULL,
   `updated_at` datetime(6) NOT NULL,
   `user_id` int(11) DEFAULT NULL

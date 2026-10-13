@@ -1,22 +1,21 @@
 """
 # // ==============================================================================
-# // ROLE-BASED ACCESS CONTROL (RBAC) DECORATORS & GUARDS
+# // KCC CLASSSTAMP - ROLE-BASED ACCESS CONTROL (RBAC) DECORATORS & GUARDS
 # // ==============================================================================
-# // Purpose: Implements centralized view-layer guards to enforce role segregation
+# // Subsystem: View Authorization Layer
+# // Description: Implements centralized view-layer guards to enforce role segregation
 # // (ADMIN, TEACHER, STUDENT) and verify account approval state before route execution.
 # // Adheres strictly to security specifications in docs/02_SECURITY.md.
 # // ==============================================================================
 """
+
 from functools import wraps
 
 from django.shortcuts import redirect
 
-from .models import Profile
+from apps.core.models import Profile
 
 
-# // ==============================================================================
-# // HELPER: Retrieve ClassStamp profile associated with user
-# // ==============================================================================
 def _get_profile(user):
     """
     // Retrieves the linked Profile instance via OneToOne reverse relation.
@@ -25,9 +24,6 @@ def _get_profile(user):
     return getattr(user, 'classstamp_profile', None)
 
 
-# // ==============================================================================
-# // DECORATOR: role_required(*roles)
-# // ==============================================================================
 def role_required(*roles):
     """
     // Restricts view execution to one or more authorized Profile roles.
@@ -41,19 +37,18 @@ def role_required(*roles):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            # // [RBAC Guard] Check authentication status
             if not request.user.is_authenticated:
                 return redirect('login')
 
             profile = _get_profile(request.user)
             user_role = profile.role if profile else None
 
-            # // [Superuser Privilege Escalation Check] Superusers inherit admin rights
+            # Superusers inherit admin rights
             if request.user.is_superuser:
                 if Profile.ROLE_ADMIN in roles or not roles:
                     return view_func(request, *args, **kwargs)
 
-            # // [Role Enforcement] Block access if profile missing or role mismatched
+            # Block access if profile missing or role mismatched
             if user_role is None or user_role not in roles:
                 return redirect('dashboard')
 
@@ -62,9 +57,6 @@ def role_required(*roles):
     return decorator
 
 
-# // ==============================================================================
-# // DECORATOR: approved_required
-# // ==============================================================================
 def approved_required(view_func):
     """
     // Ensures that accounts undergoing registration review are validated before access.
@@ -76,11 +68,9 @@ def approved_required(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        # // [RBAC Guard] Check authentication status
         if not request.user.is_authenticated:
             return redirect('login')
 
-        # // [Superuser / Admin Bypass] Full administrative authority
         if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
 
@@ -88,7 +78,7 @@ def approved_required(view_func):
         if profile and profile.role == Profile.ROLE_ADMIN:
             return view_func(request, *args, **kwargs)
 
-        # // [Student Approval Validation] Gate unapproved or rejected student accounts
+        # Gate unapproved or rejected student accounts
         if (
             profile is not None
             and profile.role == Profile.ROLE_STUDENT
