@@ -25,6 +25,10 @@
         <span>Account Validation</span>
         {% if pending_approval_count %}<span class="sidebar-badge">{{ pending_approval_count }}</span>{% endif %}
       </a>
+      <a href="{% url 'student_directory' %}" class="sidebar-link {% if current_view == 'student_directory' %}active{% endif %}">
+        <i class="fas fa-user-graduate sidebar-link-icon"></i>
+        <span>Student Directory</span>
+      </a>
       <a href="{% url 'users:user_list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'users' %}active{% endif %}">
         <i class="fas fa-users-gear sidebar-link-icon"></i>
         <span>User Management</span>

@@ -55,6 +55,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.core.middleware.DisableBrowserCacheMiddleware',
+    'apps.core.middleware.SessionInactivityTimeoutMiddleware',
+    'apps.core.middleware.SecurityHeadersMiddleware',
 ]
 
 ROOT_URLCONF = 'mysite.urls'
@@ -143,3 +146,6 @@ LOGIN_REDIRECT_URL = '/home/'
 LOGOUT_REDIRECT_URL = '/'
 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@classstamp.local')
+
+# Campus Kiosk Security: Inactivity timeout in seconds (30 minutes)
+SESSION_INACTIVITY_TIMEOUT = 1800

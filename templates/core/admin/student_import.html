@@ -1,0 +1,373 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}Bulk Student CSV Import — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<style>
+  .import-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  @media (max-width: 900px) {
+    .import-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .dropzone-box {
+    border: 2px dashed rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-lg, 12px);
+    background: rgba(15, 23, 42, 0.4);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition, all 0.2s ease);
+    position: relative;
+  }
+
+  .dropzone-box:hover, .dropzone-box.dragover {
+    border-color: var(--accent-gold, #f59e0b);
+    background: rgba(245, 158, 11, 0.08);
+  }
+
+  .dropzone-icon {
+    font-size: 2.8rem;
+    color: var(--accent-gold, #f59e0b);
+    margin-bottom: 12px;
+  }
+
+  .file-input-hidden {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .selected-filename {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #38bdf8;
+    font-weight: 600;
+  }
+
+  .field-table {
+    width: 100%;
+    font-size: 0.82rem;
+    border-collapse: collapse;
+  }
+
+  .field-table th, .field-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    text-align: left;
+  }
+
+  .field-table th {
+    color: var(--text-secondary, #94a3b8);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+  }
+
+  .req-tag {
+    color: #ef4444;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+  }
+
+  .opt-tag {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+  }
+
+  .code-pill {
+    font-family: monospace;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #f59e0b;
+    font-size: 0.8rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumbs -->
+<div class="breadcrumb-nav">
+  <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge-high"></i> Dashboard</a>
+  <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+  <a href="{% url 'student_directory' %}"><i class="fas fa-user-graduate"></i> Student Directory</a>
+  <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+  <span class="text-primary font-semibold">Bulk CSV Ingestion</span>
+</div>
+
+<!-- Page Header -->
+<div class="page-header" style="flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h1 class="page-title">Bulk Student Roster Ingestion</h1>
+    <p class="page-subtitle">Batch-register entire sections (e.g. 40 students per section) from a single CSV spreadsheet</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <a href="{% url 'student_import_sample_csv' %}" class="btn btn-outline btn-sm">
+      <i class="fas fa-download"></i> Download Template CSV
+    </a>
+    <a href="{% url 'student_directory' %}" class="btn btn-outline btn-sm">
+      <i class="fas fa-arrow-left"></i> Back to Directory
+    </a>
+  </div>
+</div>
+
+<!-- Import Summary Alert (if processed) -->
+{% if summary %}
+<div class="card mb-6" style="border-color: {% if summary.created_count %}rgba(34, 197, 94, 0.4){% else %}rgba(245, 158, 11, 0.4){% endif %}; background: rgba(15, 23, 42, 0.7);">
+  <div class="flex items-center justify-between pb-3 mb-3" style="border-bottom: 1px solid var(--glass-border);">
+    <div class="flex items-center gap-3">
+      <i class="fas {% if summary.created_count %}fa-circle-check text-green-400{% else %}fa-triangle-exclamation text-gold{% endif %}" style="font-size: 1.5rem; color: {% if summary.created_count %}#22c55e{% else %}#f59e0b{% endif %};"></i>
+      <div>
+        <h3 class="font-bold text-primary" style="margin: 0; font-size: 1.1rem;">
+          Import Execution Summary
+        </h3>
+        <span class="text-secondary text-xs">
+          Successfully provisioned <strong style="color: #22c55e;">{{ summary.created_count }}</strong> student(s) &middot; Skipped <strong style="color: #ef4444;">{{ summary.skipped_count }}</strong> row(s)
+        </span>
+      </div>
+    </div>
+    <a href="{% url 'student_directory' %}" class="btn btn-primary btn-sm">
+      <i class="fas fa-table-list"></i> View in Student Directory
+    </a>
+  </div>
+
+  {% if summary.errors %}
+  <div class="mt-3">
+    <div class="font-semibold text-danger text-xs uppercase mb-2">Warnings & Skipped Rows:</div>
+    <div style="max-height: 160px; overflow-y: auto; background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; font-family: monospace; color: #fca5a5;">
+      {% for err in summary.errors %}
+        <div>&bull; {{ err }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="import-grid">
+
+  <!-- Left: Upload Box -->
+  <div class="card" style="padding: 28px;">
+    <h2 class="font-bold text-primary mb-2" style="font-size: 1.15rem;">
+      <i class="fas fa-file-arrow-up text-gold"></i> Step 1: Upload Roster CSV
+    </h2>
+    <p class="text-secondary text-xs mb-4">
+      Select your registrar or section roster file. All accounts are validated in a single atomic transaction.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data" id="importForm">
+      {% csrf_token %}
+
+      <!-- Dropzone -->
+      <div class="dropzone-box mb-4" id="dropzoneBox">
+        <input type="file" name="csv_file" id="csvFileInput" class="file-input-hidden" accept=".csv" required>
+        <div class="dropzone-icon">
+          <i class="fas fa-cloud-arrow-up"></i>
+        </div>
+        <div class="font-semibold text-primary" style="font-size: 0.95rem;">
+          Drag & drop your student CSV file here
+        </div>
+        <div class="text-secondary text-xs mt-1">
+          or click to browse your computer (.csv format only)
+        </div>
+        <div class="selected-filename" id="selectedFilename" style="display: none;"></div>
+      </div>
+
+      <!-- Ingestion Options -->
+      <div class="form-group mb-3">
+        <label class="form-label" for="id_target_class">
+          <i class="fas fa-chalkboard-user"></i> Target Class Section (Optional)
+        </label>
+        <div class="input-wrap">
+          <i class="fas fa-users-rectangle input-icon"></i>
+          <select name="target_class_id" id="id_target_class" class="form-control">
+            <option value="">— Automatically use section from CSV column —</option>
+            {% for c in classes %}
+              <option value="{{ c.id }}">{{ c.class_code }} ({{ c.subject.code }} — {{ c.subject.name }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <span class="text-muted text-xs block mt-1">
+          If selected, all imported students will be immediately enrolled into this class section.
+        </span>
+      </div>
+
+      <div class="form-group mb-3">
+        <label class="form-label" for="id_default_password">
+          <i class="fas fa-key"></i> Default Password for Imported Students
+        </label>
+        <div class="input-wrap">
+          <i class="fas fa-lock input-icon"></i>
+          <input
+            type="text"
+            id="id_default_password"
+            name="default_password"
+            class="form-control"
+            value="KccStudent2026!"
+            required
+          >
+        </div>
+        <span class="text-muted text-xs block mt-1">
+          Used if the CSV does not contain a custom password column. Students can change this upon sign-in.
+        </span>
+      </div>
+
+      <div class="form-group mb-4">
+        <label class="flex items-center gap-2" style="cursor: pointer;">
+          <input type="checkbox" name="auto_approve" checked style="width: 16px; height: 16px; accent-color: var(--accent-gold);">
+          <span class="text-sm font-semibold text-primary">
+            Auto-Approve Students & Generate QR Secrets Immediately
+          </span>
+        </label>
+        <span class="text-muted text-xs block mt-1" style="margin-left: 24px;">
+          Bypasses the validation queue so imported students can immediately generate their dynamic attendance QRs.
+        </span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
+        <i class="fas fa-bolt"></i> Upload & Provision Section Roster
+      </button>
+    </form>
+  </div>
+
+  <!-- Right: CSV Specification Guide -->
+  <div class="card" style="padding: 24px;">
+    <div class="flex items-center justify-between pb-3 mb-3" style="border-bottom: 1px solid var(--glass-border);">
+      <h3 class="font-bold text-primary" style="margin: 0; font-size: 1.05rem;">
+        <i class="fas fa-circle-info text-primary"></i> CSV Columns Guide
+      </h3>
+      <a href="{% url 'student_import_sample_csv' %}" class="btn btn-ghost btn-sm">
+        <i class="fas fa-download"></i> Sample CSV
+      </a>
+    </div>
+
+    <p class="text-secondary text-xs mb-3">
+      Your CSV header row must include the following column names (order does not matter):
+    </p>
+
+    <div class="table-responsive">
+      <table class="field-table">
+        <thead>
+          <tr>
+            <th>Column Header</th>
+            <th>Type</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code-pill">student_number</span></td>
+            <td><span class="req-tag">Required</span></td>
+            <td><code>2024-0001</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">first_name</span></td>
+            <td><span class="req-tag">Required</span></td>
+            <td><code>Juan</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">last_name</span></td>
+            <td><span class="req-tag">Required</span></td>
+            <td><code>Dela Cruz</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">email</span></td>
+            <td><span class="req-tag">Required</span></td>
+            <td><code>juan@kcc.edu.ph</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">program</span></td>
+            <td><span class="req-tag">Required</span></td>
+            <td><code>BSIT</code>, <code>BSA</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">year_level</span></td>
+            <td><span class="req-tag">Required</span></td>
+            <td><code>1</code>, <code>2</code>, <code>3</code>, <code>4</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">section</span></td>
+            <td><span class="opt-tag">Optional</span></td>
+            <td><code>BSIT-3A</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">username</span></td>
+            <td><span class="opt-tag">Optional</span></td>
+            <td><code>jdelacruz</code></td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">password</span></td>
+            <td><span class="opt-tag">Optional</span></td>
+            <td><code>CustomPass123</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4" style="background: rgba(245, 158, 11, 0.08); border-radius: 8px; padding: 12px 14px; border: 1px solid rgba(245, 158, 11, 0.2);">
+      <div class="font-bold text-gold text-xs uppercase mb-1">
+        <i class="fas fa-lightbulb"></i> Scaling Tip for 40-Student Sections
+      </div>
+      <div class="text-secondary text-xs" style="line-height: 1.5;">
+        Export your official section roster from Excel as a <strong>CSV (Comma Delimited)</strong>. Importing 40 students takes under <strong>2 seconds</strong> and automatically provisions their dynamic QR secrets.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    const fileInput = document.getElementById('csvFileInput');
+    const filenameDisplay = document.getElementById('selectedFilename');
+    const dropzone = document.getElementById('dropzoneBox');
+    const importForm = document.getElementById('importForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+          filenameDisplay.style.display = 'block';
+          filenameDisplay.innerHTML = `<i class="fas fa-file-csv"></i> Selected: <strong>${this.files[0].name}</strong> (${(this.files[0].size / 1024).toFixed(1)} KB)`;
+        }
+      });
+    }
+
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, e => {
+          e.preventDefault();
+          dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, e => {
+          e.preventDefault();
+          dropzone.classList.remove('dragover');
+        });
+      });
+    }
+
+    if (importForm) {
+      importForm.addEventListener('submit', function () {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingesting Roster... Please wait';
+      });
+    }
+  })();
+</script>
+{% endblock %}

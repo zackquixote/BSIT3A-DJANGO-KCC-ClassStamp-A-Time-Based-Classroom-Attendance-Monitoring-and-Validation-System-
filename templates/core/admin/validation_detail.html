@@ -143,53 +143,6 @@
 </div>
 {% endif %}
 
-<!-- KCC Digital Student ID Badge Mockup Preview -->
-<div class="kcc-id-badge-wrap">
-  <div class="kcc-id-card">
-    <div class="kcc-id-header">
-      <div class="kcc-id-brand">
-        <img src="{% static 'img/logo.jpg' %}" alt="KCC" class="kcc-id-logo" style="width:40px;height:40px;min-width:40px;max-width:40px;object-fit:cover;border-radius:50%;flex-shrink:0;" onerror="this.style.display='none'">
-        <div>
-          <div class="kcc-id-title">{{ student_profile.program.department.name|upper }}</div>
-          <div class="kcc-id-sub">{{ student_profile.program.department.code }} &middot; Student ID Badge</div>
-        </div>
-      </div>
-      <div>
-        {% if student_profile.approval_status == 'APPROVED' %}
-          <span class="badge badge--success" style="font-size: 0.68rem;"><i class="fas fa-circle-check"></i> Validated</span>
-        {% elif student_profile.approval_status == 'PENDING' %}
-          <span class="badge badge--warning" style="font-size: 0.68rem;"><i class="fas fa-clock"></i> Pending</span>
-        {% else %}
-          <span class="badge badge--danger" style="font-size: 0.68rem;"><i class="fas fa-circle-xmark"></i> Rejected</span>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="kcc-id-body">
-      <div class="kcc-id-photo-box">
-        {% if student_profile.registration_proof and ".pdf" not in student_profile.registration_proof.url|lower %}
-          <img src="{{ student_profile.registration_proof.url }}" alt="Student Photo" class="kcc-id-photo-img">
-        {% else %}
-          <span>{{ student_profile.user.first_name|first|upper }}{{ student_profile.user.last_name|first|upper }}</span>
-        {% endif %}
-      </div>
-      <div class="kcc-id-details">
-        <div class="kcc-id-name">{{ student_profile.user.get_full_name }}</div>
-        <div class="kcc-id-number"><i class="fas fa-id-badge"></i> {{ student_profile.student_number }}</div>
-        <div class="kcc-id-meta">
-          <div><strong>Program:</strong> {{ student_profile.program.code }} — {{ student_profile.program.name }}</div>
-          <div><strong>Department:</strong> {{ student_profile.program.department.code }} · Year {{ student_profile.year_level }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="kcc-id-footer">
-      <span>ClassStamp Dynamic TOTP Enabled</span>
-      <span>KCC Registrar Copy</span>
-    </div>
-  </div>
-</div>
-
 <!-- Full Registration Form Card -->
 <div class="card" style="max-width: 860px; margin: 0 auto; padding: 28px 32px;">
 

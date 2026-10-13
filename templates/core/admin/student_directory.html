@@ -1,0 +1,714 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}Student Directory & Masterlist — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Screen Viewport Lock (Page Perfectly Fits Viewport — No Window Scrollbar) ── */
+  html, body {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  .app-layout {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  .main-content {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 16px 24px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  /* Hide default footer on viewport-fit screen */
+  .main-footer {
+    display: none !important;
+  }
+
+  /* ── Compact Header & KPI Strip ──────────────────────────────── */
+  .dir-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .dir-title-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .dir-page-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary, #f8fafc);
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .dir-kpi-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .dir-kpi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    color: var(--text-secondary, #94a3b8);
+  }
+
+  .dir-kpi-chip--total {
+    color: #60a5fa;
+    border-color: rgba(96, 165, 250, 0.3);
+    background: rgba(96, 165, 250, 0.1);
+  }
+
+  .dir-kpi-chip--approved {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.3);
+    background: rgba(74, 222, 128, 0.1);
+  }
+
+  .dir-kpi-chip--pending {
+    color: var(--accent-gold, #f59e0b);
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.12);
+  }
+
+  .dir-kpi-chip--filtered {
+    color: #c084fc;
+    border-color: rgba(192, 132, 252, 0.3);
+    background: rgba(192, 132, 252, 0.1);
+  }
+
+  /* ── Compact Streamlined Filter Toolbar ───────────────────────── */
+  .dir-filter-bar {
+    background: var(--card-bg, rgba(30, 41, 59, 0.7));
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 10px);
+    padding: 8px 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+  }
+
+  .dir-filter-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .dir-filter-form .form-control {
+    height: 32px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  }
+
+  .dir-filter-form .search-wrap {
+    flex: 1.6;
+    min-width: 180px;
+    position: relative;
+  }
+
+  .dir-filter-form .search-wrap i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted, #64748b);
+    font-size: 0.75rem;
+    pointer-events: none;
+  }
+
+  .dir-filter-form .search-wrap input {
+    padding-left: 28px;
+    width: 100%;
+  }
+
+  .dir-filter-form select {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .dir-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .dir-filter-actions .btn {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* ── Student Masterlist Viewport Table Card ───────────────────── */
+  .student-table-card {
+    background: var(--card-bg, rgba(30, 41, 59, 0.7));
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .student-table-card .table-responsive {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    min-height: 0;
+  }
+
+  /* Custom Clean Scrollbar for internal table scroll */
+  .student-table-card .table-responsive::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .student-table-card .table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+
+  .student-table-card .table {
+    margin-bottom: 0;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .student-table-card .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #172033;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary, #94a3b8);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  }
+
+  .student-table-card .table tbody td {
+    padding: 10px 14px;
+    vertical-align: middle;
+    font-size: 0.84rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .student-table-card .table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .student-cell-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .student-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-gold, #f59e0b), #d97706);
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .student-name {
+    font-weight: 600;
+    color: var(--text-primary, #f8fafc);
+    line-height: 1.2;
+    font-size: 0.85rem;
+  }
+
+  .student-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted, #64748b);
+  }
+
+  .student-id-tag {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: var(--accent-gold, #f59e0b);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    display: inline-block;
+  }
+
+  .section-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: rgba(147, 51, 234, 0.15);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    color: #c084fc;
+    margin: 1px;
+  }
+
+  .unassigned-tag {
+    font-size: 0.72rem;
+    color: var(--text-muted, #64748b);
+    font-style: italic;
+  }
+
+  /* ── Pinned Card Footer (Pagination) ─────────────────────────── */
+  .student-table-card .card-footer {
+    padding: 8px 16px;
+    background: rgba(15, 23, 42, 0.6);
+    border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  /* ── Print Styles ────────────────────────────────────────────── */
+  @media print {
+    html, body, .app-layout, .main-content {
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    .sidebar,
+    .dir-filter-bar,
+    .dir-header .btn,
+    .card-footer,
+    .action-col,
+    .toast-container {
+      display: none !important;
+    }
+
+    .main-content {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+
+    .student-table-card {
+      border: 1px solid #ccc !important;
+      box-shadow: none !important;
+      background: #fff !important;
+    }
+
+    .table {
+      color: #000 !important;
+      width: 100% !important;
+    }
+
+    .table th, .table td {
+      border-color: #ddd !important;
+      color: #000 !important;
+      padding: 6px 4px !important;
+    }
+
+    .print-only-header {
+      display: block !important;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+  }
+
+  .print-only-header {
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Print Header (Official KCC Institutional Banner) -->
+<div class="print-only-header">
+  <h2 style="margin: 0; font-size: 1.3rem;">KORONADAL COMMISSION ON COLLEGIATE EDUCATION (KCC)</h2>
+  <h3 style="margin: 3px 0; font-size: 1rem;">ClassStamp — Official Student Masterlist</h3>
+  <p style="margin: 0; font-size: 0.8rem; color: #555;">Generated on {% now "F j, Y · g:i A" %}</p>
+</div>
+
+<!-- Compact Top Header & Controls -->
+<div class="dir-header">
+  <div class="dir-title-group">
+    <div>
+      <h1 class="dir-page-title">Student Directory</h1>
+    </div>
+
+    <!-- Live Metric Chips -->
+    <div class="dir-kpi-strip">
+      <span class="dir-kpi-chip dir-kpi-chip--total" title="Total Registered Students">
+        <i class="fas fa-users"></i> {{ total_students }} Total
+      </span>
+      <span class="dir-kpi-chip dir-kpi-chip--approved" title="Approved Accounts">
+        <i class="fas fa-circle-check"></i> {{ approved_count }} Approved
+      </span>
+      {% if pending_count %}
+      <a href="{% url 'validation_queue' %}" class="dir-kpi-chip dir-kpi-chip--pending" title="Pending Validation Queue">
+        <i class="fas fa-user-clock"></i> {{ pending_count }} Pending
+      </a>
+      {% endif %}
+      <span class="dir-kpi-chip dir-kpi-chip--filtered" title="Matching Current Search/Filters">
+        <i class="fas fa-filter"></i> {{ filtered_count }} Matched
+      </span>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex items-center gap-2">
+    <a href="{% url 'student_directory_import_csv' %}" class="btn btn-primary btn-sm" title="Upload CSV Roster for a Section or Cohort">
+      <i class="fas fa-file-arrow-up"></i> Bulk Import
+    </a>
+    <a href="{% url 'student_directory_export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline btn-sm" title="Export Filtered List to CSV">
+      <i class="fas fa-file-csv"></i> Export
+    </a>
+    <button type="button" class="btn btn-outline btn-sm" onclick="window.print()" title="Print Student Masterlist">
+      <i class="fas fa-print"></i> Print
+    </button>
+  </div>
+</div>
+
+<!-- Streamlined Single-Row Filter Toolbar -->
+<div class="dir-filter-bar">
+  <form method="GET" action="{% url 'student_directory' %}" id="filterForm" class="dir-filter-form">
+    <!-- Keyword Search -->
+    <div class="search-wrap">
+      <i class="fas fa-search"></i>
+      <input
+        type="text"
+        id="filter_q"
+        name="q"
+        class="form-control"
+        placeholder="Search Student ID, Name, Username..."
+        value="{{ query }}"
+      >
+    </div>
+
+    <!-- Department Selector -->
+    <select name="department" id="filter_dept" class="form-control" title="Filter by Department">
+      <option value="">All Depts</option>
+      {% for d in departments %}
+        <option value="{{ d.id }}" {% if selected_dept == d.id|stringformat:'s' %}selected{% endif %}>
+          {{ d.code }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <!-- Program Selector (Cascaded) -->
+    <select name="program" id="filter_prog" class="form-control" title="Filter by Program">
+      <option value="" id="progDefaultOpt">All Programs</option>
+      {% for p in programs %}
+        <option value="{{ p.id }}" data-department="{{ p.department_id }}" {% if selected_prog == p.id|stringformat:'s' %}selected{% endif %}>
+          {{ p.code }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <!-- Year Level -->
+    <select name="year_level" id="filter_year" class="form-control" style="max-width: 95px;" title="Standing Year">
+      <option value="">All Years</option>
+      <option value="1" {% if selected_year == '1' %}selected{% endif %}>1st Yr</option>
+      <option value="2" {% if selected_year == '2' %}selected{% endif %}>2nd Yr</option>
+      <option value="3" {% if selected_year == '3' %}selected{% endif %}>3rd Yr</option>
+      <option value="4" {% if selected_year == '4' %}selected{% endif %}>4th Yr</option>
+    </select>
+
+    <!-- Class Section Input -->
+    <input
+      type="text"
+      id="filter_section"
+      name="section"
+      class="form-control"
+      placeholder="Section..."
+      value="{{ selected_section }}"
+      list="sectionDatalist"
+      style="max-width: 105px;"
+      title="Class Section"
+    >
+    <datalist id="sectionDatalist">
+      {% for sec in sections %}
+        <option value="{{ sec }}">
+      {% endfor %}
+    </datalist>
+
+    <!-- Approval Status -->
+    <select name="status" id="filter_status" class="form-control" style="max-width: 110px;" title="Approval Status">
+      <option value="">All Status</option>
+      <option value="APPROVED" {% if selected_status == 'APPROVED' %}selected{% endif %}>Approved</option>
+      <option value="PENDING" {% if selected_status == 'PENDING' %}selected{% endif %}>Pending</option>
+      <option value="REJECTED" {% if selected_status == 'REJECTED' %}selected{% endif %}>Rejected</option>
+    </select>
+
+    <!-- Page Size -->
+    <select name="per_page" id="filter_per_page" class="form-control" style="max-width: 95px;" onchange="this.form.submit()" title="Records Per Page">
+      <option value="15" {% if per_page == 15 %}selected{% endif %}>15 / pg</option>
+      <option value="25" {% if per_page == 25 %}selected{% endif %}>25 / pg</option>
+      <option value="40" {% if per_page == 40 %}selected{% endif %}>40 / pg</option>
+      <option value="50" {% if per_page == 50 %}selected{% endif %}>50 / pg</option>
+      <option value="100" {% if per_page == 100 %}selected{% endif %}>100 / pg</option>
+    </select>
+
+    <!-- Actions -->
+    <div class="dir-filter-actions">
+      <button type="submit" class="btn btn-primary" title="Apply Filters">
+        <i class="fas fa-filter"></i> Apply
+      </button>
+      <a href="{% url 'student_directory' %}" class="btn btn-outline" title="Reset all filters">
+        <i class="fas fa-rotate-left"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Student Masterlist Viewport Table Card -->
+<div class="student-table-card">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Student Information</th>
+          <th>Student ID</th>
+          <th>Department</th>
+          <th>Course / Program</th>
+          <th>Year</th>
+          <th>Enrolled Section(s)</th>
+          <th>Status</th>
+          <th class="text-right action-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        <tr>
+          <!-- Name & Avatar -->
+          <td>
+            <div class="student-cell-profile">
+              <div class="student-avatar">
+                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+              </div>
+              <div>
+                <div class="student-name">
+                  <a href="{% url 'validation_detail' student.student_number %}" style="color: inherit; text-decoration: none;">
+                    {{ student.user.get_full_name|default:student.user.username }}
+                  </a>
+                </div>
+                <div class="student-sub">
+                  @{{ student.user.username }} · {{ student.user.email }}
+                </div>
+              </div>
+            </div>
+          </td>
+
+          <!-- Student Number -->
+          <td>
+            <span class="student-id-tag">{{ student.student_number|default:"—" }}</span>
+          </td>
+
+          <!-- Department -->
+          <td>
+            {% if student.program and student.program.department %}
+              <span class="font-semibold text-primary" title="{{ student.program.department.name }}">
+                {{ student.program.department.code }}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <!-- Program / Course -->
+          <td>
+            {% if student.program %}
+              <span class="font-semibold text-gold">{{ student.program.code }}</span>
+              <span class="text-muted text-xs block" style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ student.program.name }}">
+                {{ student.program.name }}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <!-- Year Level -->
+          <td>
+            {% if student.year_level %}
+              <span class="badge badge--purple font-semibold">Yr {{ student.year_level }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+          <!-- Enrolled Sections -->
+          <td>
+            {% with enrolls=student.enrollments.all %}
+              {% if enrolls %}
+                {% for e in enrolls %}
+                  <span class="section-tag" title="{{ e.class_obj.subject.name }}">
+                    {{ e.class_obj.class_code }}
+                  </span>
+                {% endfor %}
+              {% else %}
+                <span class="unassigned-tag">Unassigned</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+
+          <!-- Status Badge -->
+          <td>
+            {% if student.approval_status == 'APPROVED' %}
+              <span class="badge badge--success"><i class="fas fa-circle-check"></i> Approved</span>
+            {% elif student.approval_status == 'PENDING' %}
+              <span class="badge badge--warning"><i class="fas fa-clock"></i> Pending</span>
+            {% elif student.approval_status == 'REJECTED' %}
+              <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Rejected</span>
+            {% else %}
+              <span class="badge">{{ student.approval_status|default:"N/A" }}</span>
+            {% endif %}
+          </td>
+
+          <!-- Actions -->
+          <td class="text-right action-col">
+            <div class="flex items-center justify-end gap-2">
+              <a href="{% url 'validation_detail' student.student_number %}" class="btn btn-outline btn-sm" title="View Student Dossier & Review Form">
+                <i class="fas fa-id-card"></i> Dossier
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center" style="padding: 40px 20px;">
+            <div style="font-size: 2.2rem; color: var(--text-muted); margin-bottom: 8px;">
+              <i class="fas fa-user-slash"></i>
+            </div>
+            <div class="font-bold text-primary" style="font-size: 1.05rem; margin-bottom: 4px;">
+              No Students Found
+            </div>
+            <div class="text-secondary text-xs mb-3">
+              {% if query or selected_dept or selected_prog or selected_year or selected_section or selected_status %}
+                No student accounts matched your filter selections.
+              {% else %}
+                There are no registered student accounts in the system yet.
+              {% endif %}
+            </div>
+            {% if query or selected_dept or selected_prog or selected_year or selected_section or selected_status %}
+              <a href="{% url 'student_directory' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-rotate-left"></i> Reset All Filters
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pinned Card Footer (Pagination) -->
+  <div class="card-footer">
+    <div class="text-secondary text-xs">
+      {% if students.paginator.count %}
+        Showing students {{ students.start_index }} to {{ students.end_index }} of {{ students.paginator.count }} total
+      {% else %}
+        0 students
+      {% endif %}
+    </div>
+
+    {% if students.has_other_pages %}
+    <div class="pagination flex items-center gap-1">
+      {% if students.has_previous %}
+        <a href="?page={{ students.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline btn-sm" style="padding: 2px 8px; font-size: 0.75rem;">
+          <i class="fas fa-chevron-left"></i> Prev
+        </a>
+      {% endif %}
+
+      <span class="badge badge--warning font-semibold" style="padding: 4px 10px; font-size: 0.75rem;">
+        Page {{ students.number }} of {{ students.paginator.num_pages }}
+      </span>
+
+      {% if students.has_next %}
+        <a href="?page={{ students.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline btn-sm" style="padding: 2px 8px; font-size: 0.75rem;">
+          Next <i class="fas fa-chevron-right"></i>
+        </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Cascading Filter Dropdown Script -->
+<script>
+  (function () {
+    const deptSelect = document.getElementById('filter_dept');
+    const progSelect = document.getElementById('filter_prog');
+    const defaultProgOpt = document.getElementById('progDefaultOpt');
+    if (!deptSelect || !progSelect) return;
+
+    const allProgOptions = Array.from(progSelect.querySelectorAll('option:not(#progDefaultOpt)'));
+
+    function filterPrograms() {
+      const selectedDeptId = deptSelect.value;
+      const currentSelectedProg = progSelect.value;
+
+      progSelect.innerHTML = '';
+      progSelect.appendChild(defaultProgOpt);
+
+      let found = false;
+      allProgOptions.forEach(opt => {
+        const optDept = opt.getAttribute('data-department');
+        if (!selectedDeptId || optDept === selectedDeptId) {
+          progSelect.appendChild(opt);
+          if (opt.value === currentSelectedProg) {
+            opt.selected = true;
+            found = true;
+          }
+        }
+      });
+
+      if (!found && selectedDeptId && currentSelectedProg) {
+        defaultProgOpt.selected = true;
+      }
+    }
+
+    deptSelect.addEventListener('change', filterPrograms);
+
+    if (deptSelect.value) {
+      filterPrograms();
+    }
+  })();
+</script>
+{% endblock %}
