@@ -4,108 +4,174 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="KCC ClassStamp — Sign in to your attendance portal">
+  <meta name="description" content="KCC ClassStamp — A Time-Based Classroom Attendance Monitoring and Validation System">
   <title>Sign In — KCC ClassStamp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
   <link rel="stylesheet" href="{% static 'css/login.css' %}">
 </head>
-<body class="auth-body">
+<body class="kcc-auth-page">
 
-  <!-- Animated background orbs -->
-  <div class="auth-bg">
-    <div class="auth-orb auth-orb--1"></div>
-    <div class="auth-orb auth-orb--2"></div>
-    <div class="auth-orb auth-orb--3"></div>
-  </div>
+  <div class="kcc-split-layout">
+    
+    <!-- LEFT PANEL: Hero & Institution Branding -->
+    <div class="kcc-hero-panel">
+      <!-- Ambient Visuals -->
+      <div class="kcc-hero-bg">
+        <div class="kcc-grid-overlay"></div>
+        <div class="kcc-glow-radial kcc-glow-radial--1"></div>
+        <div class="kcc-glow-radial kcc-glow-radial--2"></div>
+        <div class="kcc-ring-accent kcc-ring-accent--1"></div>
+        <div class="kcc-ring-accent kcc-ring-accent--2"></div>
+      </div>
 
-  <div class="auth-wrapper">
-    <div class="auth-card">
-
-      <!-- Brand -->
-      <div class="auth-brand">
-        <img src="{% static 'img/logo.jpg' %}" alt="KCC ClassStamp Logo" class="auth-brand-img">
-        <div>
-          <h1 class="auth-brand-name">KCC <span>ClassStamp</span></h1>
-          <p class="auth-brand-sub">Attendance Monitoring System</p>
+      <!-- Header: Logo Badge & Institution Title -->
+      <div class="kcc-hero-header">
+        <div class="kcc-brand-badge">
+          <img src="{% static 'img/logo.jpg' %}" alt="KCC Seal" class="kcc-brand-logo">
+        </div>
+        <div class="kcc-brand-text">
+          <span class="kcc-inst-title">KABANKALAN CATHOLIC COLLEGE, INC.</span>
+          <h1 class="kcc-sys-name">KCC ClassStamp</h1>
         </div>
       </div>
 
-      <h2 class="auth-title">Welcome back</h2>
-      <p class="auth-subtitle">Sign in to your account to continue</p>
-
-      {% if messages %}
-        {% for message in messages %}
-          <div class="auth-alert {% if 'error' in message.tags %}auth-alert--error{% elif 'warning' in message.tags %}auth-alert--warning{% elif 'success' in message.tags %}auth-alert--success{% else %}auth-alert--info{% endif %}" id="status-message">
-            <i class="fas {% if 'error' in message.tags %}fa-circle-xmark{% elif 'warning' in message.tags %}fa-triangle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
-            <span>{{ message }}</span>
-          </div>
-        {% endfor %}
-      {% endif %}
-
-      <form method="POST" action="{% url 'login' %}" class="auth-form">
-        {% csrf_token %}
-
-        <div class="form-group">
-          <label class="form-label" for="id_username">Username, Student ID, or Email</label>
-          <div class="input-wrap">
-            <i class="fas fa-user input-icon"></i>
-            <input
-              type="text"
-              id="id_username"
-              name="username"
-              class="form-control"
-              placeholder="Username, Student ID, or Email"
-              autocomplete="username"
-              {% if locked %}disabled{% endif %}
-              required
-            >
-          </div>
+      <!-- Center Hero Headline & Tagline -->
+      <div class="kcc-hero-body">
+        <div class="kcc-tag-pill">
+          <span class="kcc-pill-dot">✨</span>
+          <span>SMARTER ATTENDANCE · STRONGER ACCOUNTABILITY</span>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="id_password">Password</label>
-          <div class="input-wrap">
-            <i class="fas fa-lock input-icon"></i>
-            <input
-              type="password"
-              id="id_password"
-              name="password"
-              class="form-control"
-              placeholder="Enter your password"
-              autocomplete="current-password"
-              {% if locked %}disabled{% endif %}
-              required
-            >
-            <button type="button" class="input-toggle" id="togglePassword" tabindex="-1" aria-label="Toggle password visibility">
-              <i class="fas fa-eye" id="eyeIcon"></i>
-            </button>
-          </div>
-        </div>
+        <h2 class="kcc-hero-headline">
+          Every class.<br>
+          Every moment.<br>
+          <span class="kcc-text-gold">Accounted for.</span>
+        </h2>
 
-        <button type="submit" class="btn btn-primary btn-full" {% if locked %}disabled{% endif %} id="login-btn">
-          <i class="fas fa-right-to-bracket"></i>
-          Sign In
-        </button>
-
-      </form>
-
-      <div class="auth-footer">
-        Don't have an account?
-        <a href="{% url 'register' %}">Create one</a>
+        <p class="kcc-hero-desc">
+          A secure, time-based attendance monitoring and validation platform built for the KCC community.
+        </p>
       </div>
+
+      <!-- Bottom Feature Indicators -->
+      <div class="kcc-hero-footer">
+        <div class="kcc-feature-item">
+          <i class="fas fa-shield-halved kcc-feature-icon"></i>
+          <span>Secure validation</span>
+        </div>
+        <div class="kcc-feature-item">
+          <i class="fas fa-clock-rotate-left kcc-feature-icon"></i>
+          <span>Real-time records</span>
+        </div>
+        <div class="kcc-feature-item">
+          <i class="fas fa-chart-simple kcc-feature-icon"></i>
+          <span>Clear insights</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Authentication Form -->
+    <div class="kcc-form-panel">
+      <div class="kcc-form-container">
+        
+        <div class="kcc-form-header">
+          <span class="kcc-kicker">WELCOME BACK</span>
+          <h2 class="kcc-form-title">Sign in to your account</h2>
+          <p class="kcc-form-subtitle">Enter your credentials to continue to your workspace.</p>
+        </div>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="auth-alert {% if 'error' in message.tags %}auth-alert--error{% elif 'warning' in message.tags %}auth-alert--warning{% elif 'success' in message.tags %}auth-alert--success{% else %}auth-alert--info{% endif %}" id="status-message">
+              <i class="fas {% if 'error' in message.tags %}fa-circle-xmark{% elif 'warning' in message.tags %}fa-triangle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'login' %}" class="auth-form" id="loginForm">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="id_username">Username, Student ID, or email</label>
+            <div class="input-wrap">
+              <i class="far fa-user input-icon"></i>
+              <input
+                type="text"
+                id="id_username"
+                name="username"
+                class="form-control kcc-input"
+                placeholder="Username, Student ID, or Email"
+                autocomplete="username"
+                value="{{ request.POST.username|default:'' }}"
+                {% if locked %}disabled{% endif %}
+                required
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="id_password">Password</label>
+            <div class="input-wrap">
+              <i class="fas fa-shield-halved input-icon"></i>
+              <input
+                type="password"
+                id="id_password"
+                name="password"
+                class="form-control kcc-input has-toggle"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                {% if locked %}disabled{% endif %}
+                required
+              >
+              <button type="button" class="kcc-toggle-btn" id="togglePassword" tabindex="-1" aria-label="Toggle password visibility">
+                Show
+              </button>
+            </div>
+          </div>
+
+          <div class="kcc-form-options">
+            <label class="kcc-remember-label">
+              <input type="checkbox" name="remember_me" id="id_remember_me" class="kcc-checkbox" checked>
+              <span>Remember me</span>
+            </label>
+            <a href="#" class="kcc-forgot-link" onclick="alert('For account recovery, please reach out to the KCC Registrar or IT Department.'); return false;">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="btn kcc-btn-gold btn-full" {% if locked %}disabled{% endif %} id="login-btn">
+            <span>Sign In</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+
+          <div class="kcc-auth-footer">
+            New to ClassStamp? <a href="{% url 'register' %}" class="kcc-link-gold">Create an account</a>
+          </div>
+
+        </form>
+
+      </div>
+
+      <!-- Floating Help Button -->
+      <a href="{% url 'info:info_list' %}" class="kcc-help-btn" title="KCC System Information & Help" aria-label="Help">
+        <i class="fas fa-question"></i>
+      </a>
 
     </div>
+
   </div>
 
-  <script src="{% static 'js/app.js' %}"></script>
   {% if locked %}
   <script>
     (function () {
       let remaining = parseInt("{{ remaining|default:0 }}", 10);
-      const messageBox = document.getElementById('status-message') || document.querySelector('.auth-alert');
+      const messageBox = document.getElementById('status-message');
       const interval = setInterval(function () {
         remaining--;
         if (remaining > 0) {
@@ -121,22 +187,17 @@
     })();
   </script>
   {% endif %}
+
   <script>
     (function () {
+      // Show/Hide password toggle
       const toggleBtn = document.getElementById('togglePassword');
-      if (toggleBtn) {
+      const passwordInput = document.getElementById('id_password');
+      if (toggleBtn && passwordInput) {
         toggleBtn.addEventListener('click', function () {
-          const input = document.getElementById('id_password');
-          const icon = document.getElementById('eyeIcon');
-          if (input && icon) {
-            if (input.type === 'password') {
-              input.type = 'text';
-              icon.classList.replace('fa-eye', 'fa-eye-slash');
-            } else {
-              input.type = 'password';
-              icon.classList.replace('fa-eye-slash', 'fa-eye');
-            }
-          }
+          const isPassword = passwordInput.type === 'password';
+          passwordInput.type = isPassword ? 'text' : 'password';
+          toggleBtn.textContent = isPassword ? 'Hide' : 'Show';
         });
       }
     })();

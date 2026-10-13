@@ -16,3 +16,6 @@ if not SECRET_KEY:  # noqa: F405
 
 # Print emails to the console during development.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Allow local test runner and development hosts
+ALLOWED_HOSTS = ['*']

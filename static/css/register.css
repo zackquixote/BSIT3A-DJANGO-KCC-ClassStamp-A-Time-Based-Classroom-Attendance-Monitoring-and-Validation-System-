@@ -1,6 +1,7 @@
 /* =============================================================
    KCC ClassStamp — Student Registration Stylesheet
-   Pure Vanilla CSS · Self-Contained Student E-Fillup Module
+   Pure Vanilla CSS · Self-Contained Student Onboarding Module
+   Matching Login Aesthetics with Official KCC Branding
    ============================================================= */
 
 @import url('variables.css');
@@ -8,9 +9,75 @@
 @import url('components.css');
 @import url('auth.css');
 
-/* ── Wide Wrapper for Multi-Column Registration ──────────────── */
-.auth-wrapper--wide {
-  max-width: 560px;
+/* ── Wide Form Panel Scrolling & Spacing ─────────────────────── */
+.kcc-form-panel--register {
+  padding: 40px 48px;
+  align-items: flex-start;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.kcc-form-container--wide {
+  max-width: 580px;
+  width: 100%;
+  margin: auto;
+  padding: 20px 0;
+}
+
+/* ── Grid Row for Multi-Column Fields ────────────────────────── */
+.kcc-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+/* ── Cascading Select Controls ───────────────────────────────── */
+select.kcc-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px !important;
+  padding-right: 38px !important;
+  cursor: pointer;
+}
+
+select.kcc-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: #09101c !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  color: #64748b !important;
+}
+
+/* ── Proof of Enrollment / COR File Upload ───────────────────── */
+input[type="file"].kcc-input {
+  padding: 8px 12px 8px 42px !important;
+  cursor: pointer;
+  line-height: 1.6;
+  height: auto;
+  min-height: 46px;
+}
+
+input[type="file"].kcc-input::file-selector-button {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 5px 12px;
+  margin-right: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="file"].kcc-input::file-selector-button:hover {
+  background: rgba(245, 196, 68, 0.2);
+  border-color: #f5c444;
+  color: #f5c444;
 }
 
 /* ── Live Availability Feedback Indicators ───────────────────── */
@@ -19,12 +86,8 @@
 #emailStatus {
   transition: all 0.2s ease;
   padding-left: 2px;
-  animation: fade-status 0.25s ease-in;
-}
-
-@keyframes fade-status {
-  from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  font-size: 0.78rem;
+  margin-top: 4px;
 }
 
 #studentNumberStatus span,
@@ -36,82 +99,23 @@
   font-weight: 500;
 }
 
-/* ── Cascading Department & Academic Program Dropdowns ────────── */
-#id_department,
-#id_program {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-#id_program:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: rgba(30, 41, 59, 0.4);
-  border-color: rgba(255, 255, 255, 0.06);
-  color: var(--text-muted);
-}
-
-/* ── Proof of Enrollment / COR File Upload ───────────────────── */
-input[type="file"].form-control {
-  padding: 8px 12px 8px 40px;
-  cursor: pointer;
-  line-height: 1.5;
-}
-
-input[type="file"].form-control::file-selector-button {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  padding: 4px 10px;
-  margin-right: 12px;
+/* ── Form Error Text ─────────────────────────────────────────── */
+.kcc-field-error {
   font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-input[type="file"].form-control::file-selector-button:hover {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: var(--accent-gold);
-  color: var(--accent-gold);
-}
-
-/* ── Dual Password Visibility Toggles ────────────────────────── */
-.input-wrap #togglePassword,
-.input-wrap #toggleConfirm {
+  color: #ef4444;
+  margin-top: 4px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
+  gap: 5px;
 }
 
-.input-wrap #togglePassword:hover,
-.input-wrap #toggleConfirm:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-}
-
-/* ── Registration Submit Button ──────────────────────────────── */
-#register-btn {
-  margin-top: 10px;
-  padding: 12px 20px;
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
-}
-
-#register-btn:hover:not(:disabled) {
-  box-shadow: 0 4px 22px rgba(245, 158, 11, 0.45);
-}
-
-/* ── Responsive Refinements ──────────────────────────────────── */
-@media (max-width: 600px) {
-  .auth-wrapper--wide {
-    max-width: 100%;
+/* ── Responsive Mobile Adjustments ───────────────────────────── */
+@media (max-width: 640px) {
+  .kcc-form-panel--register {
+    padding: 32px 20px;
   }
 
-  .form-row {
+  .kcc-form-row {
     grid-template-columns: 1fr;
     gap: 12px;
   }
