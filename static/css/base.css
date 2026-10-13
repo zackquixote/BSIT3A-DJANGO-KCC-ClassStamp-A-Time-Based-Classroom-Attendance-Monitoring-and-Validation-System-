@@ -1,0 +1,124 @@
+/* =============================================================
+   KCC ClassStamp — Reset, Base Layout & Utilities
+   Pure Vanilla CSS · Dark Glassmorphism Layout
+   ============================================================= */
+
+/* ── Reset ───────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 15px;
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent-gold);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+a:hover {
+  color: var(--accent-gold-h);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+ul {
+  list-style: none;
+}
+
+/* ── App Layout ──────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-w);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content--full {
+  margin-left: 0;
+}
+
+/* ── Main Footer ─────────────────────────────────────────────── */
+.main-footer {
+  margin-top: auto;
+  padding-top: 24px;
+  padding-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ── Global Utilities ────────────────────────────────────────── */
+.flex            { display: flex; }
+.flex-col        { flex-direction: column; }
+.items-center    { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2           { gap: 8px; }
+.gap-3           { gap: 12px; }
+.gap-4           { gap: 16px; }
+.gap-6           { gap: 24px; }
+.mt-1            { margin-top: 4px; }
+.mt-2            { margin-top: 8px; }
+.mt-4            { margin-top: 16px; }
+.mt-6            { margin-top: 24px; }
+.mb-2            { margin-bottom: 8px; }
+.mb-4            { margin-bottom: 16px; }
+.mb-6            { margin-bottom: 24px; }
+.text-muted      { color: var(--text-muted); }
+.text-secondary  { color: var(--text-secondary); }
+.text-gold       { color: var(--accent-gold); }
+.text-sm         { font-size: 0.875rem; }
+.text-xs         { font-size: 0.75rem; }
+.font-semibold   { font-weight: 600; }
+.font-bold       { font-weight: 700; }
+.w-full          { width: 100%; }
+.is-hidden       { display: none !important; }
+
+/* ── Responsive Layout Breakpoints ───────────────────────────── */
+@media (max-width: 1024px) {
+  .main-content {
+    padding: 20px 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 16px;
+  }
+}

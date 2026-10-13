@@ -1,0 +1,68 @@
+/* =============================================================
+   KCC ClassStamp — Login Page Stylesheet
+   Pure Vanilla CSS · Self-Contained Sign-In Module
+   ============================================================= */
+
+@import url('variables.css');
+@import url('base.css');
+@import url('components.css');
+@import url('auth.css');
+
+/* ── Login-Specific Card & Layout ────────────────────────────── */
+.login-card {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ── Login Form & Interactive Fields ─────────────────────────── */
+.auth-form #login-btn {
+  margin-top: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-form #login-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.45);
+}
+
+.auth-form #login-btn:active {
+  transform: scale(0.99);
+}
+
+/* ── Lockout & Error Notification Enhancements ───────────────── */
+#status-message {
+  animation: login-shake 0.4s ease-in-out;
+}
+
+@keyframes login-shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* ── Password Visibility Toggle Alignment ────────────────────── */
+.input-wrap #togglePassword {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.input-wrap #togglePassword:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}

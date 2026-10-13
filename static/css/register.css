@@ -1,0 +1,118 @@
+/* =============================================================
+   KCC ClassStamp — Student Registration Stylesheet
+   Pure Vanilla CSS · Self-Contained Student E-Fillup Module
+   ============================================================= */
+
+@import url('variables.css');
+@import url('base.css');
+@import url('components.css');
+@import url('auth.css');
+
+/* ── Wide Wrapper for Multi-Column Registration ──────────────── */
+.auth-wrapper--wide {
+  max-width: 560px;
+}
+
+/* ── Live Availability Feedback Indicators ───────────────────── */
+#studentNumberStatus,
+#usernameStatus,
+#emailStatus {
+  transition: all 0.2s ease;
+  padding-left: 2px;
+  animation: fade-status 0.25s ease-in;
+}
+
+@keyframes fade-status {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#studentNumberStatus span,
+#usernameStatus span,
+#emailStatus span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+
+/* ── Cascading Department & Academic Program Dropdowns ────────── */
+#id_department,
+#id_program {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#id_program:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: rgba(30, 41, 59, 0.4);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+/* ── Proof of Enrollment / COR File Upload ───────────────────── */
+input[type="file"].form-control {
+  padding: 8px 12px 8px 40px;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+input[type="file"].form-control::file-selector-button {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  margin-right: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+input[type="file"].form-control::file-selector-button:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+/* ── Dual Password Visibility Toggles ────────────────────────── */
+.input-wrap #togglePassword,
+.input-wrap #toggleConfirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.input-wrap #togglePassword:hover,
+.input-wrap #toggleConfirm:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+/* ── Registration Submit Button ──────────────────────────────── */
+#register-btn {
+  margin-top: 10px;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+#register-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 22px rgba(245, 158, 11, 0.45);
+}
+
+/* ── Responsive Refinements ──────────────────────────────────── */
+@media (max-width: 600px) {
+  .auth-wrapper--wide {
+    max-width: 100%;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

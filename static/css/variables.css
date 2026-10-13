@@ -1,0 +1,53 @@
+/* =============================================================
+   KCC ClassStamp — Design Tokens & Variables
+   Pure Vanilla CSS · Dark Glassmorphism Design System
+   ============================================================= */
+
+/* ── Google Fonts ────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── CSS Custom Properties ───────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:          #0f172a;
+  --bg-surface:       #1e293b;
+  --bg-elevated:      #334155;
+
+  /* Glass */
+  --glass-bg:         rgba(255, 255, 255, 0.05);
+  --glass-border:     rgba(255, 255, 255, 0.10);
+  --glass-blur:       blur(12px);
+
+  /* Accents */
+  --accent-gold:      #f59e0b;
+  --accent-gold-h:    #fbbf24;
+  --accent-blue:      #3b82f6;
+  --accent-blue-h:    #60a5fa;
+
+  /* Status */
+  --success:          #22c55e;
+  --warning:          #f59e0b;
+  --danger:           #ef4444;
+  --info:             #3b82f6;
+
+  /* Text */
+  --text-primary:     #f1f5f9;
+  --text-secondary:   #94a3b8;
+  --text-muted:       #64748b;
+
+  /* Role */
+  --role-admin:       #a855f7;
+  --role-teacher:     #f59e0b;
+  --role-student:     #22c55e;
+
+  /* Sizing */
+  --sidebar-w:        260px;
+  --radius-sm:        8px;
+  --radius-md:        12px;
+  --radius-lg:        16px;
+  --radius-xl:        24px;
+  --radius-full:      9999px;
+
+  /* Transitions */
+  --transition:       all 0.25s ease;
+}
