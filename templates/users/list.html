@@ -78,7 +78,18 @@
             {% endif %}
           </td>
           <td>
-            {% if u.is_superuser %}
+            {% if u.classstamp_profile %}
+              <span class="role-badge role-{{ u.classstamp_profile.role|lower }}">{{ u.classstamp_profile.get_role_display }}</span>
+              {% if u.classstamp_profile.role == 'STUDENT' %}
+                {% if u.classstamp_profile.approval_status == 'PENDING' %}
+                  <span class="badge badge--warning" title="Pending Validation"><i class="fas fa-clock"></i> Pending</span>
+                {% elif u.classstamp_profile.approval_status == 'APPROVED' %}
+                  <span class="badge badge--success" title="Validated"><i class="fas fa-circle-check"></i> Validated</span>
+                {% elif u.classstamp_profile.approval_status == 'REJECTED' %}
+                  <span class="badge badge--danger" title="Rejected"><i class="fas fa-circle-xmark"></i> Rejected</span>
+                {% endif %}
+              {% endif %}
+            {% elif u.is_superuser %}
               <span class="badge badge--purple"><i class="fas fa-shield-halved"></i> Superuser</span>
             {% elif u.is_staff %}
               <span class="badge badge--warning"><i class="fas fa-user-tie"></i> Staff</span>

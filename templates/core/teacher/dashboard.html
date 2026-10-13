@@ -1,0 +1,73 @@
+{% extends "theme/base.html" %}
+{% block title %}Teacher Dashboard — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Teacher Dashboard</h1>
+    <p class="page-subtitle">Your classes and attendance sessions</p>
+  </div>
+</div>
+
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-chalkboard-user"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ class_count }}</span>
+      <span class="stat-label">My Active Classes</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-calendar-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ open_session_count }}</span>
+      <span class="stat-label">Open Sessions</span>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border);">
+    <div class="font-semibold text-primary">My Classes</div>
+  </div>
+  {% if classes %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Class Code</th>
+          <th>Subject</th>
+          <th>Academic Year</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in classes %}
+        <tr>
+          <td class="font-semibold">{{ c.class_code }}</td>
+          <td class="text-muted">{{ c.subject.code }} — {{ c.subject.name }}</td>
+          <td class="text-muted">{{ c.academic_year.name }}</td>
+          <td>
+            <div class="flex items-center gap-2" style="justify-content: flex-end;">
+              <button class="btn btn-secondary" type="button" title="QR Scanner coming in Phase 4">
+                <i class="fas fa-qrcode"></i> Scan
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding: 40px 20px; text-align: center;">
+    <i class="fas fa-chalkboard" style="font-size: 2rem; color: var(--text-muted, #94a3b8);"></i>
+    <p class="text-muted text-sm" style="margin-top: 10px;">You have no active classes yet.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

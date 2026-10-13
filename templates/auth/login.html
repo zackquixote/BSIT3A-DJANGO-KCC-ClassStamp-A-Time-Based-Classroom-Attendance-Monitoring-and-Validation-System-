@@ -103,32 +103,43 @@
   <script src="{% static 'js/app.js' %}"></script>
   {% if locked %}
   <script>
-    let remaining = {{ remaining }};
-    const messageBox = document.getElementById('error-message');
-    const interval = setInterval(function () {
-      remaining--;
-      if (remaining > 0) {
-        messageBox.querySelector('span').textContent =
-          'Too many failed attempts. Try again in ' + remaining + ' seconds.';
-      } else {
-        clearInterval(interval);
-        window.location.href = "{% url 'login' %}";
-      }
-    }, 1000);
+    (function () {
+      let remaining = parseInt("{{ remaining|default:0 }}", 10);
+      const messageBox = document.getElementById('status-message') || document.querySelector('.auth-alert');
+      const interval = setInterval(function () {
+        remaining--;
+        if (remaining > 0) {
+          if (messageBox && messageBox.querySelector('span')) {
+            messageBox.querySelector('span').textContent =
+              'Too many failed attempts. Try again in ' + remaining + ' seconds.';
+          }
+        } else {
+          clearInterval(interval);
+          window.location.href = "{% url 'login' %}";
+        }
+      }, 1000);
+    })();
   </script>
   {% endif %}
   <script>
-    document.getElementById('togglePassword').addEventListener('click', function () {
-      const input = document.getElementById('id_password');
-      const icon = document.getElementById('eyeIcon');
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.replace('fa-eye', 'fa-eye-slash');
-      } else {
-        input.type = 'password';
-        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    (function () {
+      const toggleBtn = document.getElementById('togglePassword');
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+          const input = document.getElementById('id_password');
+          const icon = document.getElementById('eyeIcon');
+          if (input && icon) {
+            if (input.type === 'password') {
+              input.type = 'text';
+              icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+              input.type = 'password';
+              icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+          }
+        });
       }
-    });
+    })();
   </script>
 </body>
 </html>

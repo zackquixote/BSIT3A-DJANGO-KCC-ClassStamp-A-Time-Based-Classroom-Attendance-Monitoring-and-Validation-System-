@@ -1,16 +1,33 @@
+"""
+// ==============================================================================
+// KCC CLASSSTAMP - DOMAIN MODELS & ENTITY SCHEMA
+// ==============================================================================
+// Description: Core relational schema supporting Time-Based Classroom Attendance
+// Monitoring and Validation System. Implements multi-tier academic structure,
+// role-based persona profiles (Admin, Teacher, Student), automated attendance
+// sessions, QR-based stamp auditing, and fraud anomaly detection.
+// References: docs/04_MODELS_REFERENCE.md | docs/02_SECURITY.md
+// ==============================================================================
+"""
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
-# ============================================================
-# 1. ORGANISATION: department > program (course) > year level > subjects
-# ============================================================
+# // ==============================================================================
+# // SECTION 1: ACADEMIC ORGANISATION (Department -> Program -> Subject -> Curriculum)
+# // ==============================================================================
 
 class Department(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=150, unique=True)
-    is_active = models.BooleanField(default=True)
+    """
+    // [Model] Academic Department
+    // Represents top-level institutional division (e.g., College of Computer Studies).
+    // Teachers are bound directly to a Department.
+    """
+    code = models.CharField(max_length=20, unique=True, help_text="// Unique department code, e.g. CCS")
+    name = models.CharField(max_length=150, unique=True, help_text="// Full department name")
+    is_active = models.BooleanField(default=True, help_text="// Soft-delete flag for academic departments")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -23,16 +40,23 @@ class Department(models.Model):
 
 
 class Program(models.Model):
+    """
+    // [Model] Degree Program / Course
+    // Belongs to a single Department. Defines default curriculum duration (e.g. BSIT = 4 years).
+    // Students are enrolled under a specific Program.
+    """
     department = models.ForeignKey(
         Department,
         on_delete=models.RESTRICT,
         related_name='programs',
+        help_text="// Owning academic department"
     )
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=20, unique=True, help_text="// Unique degree acronym, e.g. BSIT")
+    name = models.CharField(max_length=150, help_text="// Full degree program title")
     years_total = models.PositiveSmallIntegerField(
         default=4,
         validators=[MinValueValidator(1), MaxValueValidator(8)],
+        help_text="// Maximum allowable years for degree completion"
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -47,9 +71,13 @@ class Program(models.Model):
 
 
 class Subject(models.Model):
-    code = models.CharField(max_length=40, unique=True)
-    name = models.CharField(max_length=150)
-    description = models.TextField(blank=True, null=True)
+    """
+    // [Model] Academic Subject / Course Offering
+    // Represents an institutional subject/course (e.g., IT 101 - Web Development).
+    """
+    code = models.CharField(max_length=40, unique=True, help_text="// Unique course code, e.g. IT311")
+    name = models.CharField(max_length=150, help_text="// Official subject descriptive title")
+    description = models.TextField(blank=True, null=True, help_text="// Syllabus syllabus/overview")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -63,19 +91,25 @@ class Subject(models.Model):
 
 
 class Curriculum(models.Model):
-    """Maps which subjects a program offers in a given year level."""
+    """
+    // [Model] Curriculum Matrix
+    // Maps which subjects a program offers across designated year levels.
+    """
     program = models.ForeignKey(
         Program,
         on_delete=models.RESTRICT,
         related_name='curriculum_entries',
+        help_text="// Program this curriculum belongs to"
     )
     year_level = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)],
+        help_text="// Standing year level (1 = 1st Year, etc.)"
     )
     subject = models.ForeignKey(
         Subject,
         on_delete=models.RESTRICT,
         related_name='curriculum_entries',
+        help_text="// Subject included in program prospectus"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -88,10 +122,14 @@ class Curriculum(models.Model):
 
 
 class AcademicYear(models.Model):
-    name = models.CharField(max_length=40, unique=True)
-    starts_on = models.DateField()
-    ends_on = models.DateField()
-    is_active = models.BooleanField(default=False)
+    """
+    // [Model] Academic Year & Term Period
+    // Governs semester / school year validity window for class allocations and attendance.
+    """
+    name = models.CharField(max_length=40, unique=True, help_text="// Term identifier, e.g. 2025-2026 1st Sem")
+    starts_on = models.DateField(help_text="// Term opening date")
+    ends_on = models.DateField(help_text="// Term closing date")
+    is_active = models.BooleanField(default=False, help_text="// Only one active academic term recommended")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -103,15 +141,23 @@ class AcademicYear(models.Model):
         return self.name
 
 
-# ============================================================
-# 2. PEOPLE: one profile per auth_user, three roles
-#   ADMIN   - no department, program or student fields
-#   TEACHER - belongs to a department
-#   STUDENT - belongs to a program and year level, validated by an admin,
-#             owns a secret that signs their rotating QR code
-# ============================================================
+# // ==============================================================================
+# // SECTION 2: IDENTITY & ROLE-BASED ACCESS CONTROL (Profile)
+# // ==============================================================================
 
 class Profile(models.Model):
+    """
+    // [Model] ClassStamp User Persona Profile
+    // One-to-one extension of Django AUTH_USER_MODEL defining role boundaries:
+    // - ADMIN: Full management privileges, validation queue oversight, audit log review.
+    // - TEACHER: Bound to Department; manages assigned classes, activates attendance sessions.
+    // - STUDENT: Bound to Program & year level; undergoes Admin approval; holds TOTP QR secret.
+    //
+    // Integrity Constraints (Enforced at DB trigger & application layers):
+    // - Teacher must specify department, student must NOT specify department.
+    // - Student must specify program, year_level, student_number, and approval_status.
+    """
+    # // [Role Enumeration]
     ROLE_ADMIN = 'ADMIN'
     ROLE_TEACHER = 'TEACHER'
     ROLE_STUDENT = 'STUDENT'
@@ -121,6 +167,7 @@ class Profile(models.Model):
         (ROLE_STUDENT, 'Student'),
     ]
 
+    # // [Student Account Approval Enumeration]
     APPROVAL_PENDING = 'PENDING'
     APPROVAL_APPROVED = 'APPROVED'
     APPROVAL_REJECTED = 'REJECTED'
@@ -134,45 +181,93 @@ class Profile(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='classstamp_profile',
+        help_text="// Underlying authentication account"
     )
-    role = models.CharField(max_length=7, choices=ROLE_CHOICES)
+    role = models.CharField(
+        max_length=7,
+        choices=ROLE_CHOICES,
+        help_text="// System access persona role (ADMIN, TEACHER, STUDENT)"
+    )
 
-    # Teacher field
+    # // ----------------------------------------------------------------------
+    # // Teacher-Specific Attributes
+    # // ----------------------------------------------------------------------
     department = models.ForeignKey(
         Department,
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='profiles',
+        help_text="// Faculty department affiliation (Required for TEACHER)"
     )
 
-    # Student-only fields
+    # // ----------------------------------------------------------------------
+    # // Student-Specific Attributes
+    # // ----------------------------------------------------------------------
     program = models.ForeignKey(
         Program,
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='profiles',
+        help_text="// Enrolled college program (Required for STUDENT)"
     )
-    year_level = models.PositiveSmallIntegerField(null=True, blank=True)
-    student_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    year_level = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="// Current academic year level (e.g., 1, 2, 3, 4)"
+    )
+    student_number = models.CharField(
+        max_length=50,
+        unique=True,
+        null=True, blank=True,
+        help_text="// Institutional Student ID number from physical KCC badge"
+    )
+    registration_proof = models.FileField(
+        upload_to='registration_proofs/',
+        null=True, blank=True,
+        help_text="// Uploaded Certificate of Registration (COR) or ID badge proof"
+    )
     approval_status = models.CharField(
         max_length=8,
         choices=APPROVAL_CHOICES,
         null=True, blank=True,
+        help_text="// Administrative verification state for student accounts"
     )
-    approval_note = models.TextField(null=True, blank=True)
+    approval_note = models.TextField(
+        null=True, blank=True,
+        help_text="// Administrative remarks (Mandatory if registration is REJECTED)"
+    )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='approved_profiles',
+        help_text="// Admin who evaluated registration"
     )
-    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="// Timestamp of approval or rejection"
+    )
 
-    # Privacy & QR
-    privacy_consent_at = models.DateTimeField(null=True, blank=True)
-    privacy_notice_version = models.CharField(max_length=20, null=True, blank=True)
-    qr_secret = models.CharField(max_length=64, null=True, blank=True)
-    qr_rotated_at = models.DateTimeField(null=True, blank=True)
+    # // ----------------------------------------------------------------------
+    # // Security, Privacy & QR TOTP Attributes
+    # // ----------------------------------------------------------------------
+    privacy_consent_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="// Timestamp when data privacy notice was acknowledged"
+    )
+    privacy_notice_version = models.CharField(
+        max_length=20,
+        null=True, blank=True,
+        help_text="// Version string of accepted privacy terms"
+    )
+    qr_secret = models.CharField(
+        max_length=64,
+        null=True, blank=True,
+        help_text="// 64-char hex secret utilized to sign rotating dynamic TOTP QR stamps"
+    )
+    qr_rotated_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="// Timestamp when student's QR secret was last cycled"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -181,32 +276,48 @@ class Profile(models.Model):
         db_table = 'tblcs_profile'
 
     def __str__(self):
-        return f'{self.user.get_full_name()} ({self.role})'
+        return f'{self.user.get_full_name() or self.user.username} ({self.role})'
 
 
-# ============================================================
-# 3. CLASSES: subject taught by one teacher in one academic year
-# ============================================================
+# // ==============================================================================
+# // SECTION 3: CLASSROOM STRUCTURE, ROSTERS & ENROLLMENT
+# // ==============================================================================
 
 class Class(models.Model):
+    """
+    // [Model] Academic Class Section
+    // Represents a specific subject section assigned to a teacher within an academic year.
+    """
     academic_year = models.ForeignKey(
         AcademicYear,
         on_delete=models.RESTRICT,
         related_name='classes',
+        help_text="// Associated academic school year/term"
     )
-    class_code = models.CharField(max_length=40)
+    class_code = models.CharField(
+        max_length=40,
+        help_text="// Course section code, e.g. BSIT-3A-CS101"
+    )
     subject = models.ForeignKey(
         Subject,
         on_delete=models.RESTRICT,
         related_name='classes',
+        help_text="// Academic subject being instructed"
     )
     teacher_profile = models.ForeignKey(
         Profile,
         on_delete=models.RESTRICT,
         related_name='taught_classes',
+        help_text="// Instructor responsible for class delivery"
     )
-    capacity = models.PositiveIntegerField(null=True, blank=True)
-    grace_minutes = models.PositiveSmallIntegerField(default=10)
+    capacity = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="// Maximum allowable roster size"
+    )
+    grace_minutes = models.PositiveSmallIntegerField(
+        default=10,
+        help_text="// Grace period window in minutes before stamping triggers LATE status"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -221,7 +332,10 @@ class Class(models.Model):
 
 
 class ClassSlot(models.Model):
-    """A recurring weekly time slot for a class."""
+    """
+    // [Model] Weekly Recurring Class Schedule Slot
+    // Defines recurring meeting times (e.g., Monday 08:00 - 10:00 in Room IT-Lab 1).
+    """
     WEEKDAY_CHOICES = [
         (0, 'Monday'), (1, 'Tuesday'), (2, 'Wednesday'),
         (3, 'Thursday'), (4, 'Friday'), (5, 'Saturday'), (6, 'Sunday'),
@@ -232,14 +346,16 @@ class ClassSlot(models.Model):
         on_delete=models.RESTRICT,
         related_name='slots',
         db_column='class_id',
+        help_text="// Parent class section"
     )
     weekday = models.PositiveSmallIntegerField(
         choices=WEEKDAY_CHOICES,
         validators=[MaxValueValidator(6)],
+        help_text="// Day of the week (0 = Monday .. 6 = Sunday)"
     )
-    starts_at = models.TimeField()
-    ends_at = models.TimeField()
-    room = models.CharField(max_length=100, default='')
+    starts_at = models.TimeField(help_text="// Scheduled start time")
+    ends_at = models.TimeField(help_text="// Scheduled end time")
+    room = models.CharField(max_length=100, default='', help_text="// Assigned physical or virtual classroom")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -253,6 +369,10 @@ class ClassSlot(models.Model):
 
 
 class Enrollment(models.Model):
+    """
+    // [Model] Student Class Roster Enrollment
+    // Associates an approved student with a class section.
+    """
     STATUS_PENDING = 'PENDING'
     STATUS_ACTIVE = 'ACTIVE'
     STATUS_COMPLETED = 'COMPLETED'
@@ -268,12 +388,14 @@ class Enrollment(models.Model):
         Profile,
         on_delete=models.RESTRICT,
         related_name='enrollments',
+        help_text="// Enrolled student profile"
     )
     class_obj = models.ForeignKey(
         Class,
         on_delete=models.RESTRICT,
         related_name='enrollments',
         db_column='class_id',
+        help_text="// Enrolled class section"
     )
     status = models.CharField(max_length=9, choices=STATUS_CHOICES, default=STATUS_PENDING)
     starts_on = models.DateField(null=True, blank=True)
@@ -283,6 +405,7 @@ class Enrollment(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='approved_enrollments',
+        help_text="// Admin or Teacher granting enrollment"
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -296,11 +419,17 @@ class Enrollment(models.Model):
         return f'{self.student_profile} -> {self.class_obj.class_code} ({self.status})'
 
 
-# ============================================================
-# 4. ATTENDANCE
-# ============================================================
+# // ==============================================================================
+# // SECTION 4: TIME-BASED ATTENDANCE SESSIONS & ATTENDANCE RECORDS
+# // ==============================================================================
 
 class ClassSession(models.Model):
+    """
+    // [Model] Daily Concrete Class Attendance Session
+    // Instantiated on a specific calendar date against a ClassSlot schedule.
+    // Lifecycle transitions:
+    // SCHEDULED -> OPEN (scanning active) -> CLOSED (scanning concluded) / CANCELED
+    """
     STATUS_SCHEDULED = 'SCHEDULED'
     STATUS_OPEN = 'OPEN'
     STATUS_CLOSED = 'CLOSED'
@@ -316,30 +445,34 @@ class ClassSession(models.Model):
         ClassSlot,
         on_delete=models.RESTRICT,
         related_name='sessions',
+        help_text="// Schedule slot template"
     )
-    session_date = models.DateField()
+    session_date = models.DateField(help_text="// Actual calendar date of meeting")
     status = models.CharField(max_length=9, choices=STATUS_CHOICES, default=STATUS_SCHEDULED)
-    opened_at = models.DateTimeField(null=True, blank=True)
-    closed_at = models.DateTimeField(null=True, blank=True)
+    opened_at = models.DateTimeField(null=True, blank=True, help_text="// Timestamp when teacher opened session")
+    closed_at = models.DateTimeField(null=True, blank=True, help_text="// Timestamp when session was terminated")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='created_sessions',
+        related_name='created_sessions'
     )
     opened_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='opened_sessions',
+        related_name='opened_sessions'
     )
     closed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='closed_sessions',
+        related_name='closed_sessions'
     )
-    auto_closed = models.BooleanField(default=False)
+    auto_closed = models.BooleanField(
+        default=False,
+        help_text="// True if session was terminated automatically at schedule end time"
+    )
     cancellation_reason = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -354,6 +487,10 @@ class ClassSession(models.Model):
 
 
 class AttendanceRecord(models.Model):
+    """
+    // [Model] Confirmed Student Attendance Record
+    // Captures the finalized status (PRESENT, LATE, ABSENT, EXCUSED) for a student in a session.
+    """
     STATUS_PRESENT = 'PRESENT'
     STATUS_LATE = 'LATE'
     STATUS_ABSENT = 'ABSENT'
@@ -380,22 +517,31 @@ class AttendanceRecord(models.Model):
         ClassSession,
         on_delete=models.RESTRICT,
         related_name='attendance_records',
+        help_text="// Target attendance meeting"
     )
     student_profile = models.ForeignKey(
         Profile,
         on_delete=models.RESTRICT,
         related_name='attendance_records',
+        help_text="// Student marked in session"
     )
     status = models.CharField(max_length=8, choices=STATUS_CHOICES)
-    method = models.CharField(max_length=6, choices=METHOD_CHOICES)
-    stamped_at = models.DateTimeField(null=True, blank=True)
-    late_minutes = models.PositiveSmallIntegerField(default=0)
-    correction_reason = models.TextField(null=True, blank=True)
+    method = models.CharField(max_length=6, choices=METHOD_CHOICES, help_text="// Verification mechanism")
+    stamped_at = models.DateTimeField(null=True, blank=True, help_text="// Exact timestamp of validation stamp")
+    late_minutes = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="// Minutes elapsed past scheduled start time and grace buffer"
+    )
+    correction_reason = models.TextField(
+        null=True, blank=True,
+        help_text="// Justification if marked or corrected manually by instructor"
+    )
     marked_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='marked_attendance_records',
+        help_text="// Instructor or system agent who recorded attendance"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -409,7 +555,11 @@ class AttendanceRecord(models.Model):
 
 
 class StampAttempt(models.Model):
-    """Audit log for every QR/code scan attempt, accepted or not."""
+    """
+    // [Model] Scan & Stamp Audit Log (Anti-Replay / Fraud Prevention)
+    // Immutable log capturing every QR scan or code submission attempt regardless of outcome.
+    // Crucial for anomaly detection and rate-limiting brute-force attempts.
+    """
     METHOD_QR = 'QR'
     METHOD_CODE = 'CODE'
     METHOD_CHOICES = [
@@ -436,25 +586,32 @@ class StampAttempt(models.Model):
         ClassSession,
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='stamp_attempts',
+        related_name='stamp_attempts'
     )
     student_profile = models.ForeignKey(
         Profile,
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='stamp_attempts',
+        related_name='stamp_attempts'
     )
     scanned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='stamp_attempts',
+        help_text="// Teacher terminal or camera scanning the badge"
     )
     attempted_at = models.DateTimeField(auto_now_add=True)
     method = models.CharField(max_length=4, choices=METHOD_CHOICES)
     outcome = models.CharField(max_length=14, choices=OUTCOME_CHOICES)
-    token_bucket = models.BigIntegerField(null=True, blank=True)
-    token_age_s = models.PositiveSmallIntegerField(null=True, blank=True)
+    token_bucket = models.BigIntegerField(
+        null=True, blank=True,
+        help_text="// 30-second TOTP step window interval identifier"
+    )
+    token_age_s = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="// Age in seconds of token relative to current wall clock"
+    )
 
     class Meta:
         db_table = 'tblcs_stamp_attempt'
@@ -464,11 +621,16 @@ class StampAttempt(models.Model):
         return f'{self.attempted_at} - {self.outcome}'
 
 
-# ============================================================
-# 5. REVIEW AND AUDIT
-# ============================================================
+# // ==============================================================================
+# // SECTION 5: FRAUD DETECTION, ANOMALY FLAGGING & AUDIT TRAIL
+# // ==============================================================================
 
 class AnomalyFlag(models.Model):
+    """
+    // [Model] Attendance Anomaly / Fraud Flag
+    // Triggered automatically by pattern detectors (e.g., impossible travel time,
+    // proxy device sharing, duplicate tokens in short spans).
+    """
     STATUS_OPEN = 'OPEN'
     STATUS_DISMISSED = 'DISMISSED'
     STATUS_CONFIRMED = 'CONFIRMED'
@@ -483,11 +645,19 @@ class AnomalyFlag(models.Model):
     attendance_record = models.ForeignKey(
         AttendanceRecord,
         on_delete=models.RESTRICT,
-        related_name='anomaly_flags',
+        related_name='anomaly_flags'
     )
-    rule_code = models.CharField(max_length=50)
-    reason = models.TextField()
-    risk_score = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    rule_code = models.CharField(
+        max_length=50,
+        help_text="// Rule mnemonic, e.g. RULE_RAPID_SCAN_PROXY"
+    )
+    reason = models.TextField(help_text="// Detailed forensic rationale")
+    risk_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        null=True, blank=True,
+        help_text="// Statistical confidence score (0.0000 - 1.0000)"
+    )
     status = models.CharField(max_length=9, choices=STATUS_CHOICES, default=STATUS_OPEN)
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
@@ -501,7 +671,10 @@ class AnomalyFlag(models.Model):
 
 
 class ReviewAction(models.Model):
-    """Append-only log of decisions made on anomaly flags."""
+    """
+    // [Model] Forensic Anomaly Adjudication Action
+    // Append-only history of administrative decisions rendered against AnomalyFlag alerts.
+    """
     DECISION_DISMISS = 'DISMISS'
     DECISION_CONFIRM_PROXY = 'CONFIRM_PROXY'
     DECISION_EXCUSE = 'EXCUSE'
@@ -516,15 +689,16 @@ class ReviewAction(models.Model):
     anomaly_flag = models.ForeignKey(
         AnomalyFlag,
         on_delete=models.RESTRICT,
-        related_name='review_actions',
+        related_name='review_actions'
     )
     reviewer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.RESTRICT,
         related_name='review_actions',
+        help_text="// Admin or authorized investigator"
     )
     decision = models.CharField(max_length=14, choices=DECISION_CHOICES)
-    reason = models.TextField()
+    reason = models.TextField(help_text="// Official justification for adjudication")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -536,19 +710,24 @@ class ReviewAction(models.Model):
 
 
 class AuditEvent(models.Model):
-    """Append-only audit trail for all significant system actions."""
+    """
+    // [Model] Global Append-Only Security & Operational Audit Log
+    // Tracks all high-privilege activities (account validations, overrides, key rotations).
+    // Immutable record: entries should never be updated or pruned in production.
+    """
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='audit_events',
+        help_text="// User account responsible for action"
     )
-    action = models.CharField(max_length=80)
-    object_type = models.CharField(max_length=80)
-    object_id = models.CharField(max_length=80, null=True, blank=True)
-    old_value = models.TextField(null=True, blank=True)
-    new_value = models.TextField(null=True, blank=True)
-    reason = models.TextField(null=True, blank=True)
+    action = models.CharField(max_length=80, help_text="// Action keyword e.g. APPROVE_STUDENT")
+    object_type = models.CharField(max_length=80, help_text="// Target entity class e.g. Profile")
+    object_id = models.CharField(max_length=80, null=True, blank=True, help_text="// Primary key of affected record")
+    old_value = models.TextField(null=True, blank=True, help_text="// Previous state snapshot")
+    new_value = models.TextField(null=True, blank=True, help_text="// Updated state snapshot")
+    reason = models.TextField(null=True, blank=True, help_text="// User-provided remark or explanation")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

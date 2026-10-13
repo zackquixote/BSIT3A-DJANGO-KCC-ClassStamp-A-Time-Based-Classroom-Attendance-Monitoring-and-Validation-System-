@@ -11,22 +11,32 @@
 
   <nav class="sidebar-nav">
 
-    {% if profile and profile.role == 'ADMIN' %}
+    {% if request.user.is_superuser or profile and profile.role == 'ADMIN' %}
       <span class="sidebar-section-label">Admin Panel</span>
-      <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <a href="{% url 'admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
         <i class="fas fa-gauge-high sidebar-link-icon"></i>
         <span>Dashboard</span>
       </a>
-      <a href="#" class="sidebar-link">
+
+      <span class="sidebar-section-label">Account Management</span>
+      {% with current_view=request.resolver_match.url_name %}
+      <a href="{% url 'validation_queue' %}" class="sidebar-link {% if current_view == 'validation_queue' or current_view == 'validation_detail' or current_view == 'approve_student' or current_view == 'reject_student' %}active{% endif %}">
         <i class="fas fa-user-clock sidebar-link-icon"></i>
         <span>Account Validation</span>
-        <span class="sidebar-badge">New</span>
+        {% if pending_approval_count %}<span class="sidebar-badge">{{ pending_approval_count }}</span>{% endif %}
       </a>
-      <a href="#" class="sidebar-link">
+      <a href="{% url 'users:user_list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'users' %}active{% endif %}">
+        <i class="fas fa-users-gear sidebar-link-icon"></i>
+        <span>User Management</span>
+      </a>
+      {% endwith %}
+
+      <span class="sidebar-section-label">Organisation</span>
+      <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}">
         <i class="fas fa-building sidebar-link-icon"></i>
         <span>Departments</span>
       </a>
-      <a href="#" class="sidebar-link">
+      <a href="{% url 'program_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'program_list program_save' %}active{% endif %}">
         <i class="fas fa-graduation-cap sidebar-link-icon"></i>
         <span>Programs</span>
       </a>
@@ -45,7 +55,7 @@
 
     {% elif profile and profile.role == 'TEACHER' %}
       <span class="sidebar-section-label">Teacher</span>
-      <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teacher_dashboard' %}active{% endif %}">
         <i class="fas fa-gauge-high sidebar-link-icon"></i>
         <span>Dashboard</span>
       </a>
@@ -64,7 +74,7 @@
 
     {% elif profile and profile.role == 'STUDENT' %}
       <span class="sidebar-section-label">Student</span>
-      <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <a href="{% url 'student_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'student_dashboard' %}active{% endif %}">
         <i class="fas fa-gauge-high sidebar-link-icon"></i>
         <span>Dashboard</span>
       </a>
@@ -88,11 +98,19 @@
 
   <div class="sidebar-footer">
     <div class="sidebar-user">
-      <div class="sidebar-user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
+      <div class="sidebar-user-avatar">
+        {% if request.user.first_name and request.user.last_name %}
+          {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+        {% else %}
+          {{ request.user.username|slice:":2"|upper }}
+        {% endif %}
+      </div>
       <div class="sidebar-user-info">
-        <span class="sidebar-user-name">{{ request.user.get_full_name }}</span>
+        <span class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
         {% if profile %}
           <span class="role-badge role-{{ profile.role|lower }}">{{ profile.get_role_display }}</span>
+        {% elif request.user.is_superuser %}
+          <span class="role-badge role-admin">Admin</span>
         {% endif %}
       </div>
     </div>

@@ -1,0 +1,71 @@
+{% extends "theme/base.html" %}
+{% block title %}Admin Dashboard — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Admin Dashboard</h1>
+    <p class="page-subtitle">System overview and account management</p>
+  </div>
+</div>
+
+<div class="stat-grid mb-6">
+  <a href="{% url 'validation_queue' %}" class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-user-clock"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ pending_count }}</span>
+      <span class="stat-label">Pending Approvals</span>
+    </div>
+  </a>
+  <a href="{% url 'users:user_list' %}" class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-user-graduate"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ student_count }}</span>
+      <span class="stat-label">Active Students</span>
+    </div>
+  </a>
+  <a href="{% url 'department_list' %}" class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-building"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ department_count }}</span>
+      <span class="stat-label">Departments</span>
+    </div>
+  </a>
+  <a href="{% url 'program_list' %}" class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-graduation-cap"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ program_count }}</span>
+      <span class="stat-label">Academic Programs</span>
+    </div>
+  </a>
+</div>
+
+<div class="card">
+  <h2 class="font-semibold text-primary mb-4">Quick Actions</h2>
+  <div class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <a href="{% url 'validation_queue' %}" class="btn btn-success">
+      <i class="fas fa-user-check"></i> Account Validation
+    </a>
+    <a href="{% url 'users:user_list' %}" class="btn btn-outline">
+      <i class="fas fa-users-gear"></i> User Management
+    </a>
+    <a href="{% url 'department_list' %}" class="btn btn-outline">
+      <i class="fas fa-building"></i> Manage Departments
+    </a>
+    <a href="{% url 'program_list' %}" class="btn btn-outline">
+      <i class="fas fa-graduation-cap"></i> Manage Programs
+    </a>
+    {% if pending_count %}
+    <span class="badge badge--warning"><i class="fas fa-user-clock"></i> {{ pending_count }} awaiting review</span>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "theme/base.html" %}
+{% block title %}Student Dashboard — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Student Dashboard</h1>
+    <p class="page-subtitle">Welcome, {{ request.user.get_full_name|default:request.user.get_username }}</p>
+  </div>
+</div>
+
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-user-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ present_count }}</span>
+      <span class="stat-label">Present</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-clock"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ late_count }}</span>
+      <span class="stat-label">Late</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--red">
+      <i class="fas fa-user-xmark"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ absent_count }}</span>
+      <span class="stat-label">Absent</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-book"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ enrolled_class_count }}</span>
+      <span class="stat-label">Enrolled Classes</span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="text-muted text-sm">
+    Your personal QR code and full attendance log will be available in Phases 3 and 5.
+  </p>
+</div>
+{% endblock %}

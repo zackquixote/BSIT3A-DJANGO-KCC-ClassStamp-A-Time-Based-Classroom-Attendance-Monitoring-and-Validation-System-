@@ -1,0 +1,393 @@
+{% extends "theme/base.html" %}
+{% block title %}College Departments — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">College Departments</h1>
+    <p class="page-subtitle">Manage institutional academic divisions and collegiate units</p>
+  </div>
+  <div>
+    <button type="button" class="btn btn-primary" data-modal-target="editDeptModal" data-mode="create" id="addDeptBtn">
+      <i class="fas fa-plus-circle"></i> Add Department
+    </button>
+  </div>
+</div>
+
+<!-- Stat Grid -->
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-building"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_count }}</span>
+      <span class="stat-label">Total Departments</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-circle-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ active_count }}</span>
+      <span class="stat-label">Active Units</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-graduation-cap"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value"><a href="{% url 'program_list' %}" style="color: inherit; text-decoration: none;">View</a></span>
+      <span class="stat-label">Programs Linked</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-eye-slash"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ inactive_count }}</span>
+      <span class="stat-label">Archived / Inactive</span>
+    </div>
+  </div>
+</div>
+
+<!-- Search Bar -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3" style="max-width: 540px;">
+    <div class="input-wrap w-full">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by department code or name (e.g. CCS, Education)...">
+    </div>
+    {% if query %}
+      <a href="{% url 'department_list' %}" class="btn btn-outline">Clear</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+</div>
+
+<div id="deptAlert" class="toast toast--error mb-4" style="display: none;"></div>
+
+<!-- Departments Table Card -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">
+      Academic Departments {% if query %}<span class="text-muted text-sm">— search results for "{{ query }}"</span>{% endif %}
+    </div>
+    <span class="text-muted text-xs">{{ departments.paginator.count }} total divisions</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="deptTable">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Code</th>
+          <th>Department Name</th>
+          <th>Programs</th>
+          <th>Faculty</th>
+          <th>Status</th>
+          <th style="text-align: right; width: 140px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in departments %}
+        <tr data-row-id="{{ d.id }}">
+          <td class="text-muted">{{ d.id }}</td>
+          <td>
+            <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
+          </td>
+          <td>
+            <div class="font-semibold text-primary">{{ d.name }}</div>
+            <div class="text-muted text-xs">Created {{ d.created_at|date:"M j, Y" }}</div>
+          </td>
+          <td>
+            <a href="{% url 'program_list' %}?department={{ d.id }}" class="badge badge--gold" title="Filter programs under this department">
+              <i class="fas fa-graduation-cap"></i> {{ d.program_count }} Program{{ d.program_count|pluralize }}
+            </a>
+          </td>
+          <td class="text-muted">
+            <i class="fas fa-chalkboard-user"></i> {{ d.faculty_count }} Faculty
+          </td>
+          <td>
+            {% if d.is_active %}
+              <span class="badge badge--success"><i class="fas fa-circle-check"></i> Active</span>
+            {% else %}
+              <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <div class="flex items-center gap-2" style="justify-content: flex-end;">
+              <button type="button"
+                      class="btn btn-outline"
+                      style="padding: 6px 10px;"
+                      data-modal-target="editDeptModal"
+                      data-mode="edit"
+                      data-id="{{ d.id }}"
+                      data-code="{{ d.code }}"
+                      data-name="{{ d.name }}"
+                      data-active="{{ d.is_active|yesno:'true,false' }}"
+                      title="Edit Department">
+                <i class="fas fa-pen-to-square"></i>
+              </button>
+              <button type="button"
+                      class="btn btn-danger"
+                      style="padding: 6px 10px;"
+                      data-modal-target="deleteDeptModal"
+                      data-id="{{ d.id }}"
+                      data-code="{{ d.code }}"
+                      data-programs="{{ d.program_count }}"
+                      data-faculty="{{ d.faculty_count }}"
+                      title="Delete or Deactivate">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 40px 20px;" class="text-muted">
+            <i class="fas fa-building" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
+            {% if query %}
+              No departments matched your query "{{ query }}".
+            {% else %}
+              No departments defined yet. Click <strong>Add Department</strong> above to create one.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if departments.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="text-muted text-xs">
+      Showing page {{ departments.number }} of {{ departments.paginator.num_pages }}
+    </div>
+    <div class="flex items-center gap-2">
+      {% if departments.has_previous %}
+        <a href="?page={{ departments.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline" style="padding: 6px 12px;">
+          <i class="fas fa-chevron-left"></i> Previous
+        </a>
+      {% endif %}
+      {% if departments.has_next %}
+        <a href="?page={{ departments.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline" style="padding: 6px 12px;">
+          Next <i class="fas fa-chevron-right"></i>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add / Edit Department Modal -->
+<div class="modal" id="editDeptModal">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="editDeptModalTitle">Add Department</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="editDeptModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" action="{% url 'department_save' %}" id="editDeptForm">
+      {% csrf_token %}
+      <input type="hidden" name="id" id="dept_id" value="">
+      <div class="modal-body">
+        <div id="deptFormError" class="auth-alert auth-alert--error mb-4" style="display: none;">
+          <i class="fas fa-circle-xmark"></i>
+          <span id="deptFormErrorMsg"></span>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="dept_code">Department Code <span class="text-danger">*</span></label>
+          <div class="input-wrap">
+            <i class="fas fa-tag input-icon"></i>
+            <input type="text" name="code" id="dept_code" class="form-control" placeholder="e.g. CITCS, CEAS, CMAT" maxlength="20" required style="text-transform: uppercase;">
+          </div>
+          <span class="text-muted text-xs">Unique acronym identifying the collegiate department</span>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="dept_name">Full Department Name <span class="text-danger">*</span></label>
+          <div class="input-wrap">
+            <i class="fas fa-building input-icon"></i>
+            <input type="text" name="name" id="dept_name" class="form-control" placeholder="e.g. College of Information Technology and Computer Studies" maxlength="150" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Unit Status</label>
+          <label class="form-switch">
+            <input type="checkbox" name="is_active" id="dept_is_active" checked>
+            <span class="text-sm">Active (Available for program & student registrations)</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="editDeptModal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveDeptBtn">
+          <i class="fas fa-save"></i> Save Department
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete / Deactivate Department Modal -->
+<div class="modal" id="deleteDeptModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title">Delete / Deactivate</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="deleteDeptModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" id="deleteDeptForm" action="">
+      {% csrf_token %}
+      <div class="modal-body">
+        <p class="text-secondary">Are you sure you want to remove department <strong id="delete_dept_code" class="text-primary"></strong>?</p>
+        <div id="delete_dept_warning" class="auth-alert auth-alert--warning mt-3" style="display: none;">
+          <i class="fas fa-triangle-exclamation"></i>
+          <span>This department has associated programs or faculty. It will be <strong>safely deactivated</strong> instead of deleted to protect academic records.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="deleteDeptModal">Cancel</button>
+        <button type="submit" class="btn btn-danger" id="confirmDeleteDeptBtn">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const form = document.getElementById('editDeptForm');
+  const errorBox = document.getElementById('deptFormError');
+  const errorMsg = document.getElementById('deptFormErrorMsg');
+  const alertBox = document.getElementById('deptAlert');
+  const modalTitle = document.getElementById('editDeptModalTitle');
+  const deleteForm = document.getElementById('deleteDeptForm');
+  const deleteCode = document.getElementById('delete_dept_code');
+  const deleteWarning = document.getElementById('delete_dept_warning');
+
+  function showAlert(msg, isError = true) {
+    alertBox.textContent = msg;
+    alertBox.className = 'toast ' + (isError ? 'toast--error' : 'toast--success') + ' mb-4';
+    alertBox.style.display = 'flex';
+    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+  }
+
+  // Handle Edit/Create click
+  document.addEventListener('click', function(e) {
+    const editBtn = e.target.closest('[data-modal-target="editDeptModal"]');
+    if (editBtn) {
+      errorBox.style.display = 'none';
+      const mode = editBtn.getAttribute('data-mode');
+      if (mode === 'edit') {
+        modalTitle.textContent = 'Edit Department';
+        document.getElementById('dept_id').value = editBtn.getAttribute('data-id');
+        document.getElementById('dept_code').value = editBtn.getAttribute('data-code');
+        document.getElementById('dept_name').value = editBtn.getAttribute('data-name');
+        document.getElementById('dept_is_active').checked = editBtn.getAttribute('data-active') === 'true';
+      } else {
+        modalTitle.textContent = 'Add Department';
+        form.reset();
+        document.getElementById('dept_id').value = '';
+        document.getElementById('dept_is_active').checked = true;
+      }
+      if (typeof window.openModal === 'function') {
+        window.openModal('editDeptModal');
+      } else {
+        document.getElementById('editDeptModal').classList.add('is-active');
+      }
+    }
+
+    const delBtn = e.target.closest('[data-modal-target="deleteDeptModal"]');
+    if (delBtn) {
+      const deptId = delBtn.getAttribute('data-id');
+      const deptCode = delBtn.getAttribute('data-code');
+      const progCount = parseInt(delBtn.getAttribute('data-programs') || '0', 10);
+      const facCount = parseInt(delBtn.getAttribute('data-faculty') || '0', 10);
+
+      deleteCode.textContent = deptCode;
+      deleteForm.action = '/departments/delete/' + deptId + '/';
+
+      if (progCount > 0 || facCount > 0) {
+        deleteWarning.style.display = 'flex';
+      } else {
+        deleteWarning.style.display = 'none';
+      }
+      if (typeof window.openModal === 'function') {
+        window.openModal('deleteDeptModal');
+      } else {
+        document.getElementById('deleteDeptModal').classList.add('is-active');
+      }
+    }
+  });
+
+  // AJAX save with fallback
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const saveBtn = document.getElementById('saveDeptBtn');
+    saveBtn.disabled = true;
+
+    fetch('{% url "department_save" %}', {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      body: formData
+    })
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(res => {
+      saveBtn.disabled = false;
+      if (res.status === 200 && res.data.status === 'success') {
+        window.closeModal('editDeptModal');
+        window.location.reload();
+      } else {
+        errorMsg.textContent = res.data.error || 'Failed to save department.';
+        errorBox.style.display = 'flex';
+      }
+    })
+    .catch(err => {
+      saveBtn.disabled = false;
+      errorMsg.textContent = 'Network or server error occurred.';
+      errorBox.style.display = 'flex';
+    });
+  });
+
+  // AJAX delete with reload
+  deleteForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('confirmDeleteDeptBtn');
+    btn.disabled = true;
+
+    fetch(deleteForm.action, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      }
+    })
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(res => {
+      btn.disabled = false;
+      window.closeModal('deleteDeptModal');
+      window.location.reload();
+    })
+    .catch(() => {
+      btn.disabled = false;
+      deleteForm.submit(); // fallback to standard POST
+    });
+  });
+})();
+</script>
+{% endblock %}

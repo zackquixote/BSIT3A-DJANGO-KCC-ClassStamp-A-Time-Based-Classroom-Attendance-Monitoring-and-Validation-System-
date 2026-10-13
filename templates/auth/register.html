@@ -46,7 +46,7 @@
         </div>
       {% endif %}
 
-      <form method="POST" action="{% url 'register' %}" class="auth-form" id="registerForm">
+      <form method="POST" action="{% url 'register' %}" class="auth-form" id="registerForm" enctype="multipart/form-data">
         {% csrf_token %}
 
         <!-- Name row -->
@@ -101,11 +101,14 @@
                 id="id_student_number"
                 name="student_number"
                 class="form-control {% if errors.student_number %}is-invalid{% endif %}"
-                placeholder="e.g. 2023-0145"
+                placeholder="e.g. 2024-0145"
                 value="{{ form_data.student_number|default:'' }}"
+                maxlength="15"
+                autocomplete="off"
                 required
               >
             </div>
+            <div id="studentNumberStatus" class="text-xs mt-1" style="display: none;"></div>
             {% if errors.student_number %}
               <span class="form-error">{{ errors.student_number }}</span>
             {% endif %}
@@ -181,6 +184,7 @@
                 required
               >
             </div>
+            <div id="emailStatus" class="text-xs mt-1" style="display: none;"></div>
             {% if errors.email %}
               <span class="form-error">{{ errors.email }}</span>
             {% endif %}
@@ -201,6 +205,7 @@
                 required
               >
             </div>
+            <div id="usernameStatus" class="text-xs mt-1" style="display: none;"></div>
             {% if errors.username %}
               <span class="form-error">{{ errors.username }}</span>
             {% endif %}
@@ -252,6 +257,27 @@
               <span class="form-error">{{ errors.confirm_password }}</span>
             {% endif %}
           </div>
+        </div>
+
+        <!-- Certificate of Registration (COR) / School ID Proof Upload -->
+        <div class="form-group">
+          <label class="form-label" for="id_registration_proof">
+            Certificate of Registration (COR) or ID Badge Photo
+            <span class="text-xs" style="color: var(--accent-gold); font-weight: normal;">(Optional proof)</span>
+          </label>
+          <div class="input-wrap">
+            <i class="fas fa-file-arrow-up input-icon"></i>
+            <input
+              type="file"
+              id="id_registration_proof"
+              name="registration_proof"
+              class="form-control"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+            >
+          </div>
+          <span class="text-muted text-xs mt-1" style="display: block;">
+            Attach your physical student badge or official Certificate of Registration (JPG, PNG, or PDF max 5MB).
+          </span>
         </div>
 
         <button type="submit" class="btn btn-primary btn-full mt-2" id="register-btn">
@@ -337,6 +363,59 @@
 
       setupToggle('togglePassword', 'id_password', 'eyeIcon');
       setupToggle('toggleConfirm', 'id_confirm_password', 'eyeIconConfirm');
+
+      // 1. Student ID Format Masking (e.g. 2024-0145)
+      const studentIdInput = document.getElementById('id_student_number');
+      if (studentIdInput) {
+        studentIdInput.addEventListener('input', function () {
+          let val = this.value.replace(/[^\d]/g, '');
+          if (val.length > 4) {
+            val = val.substring(0, 4) + '-' + val.substring(4, 10);
+          }
+          this.value = val;
+          scheduleAvailabilityCheck('student_number', val, document.getElementById('studentNumberStatus'));
+        });
+      }
+
+      // 2. Real-Time Availability Checking (Debounced)
+      let checkTimers = {};
+      function scheduleAvailabilityCheck(type, value, statusEl) {
+        if (!statusEl) return;
+        clearTimeout(checkTimers[type]);
+
+        if (!value || value.length < 3) {
+          statusEl.style.display = 'none';
+          return;
+        }
+
+        checkTimers[type] = setTimeout(function () {
+          fetch(`{% url 'check_registration_availability' %}?type=${encodeURIComponent(type)}&value=${encodeURIComponent(value)}`)
+            .then(res => res.json())
+            .then(data => {
+              statusEl.style.display = 'block';
+              if (data.available) {
+                statusEl.innerHTML = `<span style="color: #22c55e;"><i class="fas fa-circle-check"></i> ${data.message}</span>`;
+              } else {
+                statusEl.innerHTML = `<span style="color: #ef4444;"><i class="fas fa-circle-xmark"></i> ${data.message}</span>`;
+              }
+            })
+            .catch(() => {});
+        }, 350);
+      }
+
+      const usernameInput = document.getElementById('id_username');
+      if (usernameInput) {
+        usernameInput.addEventListener('input', function () {
+          scheduleAvailabilityCheck('username', this.value.trim(), document.getElementById('usernameStatus'));
+        });
+      }
+
+      const emailInput = document.getElementById('id_email');
+      if (emailInput) {
+        emailInput.addEventListener('input', function () {
+          scheduleAvailabilityCheck('email', this.value.trim(), document.getElementById('emailStatus'));
+        });
+      }
     })();
   </script>
 </body>
