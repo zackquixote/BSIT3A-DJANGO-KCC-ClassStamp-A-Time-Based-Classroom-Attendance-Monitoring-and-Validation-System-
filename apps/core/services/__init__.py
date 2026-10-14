@@ -19,6 +19,13 @@ from .academic_service import (
     delete_or_deactivate_department,
     create_or_update_program,
     delete_or_deactivate_program,
+    create_or_update_subject,
+    delete_or_deactivate_subject,
+    assign_curriculum_subject,
+    remove_curriculum_entry,
+    create_or_update_academic_year,
+    set_active_academic_year,
+    delete_or_deactivate_academic_year,
 )
 from .approval_service import (
     approve_student_registration,
@@ -29,6 +36,12 @@ from .student_service import (
     build_student_queryset,
     import_students_from_csv,
 )
+from .teacher_service import (
+    provision_teacher_account,
+    update_teacher_profile,
+    toggle_teacher_active,
+    delete_or_deactivate_teacher,
+)
 
 __all__ = [
     # Academic CRUD
@@ -36,6 +49,18 @@ __all__ = [
     'delete_or_deactivate_department',
     'create_or_update_program',
     'delete_or_deactivate_program',
+    'create_or_update_subject',
+    'delete_or_deactivate_subject',
+    'assign_curriculum_subject',
+    'remove_curriculum_entry',
+    'create_or_update_academic_year',
+    'set_active_academic_year',
+    'delete_or_deactivate_academic_year',
+    # Teacher Management
+    'provision_teacher_account',
+    'update_teacher_profile',
+    'toggle_teacher_active',
+    'delete_or_deactivate_teacher',
     # Approval workflow
     'approve_student_registration',
     'reject_student_registration',

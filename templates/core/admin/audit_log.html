@@ -1,0 +1,134 @@
+﻿{% extends "theme/base.html" %}
+{% block title %}Audit Log — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 22px;">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
+        <i class="fas fa-shield-halved"></i> Security & Compliance
+      </span>
+    </div>
+    <h1 class="page-title" style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">
+      System Audit Log
+    </h1>
+    <p class="page-subtitle" style="font-size: 0.88rem;">
+      Immutable record of all high-privilege administrative operations — {{ total_count }} total event(s)
+    </p>
+  </div>
+  <a href="{% url 'admin_dashboard' %}" class="btn btn-outline" style="padding: 10px 18px;">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3 flex-wrap">
+    <div class="input-wrap" style="min-width: 220px;">
+      <i class="fas fa-filter input-icon"></i>
+      <select name="action" class="form-control" onchange="this.form.submit()">
+        <option value="">All Action Types</option>
+        {% for a in action_choices %}
+          <option value="{{ a }}" {% if a == action_filter %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if action_filter %}
+      <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm">
+        <i class="fas fa-xmark"></i> Clear Filter
+      </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Events Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="flex items-center gap-3">
+      <div class="stat-icon stat-icon--purple" style="width: 36px; height: 36px; font-size: 1rem;">
+        <i class="fas fa-scroll"></i>
+      </div>
+      <div>
+        <div class="font-bold text-primary" style="font-size: 1rem;">Audit Trail</div>
+        <span class="text-muted text-xs">Append-only — entries are never modified or deleted</span>
+      </div>
+    </div>
+    <span class="badge badge--info">Page {{ events.number }} of {{ events.paginator.num_pages }}</span>
+  </div>
+
+  {% if events %}
+  <div class="table-responsive">
+    <table class="table" style="margin-bottom: 0;">
+      <thead>
+        <tr>
+          <th style="width: 160px;">Timestamp</th>
+          <th>Action</th>
+          <th>Actor</th>
+          <th>Object</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td class="text-secondary text-xs" style="white-space: nowrap;">
+            {{ e.created_at|date:"M j, Y" }}<br>
+            <span class="text-muted">{{ e.created_at|date:"g:i:s A" }}</span>
+          </td>
+          <td>
+            <span class="badge
+              {% if 'APPROVE' in e.action %}badge--success
+              {% elif 'REJECT' in e.action or 'DELETE' in e.action %}badge--error
+              {% elif 'LOGIN' in e.action %}badge--info
+              {% elif 'DEACTIVATE' in e.action %}badge--warning
+              {% else %}badge--purple{% endif %}"
+              style="font-size: 0.7rem; font-family: monospace;">
+              {{ e.action }}
+            </span>
+          </td>
+          <td>
+            <span class="font-semibold text-primary text-sm">
+              {% if e.actor %}{{ e.actor.get_full_name|default:e.actor.username }}{% else %}<em class="text-muted">System</em>{% endif %}
+            </span>
+          </td>
+          <td class="text-sm">
+            <span class="text-muted">{{ e.object_type }}</span>
+            {% if e.object_id %}<span class="text-xs text-muted"> #{{ e.object_id }}</span>{% endif %}
+          </td>
+          <td class="text-xs text-muted" style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {% if e.new_value %}{{ e.new_value }}{% elif e.old_value %}{{ e.old_value }}{% elif e.reason %}{{ e.reason }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if events.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; gap: 8px;">
+    {% if events.has_previous %}
+      <a href="?page={{ events.previous_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}" class="btn btn-outline btn-sm">
+        <i class="fas fa-chevron-left"></i> Prev
+      </a>
+    {% endif %}
+    <span class="text-muted text-sm">{{ events.number }} / {{ events.paginator.num_pages }}</span>
+    {% if events.has_next %}
+      <a href="?page={{ events.next_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}" class="btn btn-outline btn-sm">
+        Next <i class="fas fa-chevron-right"></i>
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="padding: 48px 24px; text-align: center;">
+    <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.3); color: #c084fc; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 14px;">
+      <i class="fas fa-scroll"></i>
+    </div>
+    <h3 class="text-primary font-bold" style="font-size: 1.1rem; margin-bottom: 4px;">No Audit Events Found</h3>
+    <p class="text-muted text-sm">No events match the current filter. Try clearing the filter to see all records.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

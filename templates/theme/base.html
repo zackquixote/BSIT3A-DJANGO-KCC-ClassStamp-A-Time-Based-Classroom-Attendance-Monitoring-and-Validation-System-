@@ -12,17 +12,39 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261013b">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261014_dash">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
   <div class="app-layout">
 
     {% if request.user.is_authenticated %}
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
       {% include 'theme/sidebar.html' %}
     {% endif %}
 
     <main class="main-content {% if not request.user.is_authenticated %}main-content--full{% endif %}">
+      {% if request.user.is_authenticated %}
+        <header class="mobile-topbar" id="mobileTopbar" style="display: none;">
+          <div class="mobile-topbar-left">
+            <button type="button" class="mobile-toggle-btn" id="sidebar-toggle" aria-label="Toggle Navigation">
+              <i class="fas fa-bars"></i>
+            </button>
+            <div class="mobile-topbar-brand">
+              <img src="{% static 'img/logo.jpg' %}" alt="KCC Logo" class="mobile-topbar-logo" width="30" height="30" style="width: 30px; height: 30px; max-width: 30px; max-height: 30px; object-fit: contain;">
+              <span class="mobile-topbar-title">KCC <span class="text-gold">ClassStamp</span></span>
+            </div>
+          </div>
+          <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
+            {% if request.user.first_name and request.user.last_name %}
+              {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+            {% else %}
+              {{ request.user.username|slice:":2"|upper }}
+            {% endif %}
+          </div>
+        </header>
+      {% endif %}
+
       {% if messages %}
         <div class="toast-container">
           {% for message in messages %}

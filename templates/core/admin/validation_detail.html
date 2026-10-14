@@ -7,7 +7,9 @@
 <div class="breadcrumb-nav">
   <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge-high"></i> Dashboard</a>
   <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
-  <a href="{% url 'validation_queue' %}"><i class="fas fa-user-clock"></i> Account Validation</a>
+  <a href="{% url 'validation_hub' %}"><i class="fas fa-user-clock"></i> Account Validation</a>
+  <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+  <a href="{% url 'validation_pending_queue' %}">Pending Registrations</a>
   <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
   <span class="text-primary font-semibold">Student Registration Form</span>
 </div>
@@ -19,8 +21,8 @@
     <p class="page-subtitle">Submitted electronic registration form credentials awaiting administrative decision</p>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
-    <a href="{% url 'validation_queue' %}" class="btn btn-outline btn-sm">
-      <i class="fas fa-list-check"></i> Queue
+    <a href="{% url 'validation_pending_queue' %}" class="btn btn-outline btn-sm">
+      <i class="fas fa-list-check"></i> Pending Queue
     </a>
 
     <!-- Queue Navigation Controls -->
@@ -143,289 +145,377 @@
 </div>
 {% endif %}
 
-<!-- Full Registration Form Card -->
-<div class="card" style="max-width: 860px; margin: 0 auto; padding: 28px 32px;">
+<!-- Split Dossier Review Workspace (Fits 100% Zoom) -->
+<div class="review-split-grid mb-6">
 
-  <!-- Form Header -->
-  <div class="flex items-center justify-between pb-4 mb-4" style="border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 12px;">
-    <div class="flex items-center gap-3">
-      <div class="avatar-initial" style="width: 48px; height: 48px; font-size: 1.2rem;">
-        {{ student_profile.user.first_name|first|upper }}{{ student_profile.user.last_name|first|upper }}
-      </div>
-      <div>
-        <h2 style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
-          {{ student_profile.user.get_full_name }}
-        </h2>
-        <div class="text-muted text-xs">
-          Submitted on {{ student_profile.created_at|date:"F j, Y · g:i A" }}
-        </div>
-      </div>
-    </div>
-    <div>
-      <span class="badge badge--purple font-semibold" style="font-size: 0.85rem; padding: 6px 12px;">
-        <i class="fas fa-graduation-cap"></i> Student Registration Form
-      </span>
-    </div>
-  </div>
+  <!-- LEFT COLUMN: Student Profile, Credentials & Decision Controls -->
+  <div style="display: flex; flex-direction: column; gap: 20px;">
 
-  <!-- The Actual Registration E-Form Fields -->
-  <div class="auth-form" style="margin-top: 10px;">
-
-    <!-- Name row -->
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label" for="reg_first_name">First Name</label>
-        <div class="input-wrap">
-          <i class="fas fa-user input-icon"></i>
-          <input
-            type="text"
-            id="reg_first_name"
-            class="form-control"
-            value="{{ student_profile.user.first_name }}"
-            readonly
-            style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary); font-weight: 500;"
-          >
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg_last_name">Last Name</label>
-        <div class="input-wrap">
-          <i class="fas fa-user input-icon"></i>
-          <input
-            type="text"
-            id="reg_last_name"
-            class="form-control"
-            value="{{ student_profile.user.last_name }}"
-            readonly
-            style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary); font-weight: 500;"
-          >
-        </div>
-      </div>
-    </div>
-
-    <!-- Student ID & Year Level row -->
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label" for="reg_student_number">Student ID Number</label>
-        <div class="input-wrap">
-          <i class="fas fa-id-card input-icon"></i>
-          <input
-            type="text"
-            id="reg_student_number"
-            class="form-control font-semibold"
-            value="{{ student_profile.student_number }}"
-            readonly
-            style="background: rgba(15, 23, 42, 0.6); color: var(--accent-gold); letter-spacing: 0.5px;"
-          >
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg_year_level">Year Level</label>
-        <div class="input-wrap">
-          <i class="fas fa-layer-group input-icon"></i>
-          <input
-            type="text"
-            id="reg_year_level"
-            class="form-control font-semibold"
-            value="{{ student_profile.year_level }}{% if student_profile.year_level == 1 %}st{% elif student_profile.year_level == 2 %}nd{% elif student_profile.year_level == 3 %}rd{% else %}th{% endif %} Year"
-            readonly
-            style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary);"
-          >
-        </div>
-      </div>
-    </div>
-
-    <!-- College Department -->
-    <div class="form-group">
-      <label class="form-label" for="reg_department">College Department</label>
-      <div class="input-wrap">
-        <i class="fas fa-building-columns input-icon"></i>
-        <input
-          type="text"
-          id="reg_department"
-          class="form-control"
-          value="{{ student_profile.program.department.name }} ({{ student_profile.program.department.code }})"
-          readonly
-          style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary); font-weight: 500;"
-        >
-      </div>
-    </div>
-
-    <!-- College Program -->
-    <div class="form-group">
-      <label class="form-label" for="reg_program">College Program</label>
-      <div class="input-wrap">
-        <i class="fas fa-book-bookmark input-icon"></i>
-        <input
-          type="text"
-          id="reg_program"
-          class="form-control font-semibold"
-          value="{{ student_profile.program.name }} ({{ student_profile.program.code }})"
-          readonly
-          style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary);"
-        >
-      </div>
-    </div>
-
-    <!-- Email & Username row -->
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label" for="reg_email">Email Address</label>
-        <div class="input-wrap">
-          <i class="fas fa-envelope input-icon"></i>
-          <input
-            type="email"
-            id="reg_email"
-            class="form-control"
-            value="{{ student_profile.user.email }}"
-            readonly
-            style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary);"
-          >
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="reg_username">Username</label>
-        <div class="input-wrap">
-          <i class="fas fa-at input-icon"></i>
-          <input
-            type="text"
-            id="reg_username"
-            class="form-control"
-            value="{{ student_profile.user.username }}"
-            readonly
-            style="background: rgba(15, 23, 42, 0.6); color: var(--text-primary);"
-          >
-        </div>
-      </div>
-    </div>
-
-    <!-- Uploaded Registration Proof / COR Photo Section -->
-    <div class="form-group">
-      <label class="form-label"><i class="fas fa-paperclip text-gold"></i> Certificate of Registration (COR) / School ID Proof</label>
-      {% if student_profile.registration_proof %}
-        <div class="proof-preview-box">
-          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <span class="text-sm font-semibold text-primary">
-              <i class="fas fa-file-check text-success"></i> Attached Proof Document
-            </span>
-            <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="btn btn-outline btn-sm">
-              <i class="fas fa-arrow-up-right-from-square"></i> Open Full Document
-            </a>
-          </div>
-
-          {% if ".pdf" in student_profile.registration_proof.url|lower %}
-            <div style="padding: 20px; text-align: center; background: rgba(15, 23, 42, 0.8); border-radius: var(--radius-sm);">
-              <i class="fas fa-file-pdf text-danger" style="font-size: 2.5rem;"></i>
-              <p class="text-secondary text-sm mt-2">PDF Document Attached</p>
-              <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="btn btn-primary btn-sm mt-2">
-                <i class="fas fa-file-pdf"></i> View Official COR PDF
-              </a>
+    <!-- 1. Student Credentials Card -->
+    <div class="card" style="padding: 24px;">
+      <!-- Form Header -->
+      <div class="flex items-center justify-between pb-4 mb-4" style="border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 12px;">
+          {% if student_profile.estimated_gender == 'F' %}
+            <div class="student-avatar-wrap student-avatar--female" style="width: 44px; height: 44px;" title="Female Student">
+              <svg class="student-avatar-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="20" fill="#e11d48"/>
+                <path d="M7 38C7 30.5 13 28 20 28C27 28 33 30.5 33 38" fill="#ffe4e6"/>
+                <path d="M16 28L20 33L24 28" fill="#f43f5e"/>
+                <rect x="17.5" y="21.5" width="5" height="7" rx="1.5" fill="#fed7aa"/>
+                <path d="M11.5 18C11.5 11.5 15 8 20 8C25 8 28.5 11.5 28.5 18C28.5 24 27 27 27 27C27 27 24.5 21 24.5 20C24.5 19 24.5 15 20 15C15.5 15 15.5 19 15.5 20C15.5 21 13 27 13 27C13 27 11.5 24 11.5 18Z" fill="#881337"/>
+                <ellipse cx="20" cy="17.5" rx="6.5" ry="7.5" fill="#fde68a"/>
+                <path d="M13.5 15.5C14.5 11 17 9.5 20 9.5C23.5 9.5 26 11.5 26.5 15C24.5 13 22.5 12.5 20 12.5C17 12.5 15 13.5 13.5 15.5Z" fill="#9f1239"/>
+                <circle cx="17.8" cy="17.5" r="0.9" fill="#4c0519"/>
+                <circle cx="22.2" cy="17.5" r="0.9" fill="#4c0519"/>
+              </svg>
+              <span class="gender-badge-dot gender-badge-dot--female" style="width: 15px; height: 15px; font-size: 8px;">
+                <i class="fas fa-venus"></i>
+              </span>
             </div>
           {% else %}
-            <div style="text-align: center; max-height: 380px; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
-              <a href="{{ student_profile.registration_proof.url }}" target="_blank">
-                <img src="{{ student_profile.registration_proof.url }}" alt="Registration Proof" style="max-height: 380px; margin: 0 auto; object-fit: contain; cursor: zoom-in;" title="Click to view full image">
-              </a>
+            <div class="student-avatar-wrap student-avatar--male" style="width: 44px; height: 44px;" title="Male Student">
+              <svg class="student-avatar-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="20" fill="#2563eb"/>
+                <path d="M7 38C7 30.5 13 28 20 28C27 28 33 30.5 33 38" fill="#e0f2fe"/>
+                <path d="M16 28L20 33L24 28" fill="#0284c7"/>
+                <rect x="17.5" y="21.5" width="5" height="7" rx="1.5" fill="#fcd34d"/>
+                <ellipse cx="20" cy="17" rx="6.5" ry="7.5" fill="#fed7aa"/>
+                <path d="M13 14C13 9.5 16 7 20 7C24.5 7 27 9.5 27 13.5C25.5 12 23 10.5 19.5 11C16.5 11.5 14.5 12.5 13 14Z" fill="#1e293b"/>
+                <circle cx="17.8" cy="17.2" r="0.9" fill="#0f172a"/>
+                <circle cx="22.2" cy="17.2" r="0.9" fill="#0f172a"/>
+              </svg>
+              <span class="gender-badge-dot gender-badge-dot--male" style="width: 15px; height: 15px; font-size: 8px;">
+                <i class="fas fa-mars"></i>
+              </span>
             </div>
           {% endif %}
+          <div>
+            <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
+              {{ student_profile.user.get_full_name }}
+            </h2>
+            <div class="text-muted text-xs">
+              Submitted on {{ student_profile.created_at|date:"F j, Y · g:i A" }}
+            </div>
+          </div>
         </div>
-      {% else %}
-        <div style="padding: 14px 16px; background: rgba(15, 23, 42, 0.4); border: 1px dashed var(--glass-border); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-muted);">
-          <i class="fas fa-info-circle"></i> No physical ID or Certificate of Registration proof file was uploaded during registration.
+        <div>
+          <span class="badge badge--purple font-semibold" style="font-size: 0.8rem; padding: 5px 12px;">
+            <i class="fas fa-graduation-cap"></i> Student Registration Form
+          </span>
         </div>
-      {% endif %}
-    </div>
-
-  </div>
-
-  <!-- Administrative Decision Controls (Approve / Reject) -->
-  {% if student_profile.approval_status == 'PENDING' %}
-  <div style="border-top: 1px solid var(--glass-border); padding-top: 24px; margin-top: 24px;">
-    <div class="font-semibold text-primary mb-3 text-sm flex items-center gap-2">
-      <i class="fas fa-gavel text-gold"></i> Administrative Decision
-    </div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-      <!-- Approve Action Card -->
-      <div style="background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: var(--radius-md); padding: 18px;">
-        <div class="font-semibold text-success mb-1 flex items-center gap-2">
-          <i class="fas fa-circle-check"></i> Approve Registration
-        </div>
-        <p class="text-muted text-xs mb-3">
-          Verifies student identity, activates portal access, and seals dynamic attendance pass.
-        </p>
-        <form method="POST" action="{% url 'approve_student' student_profile.student_number %}">
-          {% csrf_token %}
-          <button
-            type="submit"
-            class="btn btn-success btn-full"
-            onclick="return confirm('Approve registration for {{ student_profile.user.get_full_name|escapejs }}?');"
-          >
-            <i class="fas fa-circle-check"></i> Approve Student Account
-          </button>
-        </form>
       </div>
 
-      <!-- Reject Action Card with Quick Chips -->
-      <div style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 18px;">
-        <div class="font-semibold text-danger mb-1 flex items-center gap-2">
-          <i class="fas fa-circle-xmark"></i> Reject Registration
-        </div>
-        <p class="text-muted text-xs mb-2">
-          Denies registration with an explanatory note.
-        </p>
+      <!-- The Registration Fields -->
+      <div class="auth-form" style="display: flex; flex-direction: column; gap: 14px;">
 
-        <!-- Quick Reason Presets (Chips) -->
-        <div class="mb-2">
-          <span class="text-muted text-xs block mb-1">Quick Reasons (click to insert):</span>
-          <div class="flex flex-wrap gap-1" id="rejectionChips">
-            <button type="button" class="reject-chip" data-reason="Invalid Student ID Number">Invalid ID</button>
-            <button type="button" class="reject-chip" data-reason="Incorrect Program or Year Level">Wrong Program</button>
-            <button type="button" class="reject-chip" data-reason="Duplicate registration account detected">Duplicate</button>
-            <button type="button" class="reject-chip" data-reason="Not found in Official KCC Registrar records">Unverified</button>
+        <!-- Name row -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="reg_first_name">First Name</label>
+            <div class="input-wrap">
+              <i class="fas fa-user input-icon"></i>
+              <input
+                type="text"
+                id="reg_first_name"
+                class="form-control"
+                value="{{ student_profile.user.first_name }}"
+                readonly
+                style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary); font-weight: 500;"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg_last_name">Last Name</label>
+            <div class="input-wrap">
+              <i class="fas fa-user input-icon"></i>
+              <input
+                type="text"
+                id="reg_last_name"
+                class="form-control"
+                value="{{ student_profile.user.last_name }}"
+                readonly
+                style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary); font-weight: 500;"
+              >
+            </div>
           </div>
         </div>
 
-        <form method="POST" action="{% url 'reject_student' student_profile.student_number %}">
-          {% csrf_token %}
-          <div class="form-group mb-2">
+        <!-- Student ID & Year Level row -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="reg_student_number">Student ID Number</label>
+            <div class="input-wrap">
+              <i class="fas fa-id-card input-icon"></i>
+              <input
+                type="text"
+                id="reg_student_number"
+                class="form-control font-semibold"
+                value="{{ student_profile.student_number }}"
+                readonly
+                style="background: rgba(10, 18, 36, 0.6); color: var(--accent-gold); letter-spacing: 0.5px;"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg_year_level">Year Level</label>
+            <div class="input-wrap">
+              <i class="fas fa-layer-group input-icon"></i>
+              <input
+                type="text"
+                id="reg_year_level"
+                class="form-control font-semibold"
+                value="{{ student_profile.year_level }}{% if student_profile.year_level == 1 %}st{% elif student_profile.year_level == 2 %}nd{% elif student_profile.year_level == 3 %}rd{% else %}th{% endif %} Year"
+                readonly
+                style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- College Department -->
+        <div class="form-group">
+          <label class="form-label" for="reg_department">College Department</label>
+          <div class="input-wrap">
+            <i class="fas fa-building-columns input-icon"></i>
             <input
               type="text"
-              name="reason"
-              id="rejectionReasonInput"
-              class="form-control text-sm"
-              placeholder="Reason for rejection (required)..."
-              required
+              id="reg_department"
+              class="form-control"
+              value="{{ student_profile.program.department.name }} ({{ student_profile.program.department.code }})"
+              readonly
+              style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary); font-weight: 500;"
             >
           </div>
-          <button
-            type="submit"
-            class="btn btn-danger btn-full"
-            onclick="return confirm('Reject registration for {{ student_profile.user.get_full_name|escapejs }}?');"
-          >
-            <i class="fas fa-circle-xmark"></i> Reject Registration
-          </button>
-        </form>
+        </div>
+
+        <!-- College Program -->
+        <div class="form-group">
+          <label class="form-label" for="reg_program">College Program</label>
+          <div class="input-wrap">
+            <i class="fas fa-book-bookmark input-icon"></i>
+            <input
+              type="text"
+              id="reg_program"
+              class="form-control font-semibold"
+              value="{{ student_profile.program.name }} ({{ student_profile.program.code }})"
+              readonly
+              style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
+            >
+          </div>
+        </div>
+
+        <!-- Email & Username row -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="reg_email">Email Address</label>
+            <div class="input-wrap">
+              <i class="fas fa-envelope input-icon"></i>
+              <input
+                type="email"
+                id="reg_email"
+                class="form-control"
+                value="{{ student_profile.user.email }}"
+                readonly
+                style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg_username">Username</label>
+            <div class="input-wrap">
+              <i class="fas fa-at input-icon"></i>
+              <input
+                type="text"
+                id="reg_username"
+                class="form-control"
+                value="{{ student_profile.user.username }}"
+                readonly
+                style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
+              >
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>
-  {% else %}
-  <div style="border-top: 1px solid var(--glass-border); padding-top: 20px; margin-top: 20px;">
-    <div class="text-muted text-xs uppercase font-semibold mb-1">Evaluation Details</div>
-    <div class="text-sm text-secondary">
-      <div>Reviewed by: <strong class="text-primary">{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username|default:"System" }}</strong></div>
-      <div>Timestamp: <span class="text-primary">{{ student_profile.approved_at|date:"F j, Y · g:i A" }}</span></div>
-      {% if student_profile.approval_note %}
-        <div class="mt-2 text-danger">Reason: {{ student_profile.approval_note }}</div>
+
+    <!-- 2. Administrative Decision Controls (Directly Accessible) -->
+    <div class="card" style="padding: 24px;">
+      <div class="font-semibold text-primary mb-3 text-sm flex items-center justify-between">
+        <span class="flex items-center gap-2">
+          <i class="fas fa-gavel text-gold"></i> Administrative Evaluation
+        </span>
+        {% if student_profile.approval_status == 'PENDING' %}
+          <span class="badge badge--warning font-semibold">Decision Required</span>
+        {% endif %}
+      </div>
+
+      {% if student_profile.approval_status == 'PENDING' %}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" class="decision-grid">
+          <!-- Approve Action Card -->
+          <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div class="font-bold text-success mb-1 flex items-center gap-2" style="font-size: 0.95rem;">
+                <i class="fas fa-circle-check"></i> Approve Account
+              </div>
+              <p class="text-secondary text-xs mb-3">
+                Authorizes credentials, activates dynamic QR pass, and enrolls student into directory.
+              </p>
+            </div>
+            <form method="POST" action="{% url 'approve_student' student_profile.student_number %}">
+              {% csrf_token %}
+              <button
+                type="submit"
+                class="btn btn-success btn-full"
+                style="padding: 11px; font-weight: 700;"
+                onclick="return confirm('Approve registration for {{ student_profile.user.get_full_name|escapejs }}?');"
+              >
+                <i class="fas fa-circle-check"></i> Approve Registration
+              </button>
+            </form>
+          </div>
+
+          <!-- Reject Action Card with Quick Chips -->
+          <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: 16px;">
+            <div class="font-bold text-danger mb-1 flex items-center gap-2" style="font-size: 0.95rem;">
+              <i class="fas fa-circle-xmark"></i> Reject Account
+            </div>
+            <p class="text-secondary text-xs mb-2">
+              Declines submission and notifies student with reason.
+            </p>
+
+            <!-- Quick Reason Presets (Chips) -->
+            <div class="mb-2">
+              <span class="text-muted text-xs block mb-1">Quick Reasons:</span>
+              <div class="flex flex-wrap gap-1" id="rejectionChips">
+                <button type="button" class="reject-chip" data-reason="Invalid Student ID Number">Invalid ID</button>
+                <button type="button" class="reject-chip" data-reason="Incorrect Program or Year Level">Wrong Program</button>
+                <button type="button" class="reject-chip" data-reason="Duplicate registration account detected">Duplicate</button>
+                <button type="button" class="reject-chip" data-reason="Not found in Official KCC Registrar records">Unverified</button>
+              </div>
+            </div>
+
+            <form method="POST" action="{% url 'reject_student' student_profile.student_number %}">
+              {% csrf_token %}
+              <div class="form-group mb-2">
+                <input
+                  type="text"
+                  name="reason"
+                  id="rejectionReasonInput"
+                  class="form-control text-sm"
+                  placeholder="Reason for rejection (required)..."
+                  required
+                >
+              </div>
+              <button
+                type="submit"
+                class="btn btn-danger btn-full"
+                style="padding: 10px; font-weight: 700;"
+                onclick="return confirm('Reject registration for {{ student_profile.user.get_full_name|escapejs }}?');"
+              >
+                <i class="fas fa-circle-xmark"></i> Reject Registration
+              </button>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <!-- Already Evaluated Banner -->
+        <div style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+          <div class="text-xs uppercase font-bold text-muted mb-2">Audit Verification Record</div>
+          <div class="text-sm text-secondary flex flex-col gap-1">
+            <div>Evaluated by: <strong class="text-primary">{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username|default:"System" }}</strong></div>
+            <div>Evaluated at: <span class="text-primary">{{ student_profile.approved_at|date:"F j, Y · g:i A" }}</span></div>
+            {% if student_profile.approval_note %}
+              <div class="mt-2 text-danger">Remarks: {{ student_profile.approval_note }}</div>
+            {% endif %}
+          </div>
+        </div>
       {% endif %}
     </div>
+
   </div>
-  {% endif %}
+
+  <!-- RIGHT COLUMN: Sticky Document Inspector (Official Proof of Registration) -->
+  <div class="card" style="padding: 24px; position: sticky; top: 20px;">
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <div>
+        <h3 class="font-bold text-primary flex items-center gap-2" style="font-size: 1.05rem;">
+          <i class="fas fa-file-shield text-gold"></i> Document Inspector
+        </h3>
+        <span class="text-muted text-xs">Certificate of Registration (COR) / School ID</span>
+      </div>
+      {% if student_profile.registration_proof %}
+        <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="btn btn-outline btn-sm" title="Open full resolution in new tab">
+          <i class="fas fa-arrow-up-right-from-square"></i> Open High-Res
+        </a>
+      {% endif %}
+    </div>
+
+    {% if student_profile.registration_proof %}
+      {% if ".pdf" in student_profile.registration_proof.url|lower %}
+        <div style="padding: 40px 20px; text-align: center; background: rgba(10, 18, 36, 0.8); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+          <i class="fas fa-file-pdf text-danger" style="font-size: 3.5rem; margin-bottom: 12px;"></i>
+          <h4 class="text-primary font-bold text-base mb-1">Official PDF Document Attached</h4>
+          <p class="text-secondary text-xs mb-4">Electronic PDF Certificate of Registration uploaded by student.</p>
+          <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="btn btn-primary btn-sm">
+            <i class="fas fa-file-pdf"></i> Inspect PDF in Reader
+          </a>
+        </div>
+      {% else %}
+        <!-- Document Image Inspector Box -->
+        <div style="background: rgba(6, 11, 23, 0.9); border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden; text-align: center; max-height: 520px; display: flex; align-items: center; justify-content: center; position: relative;">
+          <a href="{{ student_profile.registration_proof.url }}" target="_blank" style="display: block; width: 100%; height: 100%;">
+            <img
+              src="{{ student_profile.registration_proof.url }}"
+              alt="Attached School ID / COR Proof"
+              style="max-height: 520px; width: 100%; object-fit: contain; margin: 0 auto; display: block; cursor: zoom-in;"
+              title="Click to inspect high-resolution original in new tab"
+            >
+          </a>
+        </div>
+        <div class="text-center mt-2">
+          <span class="text-muted text-xs"><i class="fas fa-magnifying-glass-plus"></i> Click document image to inspect original high-res file</span>
+        </div>
+      {% endif %}
+    {% else %}
+      <div style="padding: 32px 20px; text-align: center; background: rgba(10, 18, 36, 0.5); border: 1px dashed var(--glass-border); border-radius: var(--radius-md);">
+        <i class="fas fa-id-card-clip text-muted" style="font-size: 2.5rem; margin-bottom: 10px;"></i>
+        <p class="text-secondary text-sm font-semibold">No Document Attached</p>
+        <p class="text-muted text-xs">No physical ID or COR image was uploaded during registration.</p>
+      </div>
+    {% endif %}
+
+    <!-- Registrar Cross-Check Tips -->
+    <div style="margin-top: 16px; padding: 12px 14px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-secondary);">
+      <div class="text-gold font-bold mb-1"><i class="fas fa-shield-halved"></i> Verification Protocol:</div>
+      Verify Student ID number format and department code against physical school ID badge before granting portal clearance.
+    </div>
+
+  </div>
 
 </div>
+
+<!-- Responsive Layout Rules for Dossier Inspector -->
+<style>
+  .review-split-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 22px;
+    align-items: start;
+  }
+
+  @media (max-width: 1024px) {
+    .review-split-grid {
+      grid-template-columns: 1fr;
+    }
+    .decision-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
 
 <!-- Interactive Chip Script -->
 <script>

@@ -8,46 +8,69 @@
 
 /* ── CSS Custom Properties ───────────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --bg-base:          #0f172a;
-  --bg-surface:       #1e293b;
-  --bg-elevated:      #334155;
+  /* Backgrounds — Harmonized with Login/Register Obsidian Navy */
+  --bg-base:             #060b17;
+  --bg-surface:          #0a1224;
+  --bg-elevated:         #101b33;
+  --bg-card:             rgba(12, 21, 40, 0.72);
+  --bg-card-hover:       rgba(18, 30, 56, 0.85);
 
-  /* Glass */
-  --glass-bg:         rgba(255, 255, 255, 0.05);
-  --glass-border:     rgba(255, 255, 255, 0.10);
-  --glass-blur:       blur(12px);
+  /* Glassmorphism */
+  --glass-bg:            rgba(255, 255, 255, 0.04);
+  --glass-bg-hover:      rgba(255, 255, 255, 0.07);
+  --glass-border:        rgba(255, 255, 255, 0.08);
+  --glass-border-hover:  rgba(255, 255, 255, 0.16);
+  --glass-border-gold:   rgba(245, 158, 11, 0.35);
+  --glass-blur:          blur(16px);
 
-  /* Accents */
-  --accent-gold:      #f59e0b;
-  --accent-gold-h:    #fbbf24;
-  --accent-blue:      #3b82f6;
-  --accent-blue-h:    #60a5fa;
+  /* Accents — KCC Gold & Royal Electric Blue */
+  --accent-gold:         #f59e0b;
+  --accent-gold-h:       #fbbf24;
+  --accent-gold-dark:    #d97706;
+  --accent-gold-glow:    rgba(245, 158, 11, 0.22);
+  --accent-blue:         #3b82f6;
+  --accent-blue-h:       #60a5fa;
+  --accent-blue-glow:    rgba(59, 130, 246, 0.22);
 
-  /* Status */
-  --success:          #22c55e;
-  --warning:          #f59e0b;
-  --danger:           #ef4444;
-  --info:             #3b82f6;
+  /* Status Colors with Matching Translucent Tints */
+  --success:             #22c55e;
+  --success-glow:        rgba(34, 197, 94, 0.2);
+  --warning:             #f59e0b;
+  --warning-glow:        rgba(245, 158, 11, 0.2);
+  --danger:              #ef4444;
+  --danger-glow:         rgba(239, 68, 68, 0.2);
+  --info:                #3b82f6;
+  --info-glow:           rgba(59, 130, 246, 0.2);
 
-  /* Text */
-  --text-primary:     #f1f5f9;
-  --text-secondary:   #94a3b8;
-  --text-muted:       #64748b;
+  /* Text Typography */
+  --text-primary:        #f8fafc;
+  --text-secondary:      #94a3b8;
+  --text-muted:          #64748b;
+  --text-dim:            #475569;
 
-  /* Role */
-  --role-admin:       #a855f7;
-  --role-teacher:     #f59e0b;
-  --role-student:     #22c55e;
+  /* Role Badges */
+  --role-admin:          #a855f7;
+  --role-teacher:        #f59e0b;
+  --role-student:        #22c55e;
 
-  /* Sizing */
-  --sidebar-w:        260px;
-  --radius-sm:        8px;
-  --radius-md:        12px;
-  --radius-lg:        16px;
-  --radius-xl:        24px;
-  --radius-full:      9999px;
+  /* Sizing & Borders */
+  --sidebar-w:           264px;
+  --radius-xs:           6px;
+  --radius-sm:           8px;
+  --radius-md:           12px;
+  --radius-lg:           16px;
+  --radius-xl:           24px;
+  --radius-full:         9999px;
+
+  /* Shadows & Elevations */
+  --shadow-sm:           0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md:           0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg:           0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-glow-gold:    0 0 24px rgba(245, 158, 11, 0.18);
+  --shadow-glow-blue:    0 0 24px rgba(59, 130, 246, 0.18);
 
   /* Transitions */
-  --transition:       all 0.25s ease;
+  --transition-fast:     all 0.15s ease;
+  --transition:          all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:     all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }

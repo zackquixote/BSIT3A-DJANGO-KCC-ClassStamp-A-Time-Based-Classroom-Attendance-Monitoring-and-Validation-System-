@@ -54,8 +54,11 @@ from .dashboard_views import (
 # // ------------------------------------------------------------------------------
 from .validation_views import (
     approve_student,
+    recently_reviewed_list,
     reject_student,
     validation_detail,
+    validation_hub,
+    validation_pending_queue,
     validation_queue,
 )
 
@@ -87,6 +90,52 @@ from .student_views import (
     student_import_sample_csv,
 )
 
+# // ------------------------------------------------------------------------------
+# // 7. Audit Log & AJAX Feed Endpoints
+# // ------------------------------------------------------------------------------
+from .audit_views import (
+    admin_audit_log,
+    admin_activity_feed_json,
+    admin_pending_count_json,
+)
+
+# // ------------------------------------------------------------------------------
+# // 8. Subject & Curriculum Management Subsystem
+# // ------------------------------------------------------------------------------
+from .subject_views import (
+    subject_list,
+    subject_save,
+    subject_delete,
+    subject_get,
+    subject_curriculum_list,
+    subject_curriculum_assign,
+    subject_curriculum_remove,
+    subject_lookup_json,
+)
+
+# // ------------------------------------------------------------------------------
+# // 9. Teacher & Faculty Management Subsystem
+# // ------------------------------------------------------------------------------
+from .teacher_views import (
+    teacher_list,
+    teacher_create,
+    teacher_update,
+    teacher_toggle,
+    teacher_delete,
+    teacher_get,
+)
+
+# // ------------------------------------------------------------------------------
+# // 10. Academic Year & Term Management Subsystem
+# // ------------------------------------------------------------------------------
+from .academic_year_views import (
+    academic_year_list,
+    academic_year_save,
+    academic_year_set_active,
+    academic_year_delete,
+    academic_year_get,
+)
+
 __all__ = [
     # Auth & Registration
     'MAX_FAILED_ATTEMPTS',
@@ -113,9 +162,12 @@ __all__ = [
 
     # Account Validation
     'validation_queue',
+    'validation_hub',
+    'validation_pending_queue',
     'validation_detail',
     'approve_student',
     'reject_student',
+    'recently_reviewed_list',
 
     # Departments
     'department_list',
@@ -132,4 +184,35 @@ __all__ = [
     'student_directory_export_csv',
     'student_directory_import_csv',
     'student_import_sample_csv',
+
+    # Audit Log & AJAX Feeds
+    'admin_audit_log',
+    'admin_activity_feed_json',
+    'admin_pending_count_json',
+
+    # Subjects & Curriculum
+    'subject_list',
+    'subject_save',
+    'subject_delete',
+    'subject_get',
+    'subject_curriculum_list',
+    'subject_curriculum_assign',
+    'subject_curriculum_remove',
+    'subject_lookup_json',
+
+    # Teachers & Faculty
+    'teacher_list',
+    'teacher_create',
+    'teacher_update',
+    'teacher_toggle',
+    'teacher_delete',
+    'teacher_get',
+
+    # Academic Years
+    'academic_year_list',
+    'academic_year_save',
+    'academic_year_set_active',
+    'academic_year_delete',
+    'academic_year_get',
 ]
+

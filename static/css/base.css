@@ -19,10 +19,34 @@ html {
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 90% 50% at 15% -10%, rgba(29, 78, 216, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 45% at 85% 105%, rgba(245, 158, 11, 0.08) 0%, transparent 65%),
+    linear-gradient(180deg, #060b17 0%, #070e1f 50%, #060b17 100%);
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Custom Sleek Scrollbars ─────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(6, 11, 23, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.35);
 }
 
 a {
@@ -59,19 +83,117 @@ ul {
 .app-layout {
   display: flex;
   min-height: 100vh;
+  position: relative;
 }
 
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-w);
-  padding: 28px 32px;
+  padding: 28px 36px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 0; /* Prevents flex children from overflowing */
+  transition: margin-left 0.3s ease, padding 0.3s ease;
 }
 
 .main-content--full {
   margin-left: 0;
+}
+
+/* ── Mobile Topbar Navigation ────────────────────────────────── */
+.mobile-topbar {
+  display: none; /* Hidden on Desktop & Laptop */
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(10, 18, 36, 0.85);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  margin: -16px -16px 20px -16px;
+}
+
+.mobile-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-toggle-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.mobile-toggle-btn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.mobile-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-topbar-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.mobile-topbar-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.mobile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-blue));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #060b17;
+}
+
+/* ── Mobile Sidebar Backdrop Overlay ─────────────────────────── */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 11, 23, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 150;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.sidebar-backdrop.is-active {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* ── Main Footer ─────────────────────────────────────────────── */
@@ -86,6 +208,7 @@ ul {
 /* ── Global Utilities ────────────────────────────────────────── */
 .flex            { display: flex; }
 .flex-col        { flex-direction: column; }
+.flex-wrap       { flex-wrap: wrap; }
 .items-center    { align-items: center; }
 .justify-between { justify-content: space-between; }
 .gap-2           { gap: 8px; }
@@ -96,27 +219,44 @@ ul {
 .mt-2            { margin-top: 8px; }
 .mt-4            { margin-top: 16px; }
 .mt-6            { margin-top: 24px; }
+.mb-1            { margin-bottom: 4px; }
 .mb-2            { margin-bottom: 8px; }
+.mb-3            { margin-bottom: 12px; }
 .mb-4            { margin-bottom: 16px; }
 .mb-6            { margin-bottom: 24px; }
 .text-muted      { color: var(--text-muted); }
 .text-secondary  { color: var(--text-secondary); }
+.text-primary    { color: var(--text-primary); }
 .text-gold       { color: var(--accent-gold); }
+.text-accent-gold { color: var(--accent-gold); }
 .text-sm         { font-size: 0.875rem; }
 .text-xs         { font-size: 0.75rem; }
+.font-medium     { font-weight: 500; }
 .font-semibold   { font-weight: 600; }
 .font-bold       { font-weight: 700; }
 .w-full          { width: 100%; }
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .is-hidden       { display: none !important; }
 
 /* ── Responsive Layout Breakpoints ───────────────────────────── */
+/* Tablet (iPad mini, iPad Pro 11", Surface Pro 8) */
 @media (max-width: 1024px) {
   .main-content {
-    padding: 20px 20px;
+    padding: 22px 24px;
   }
 }
 
+/* Mobile (iPhone 16, 17, 17 Pro, Pro Max, iPhone Air, Android) */
 @media (max-width: 768px) {
+  .mobile-topbar {
+    display: flex;
+  }
+
   .main-content {
     margin-left: 0;
     padding: 16px;

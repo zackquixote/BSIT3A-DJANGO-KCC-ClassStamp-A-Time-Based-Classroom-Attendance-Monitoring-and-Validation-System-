@@ -74,3 +74,87 @@ def serialize_program_summary(program) -> dict:
         'years_total': program.years_total,
         'is_active': program.is_active,
     }
+
+
+def serialize_subject(subject) -> dict:
+    """
+    // Serializes a Subject model instance with usage counts and curriculum mappings.
+    """
+    if not subject:
+        return {}
+
+    return {
+        'id': subject.id,
+        'code': subject.code,
+        'name': subject.name,
+        'description': subject.description or '',
+        'is_active': subject.is_active,
+        'class_count': getattr(subject, 'class_count', subject.classes.count() if hasattr(subject, 'classes') else 0),
+        'curriculum_count': getattr(subject, 'curriculum_count', subject.curriculum_entries.count() if hasattr(subject, 'curriculum_entries') else 0),
+    }
+
+
+def serialize_subject_summary(subject) -> dict:
+    """
+    // Minimal Subject serialization for dropdown lookups.
+    """
+    if not subject:
+        return {}
+
+    return {
+        'id': subject.id,
+        'code': subject.code,
+        'name': subject.name,
+        'is_active': subject.is_active,
+    }
+
+
+def serialize_curriculum_entry(entry) -> dict:
+    """
+    // Serializes a Curriculum matrix entry mapping a program, year level, and subject.
+    """
+    if not entry:
+        return {}
+
+    return {
+        'id': entry.id,
+        'program_id': entry.program_id,
+        'program_code': entry.program.code if entry.program else None,
+        'program_name': entry.program.name if entry.program else None,
+        'year_level': entry.year_level,
+        'subject_id': entry.subject_id,
+        'subject_code': entry.subject.code if entry.subject else None,
+        'subject_name': entry.subject.name if entry.subject else None,
+    }
+
+
+def serialize_academic_year(academic_year) -> dict:
+    """
+    // Serializes an AcademicYear model instance with associated class metrics.
+    """
+    if not academic_year:
+        return {}
+
+    return {
+        'id': academic_year.id,
+        'name': academic_year.name,
+        'starts_on': academic_year.starts_on.isoformat() if academic_year.starts_on else None,
+        'ends_on': academic_year.ends_on.isoformat() if academic_year.ends_on else None,
+        'is_active': academic_year.is_active,
+        'class_count': getattr(academic_year, 'class_count', academic_year.classes.count() if hasattr(academic_year, 'classes') else 0),
+    }
+
+
+def serialize_academic_year_summary(academic_year) -> dict:
+    """
+    // Minimal AcademicYear serialization for dropdown selectors.
+    """
+    if not academic_year:
+        return {}
+
+    return {
+        'id': academic_year.id,
+        'name': academic_year.name,
+        'is_active': academic_year.is_active,
+    }
+

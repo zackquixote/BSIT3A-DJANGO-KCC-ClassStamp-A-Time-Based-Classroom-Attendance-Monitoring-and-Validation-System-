@@ -28,15 +28,56 @@ from apps.core.services import (
 
 
 # // ==============================================================================
-# // VIEW: Account Validation Queue (/validation/)
+# // VIEW: Account Validation Hub (/validation/)
 # // ==============================================================================
 @login_required(login_url='login')
 @role_required(Profile.ROLE_ADMIN)
-def validation_queue(request):
+def validation_hub(request):
     """
-    // [Admin Controller] Student Validation Queue
+    // [Admin Controller] Account Validation Hub
+    // Clean entry portal displaying 2 dedicated module cards:
+    // 1. Pending Registrations (with live counter and link to dedicated pending page)
+    // 2. Recently Reviewed (with counters and link to dedicated reviewed page)
+    """
+    pending_qs = Profile.objects.filter(
+        role=Profile.ROLE_STUDENT,
+        approval_status=Profile.APPROVAL_PENDING,
+    )
+    pending_count = pending_qs.count()
+    latest_pending = pending_qs.select_related('user', 'program').order_by('-created_at')[:3]
+
+    reviewed_qs = Profile.objects.filter(
+        role=Profile.ROLE_STUDENT,
+        approval_status__in=[Profile.APPROVAL_APPROVED, Profile.APPROVAL_REJECTED],
+    )
+    reviewed_count = reviewed_qs.count()
+    approved_count = reviewed_qs.filter(approval_status=Profile.APPROVAL_APPROVED).count()
+    rejected_count = reviewed_qs.filter(approval_status=Profile.APPROVAL_REJECTED).count()
+    latest_reviewed = reviewed_qs.select_related('user', 'program', 'approved_by').order_by('-approved_at')[:3]
+
+    return render(request, 'core/admin/validation_hub.html', {
+        'pending_count': pending_count,
+        'latest_pending': latest_pending,
+        'reviewed_count': reviewed_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
+        'latest_reviewed': latest_reviewed,
+    })
+
+
+# // Alias validation_queue to validation_hub for backwards compatibility
+validation_queue = validation_hub
+
+
+# // ==============================================================================
+# // VIEW: Dedicated Pending Registrations Page (/validation/pending/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def validation_pending_queue(request):
+    """
+    // [Admin Controller] Dedicated Student Validation Queue
     // Lists pending student registrations awaiting administrative identity verification.
-    // Also exhibits the most recent 20 reviewed profiles for auditing transparency.
     // Supports multi-department filtering, program filtering, and instant search.
     """
     selected_dept = request.GET.get('department', '').strip()
@@ -95,18 +136,8 @@ def validation_queue(request):
             Q(student_number__icontains=query)
         )
 
-    recently_reviewed = (
-        Profile.objects.filter(
-            role=Profile.ROLE_STUDENT,
-            approval_status__in=[Profile.APPROVAL_APPROVED, Profile.APPROVAL_REJECTED],
-        )
-        .select_related('user', 'program', 'program__department', 'approved_by')
-        .order_by('-approved_at')[:20]
-    )
-
-    return render(request, 'core/admin/validation_queue.html', {
+    return render(request, 'core/admin/pending_registrations.html', {
         'pending': pending,
-        'recently_reviewed': recently_reviewed,
         'pending_count': total_pending_count,
         'filtered_count': pending.count(),
         'departments': departments,
@@ -220,7 +251,7 @@ def approve_student(request, student_number):
     if next_url == 'detail':
         # Redirect using pk so the URL is consistent with the pk-based navigation IDs
         return redirect('validation_detail', student_number=profile.pk)
-    return redirect('validation_queue')
+    return redirect('validation_pending_queue')
 
 
 # // ==============================================================================
@@ -255,12 +286,68 @@ def reject_student(request, student_number):
         messages.error(request, 'A rejection reason is required.')
         if next_url == 'detail':
             return redirect('validation_detail', student_number=profile.student_number)
-        return redirect('validation_queue')
+        return redirect('validation_pending_queue')
 
     reject_student_registration(profile, request.user, reason)
 
     messages.success(request, f'{profile.user.get_full_name() or profile.user.get_username()} has been rejected.')
     if next_url == 'detail':
         return redirect('validation_detail', student_number=profile.student_number)
-    return redirect('validation_queue')
+    return redirect('validation_pending_queue')
 
+
+# // ==============================================================================
+# // VIEW: Recently Reviewed Student Accounts (/validation/reviewed/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def recently_reviewed_list(request):
+    """
+    // [Admin Controller] Dedicated page listing all reviewed (approved/rejected)
+    // student registration accounts with full pagination.
+    """
+    from django.core.paginator import Paginator
+
+    query = request.GET.get('q', '').strip()
+    decision_filter = request.GET.get('decision', '').strip()
+
+    reviewed_qs = (
+        Profile.objects.filter(
+            role=Profile.ROLE_STUDENT,
+            approval_status__in=[Profile.APPROVAL_APPROVED, Profile.APPROVAL_REJECTED],
+        )
+        .select_related('user', 'program', 'program__department', 'approved_by')
+        .order_by('-approved_at')
+    )
+
+    if query:
+        reviewed_qs = reviewed_qs.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__email__icontains=query) |
+            Q(student_number__icontains=query)
+        )
+
+    if decision_filter == 'approved':
+        reviewed_qs = reviewed_qs.filter(approval_status=Profile.APPROVAL_APPROVED)
+    elif decision_filter == 'rejected':
+        reviewed_qs = reviewed_qs.filter(approval_status=Profile.APPROVAL_REJECTED)
+
+    paginator = Paginator(reviewed_qs, 20)
+    page_number = request.GET.get('page', 1)
+    reviewed = paginator.get_page(page_number)
+
+    total_approved = Profile.objects.filter(
+        role=Profile.ROLE_STUDENT, approval_status=Profile.APPROVAL_APPROVED
+    ).count()
+    total_rejected = Profile.objects.filter(
+        role=Profile.ROLE_STUDENT, approval_status=Profile.APPROVAL_REJECTED
+    ).count()
+
+    return render(request, 'core/admin/recently_reviewed.html', {
+        'reviewed': reviewed,
+        'query': query,
+        'decision_filter': decision_filter,
+        'total_approved': total_approved,
+        'total_rejected': total_rejected,
+    })

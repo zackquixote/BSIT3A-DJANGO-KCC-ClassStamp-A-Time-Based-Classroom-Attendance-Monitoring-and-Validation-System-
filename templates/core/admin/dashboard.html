@@ -1,74 +1,648 @@
 {% extends "theme/base.html" %}
-{% block title %}Admin Dashboard — KCC ClassStamp{% endblock %}
+{% block title %}Admin Command Center — KCC ClassStamp{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
     <h1 class="page-title">Admin Dashboard</h1>
-    <p class="page-subtitle">System overview and account management</p>
+    <p class="page-subtitle">Classroom monitoring, student validation queue, and collegiate records</p>
+  </div>
+  <div class="page-header-actions">
+    <span class="badge {% if open_session_count > 0 %}badge--success{% else %}badge--info{% endif %}">
+      <i class="fas fa-circle-dot"></i>
+      {% if open_session_count > 0 %}{{ open_session_count }} live session{{ open_session_count|pluralize }}{% else %}No active sessions{% endif %}
+    </span>
+    <a href="{% url 'student_directory' %}" class="btn btn-outline">
+      <i class="fas fa-user-graduate"></i> Student Directory
+    </a>
   </div>
 </div>
 
-<div class="stat-grid mb-6">
-  <a href="{% url 'validation_queue' %}" class="stat-card">
-    <div class="stat-icon stat-icon--gold">
-      <i class="fas fa-user-clock"></i>
+{# ── Validation Queue Notification Banner ──────────────────────────────────── #}
+{% if pending_count %}
+<div class="vq-notification-banner vq-banner--warning mb-4" id="validationBanner">
+  <div class="vq-banner-left">
+    <div class="vq-banner-icon">
+      <i class="fas fa-bell"></i>
     </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ pending_count }}</span>
-      <span class="stat-label">Pending Approvals</span>
+    <div>
+      <div class="vq-banner-title">
+        <span id="pendingCountDisplay">{{ pending_count }}</span> Student Registration{{ pending_count|pluralize }} Awaiting Review
+      </div>
+      <div class="vq-banner-sub">New accounts need your approval before students can access the system.</div>
     </div>
+  </div>
+  <a href="{% url 'validation_pending_queue' %}" class="btn btn-primary btn-sm">
+    <i class="fas fa-list-check"></i> Review Pending Accounts
   </a>
-  <a href="{% url 'student_directory' %}" class="stat-card">
-    <div class="stat-icon stat-icon--green">
-      <i class="fas fa-user-graduate"></i>
+</div>
+{% else %}
+<div class="vq-notification-banner vq-banner--warning mb-4" id="validationBanner" style="display: none;">
+  <div class="vq-banner-left">
+    <div class="vq-banner-icon">
+      <i class="fas fa-bell"></i>
     </div>
+    <div>
+      <div class="vq-banner-title">
+        <span id="pendingCountDisplay">0</span> Student Registrations Awaiting Review
+      </div>
+      <div class="vq-banner-sub">New accounts need your approval before students can access the system.</div>
+    </div>
+  </div>
+  <a href="{% url 'validation_pending_queue' %}" class="btn btn-primary btn-sm">
+    <i class="fas fa-list-check"></i> Review Pending Accounts
+  </a>
+</div>
+{% endif %}
+
+<!-- KPI Cards Grid: 3 per row -->
+<div class="admin-kpi-grid mb-6">
+  <a href="{% url 'validation_queue' %}" class="stat-card stat-card--kpi {% if pending_count %}stat-card--pulse{% endif %}">
+    <div class="stat-icon stat-icon--gold"><i class="fas fa-user-clock"></i></div>
+    <div class="stat-info">
+      <span class="stat-value" id="pendingKpiValue">{{ pending_count }}</span>
+      <span class="stat-label">Pending Validations</span>
+      <span class="kpi-delta {% if pending_delta > 0 %}kpi-delta--up{% elif pending_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
+        {% if pending_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ pending_delta }}{% elif pending_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ pending_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+        <span>vs yesterday</span>
+      </span>
+    </div>
+    {% if pending_count %}<span class="kpi-mini-badge badge badge--warning"><i class="fas fa-bell"></i> Action Needed</span>{% endif %}
+  </a>
+
+  <a href="{% url 'student_directory' %}" class="stat-card stat-card--kpi">
+    <div class="stat-icon stat-icon--green"><i class="fas fa-user-graduate"></i></div>
     <div class="stat-info">
       <span class="stat-value">{{ student_count }}</span>
       <span class="stat-label">Active Students</span>
+      <span class="kpi-delta {% if student_delta > 0 %}kpi-delta--up{% elif student_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
+        {% if student_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ student_delta }}{% elif student_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ student_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+        <span>vs yesterday</span>
+      </span>
     </div>
   </a>
-  <a href="{% url 'department_list' %}" class="stat-card">
-    <div class="stat-icon stat-icon--blue">
-      <i class="fas fa-building"></i>
+
+  <a href="{% url 'users:user_list' %}" class="stat-card stat-card--kpi">
+    <div class="stat-icon stat-icon--gold"><i class="fas fa-chalkboard-user"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ teacher_count }}</span>
+      <span class="stat-label">Teaching Faculty</span>
+      <span class="kpi-delta {% if teacher_delta > 0 %}kpi-delta--up{% elif teacher_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
+        {% if teacher_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ teacher_delta }}{% elif teacher_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ teacher_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+        <span>vs yesterday</span>
+      </span>
     </div>
+  </a>
+
+  <a href="{% url 'admin_audit_log' %}" class="stat-card stat-card--kpi">
+    <div class="stat-icon stat-icon--blue"><i class="fas fa-qrcode"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ open_session_count }}</span>
+      <span class="stat-label">Active Sessions</span>
+      <span class="kpi-delta {% if session_delta > 0 %}kpi-delta--up{% elif session_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
+        {% if session_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ session_delta }}{% elif session_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ session_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+        <span>vs yesterday</span>
+      </span>
+    </div>
+  </a>
+
+  <a href="{% url 'department_list' %}" class="stat-card stat-card--kpi">
+    <div class="stat-icon stat-icon--purple"><i class="fas fa-building-columns"></i></div>
     <div class="stat-info">
       <span class="stat-value">{{ department_count }}</span>
       <span class="stat-label">Departments</span>
     </div>
   </a>
-  <a href="{% url 'program_list' %}" class="stat-card">
-    <div class="stat-icon stat-icon--purple">
-      <i class="fas fa-graduation-cap"></i>
-    </div>
+
+  <a href="{% url 'program_list' %}" class="stat-card stat-card--kpi">
+    <div class="stat-icon stat-icon--blue"><i class="fas fa-graduation-cap"></i></div>
     <div class="stat-info">
       <span class="stat-value">{{ program_count }}</span>
-      <span class="stat-label">Academic Programs</span>
+      <span class="stat-label">Degree Programs</span>
     </div>
   </a>
 </div>
 
-<div class="card">
-  <h2 class="font-semibold text-primary mb-4">Quick Actions</h2>
-  <div class="flex items-center gap-3" style="flex-wrap: wrap;">
-    <a href="{% url 'validation_queue' %}" class="btn btn-success">
-      <i class="fas fa-user-check"></i> Account Validation
-    </a>
-    <a href="{% url 'student_directory' %}" class="btn btn-outline">
-      <i class="fas fa-user-graduate"></i> Student Directory
-    </a>
-    <a href="{% url 'users:user_list' %}" class="btn btn-outline">
-      <i class="fas fa-users-gear"></i> User Management
-    </a>
-    <a href="{% url 'department_list' %}" class="btn btn-outline">
-      <i class="fas fa-building"></i> Manage Departments
-    </a>
-    <a href="{% url 'program_list' %}" class="btn btn-outline">
-      <i class="fas fa-graduation-cap"></i> Manage Programs
-    </a>
-    {% if pending_count %}
-    <span class="badge badge--warning"><i class="fas fa-user-clock"></i> {{ pending_count }} awaiting review</span>
-    {% endif %}
+<!-- Main 3-Column Zero-Scroll Grid: Quick Launcher | Departments | Recently Approved -->
+<div class="dashboard-three-grid mb-6">
+  <!-- 1. Quick Launcher -->
+  <div class="card card--dashboard-panel">
+    <div class="dashboard-card-head">
+      <div>
+        <h2 class="dashboard-section-title"><i class="fas fa-rocket"></i> Quick Launcher</h2>
+        <p class="text-muted text-xs mt-0.5">Shortcuts to administrative modules</p>
+      </div>
+    </div>
+
+    <div class="quick-launch-grid-2col">
+      <a href="{% url 'validation_queue' %}" class="quick-launch-btn-compact">
+        <div class="quick-launch-icon-sm" style="background: rgba(245,158,11,0.18); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
+          <i class="fas fa-user-clock"></i>
+        </div>
+        <div class="quick-launch-text">
+          <div class="ql-title">Validation Queue</div>
+          <div class="ql-sub text-muted">Review students</div>
+        </div>
+      </a>
+
+      <a href="{% url 'student_directory' %}" class="quick-launch-btn-compact">
+        <div class="quick-launch-icon-sm" style="background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.35);">
+          <i class="fas fa-user-graduate"></i>
+        </div>
+        <div class="quick-launch-text">
+          <div class="ql-title">Student Directory</div>
+          <div class="ql-sub text-muted">Profiles & records</div>
+        </div>
+      </a>
+
+      <a href="{% url 'users:user_list' %}" class="quick-launch-btn-compact">
+        <div class="quick-launch-icon-sm" style="background: rgba(245,158,11,0.15); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
+          <i class="fas fa-users-gear"></i>
+        </div>
+        <div class="quick-launch-text">
+          <div class="ql-title">User Accounts</div>
+          <div class="ql-sub text-muted">Manage roles</div>
+        </div>
+      </a>
+
+      <a href="{% url 'department_list' %}" class="quick-launch-btn-compact">
+        <div class="quick-launch-icon-sm" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35);">
+          <i class="fas fa-building-columns"></i>
+        </div>
+        <div class="quick-launch-text">
+          <div class="ql-title">Departments</div>
+          <div class="ql-sub text-muted">Academic units</div>
+        </div>
+      </a>
+
+      <a href="{% url 'program_list' %}" class="quick-launch-btn-compact">
+        <div class="quick-launch-icon-sm" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35);">
+          <i class="fas fa-graduation-cap"></i>
+        </div>
+        <div class="quick-launch-text">
+          <div class="ql-title">Programs</div>
+          <div class="ql-sub text-muted">Degree courses</div>
+        </div>
+      </a>
+
+      <a href="{% url 'admin_audit_log' %}" class="quick-launch-btn-compact">
+        <div class="quick-launch-icon-sm" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35);">
+          <i class="fas fa-shield-halved"></i>
+        </div>
+        <div class="quick-launch-text">
+          <div class="ql-title">Audit Log</div>
+          <div class="ql-sub text-muted">Security logs</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- 2. Departments -->
+  <div class="card card--dashboard-panel">
+    <div class="dashboard-card-head">
+      <div>
+        <h2 class="dashboard-section-title"><i class="fas fa-building-columns"></i> Departments</h2>
+        <p class="text-muted text-xs mt-0.5">Student distribution by unit</p>
+      </div>
+      <a href="{% url 'department_list' %}" class="btn btn-outline btn-xs">Manage</a>
+    </div>
+
+    <div class="dept-list-compact">
+      {% for dept in departments_list %}
+        <div class="dept-item-compact">
+          <div class="flex items-center justify-between">
+            <strong class="text-xs text-primary font-semibold">{{ dept.code }}</strong>
+            <span class="badge badge--purple badge--xs">{{ dept.student_count }} student{{ dept.student_count|pluralize }}</span>
+          </div>
+          <div class="text-xs text-muted truncate mt-0.5" title="{{ dept.name }}">{{ dept.name }}</div>
+          <div class="text-xs text-muted-dim mt-0.5">
+            <i class="fas fa-graduation-cap text-xs"></i> {{ dept.programs.count }} program{{ dept.programs.count|pluralize }}
+          </div>
+        </div>
+      {% empty %}
+        <div class="dashboard-empty py-4">
+          <i class="fas fa-building-columns text-sm"></i>
+          <p class="text-muted text-xs">No departments registered yet.</p>
+          <a href="{% url 'department_list' %}" class="btn btn-primary btn-xs mt-2">
+            <i class="fas fa-plus"></i> Add Department
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 3. Recently Approved -->
+  <div class="card card--dashboard-panel">
+    <div class="dashboard-card-head">
+      <div>
+        <h2 class="dashboard-section-title"><i class="fas fa-circle-check"></i> Recently Approved</h2>
+        <p class="text-muted text-xs mt-0.5">Latest validated accounts</p>
+      </div>
+      <a href="{% url 'recently_reviewed_list' %}" class="text-xs text-muted hover-gold">
+        <i class="fas fa-users"></i> View All
+      </a>
+    </div>
+
+    <div class="approved-list-compact">
+      {% for student in recent_approved %}
+        <div class="approved-student-row-compact">
+          <div class="approved-avatar-sm">
+            {{ student.user.first_name|first|default:student.user.username|slice:":1"|upper }}
+          </div>
+          <div class="activity-row-body min-w-0">
+            <div class="font-medium text-xs text-primary truncate">
+              {{ student.user.get_full_name|default:student.user.username }}
+            </div>
+            <div class="text-xs text-muted truncate">
+              {{ student.student_number|default:"No ID" }} • {{ student.program.code|default:"—" }}
+            </div>
+          </div>
+          <div class="activity-row-meta text-right flex-shrink-0">
+            <span class="badge badge--success badge--xs"><i class="fas fa-check"></i> Approved</span>
+            <div class="text-xs text-muted mt-0.5">
+              {{ student.approved_at|timesince|default:"recently" }} ago
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="dashboard-empty py-4 text-xs">
+          <i class="fas fa-user-check"></i>
+          No recently approved students found.
+        </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<div id="admin-dashboard-boot"
+     hidden
+     data-pending-count="{{ pending_count|default:0 }}"
+     data-pending-count-url="{% url 'admin_pending_count_json' %}"></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const boot = document.getElementById('admin-dashboard-boot');
+
+  // ── Auto-Refresh Pending Count ──────────────────────────────────────────────
+  let currentPendingCount = Number(boot.dataset.pendingCount || 0);
+  const pendingCountUrl = boot.dataset.pendingCountUrl;
+
+  function checkPendingCount() {
+    fetch(pendingCountUrl)
+      .then(r => r.json())
+      .then(data => {
+        if (data.pending_count !== undefined && data.pending_count !== currentPendingCount) {
+          currentPendingCount = data.pending_count;
+          // Update KPI value
+          const kpiVal = document.getElementById('pendingKpiValue');
+          if (kpiVal) kpiVal.textContent = currentPendingCount;
+
+          const banner = document.getElementById('validationBanner');
+          if (currentPendingCount === 0) {
+            // Queue is clear: hide the banner completely
+            if (banner) {
+              banner.style.display = 'none';
+            }
+          } else {
+            // Pending items arrived or updated: show notification banner
+            if (banner) {
+              banner.style.display = 'flex';
+              banner.className = 'vq-notification-banner vq-banner--warning mb-4';
+              const countDisplay = document.getElementById('pendingCountDisplay');
+              if (countDisplay) {
+                countDisplay.textContent = currentPendingCount;
+              } else {
+                banner.innerHTML = `
+                  <div class="vq-banner-left">
+                    <div class="vq-banner-icon"><i class="fas fa-bell"></i></div>
+                    <div>
+                      <div class="vq-banner-title"><span id="pendingCountDisplay">${currentPendingCount}</span> Student Registration${currentPendingCount !== 1 ? 's' : ''} Awaiting Review</div>
+                      <div class="vq-banner-sub">New accounts need your approval before students can access the system.</div>
+                    </div>
+                  </div>
+                  <a href="/validation/pending/" class="btn btn-primary btn-sm"><i class="fas fa-list-check"></i> Review Pending Accounts</a>
+                `;
+              }
+            }
+          }
+        }
+      })
+      .catch(err => console.debug('Pending count poll failed:', err));
+  }
+
+  // Poll every 45 seconds
+  setInterval(checkPendingCount, 45000);
+});
+</script>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   ADMIN DASHBOARD — Modern Redesign
+   KPI: 3 per row (readable), Panels: 3-col balanced grid
+═══════════════════════════════════════════════════════════════ */
+
+/* ── KPI Grid: 3 columns on desktop (legible, not cramped) ───── */
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-card--kpi {
+  padding: 18px 20px;
+  gap: 14px;
+  align-items: center;
+}
+
+.stat-card--kpi .stat-icon {
+  width: 46px;
+  height: 46px;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.stat-card--kpi .stat-info {
+  min-width: 0;
+}
+
+.stat-card--kpi .stat-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.stat-card--kpi .stat-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin-top: 3px;
+  display: block;
+}
+
+.stat-card--kpi .kpi-delta {
+  font-size: 0.72rem;
+  margin-top: 5px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── 3-Column Lower Panel (desktop ≥1100px) ────────────────────── */
+.dashboard-three-grid {
+  margin-top: 28px;
+}
+
+@media (min-width: 1100px) {
+  .dashboard-three-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+}
+
+@media (max-width: 1099px) and (min-width: 768px) {
+  .admin-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .dashboard-three-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .dashboard-three-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .stat-card--kpi {
+    padding: 14px 16px;
+  }
+  .stat-card--kpi .stat-value { font-size: 1.5rem; }
+}
+
+/* ── Panel Cards ──────────────────────────────────────────────── */
+.card--dashboard-panel {
+  padding: 20px 22px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dashboard-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.dashboard-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.dashboard-section-title i {
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+
+/* ── Quick Launcher: 2-col pill buttons ───────────────────────── */
+.quick-launch-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.quick-launch-btn-compact {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  min-width: 0;
+}
+
+.quick-launch-btn-compact:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.quick-launch-icon-sm {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  flex-shrink: 0;
+}
+
+.quick-launch-text { min-width: 0; overflow: hidden; }
+
+.ql-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.ql-sub {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+/* ── Departments compact list ─────────────────────────────────── */
+.dept-list-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dept-item-compact {
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--glass-border);
+  transition: background 0.15s ease;
+}
+
+.dept-item-compact:hover { background: rgba(255, 255, 255, 0.05); }
+
+.text-muted-dim { color: var(--text-muted); opacity: 0.7; }
+
+/* ── Recently Approved compact list ───────────────────────────── */
+.approved-list-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.approved-student-row-compact {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 13px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--glass-border);
+  transition: background 0.15s ease;
+}
+
+.approved-student-row-compact:hover { background: rgba(255, 255, 255, 0.05); }
+
+.approved-avatar-sm {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08));
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+/* ── Helper utilities ─────────────────────────────────────────── */
+.badge--xs {
+  font-size: 0.67rem !important;
+  padding: 2px 7px !important;
+}
+
+.btn-xs {
+  padding: 4px 10px !important;
+  font-size: 0.74rem !important;
+  border-radius: 6px !important;
+}
+
+.hover-gold:hover { color: var(--accent-gold-h) !important; }
+
+/* ── Validation Banner ────────────────────────────────────────── */
+.vq-notification-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  border: 1px solid;
+  flex-wrap: wrap;
+  animation: bannerFadeIn 0.35s ease;
+}
+@keyframes bannerFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.vq-banner--warning {
+  background: linear-gradient(135deg, rgba(245,158,11,0.13), rgba(245,158,11,0.05));
+  border-color: rgba(245,158,11,0.4);
+}
+.vq-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.vq-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  background: rgba(245,158,11,0.22);
+  color: #f59e0b;
+}
+.vq-banner-title {
+  font-weight: 700;
+  font-size: 0.93rem;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.vq-banner-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+</style>
 {% endblock %}

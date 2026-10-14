@@ -1,0 +1,483 @@
+{% extends "theme/base.html" %}
+{% block title %}Subjects & Curriculum — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Subjects & Curriculum</h1>
+    <p class="page-subtitle">Manage the institutional course catalogue and program curriculum matrix</p>
+  </div>
+  <div>
+    <button type="button" class="btn btn-primary" id="addSubjectBtn">
+      <i class="fas fa-plus-circle"></i> Add Subject
+    </button>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-book"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_count }}</span>
+      <span class="stat-label">Total Subjects</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-circle-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ active_count }}</span>
+      <span class="stat-label">Active Offerings</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-sitemap"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ curriculum_count }}</span>
+      <span class="stat-label">Curriculum Mappings</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-eye-slash"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ inactive_count }}</span>
+      <span class="stat-label">Archived / Inactive</span>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div class="input-wrap" style="flex: 1; min-width: 240px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by course code or title (e.g. IT311, Web Dev)...">
+    </div>
+    <select name="status" class="form-control" style="width: 160px;">
+      <option value="">All Status</option>
+      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+    <select name="program" class="form-control" style="width: 180px;">
+      <option value="">All Programs</option>
+      {% for p in programs %}
+      <option value="{{ p.id }}" {% if program_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }}</option>
+      {% endfor %}
+    </select>
+    {% if query or status_filter or program_filter %}
+    <a href="{% url 'subject_list' %}" class="btn btn-outline">Clear</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+</div>
+
+<div id="subjectAlert" class="toast toast--error mb-4" style="display: none;"></div>
+<div id="subjectSuccess" class="toast toast--success mb-4" style="display: none;"></div>
+
+<!-- Subjects Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">
+      Course Catalogue {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
+    </div>
+    <span class="text-muted text-xs">{{ subjects.paginator.count }} subjects</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="subjectTable">
+      <thead>
+        <tr>
+          <th style="width: 44px;">#</th>
+          <th>Code</th>
+          <th>Descriptive Title</th>
+          <th>Syllabus</th>
+          <th>Classes</th>
+          <th>Curriculum</th>
+          <th>Status</th>
+          <th style="text-align: right; width: 200px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in subjects %}
+        <tr data-subject-id="{{ s.id }}">
+          <td class="text-muted">{{ s.id }}</td>
+          <td>
+            <span class="badge badge--purple font-semibold" style="letter-spacing:0.5px;">{{ s.code }}</span>
+          </td>
+          <td>
+            <span class="font-semibold text-primary">{{ s.name }}</span>
+          </td>
+          <td class="text-muted text-sm" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ s.description|default:"—"|truncatechars:60 }}
+          </td>
+          <td>
+            <span class="badge badge--blue">{{ s.class_count }}</span>
+          </td>
+          <td>
+            <span class="badge badge--gold">{{ s.curriculum_count }}</span>
+          </td>
+          <td>
+            {% if s.is_active %}
+              <span class="badge badge--green"><i class="fas fa-circle" style="font-size:0.55rem;"></i> Active</span>
+            {% else %}
+              <span class="badge badge--muted">Inactive</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <div class="flex justify-end gap-2">
+              <button class="btn btn-outline btn-sm js-curriculum-btn" data-id="{{ s.id }}" data-code="{{ s.code }}" title="Curriculum Mapping">
+                <i class="fas fa-sitemap"></i>
+              </button>
+              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="btn btn-danger btn-sm js-delete-subject" data-id="{{ s.id }}" data-code="{{ s.code }}" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
+            <i class="fas fa-book-open" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+            No subjects found{% if query %} matching "{{ query }}"{% endif %}.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if subjects.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
+    {% if subjects.has_previous %}
+    <a href="?page={{ subjects.previous_page_number }}&q={{ query }}&status={{ status_filter }}&program={{ program_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
+    {% endif %}
+    <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ subjects.number }} of {{ subjects.paginator.num_pages }}</span>
+    {% if subjects.has_next %}
+    <a href="?page={{ subjects.next_page_number }}&q={{ query }}&status={{ status_filter }}&program={{ program_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal: Create / Edit Subject -->
+<div class="modal" id="subjectModal">
+  <div class="modal-dialog" style="max-width: 540px;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="subjectModalTitle">Add Subject</h2>
+      <button type="button" class="modal-close" id="subjectModalClose" data-modal-dismiss="subjectModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="subjectForm" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" id="subjectId" name="subject_id">
+        <div class="form-group">
+          <label class="form-label" for="subjectCode">Course Code <span class="text-danger">*</span></label>
+          <input type="text" id="subjectCode" name="code" class="form-control" placeholder="e.g. IT311" style="text-transform:uppercase;" required>
+          <span class="form-hint">Auto-uppercased. Must be unique system-wide.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="subjectName">Descriptive Title <span class="text-danger">*</span></label>
+          <input type="text" id="subjectName" name="name" class="form-control" placeholder="e.g. Platform Technologies" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="subjectDesc">Syllabus / Overview</label>
+          <textarea id="subjectDesc" name="description" class="form-control" rows="3" placeholder="Brief course description or learning objectives..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="subjectActive" name="is_active" style="width:16px;height:16px;accent-color:var(--accent-blue);">
+            <span>Mark subject as Active (eligible for class sectioning)</span>
+          </label>
+        </div>
+        <div id="subjectFormError" class="toast toast--error mt-3" style="display:none;"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="subjectModalCancel" data-modal-dismiss="subjectModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="subjectModalSave"><i class="fas fa-floppy-disk"></i> Save Subject</button>
+    </div>
+  </div>
+</div>
+
+<!-- Curriculum Assignment Drawer -->
+<div class="modal" id="curriculumModal">
+  <div class="modal-dialog" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Curriculum Mapping — <span id="currSubjectCode" class="text-accent"></span></h2>
+      <button type="button" class="modal-close" id="curriculumModalClose" data-modal-dismiss="curriculumModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Assign Form -->
+      <div class="card mb-4" style="padding: 16px;">
+        <div class="font-semibold text-primary mb-3">Assign to Program Year</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Program</label>
+            <select id="currProgram" class="form-control">
+              <option value="">— select program —</option>
+              {% for p in programs %}
+              <option value="{{ p.id }}" data-years="{{ p.years_total }}">{{ p.code }} — {{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Year Level</label>
+            <select id="currYearLevel" class="form-control">
+              <option value="">— select year —</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-primary" id="currAssignBtn" style="height:40px;">
+            <i class="fas fa-plus"></i> Assign
+          </button>
+        </div>
+        <div id="currAssignError" class="toast toast--error mt-3" style="display:none;"></div>
+      </div>
+
+      <!-- Existing Entries -->
+      <div class="font-semibold text-primary mb-3">Current Curriculum Assignments</div>
+      <div id="curriculumEntries">
+        <div class="text-muted text-sm text-center" style="padding: 24px 0;">Loading...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="curriculumModalClose2" data-modal-dismiss="curriculumModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div class="modal" id="subjectDeleteModal">
+  <div class="modal-dialog" style="max-width: 440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Remove Subject</h2>
+      <button type="button" class="modal-close" id="subjectDeleteClose" data-modal-dismiss="subjectDeleteModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p>Remove subject <strong id="subjectDeleteCode"></strong>?</p>
+      <p class="text-muted text-sm mt-2">If class sections or curriculum entries reference this subject, it will be <em>deactivated</em> rather than permanently deleted.</p>
+      <div id="subjectDeleteError" class="toast toast--error mt-3" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="subjectDeleteCancel" data-modal-dismiss="subjectDeleteModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="subjectDeleteConfirm"><i class="fas fa-trash"></i> Remove</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function showAlert(el, msg, type='error') {
+  el.style.display = 'block';
+  el.className = `toast toast--${type} mb-4`;
+  el.textContent = msg;
+  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// ── Add Subject ──────────────────────────────────────────────────────────────
+document.getElementById('addSubjectBtn')?.addEventListener('click', () => {
+  document.getElementById('subjectModalTitle').textContent = 'Add Subject';
+  document.getElementById('subjectId').value = '';
+  document.getElementById('subjectCode').value = '';
+  document.getElementById('subjectName').value = '';
+  document.getElementById('subjectDesc').value = '';
+  document.getElementById('subjectActive').checked = true;
+  document.getElementById('subjectFormError').style.display = 'none';
+  if (window.openModal) window.openModal('subjectModal');
+  else document.getElementById('subjectModal').classList.add('is-active');
+});
+
+// ── Edit Subject ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.js-edit-subject').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`/subjects/get/${btn.dataset.id}/`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const s = data.subject;
+      document.getElementById('subjectModalTitle').textContent = 'Edit Subject';
+      document.getElementById('subjectId').value = s.id;
+      document.getElementById('subjectCode').value = s.code;
+      document.getElementById('subjectName').value = s.name;
+      document.getElementById('subjectDesc').value = s.description;
+      document.getElementById('subjectActive').checked = s.is_active;
+      document.getElementById('subjectFormError').style.display = 'none';
+      if (window.openModal) window.openModal('subjectModal');
+      else document.getElementById('subjectModal').classList.add('is-active');
+    } catch (e) {
+      console.error(e);
+    }
+  });
+});
+
+['subjectModalClose', 'subjectModalCancel'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('subjectModal');
+    else document.getElementById('subjectModal').classList.remove('is-active');
+  });
+});
+
+document.getElementById('subjectModalSave')?.addEventListener('click', async () => {
+  const fd = new FormData(document.getElementById('subjectForm'));
+  fd.set('is_active', document.getElementById('subjectActive').checked ? '1' : '0');
+  const btn = document.getElementById('subjectModalSave');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const res = await fetch('/subjects/save/', { method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      if (window.closeModal) window.closeModal('subjectModal');
+      else document.getElementById('subjectModal').classList.remove('is-active');
+      showAlert(document.getElementById('subjectSuccess'), data.message, 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showAlert(document.getElementById('subjectFormError'), data.error);
+    }
+  } catch (e) {
+    showAlert(document.getElementById('subjectFormError'), 'Server or network error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Subject';
+  }
+});
+
+// ── Curriculum Modal ──────────────────────────────────────────────────────────
+let activeCurrSubjectId = null;
+
+document.querySelectorAll('.js-curriculum-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    activeCurrSubjectId = btn.dataset.id;
+    document.getElementById('currSubjectCode').textContent = btn.dataset.code;
+    document.getElementById('currAssignError').style.display = 'none';
+    if (window.openModal) window.openModal('curriculumModal');
+    else document.getElementById('curriculumModal').classList.add('is-active');
+    await loadCurriculumEntries();
+  });
+});
+
+async function loadCurriculumEntries() {
+  const container = document.getElementById('curriculumEntries');
+  container.innerHTML = '<div class="text-muted text-sm text-center" style="padding:20px;">Loading...</div>';
+  try {
+    const res = await fetch(`/subjects/${activeCurrSubjectId}/curriculum/`);
+    const data = await res.json();
+    if (!data.entries || !data.entries.length) {
+      container.innerHTML = '<div class="text-muted text-sm text-center" style="padding:20px;">No curriculum mappings yet.</div>';
+      return;
+    }
+    container.innerHTML = data.entries.map(e => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1px solid var(--glass-border);border-radius:8px;margin-bottom:8px;">
+        <span><span class="badge badge--purple">${e.program_code}</span> <span class="text-muted text-sm">Year ${e.year_level}</span></span>
+        <button class="btn btn-danger btn-sm js-remove-curr" data-id="${e.id}"><i class="fas fa-xmark"></i> Remove</button>
+      </div>
+    `).join('');
+    document.querySelectorAll('.js-remove-curr').forEach(b => {
+      b.addEventListener('click', async () => {
+        if (!confirm('Remove this curriculum entry?')) return;
+        const r = await fetch(`/subjects/curriculum/remove/${b.dataset.id}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
+        const d = await r.json();
+        if (d.ok) await loadCurriculumEntries();
+        else alert(d.error);
+      });
+    });
+  } catch (e) {
+    container.innerHTML = '<div class="text-danger text-sm text-center" style="padding:20px;">Failed to load curriculum entries.</div>';
+  }
+}
+
+// Year level population based on selected program
+document.getElementById('currProgram')?.addEventListener('change', function() {
+  const opt = this.selectedOptions[0];
+  const maxYears = parseInt(opt?.dataset.years || '0');
+  const yl = document.getElementById('currYearLevel');
+  yl.innerHTML = '<option value="">— select year —</option>';
+  for (let i = 1; i <= maxYears; i++) {
+    yl.innerHTML += `<option value="${i}">${i}${i===1?'st':i===2?'nd':i===3?'rd':'th'} Year</option>`;
+  }
+});
+
+document.getElementById('currAssignBtn')?.addEventListener('click', async () => {
+  const programId = document.getElementById('currProgram').value;
+  const yearLevel = document.getElementById('currYearLevel').value;
+  const errEl = document.getElementById('currAssignError');
+  if (!programId || !yearLevel) { showAlert(errEl, 'Please select both a program and year level.'); return; }
+  const fd = new FormData();
+  fd.append('subject_id', activeCurrSubjectId);
+  fd.append('program_id', programId);
+  fd.append('year_level', yearLevel);
+  try {
+    const res = await fetch('/subjects/curriculum/assign/', { method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      errEl.style.display = 'none';
+      await loadCurriculumEntries();
+    } else {
+      showAlert(errEl, data.error);
+    }
+  } catch (e) {
+    showAlert(errEl, 'Failed to assign curriculum entry.');
+  }
+});
+
+['curriculumModalClose', 'curriculumModalClose2'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('curriculumModal');
+    else document.getElementById('curriculumModal').classList.remove('is-active');
+  });
+});
+
+// ── Delete Subject ────────────────────────────────────────────────────────────
+let deleteSubjectId = null;
+document.querySelectorAll('.js-delete-subject').forEach(btn => {
+  btn.addEventListener('click', () => {
+    deleteSubjectId = btn.dataset.id;
+    document.getElementById('subjectDeleteCode').textContent = btn.dataset.code;
+    document.getElementById('subjectDeleteError').style.display = 'none';
+    if (window.openModal) window.openModal('subjectDeleteModal');
+    else document.getElementById('subjectDeleteModal').classList.add('is-active');
+  });
+});
+['subjectDeleteClose', 'subjectDeleteCancel'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('subjectDeleteModal');
+    else document.getElementById('subjectDeleteModal').classList.remove('is-active');
+  });
+});
+document.getElementById('subjectDeleteConfirm')?.addEventListener('click', async () => {
+  const btn = document.getElementById('subjectDeleteConfirm');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const res = await fetch(`/subjects/delete/${deleteSubjectId}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
+    const data = await res.json();
+    if (data.ok) {
+      if (window.closeModal) window.closeModal('subjectDeleteModal');
+      else document.getElementById('subjectDeleteModal').classList.remove('is-active');
+      showAlert(document.getElementById('subjectSuccess'), data.message, 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showAlert(document.getElementById('subjectDeleteError'), data.error);
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+    }
+  } catch (e) {
+    showAlert(document.getElementById('subjectDeleteError'), 'Network error');
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+  }
+});
+</script>
+</script>
+{% endblock %}

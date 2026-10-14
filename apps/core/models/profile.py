@@ -146,6 +146,27 @@ class Profile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def estimated_gender(self):
+        """
+        // Heuristic gender detection for student vector avatar illustrations.
+        """
+        first = (self.user.first_name or '').strip().lower()
+        female_names = (
+            'micaella', 'mica', 'maria', 'mary', 'ana', 'anna', 'jane', 'joy',
+            'grace', 'rose', 'princess', 'angel', 'bea', 'claire', 'patricia',
+            'kristine', 'charlene', 'sarah', 'nicole', 'jessica', 'michelle',
+            'stephanie', 'kim', 'althea', 'jasmine', 'chloe', 'ella', 'hannah',
+            'faith', 'kate', 'mae', 'kaye', 'angela', 'jenny', 'karen', 'lisa',
+            'cath', 'cathy', 'denise', 'danielle', 'diana', 'erika', 'fatima'
+        )
+        for fn in female_names:
+            if fn in first:
+                return 'F'
+        if first.endswith(('a', 'ie', 'elle', 'ine', 'lyn', 'ette', 'ann')) and not first.endswith(('ua', 'ya', 'ka', 'el', 'ian', 'ran')):
+            return 'F'
+        return 'M'
+
     class Meta:
         app_label = 'core'
         db_table = 'tblcs_profile'

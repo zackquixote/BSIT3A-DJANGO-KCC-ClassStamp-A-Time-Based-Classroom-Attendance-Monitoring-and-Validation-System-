@@ -1,3 +1,8 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system"
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python.defaultInterpreterPath": "C:\\Program Files\\Python314\\python.exe",
+    "python.analysis.extraPaths": [],
+    "python.analysis.useLibraryCodeForTypes": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.typeCheckingMode": "basic"
 }

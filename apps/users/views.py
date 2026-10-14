@@ -30,30 +30,52 @@ from apps.core.models import Profile
 def user_list_page(request):
     """
     // [Admin Controller] User Management Directory View
-    // Renders paginated list of system accounts with multi-attribute search filter.
-    // Eagerly loads `classstamp_profile` to display institutional roles.
+    // Renders grouped lists of system accounts by role (Students / Teachers / Admins).
+    // Supports multi-attribute search filter across all groups.
     """
     query = request.GET.get('q', '').strip()
+    role_tab = request.GET.get('role', 'students').strip()  # 'students', 'teachers', 'admins'
 
     # // [Query Optimization] select_related avoids N+1 queries for user profiles
-    users_list = User.objects.all().select_related('classstamp_profile').order_by('-date_joined')
+    base_qs = User.objects.all().select_related('classstamp_profile').order_by('-date_joined')
 
     # // [Search Filter] Matches username, first name, last name, or email address
     if query:
-        users_list = users_list.filter(
+        base_qs = base_qs.filter(
             Q(username__icontains=query) |
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
             Q(email__icontains=query)
         )
 
-    paginator = Paginator(users_list, 10)
+    # Split into role groups
+    students_qs = base_qs.filter(classstamp_profile__role=Profile.ROLE_STUDENT)
+    teachers_qs = base_qs.filter(classstamp_profile__role=Profile.ROLE_TEACHER)
+    # Admins = profile ADMIN role OR superuser/staff with no student/teacher profile
+    admins_qs = base_qs.filter(
+        Q(classstamp_profile__role=Profile.ROLE_ADMIN) | Q(is_superuser=True)
+    ).distinct()
+
+    # Paginate the active tab
+    per_page = 15
+    if role_tab == 'teachers':
+        paginator = Paginator(teachers_qs, per_page)
+    elif role_tab == 'admins':
+        paginator = Paginator(admins_qs, per_page)
+    else:
+        role_tab = 'students'
+        paginator = Paginator(students_qs, per_page)
+
     page_number = request.GET.get('page', 1)
     users = paginator.get_page(page_number)
 
     return render(request, 'users/list.html', {
         'users': users,
         'query': query,
+        'role_tab': role_tab,
+        'students_count': students_qs.count(),
+        'teachers_count': teachers_qs.count(),
+        'admins_count': admins_qs.count(),
     })
 
 

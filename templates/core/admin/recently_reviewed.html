@@ -1,0 +1,139 @@
+{% extends "theme/base.html" %}
+{% block title %}Recently Reviewed Accounts — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Recently Reviewed</h1>
+    <p class="page-subtitle">All evaluated student registration accounts — approved and rejected decisions</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'validation_hub' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left"></i> Back to Account Validation
+    </a>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stat-grid mb-6" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green"><i class="fas fa-circle-check"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_approved }}</span>
+      <span class="stat-label">Total Approved</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon" style="background: rgba(239,68,68,0.15); color: #f87171;">
+      <i class="fas fa-circle-xmark"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_rejected }}</span>
+      <span class="stat-label">Total Rejected</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue"><i class="fas fa-users"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ reviewed.paginator.count }}</span>
+      <span class="stat-label">Matching Results</span>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div class="input-wrap" style="flex: 1; min-width: 240px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, student no., or email...">
+    </div>
+    <select name="decision" class="form-control" style="width: 180px;">
+      <option value="">All Decisions</option>
+      <option value="approved" {% if decision_filter == 'approved' %}selected{% endif %}>Approved Only</option>
+      <option value="rejected" {% if decision_filter == 'rejected' %}selected{% endif %}>Rejected Only</option>
+    </select>
+    {% if query or decision_filter %}
+    <a href="{% url 'recently_reviewed_list' %}" class="btn btn-outline">Clear</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+</div>
+
+<!-- Reviewed Accounts Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">
+      All Reviewed Accounts {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
+    </div>
+    <span class="text-muted text-xs">{{ reviewed.paginator.count }} evaluated accounts</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Student No.</th>
+          <th>Department / Program</th>
+          <th>Decision</th>
+          <th>Reviewed By</th>
+          <th>Reviewed At</th>
+          <th style="text-align: right; width: 120px;">Profile</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in reviewed %}
+        <tr>
+          <td>
+            <a href="{% url 'validation_detail' p.student_number %}" class="student-name-link font-semibold">
+              {{ p.user.get_full_name }}
+            </a>
+            <div class="text-muted text-xs">{{ p.user.email }}</div>
+          </td>
+          <td class="text-muted font-semibold">{{ p.student_number }}</td>
+          <td>
+            <span class="badge badge--purple font-semibold">{{ p.program.department.code }}</span>
+            <span class="text-secondary text-sm ml-1">{{ p.program.code }}</span>
+          </td>
+          <td>
+            {% if p.approval_status == 'APPROVED' %}
+              <span class="badge badge--success"><i class="fas fa-circle-check"></i> Approved</span>
+            {% else %}
+              <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Rejected</span>
+              {% if p.approval_note %}<div class="text-xs text-muted mt-1">{{ p.approval_note|truncatechars:40 }}</div>{% endif %}
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ p.approved_by.get_full_name|default:p.approved_by.username|default:"—" }}</td>
+          <td class="text-muted text-xs">{{ p.approved_at|date:"M j, Y g:i A" }}</td>
+          <td style="text-align: right;">
+            <a href="{% url 'validation_detail' p.student_number %}" class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 0.75rem;">
+              <i class="fas fa-eye"></i> View
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted" style="padding: 48px 0;">
+            <i class="fas fa-inbox" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+            No reviewed accounts found{% if query %} for "{{ query }}"{% endif %}.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if reviewed.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
+    {% if reviewed.has_previous %}
+    <a href="?page={{ reviewed.previous_page_number }}&q={{ query }}&decision={{ decision_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
+    {% endif %}
+    <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ reviewed.number }} of {{ reviewed.paginator.num_pages }}</span>
+    {% if reviewed.has_next %}
+    <a href="?page={{ reviewed.next_page_number }}&q={{ query }}&decision={{ decision_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

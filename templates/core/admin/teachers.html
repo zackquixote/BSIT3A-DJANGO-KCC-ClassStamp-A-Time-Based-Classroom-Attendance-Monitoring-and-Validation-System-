@@ -1,0 +1,492 @@
+{% extends "theme/base.html" %}
+{% block title %}Teachers & Faculty — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Teachers & Faculty</h1>
+    <p class="page-subtitle">Manage faculty accounts, department assignments, and teaching class loads</p>
+  </div>
+  <div>
+    <button type="button" class="btn btn-primary" id="addTeacherBtn">
+      <i class="fas fa-user-plus"></i> Add Teacher
+    </button>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-chalkboard-user"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_count }}</span>
+      <span class="stat-label">Total Faculty</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-circle-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ active_count }}</span>
+      <span class="stat-label">Active Teachers</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-building-columns"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ dept_count }}</span>
+      <span class="stat-label">Departments Represented</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-chalkboard"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ active_load_count }}</span>
+      <span class="stat-label">With Active Teaching Load</span>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div class="input-wrap" style="flex: 1; min-width: 240px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, or email...">
+    </div>
+    <select name="department" class="form-control" style="width: 200px;">
+      <option value="">All Departments</option>
+      {% for d in departments %}
+      <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }} — {{ d.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" class="form-control" style="width: 160px;">
+      <option value="">All Status</option>
+      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+    {% if query or dept_filter or status_filter %}
+    <a href="{% url 'teacher_list' %}" class="btn btn-outline">Clear</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+</div>
+
+<div id="teacherAlert" class="toast toast--error mb-4" style="display: none;"></div>
+<div id="teacherSuccess" class="toast toast--success mb-4" style="display: none;"></div>
+
+<!-- Faculty Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">
+      Faculty Roster {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
+    </div>
+    <span class="text-muted text-xs">{{ teachers.paginator.count }} faculty members</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="teacherTable">
+      <thead>
+        <tr>
+          <th style="width: 44px;">#</th>
+          <th>Faculty Member</th>
+          <th>Username</th>
+          <th>Department</th>
+          <th>Classes</th>
+          <th>Account Status</th>
+          <th>Joined</th>
+          <th style="text-align: right; width: 180px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in teachers %}
+        <tr data-teacher-id="{{ t.id }}">
+          <td class="text-muted">{{ t.id }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;color:#fff;flex-shrink:0;">
+                {{ t.user.first_name|slice:":1" }}{{ t.user.last_name|slice:":1" }}
+              </div>
+              <div>
+                <div class="font-semibold text-primary">{{ t.user.get_full_name|default:t.user.username }}</div>
+                <div class="text-muted text-xs">{{ t.user.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-muted">{{ t.user.username }}</td>
+          <td>
+            {% if t.department %}
+              <span class="badge badge--blue">{{ t.department.code }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge--gold">{{ t.class_count }}</span>
+          </td>
+          <td>
+            {% if t.user.is_active %}
+              <span class="badge badge--green"><i class="fas fa-circle" style="font-size:0.55rem;"></i> Active</span>
+            {% else %}
+              <span class="badge badge--muted">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="text-muted text-sm">{{ t.user.date_joined|date:"M d, Y" }}</td>
+          <td style="text-align: right;">
+            <div class="flex justify-end gap-2">
+              <button class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Details">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="btn btn-outline btn-sm js-toggle-teacher {% if not t.user.is_active %}btn-success{% endif %}" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}" title="Toggle Active">
+                <i class="fas {% if t.user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+              </button>
+              <button class="btn btn-danger btn-sm js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
+            <i class="fas fa-chalkboard-user" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+            No faculty members found{% if query %} matching "{{ query }}"{% endif %}.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if teachers.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
+    {% if teachers.has_previous %}
+    <a href="?page={{ teachers.previous_page_number }}&q={{ query }}&department={{ dept_filter }}&status={{ status_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
+    {% endif %}
+    <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ teachers.number }} of {{ teachers.paginator.num_pages }}</span>
+    {% if teachers.has_next %}
+    <a href="?page={{ teachers.next_page_number }}&q={{ query }}&department={{ dept_filter }}&status={{ status_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal: Create Teacher -->
+<!-- Modal: Create Teacher -->
+<div class="modal" id="teacherModal">
+  <div class="modal-dialog" style="max-width: 580px;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="teacherModalTitle">Add Faculty Member</h2>
+      <button type="button" class="modal-close" id="teacherModalClose" data-modal-dismiss="teacherModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="teacherForm" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" id="teacherId" name="teacher_id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label class="form-label" for="teacherFirstName">First Name <span class="text-danger">*</span></label>
+            <input type="text" id="teacherFirstName" name="first_name" class="form-control" placeholder="e.g. Maria" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="teacherLastName">Last Name <span class="text-danger">*</span></label>
+            <input type="text" id="teacherLastName" name="last_name" class="form-control" placeholder="e.g. Santos" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="teacherUsername">Username <span class="text-danger">*</span></label>
+          <input type="text" id="teacherUsername" name="username" class="form-control" placeholder="e.g. msantos" autocomplete="off" required>
+          <span class="form-hint" id="teacherUsernameHint" style="display:none;"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="teacherEmail">Email Address <span class="text-danger">*</span></label>
+          <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="teacherDept">Department <span class="text-danger">*</span></label>
+          <select id="teacherDept" name="dept_id" class="form-control" required>
+            <option value="">— select department —</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="teacherPassword">Password</label>
+          <input type="password" id="teacherPassword" name="password" class="form-control" placeholder="Leave blank to auto-generate a secure password" autocomplete="new-password">
+          <span class="form-hint">A temporary password will be auto-generated if left blank. Share it securely.</span>
+        </div>
+        <div class="form-group" id="teacherActiveWrap">
+          <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="teacherIsActive" name="is_active" style="width:16px;height:16px;accent-color:var(--accent-blue);" checked>
+            <span>Account Active (teacher can log in immediately)</span>
+          </label>
+        </div>
+        <div id="teacherFormError" class="toast toast--error mt-3" style="display:none;"></div>
+        <div id="teacherGeneratedPw" class="toast toast--success mt-3" style="display:none;"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="teacherModalCancel" data-modal-dismiss="teacherModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="teacherModalSave"><i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Teacher Detail Drawer -->
+<div class="modal" id="teacherDetailModal">
+  <div class="modal-dialog" style="max-width: 620px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Faculty Profile</h2>
+      <button type="button" class="modal-close" id="teacherDetailClose" data-modal-dismiss="teacherDetailModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="teacherDetailBody" style="max-height: 80vh; overflow-y: auto;">
+      <div class="text-muted text-center" style="padding:40px;">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div class="modal" id="teacherDeleteModal">
+  <div class="modal-dialog" style="max-width: 440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Remove Faculty Member</h2>
+      <button type="button" class="modal-close" id="teacherDeleteClose" data-modal-dismiss="teacherDeleteModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p>Remove faculty account <strong id="teacherDeleteName"></strong>?</p>
+      <p class="text-muted text-sm mt-2">If the teacher has assigned class sections, the account will be <em>deactivated</em> rather than permanently deleted.</p>
+      <div id="teacherDeleteError" class="toast toast--error mt-3" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="teacherDeleteCancel" data-modal-dismiss="teacherDeleteModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="teacherDeleteConfirm"><i class="fas fa-trash"></i> Remove</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+function showAlert(el, msg, type='error') {
+  el.style.display = 'block';
+  el.className = `toast toast--${type} mb-4`;
+  el.textContent = msg;
+  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+// ── Open Add Modal ────────────────────────────────────────────────────────────
+document.getElementById('addTeacherBtn')?.addEventListener('click', () => {
+  document.getElementById('teacherModalTitle').textContent = 'Add Faculty Member';
+  document.getElementById('teacherModalSaveLabel').textContent = 'Create Teacher';
+  document.getElementById('teacherId').value = '';
+  document.getElementById('teacherFirstName').value = '';
+  document.getElementById('teacherLastName').value = '';
+  document.getElementById('teacherUsername').value = '';
+  document.getElementById('teacherUsername').disabled = false;
+  document.getElementById('teacherEmail').value = '';
+  document.getElementById('teacherDept').value = '';
+  document.getElementById('teacherPassword').value = '';
+  document.getElementById('teacherIsActive').checked = true;
+  document.getElementById('teacherFormError').style.display = 'none';
+  document.getElementById('teacherGeneratedPw').style.display = 'none';
+  if (window.openModal) window.openModal('teacherModal');
+  else document.getElementById('teacherModal').classList.add('is-active');
+});
+
+// ── Open Edit Modal ───────────────────────────────────────────────────────────
+document.querySelectorAll('.js-edit-teacher').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    try {
+      const res = await fetch(`/teachers/get/${btn.dataset.id}/`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const t = data.teacher;
+      document.getElementById('teacherModalTitle').textContent = 'Edit Faculty Member';
+      document.getElementById('teacherModalSaveLabel').textContent = 'Update Teacher';
+      document.getElementById('teacherId').value = t.id;
+      document.getElementById('teacherFirstName').value = t.first_name;
+      document.getElementById('teacherLastName').value = t.last_name;
+      document.getElementById('teacherUsername').value = t.username;
+      document.getElementById('teacherUsername').disabled = true;
+      document.getElementById('teacherEmail').value = t.email;
+      document.getElementById('teacherDept').value = t.department_id;
+      document.getElementById('teacherPassword').value = '';
+      document.getElementById('teacherIsActive').checked = t.is_active;
+      document.getElementById('teacherFormError').style.display = 'none';
+      document.getElementById('teacherGeneratedPw').style.display = 'none';
+      if (window.openModal) window.openModal('teacherModal');
+      else document.getElementById('teacherModal').classList.add('is-active');
+    } catch (e) {
+      console.error(e);
+    }
+  });
+});
+
+['teacherModalClose','teacherModalCancel'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('teacherModal');
+    else document.getElementById('teacherModal').classList.remove('is-active');
+  });
+});
+
+// ── Save (Create / Update) ────────────────────────────────────────────────────
+document.getElementById('teacherModalSave')?.addEventListener('click', async () => {
+  const profileId = document.getElementById('teacherId').value;
+  const isEdit = !!profileId;
+  const fd = new FormData(document.getElementById('teacherForm'));
+  fd.set('is_active', document.getElementById('teacherIsActive').checked ? '1' : '0');
+  const errEl = document.getElementById('teacherFormError');
+  const btn = document.getElementById('teacherModalSave');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  try {
+    const url = isEdit ? `/teachers/update/${profileId}/` : '/teachers/create/';
+    const res = await fetch(url, { method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      if (data.generated_password) {
+        showAlert(document.getElementById('teacherGeneratedPw'), `✅ Account created. Temporary password: ${data.generated_password}`, 'success');
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-user-plus"></i> Create Teacher';
+        setTimeout(() => location.reload(), 5000);
+      } else {
+        if (window.closeModal) window.closeModal('teacherModal');
+        else document.getElementById('teacherModal').classList.remove('is-active');
+        showAlert(document.getElementById('teacherSuccess'), data.message, 'success');
+        setTimeout(() => location.reload(), 1000);
+      }
+    } else {
+      showAlert(errEl, data.error);
+      btn.disabled = false; btn.innerHTML = isEdit ? '<i class="fas fa-floppy-disk"></i> Update Teacher' : '<i class="fas fa-user-plus"></i> Create Teacher';
+    }
+  } catch {
+    showAlert(errEl, 'Network error. Please try again.');
+    btn.disabled = false;
+  }
+});
+
+// ── View Detail ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.js-view-teacher').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.getElementById('teacherDetailBody').innerHTML = '<div class="text-muted text-center" style="padding:40px;">Loading...</div>';
+    if (window.openModal) window.openModal('teacherDetailModal');
+    else document.getElementById('teacherDetailModal').classList.add('is-active');
+    try {
+      const res = await fetch(`/teachers/get/${btn.dataset.id}/`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const t = data.teacher;
+      const classesList = t.classes.length ? t.classes.map(c => `
+        <div style="padding:8px 12px;border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;">
+          <span class="badge badge--purple">${c.class_code}</span>
+          <span class="text-sm ml-2">${c.subject_name}</span>
+          <span class="badge badge--muted ml-2">${c.academic_year}</span>
+          ${c.is_active ? '' : '<span class="badge badge--muted ml-1">Inactive</span>'}
+        </div>
+      `).join('') : '<div class="text-muted text-sm">No class sections assigned.</div>';
+
+      document.getElementById('teacherDetailBody').innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+          <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.4rem;color:#fff;">${t.first_name[0]||''}${t.last_name[0]||''}</div>
+          <div>
+            <div class="font-semibold text-primary" style="font-size:1.1rem;">${t.full_name}</div>
+            <div class="text-muted text-sm">@${t.username} &nbsp;·&nbsp; ${t.email}</div>
+            <div class="mt-1"><span class="badge badge--blue">${t.department_code}</span>&nbsp;<span class="badge ${t.is_active?'badge--green':'badge--muted'}">${t.is_active?'Active':'Inactive'}</span></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div class="card" style="padding:12px;"><div class="text-muted text-xs mb-1">Department</div><div class="font-semibold">${t.department_name}</div></div>
+          <div class="card" style="padding:12px;"><div class="text-muted text-xs mb-1">Classes Assigned</div><div class="font-semibold">${t.class_count}</div></div>
+          <div class="card" style="padding:12px;"><div class="text-muted text-xs mb-1">Date Joined</div><div class="font-semibold">${t.date_joined}</div></div>
+          <div class="card" style="padding:12px;"><div class="text-muted text-xs mb-1">Approved At</div><div class="font-semibold">${t.approved_at}</div></div>
+        </div>
+        <div class="font-semibold text-primary mb-2">Assigned Class Sections</div>
+        ${classesList}
+      `;
+    } catch (e) {
+      document.getElementById('teacherDetailBody').innerHTML = '<div class="text-danger text-center" style="padding:20px;">Failed to load teacher details.</div>';
+    }
+  });
+});
+document.getElementById('teacherDetailClose')?.addEventListener('click', () => {
+  if (window.closeModal) window.closeModal('teacherDetailModal');
+  else document.getElementById('teacherDetailModal').classList.remove('is-active');
+});
+
+// ── Toggle Active ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.js-toggle-teacher').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const isActive = btn.dataset.active === '1';
+    const label = isActive ? 'Deactivate' : 'Activate';
+    if (!confirm(`${label} this faculty account?`)) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/teachers/toggle/${btn.dataset.id}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
+      const data = await res.json();
+      if (data.ok) {
+        showAlert(document.getElementById('teacherSuccess'), data.message, 'success');
+        setTimeout(() => location.reload(), 800);
+      } else {
+        alert(data.error);
+        btn.disabled = false;
+      }
+    } catch {
+      alert('Network error');
+      btn.disabled = false;
+    }
+  });
+});
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+let deleteTeacherId = null;
+document.querySelectorAll('.js-delete-teacher').forEach(btn => {
+  btn.addEventListener('click', () => {
+    deleteTeacherId = btn.dataset.id;
+    document.getElementById('teacherDeleteName').textContent = btn.dataset.name;
+    document.getElementById('teacherDeleteError').style.display = 'none';
+    if (window.openModal) window.openModal('teacherDeleteModal');
+    else document.getElementById('teacherDeleteModal').classList.add('is-active');
+  });
+});
+['teacherDeleteClose','teacherDeleteCancel'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('teacherDeleteModal');
+    else document.getElementById('teacherDeleteModal').classList.remove('is-active');
+  });
+});
+document.getElementById('teacherDeleteConfirm')?.addEventListener('click', async () => {
+  const btn = document.getElementById('teacherDeleteConfirm');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const res = await fetch(`/teachers/delete/${deleteTeacherId}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
+    const data = await res.json();
+    if (data.ok) {
+      if (window.closeModal) window.closeModal('teacherDeleteModal');
+      else document.getElementById('teacherDeleteModal').classList.remove('is-active');
+      showAlert(document.getElementById('teacherSuccess'), data.message, 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showAlert(document.getElementById('teacherDeleteError'), data.error);
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+    }
+  } catch {
+    showAlert(document.getElementById('teacherDeleteError'), 'Network error');
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+  }
+});
+</script>
+</script>
+{% endblock %}

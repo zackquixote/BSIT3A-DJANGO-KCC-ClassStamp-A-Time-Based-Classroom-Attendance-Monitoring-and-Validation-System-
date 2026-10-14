@@ -1,0 +1,515 @@
+{% extends "theme/base.html" %}
+{% block title %}Pending Registrations — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Pending Registrations</h1>
+    <p class="page-subtitle">Review, filter, and approve pending student registrations across collegiate departments</p>
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <a href="{% url 'validation_hub' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left"></i> Back to Account Validation
+    </a>
+    <span class="badge badge--warning" style="font-size: 0.9rem; padding: 8px 14px;">
+      <i class="fas fa-user-clock"></i> <span id="totalPendingSummary">{{ pending_count }} Awaiting Review</span>
+    </span>
+  </div>
+</div>
+
+<!-- Department Quick-Filter Tabs / Pills -->
+<div class="dept-filter-tabs" id="deptTabsContainer">
+  <button
+    type="button"
+    class="dept-tab-pill {% if not selected_department %}is-active{% endif %}"
+    data-dept-id=""
+    id="tab-all-depts"
+  >
+    <i class="fas fa-layer-group"></i>
+    <span>All Departments</span>
+    <span class="dept-tab-count">{{ pending_count }}</span>
+  </button>
+  {% for d in departments %}
+  <button
+    type="button"
+    class="dept-tab-pill {% if selected_department == d.id|stringformat:'s' %}is-active{% endif %}"
+    data-dept-id="{{ d.id }}"
+    id="tab-dept-{{ d.id }}"
+    title="{{ d.name }}"
+  >
+    <span>{{ d.code }}</span>
+    <span class="dept-tab-count">{{ d.pending_count }}</span>
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Comprehensive Multi-Filter Bar -->
+<div class="card mb-4 filter-bar-card">
+  <form method="GET" action="{% url 'validation_pending_queue' %}" id="validationFilterForm" class="filter-bar-grid">
+    <!-- Department Selector -->
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label text-xs mb-1" for="filterDeptSelect"><i class="fas fa-building-columns text-gold"></i> Department</label>
+      <select name="department" id="filterDeptSelect" class="form-control text-sm">
+        <option value="">All Departments ({{ pending_count }})</option>
+        {% for d in departments %}
+          <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:'s' %}selected{% endif %}>
+            {{ d.name }} ({{ d.code }}) — {{ d.pending_count }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Program Selector -->
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label text-xs mb-1" for="filterProgSelect"><i class="fas fa-graduation-cap text-gold"></i> Program</label>
+      <select name="program" id="filterProgSelect" class="form-control text-sm">
+        <option value="" id="progDefaultOption">All Programs</option>
+        {% for p in programs %}
+          <option
+            value="{{ p.id }}"
+            data-department="{{ p.department_id }}"
+            {% if selected_program == p.id|stringformat:'s' %}selected{% endif %}
+          >
+            {{ p.code }} — {{ p.name }} ({{ p.pending_count }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Text Search Box -->
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label text-xs mb-1" for="filterSearchInput"><i class="fas fa-magnifying-glass text-gold"></i> Search Student</label>
+      <div class="input-wrap">
+        <i class="fas fa-search input-icon"></i>
+        <input
+          type="text"
+          name="q"
+          id="filterSearchInput"
+          value="{{ query }}"
+          class="form-control text-sm"
+          placeholder="Filter by name, student no., or email..."
+          autocomplete="off"
+        >
+      </div>
+    </div>
+
+    <!-- Filter Actions -->
+    <div style="display: flex; gap: 8px; align-items: flex-end; padding-top: 18px;">
+      <button type="submit" class="btn btn-primary" title="Apply filter">
+        <i class="fas fa-filter"></i> Apply
+      </button>
+      <a
+        href="{% url 'validation_pending_queue' %}"
+        id="clearFiltersBtn"
+        class="btn btn-outline{% if not selected_department and not selected_program and not query %} is-hidden{% endif %}"
+        title="Reset all filters"
+      >
+        <i class="fas fa-rotate-left"></i> Reset
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Pending Registrations Table -->
+<div class="card mb-4" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div class="flex items-center gap-2">
+      <span class="font-semibold text-primary">Pending Registrations</span>
+      <span class="text-muted text-xs">— click student name to inspect full electronic registration form</span>
+    </div>
+    <span class="badge badge--warning" id="showingCountBadge">
+      <i class="fas fa-user-clock"></i> <span id="visiblePendingCount">{{ filtered_count }}</span> awaiting review
+    </span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="pendingTable">
+      <thead>
+        <tr>
+          <th>Student Name</th>
+          <th>Student No.</th>
+          <th>Department</th>
+          <th>Program &amp; Year</th>
+          <th>Registered</th>
+          <th style="text-align: right; width: 340px;">Decision &amp; Review</th>
+        </tr>
+      </thead>
+      <tbody id="pendingTableBody">
+        {% for p in pending %}
+        <tr
+          class="pending-row"
+          data-row-id="{{ p.pk }}"
+          data-department-id="{{ p.program.department_id }}"
+          data-program-id="{{ p.program_id }}"
+          data-name="{{ p.user.get_full_name|lower }}"
+          data-student-no="{{ p.student_number|lower }}"
+          data-email="{{ p.user.email|lower }}"
+          data-username="{{ p.user.username|lower }}"
+        >
+          <td class="font-semibold text-primary">
+            <div class="flex items-center gap-3">
+              <a href="{% url 'validation_detail' p.student_number %}" title="Click to view full registration form">
+                <span class="avatar-initial">{{ p.user.first_name|first|upper }}{{ p.user.last_name|first|upper }}</span>
+              </a>
+              <div>
+                <a
+                  href="{% url 'validation_detail' p.student_number %}"
+                  class="student-name-link font-semibold"
+                  title="Click to view full submitted registration form"
+                >
+                  {{ p.user.get_full_name }}
+                </a>
+                <div class="text-muted text-xs">{{ p.user.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="font-semibold text-primary" style="letter-spacing: 0.5px;">{{ p.student_number }}</span>
+          </td>
+          <td>
+            <span
+              class="badge badge--purple font-semibold"
+              title="{{ p.program.department.name }}"
+            >
+              {{ p.program.department.code }}
+            </span>
+          </td>
+          <td class="text-secondary text-sm">
+            <div class="font-semibold text-primary">{{ p.program.code }}</div>
+            <div class="text-muted text-xs">{{ p.year_level }}{% if p.year_level == 1 %}st{% elif p.year_level == 2 %}nd{% elif p.year_level == 3 %}rd{% else %}th{% endif %} Year</div>
+          </td>
+          <td class="text-muted text-xs">{{ p.created_at|date:"M j, Y g:i A" }}</td>
+          <td>
+            <div class="flex items-center gap-2" style="justify-content: flex-end;">
+              <!-- View Full Form Button -->
+              <a
+                href="{% url 'validation_detail' p.student_number %}"
+                class="btn btn-outline btn-sm"
+                title="Inspect full registration form to decide"
+                style="padding: 6px 10px; font-size: 0.8rem;"
+              >
+                <i class="fas fa-file-lines"></i> View Form
+              </a>
+
+              <!-- Quick Approve -->
+              <form method="post" action="{% url 'approve_student' p.pk %}" style="display: inline;" class="approve-form">
+                {% csrf_token %}
+                <button
+                  type="submit"
+                  class="btn btn-success btn-sm"
+                  title="Approve registration"
+                  style="padding: 6px 10px; font-size: 0.8rem;"
+                  data-name="{{ p.user.get_full_name|escapejs }}"
+                >
+                  <i class="fas fa-circle-check"></i> Approve
+                </button>
+              </form>
+
+              <!-- Quick Reject — opens modal -->
+              <button
+                type="button"
+                class="btn btn-danger btn-sm open-reject-modal"
+                style="padding: 6px 10px; font-size: 0.8rem;"
+                data-profile-id="{{ p.student_number }}"
+                data-name="{{ p.user.get_full_name|escapejs }}"
+                data-reject-url="{% url 'reject_student' p.student_number %}"
+              >
+                <i class="fas fa-circle-xmark"></i> Reject
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="emptyTableRow">
+          <td colspan="6" style="padding: 40px 20px; text-align: center;">
+            <i class="fas fa-inbox" style="font-size: 2rem; color: var(--text-muted, #94a3b8);"></i>
+            <p class="text-muted text-sm" style="margin-top: 10px;">
+              {% if selected_department or selected_program or query %}
+                No pending registrations match your selected filters.
+                <br>
+                <a href="{% url 'validation_pending_queue' %}" class="btn btn-outline btn-sm mt-2">Clear Filters &amp; View All</a>
+              {% else %}
+                No pending registrations. You're all caught up!
+              {% endif %}
+            </p>
+          </td>
+        </tr>
+        {% endfor %}
+
+        <!-- Filter-empty placeholder (for instant client-side filtering) -->
+        <tr id="noFilterMatchesRow" style="display: none;">
+          <td colspan="6" style="padding: 40px 20px; text-align: center;">
+            <i class="fas fa-filter-circle-xmark" style="font-size: 2rem; color: var(--text-muted, #94a3b8);"></i>
+            <p class="text-muted text-sm" style="margin-top: 10px;">
+              No pending registrations match the active department, program, or search filters.
+            </p>
+            <button type="button" class="btn btn-outline btn-sm mt-2" id="resetFiltersInlineBtn">
+              <i class="fas fa-rotate-left"></i> Reset Filters &amp; View All
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Reject Modal ──────────────────────────────────────────────────── -->
+<div id="rejectModal" class="modal">
+  <div class="modal-dialog" style="max-width: 480px;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 1.3rem;">🚫</span>
+        <div>
+          <h3 class="modal-title" style="margin: 0; font-size: 1.05rem;">Reject Registration</h3>
+          <div id="rejectModalStudentName" class="text-muted text-xs"></div>
+        </div>
+      </div>
+      <button type="button" class="modal-close" id="rejectModalClose" data-modal-dismiss="rejectModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Quick reason chips -->
+      <div style="margin-bottom: 14px;">
+        <div class="text-muted text-xs font-semibold mb-2" style="text-transform: uppercase;">QUICK REASONS</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;" id="modalChips">
+          <button type="button" class="modal-chip" data-reason="Invalid Student ID Number">Invalid ID</button>
+          <button type="button" class="modal-chip" data-reason="Incorrect Program or Year Level">Wrong Program</button>
+          <button type="button" class="modal-chip" data-reason="Duplicate registration account detected">Duplicate</button>
+          <button type="button" class="modal-chip" data-reason="Not found in Official KCC Registrar records">Unverified</button>
+          <button type="button" class="modal-chip" data-reason="Incomplete or invalid submitted documents">Incomplete Docs</button>
+        </div>
+      </div>
+
+      <form id="rejectModalForm" method="post" action="">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label text-sm" for="rejectModalReason">
+            Rejection Reason <span class="text-danger">*</span>
+          </label>
+          <textarea
+            id="rejectModalReason"
+            name="reason"
+            rows="3"
+            required
+            placeholder="Describe why this registration is being rejected..."
+            class="form-control text-sm"
+          ></textarea>
+        </div>
+        <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+          <button type="button" id="rejectModalCancel" class="btn btn-outline btn-sm" data-modal-dismiss="rejectModal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm">
+            <i class="fas fa-circle-xmark"></i> Confirm Rejection
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const deptSelect = document.getElementById('filterDeptSelect');
+    const progSelect = document.getElementById('filterProgSelect');
+    const searchInput = document.getElementById('filterSearchInput');
+    const clearBtn = document.getElementById('clearFiltersBtn');
+    const resetInlineBtn = document.getElementById('resetFiltersInlineBtn');
+    const rows = Array.from(document.querySelectorAll('.pending-row'));
+    const noMatchesRow = document.getElementById('noFilterMatchesRow');
+    const visibleCounter = document.getElementById('visiblePendingCount');
+    const deptTabs = Array.from(document.querySelectorAll('.dept-tab-pill'));
+
+    // Cache program options for cascading
+    const progOptions = Array.from(progSelect.querySelectorAll('option:not(#progDefaultOption)'));
+
+    function filterProgramOptions(deptId) {
+      const currentSelectedProg = progSelect.value;
+      progSelect.innerHTML = '';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = deptId ? 'All Programs in this Department' : 'All Programs';
+      defaultOpt.id = 'progDefaultOption';
+      progSelect.appendChild(defaultOpt);
+
+      let foundSelected = false;
+      progOptions.forEach(opt => {
+        const optDept = opt.getAttribute('data-department');
+        if (!deptId || optDept === deptId) {
+          progSelect.appendChild(opt);
+          if (opt.value === currentSelectedProg) {
+            opt.selected = true;
+            foundSelected = true;
+          }
+        }
+      });
+
+      if (!foundSelected) {
+        defaultOpt.selected = true;
+      }
+    }
+
+    function applyFilters() {
+      const selectedDept = deptSelect.value.trim();
+      const selectedProg = progSelect.value.trim();
+      const query = searchInput.value.trim().toLowerCase();
+
+      // Update active state on tab pills
+      deptTabs.forEach(tab => {
+        const tabDeptId = tab.getAttribute('data-dept-id');
+        if (tabDeptId === selectedDept) {
+          tab.classList.add('is-active');
+        } else {
+          tab.classList.remove('is-active');
+        }
+      });
+
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const rowDept = row.getAttribute('data-department-id');
+        const rowProg = row.getAttribute('data-program-id');
+        const rowName = row.getAttribute('data-name') || '';
+        const rowStudentNo = row.getAttribute('data-student-no') || '';
+        const rowEmail = row.getAttribute('data-email') || '';
+        const rowUsername = row.getAttribute('data-username') || '';
+
+        let matchesDept = !selectedDept || rowDept === selectedDept;
+        let matchesProg = !selectedProg || rowProg === selectedProg;
+        let matchesQuery = !query ||
+          rowName.includes(query) ||
+          rowStudentNo.includes(query) ||
+          rowEmail.includes(query) ||
+          rowUsername.includes(query);
+
+        if (matchesDept && matchesProg && matchesQuery) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      if (visibleCounter) {
+        visibleCounter.textContent = visibleCount;
+      }
+
+      if (noMatchesRow) {
+        if (visibleCount === 0 && rows.length > 0) {
+          noMatchesRow.style.display = '';
+        } else {
+          noMatchesRow.style.display = 'none';
+        }
+      }
+
+      // Show/hide clear button
+      const hasFilter = selectedDept !== '' || selectedProg !== '' || query !== '';
+      if (clearBtn) {
+        if (hasFilter) {
+          clearBtn.classList.remove('is-hidden');
+          clearBtn.style.display = 'inline-flex';
+        } else {
+          clearBtn.classList.add('is-hidden');
+          clearBtn.style.display = 'none';
+        }
+      }
+
+      // Synchronize URL query parameters without reloading
+      const url = new URL(window.location.href);
+      if (selectedDept) url.searchParams.set('department', selectedDept);
+      else url.searchParams.delete('department');
+
+      if (selectedProg) url.searchParams.set('program', selectedProg);
+      else url.searchParams.delete('program');
+
+      if (query) url.searchParams.set('q', query);
+      else url.searchParams.delete('q');
+
+      window.history.replaceState({}, '', url);
+    }
+
+    // Tab Pill Click Handler
+    deptTabs.forEach(tab => {
+      tab.addEventListener('click', function () {
+        const deptId = this.getAttribute('data-dept-id');
+        deptSelect.value = deptId;
+        filterProgramOptions(deptId);
+        applyFilters();
+      });
+    });
+
+    // Dropdown change handlers
+    deptSelect.addEventListener('change', function () {
+      filterProgramOptions(this.value);
+      applyFilters();
+    });
+
+    progSelect.addEventListener('change', applyFilters);
+
+    // Search input handler with instant debounce
+    let searchTimeout = null;
+    searchInput.addEventListener('input', function () {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(applyFilters, 150);
+    });
+
+    // Inline reset button
+    if (resetInlineBtn) {
+      resetInlineBtn.addEventListener('click', function () {
+        deptSelect.value = '';
+        filterProgramOptions('');
+        searchInput.value = '';
+        applyFilters();
+      });
+    }
+
+    // Initialize cascading options on load
+    if (deptSelect.value) {
+      filterProgramOptions(deptSelect.value);
+    }
+
+    // ── Approve confirmation ────────────────────────────────────
+    document.querySelectorAll('.approve-form').forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        const btn = form.querySelector('button[type="submit"]');
+        const name = btn ? btn.getAttribute('data-name') : 'this student';
+        if (!confirm('Approve registration for ' + name + '?')) {
+          e.preventDefault();
+        }
+      });
+    });
+
+    // ── Reject Modal ────────────────────────────────────────────
+    const rejectModal    = document.getElementById('rejectModal');
+    const rejectForm     = document.getElementById('rejectModalForm');
+    const rejectReason   = document.getElementById('rejectModalReason');
+    const rejectName     = document.getElementById('rejectModalStudentName');
+    const rejectCancel   = document.getElementById('rejectModalCancel');
+    const modalChips     = document.querySelectorAll('.modal-chip');
+
+    document.querySelectorAll('.open-reject-modal').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        rejectForm.action = this.getAttribute('data-reject-url');
+        rejectName.textContent = this.getAttribute('data-name');
+        rejectReason.value = '';
+        modalChips.forEach(c => c.classList.remove('is-selected'));
+        if (window.openModal) window.openModal('rejectModal');
+        else rejectModal.classList.add('is-active');
+        setTimeout(() => rejectReason.focus(), 80);
+      });
+    });
+
+    modalChips.forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        rejectReason.value = this.getAttribute('data-reason');
+        modalChips.forEach(c => c.classList.remove('is-selected'));
+        this.classList.add('is-selected');
+      });
+    });
+
+    rejectCancel?.addEventListener('click', function() {
+      if (window.closeModal) window.closeModal('rejectModal');
+      else rejectModal.classList.remove('is-active');
+    });
+  })();
+</script>
+{% endblock %}

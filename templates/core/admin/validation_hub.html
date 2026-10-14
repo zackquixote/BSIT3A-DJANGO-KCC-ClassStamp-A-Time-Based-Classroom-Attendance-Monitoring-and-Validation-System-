@@ -1,0 +1,144 @@
+{% extends "theme/base.html" %}
+{% block title %}Account Validation — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Account Validation</h1>
+    <p class="page-subtitle">Administrative identity verification and student account validation management</p>
+  </div>
+  <div>
+    {% if pending_count > 0 %}
+      <span class="badge badge--warning" style="font-size: 0.9rem; padding: 8px 14px;">
+        <i class="fas fa-user-clock"></i> {{ pending_count }} Awaiting Review
+      </span>
+    {% else %}
+      <span class="badge badge--green" style="font-size: 0.9rem; padding: 8px 14px;">
+        <i class="fas fa-circle-check"></i> Queue Clear
+      </span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Validation Modules Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; margin-bottom: 28px;">
+
+  <!-- Card 1: Pending Registrations -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; border-top: 3px solid var(--accent-gold);">
+    <div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); display: flex; align-items: center; justify-content: center; color: var(--accent-gold-h); font-size: 1.4rem;">
+            <i class="fas fa-user-clock"></i>
+          </div>
+          <div>
+            <h2 class="font-semibold text-primary" style="font-size: 1.2rem; margin: 0;">Pending Registrations</h2>
+            <div class="text-muted text-xs mt-1">Student accounts awaiting identity verification</div>
+          </div>
+        </div>
+        {% if pending_count > 0 %}
+          <span class="badge badge--warning" style="font-size: 0.85rem;">{{ pending_count }} pending</span>
+        {% else %}
+          <span class="badge badge--green" style="font-size: 0.85rem;"><i class="fas fa-check"></i> 0 pending</span>
+        {% endif %}
+      </div>
+
+      <p class="text-secondary text-sm mb-4" style="line-height: 1.6;">
+        Inspect student submitted registration data, match student IDs against official registrar records, and approve or reject access credentials.
+      </p>
+
+      <!-- Mini Preview / Summary -->
+      <div style="background: rgba(15, 23, 42, 0.45); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px;">
+        <div class="text-muted text-xs font-semibold mb-2" style="text-transform: uppercase; letter-spacing: 0.5px;">Recent Submissions</div>
+        {% for student in latest_pending %}
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; {% if not forloop.last %}border-bottom: 1px solid rgba(255,255,255,0.05);{% endif %}">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="avatar-initial" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+              </span>
+              <div>
+                <span class="font-medium text-primary text-sm">{{ student.user.get_full_name }}</span>
+                <span class="text-muted text-xs ml-1 font-mono">({{ student.student_number }})</span>
+              </div>
+            </div>
+            <span class="badge badge--purple text-xs">{{ student.program.code|default:"—" }}</span>
+          </div>
+        {% empty %}
+          <div class="text-center text-muted text-xs py-2">
+            <i class="fas fa-circle-check text-green mr-1"></i> No pending student accounts. All registrations are reviewed!
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <a href="{% url 'validation_pending_queue' %}" class="btn btn-primary" style="width: 100%; justify-content: center; height: 44px; font-weight: 600;">
+        <i class="fas fa-list-check"></i> Open Pending Registrations
+        {% if pending_count > 0 %}<span style="background: rgba(0,0,0,0.25); border-radius: 12px; padding: 2px 8px; margin-left: 6px; font-size: 0.8rem;">{{ pending_count }}</span>{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Card 2: Recently Reviewed -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; border-top: 3px solid #22c55e;">
+    <div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); display: flex; align-items: center; justify-content: center; color: #4ade80; font-size: 1.4rem;">
+            <i class="fas fa-clipboard-check"></i>
+          </div>
+          <div>
+            <h2 class="font-semibold text-primary" style="font-size: 1.2rem; margin: 0;">Recently Reviewed</h2>
+            <div class="text-muted text-xs mt-1">Audit log of approved and rejected accounts</div>
+          </div>
+        </div>
+        <span class="badge badge--green" style="font-size: 0.85rem;">{{ reviewed_count }} evaluated</span>
+      </div>
+
+      <p class="text-secondary text-sm mb-4" style="line-height: 1.6;">
+        Access complete historical records of validated student profiles, including verification timestamps, approval decisions, and audit trails.
+      </p>
+
+      <!-- Mini Preview / Summary -->
+      <div style="background: rgba(15, 23, 42, 0.45); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div class="text-muted text-xs font-semibold" style="text-transform: uppercase; letter-spacing: 0.5px;">Latest Decisions</div>
+          <div class="text-xs">
+            <span class="text-success font-semibold">{{ approved_count }} Approved</span> &bull;
+            <span class="text-danger font-semibold">{{ rejected_count }} Rejected</span>
+          </div>
+        </div>
+        {% for student in latest_reviewed %}
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; {% if not forloop.last %}border-bottom: 1px solid rgba(255,255,255,0.05);{% endif %}">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="avatar-initial" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
+              </span>
+              <div>
+                <span class="font-medium text-primary text-sm">{{ student.user.get_full_name }}</span>
+                <span class="text-muted text-xs ml-1 font-mono">({{ student.student_number }})</span>
+              </div>
+            </div>
+            {% if student.approval_status == 'APPROVED' %}
+              <span class="badge badge--green text-xs"><i class="fas fa-check"></i> Approved</span>
+            {% else %}
+              <span class="badge badge--danger text-xs"><i class="fas fa-xmark"></i> Rejected</span>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="text-center text-muted text-xs py-2">
+            No reviewed student accounts yet.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <a href="{% url 'recently_reviewed_list' %}" class="btn btn-outline" style="width: 100%; justify-content: center; height: 44px; font-weight: 600;">
+        <i class="fas fa-clock-rotate-left"></i> View All Recently Reviewed &rarr;
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

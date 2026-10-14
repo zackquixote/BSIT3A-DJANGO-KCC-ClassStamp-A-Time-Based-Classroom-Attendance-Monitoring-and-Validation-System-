@@ -1,0 +1,362 @@
+{% extends "theme/base.html" %}
+{% block title %}Academic Years — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Academic Years</h1>
+    <p class="page-subtitle">Manage semester and school-year validity windows for all class scheduling</p>
+  </div>
+  <div>
+    <button type="button" class="btn btn-primary" id="addAyBtn" data-mode="create">
+      <i class="fas fa-plus-circle"></i> Add Academic Year
+    </button>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stat-grid mb-6">
+  <div class="stat-card" style="border-left: 3px solid var(--accent-gold);">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-calendar-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value" style="font-size: 1rem; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        {% if active_term %}{{ active_term.name }}{% else %}—{% endif %}
+      </span>
+      <span class="stat-label">Active Term</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-layer-group"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_count }}</span>
+      <span class="stat-label">Total Terms</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-chalkboard"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ active_class_count }}</span>
+      <span class="stat-label">Active-Term Classes</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-hourglass-half"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{% if days_remaining is not None %}{{ days_remaining }}d{% else %}—{% endif %}</span>
+      <span class="stat-label">Days Remaining</span>
+    </div>
+  </div>
+</div>
+
+<div id="ayAlert" class="toast toast--error mb-4" style="display: none;"></div>
+<div id="aySuccess" class="toast toast--success mb-4" style="display: none;"></div>
+
+<!-- Academic Years Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">Term Registry</div>
+    <span class="text-muted text-xs">{{ academic_years.paginator.count }} terms registered</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="ayTable">
+      <thead>
+        <tr>
+          <th style="width: 44px;">#</th>
+          <th>Term Name</th>
+          <th>Opening Date</th>
+          <th>Closing Date</th>
+          <th>Duration</th>
+          <th>Classes</th>
+          <th>Status</th>
+          <th style="text-align: right; width: 200px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ay in academic_years %}
+        <tr data-ay-id="{{ ay.id }}">
+          <td class="text-muted">{{ ay.id }}</td>
+          <td>
+            <span class="font-semibold text-primary">{{ ay.name }}</span>
+          </td>
+          <td class="text-muted">{{ ay.starts_on|date:"M d, Y" }}</td>
+          <td class="text-muted">{{ ay.ends_on|date:"M d, Y" }}</td>
+          <td class="text-muted text-sm">
+            {% with delta=ay.ends_on|timeuntil:ay.starts_on %}{{ delta }}{% endwith %}
+          </td>
+          <td>
+            <span class="badge badge--blue">{{ ay.class_count }}</span>
+          </td>
+          <td>
+            {% if ay.is_active %}
+              <span class="badge badge--green"><i class="fas fa-circle" style="font-size:0.55rem;"></i> Active Term</span>
+            {% else %}
+              <span class="badge badge--muted">Inactive</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <div class="flex justify-end gap-2">
+              {% if not ay.is_active %}
+              <button class="btn btn-outline btn-sm js-set-active" data-id="{{ ay.id }}" title="Set as Active Term">
+                <i class="fas fa-circle-check"></i> Set Active
+              </button>
+              {% endif %}
+              <button class="btn btn-outline btn-sm js-edit-ay" data-id="{{ ay.id }}" title="Edit">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="btn btn-danger btn-sm js-delete-ay" data-id="{{ ay.id }}" data-name="{{ ay.name }}" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
+            <i class="fas fa-calendar-xmark" style="font-size: 2rem; opacity:0.3; display:block; margin-bottom:8px;"></i>
+            No academic year terms registered yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if academic_years.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
+    {% if academic_years.has_previous %}
+    <a href="?page={{ academic_years.previous_page_number }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
+    {% endif %}
+    <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ academic_years.number }} of {{ academic_years.paginator.num_pages }}</span>
+    {% if academic_years.has_next %}
+    <a href="?page={{ academic_years.next_page_number }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal: Create / Edit Academic Year -->
+<div class="modal" id="ayModal">
+  <div class="modal-dialog" style="max-width: 520px;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="ayModalTitle">Add Academic Year</h2>
+      <button type="button" class="modal-close" id="ayModalClose" data-modal-dismiss="ayModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="ayForm" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" id="ayId" name="ay_id">
+
+        <div class="form-group">
+          <label class="form-label" for="ayName">Term Name <span class="text-danger">*</span></label>
+          <input type="text" id="ayName" name="name" class="form-control" placeholder="e.g. A.Y. 2025-2026 1st Semester" required>
+          <span class="form-hint">Use a clear institutional identifier including school year and semester.</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="ayStartsOn">Opening Date <span class="text-danger">*</span></label>
+            <input type="date" id="ayStartsOn" name="starts_on" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ayEndsOn">Closing Date <span class="text-danger">*</span></label>
+            <input type="date" id="ayEndsOn" name="ends_on" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="ayIsActive" name="is_active" style="width:16px;height:16px;accent-color:var(--accent-gold);">
+            <span>Set as Active Institutional Term <span class="text-muted text-sm">(will deactivate the current active term)</span></span>
+          </label>
+        </div>
+
+        <div id="ayFormError" class="toast toast--error mt-3" style="display:none;"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="ayModalCancel" data-modal-dismiss="ayModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="ayModalSave">
+        <i class="fas fa-floppy-disk"></i> Save Term
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal" id="ayDeleteModal">
+  <div class="modal-dialog" style="max-width: 440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Remove Academic Term</h2>
+      <button type="button" class="modal-close" id="ayDeleteModalClose" data-modal-dismiss="ayDeleteModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to remove <strong id="ayDeleteName"></strong>?</p>
+      <p class="text-muted text-sm mt-2">If class sections are scheduled under this term, it will be <em>deactivated</em> instead of permanently deleted to preserve historical records.</p>
+      <div id="ayDeleteError" class="toast toast--error mt-3" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="ayDeleteCancel" data-modal-dismiss="ayDeleteModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="ayDeleteConfirm"><i class="fas fa-trash"></i> Remove</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+
+function showAlert(el, msg, type='error') {
+  el.style.display = 'block';
+  el.className = `toast toast--${type} mb-4`;
+  el.textContent = msg;
+  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// ── Open modal (create) ──────────────────────────────────────────────────────
+document.getElementById('addAyBtn')?.addEventListener('click', () => {
+  document.getElementById('ayModalTitle').textContent = 'Add Academic Year';
+  document.getElementById('ayId').value = '';
+  document.getElementById('ayName').value = '';
+  document.getElementById('ayStartsOn').value = '';
+  document.getElementById('ayEndsOn').value = '';
+  document.getElementById('ayIsActive').checked = false;
+  document.getElementById('ayFormError').style.display = 'none';
+  if (window.openModal) window.openModal('ayModal');
+  else document.getElementById('ayModal').classList.add('is-active');
+});
+
+// ── Open modal (edit) ────────────────────────────────────────────────────────
+document.querySelectorAll('.js-edit-ay').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    try {
+      const id = btn.dataset.id;
+      const res = await fetch(`/academic-years/get/${id}/`);
+      const data = await res.json();
+      if (!data.ok) return;
+      const ay = data.academic_year;
+      document.getElementById('ayModalTitle').textContent = 'Edit Academic Year';
+      document.getElementById('ayId').value = ay.id;
+      document.getElementById('ayName').value = ay.name;
+      document.getElementById('ayStartsOn').value = ay.starts_on;
+      document.getElementById('ayEndsOn').value = ay.ends_on;
+      document.getElementById('ayIsActive').checked = ay.is_active;
+      document.getElementById('ayFormError').style.display = 'none';
+      if (window.openModal) window.openModal('ayModal');
+      else document.getElementById('ayModal').classList.add('is-active');
+    } catch (e) {
+      console.error(e);
+    }
+  });
+});
+
+// ── Close modal ──────────────────────────────────────────────────────────────
+['ayModalClose', 'ayModalCancel'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('ayModal');
+    else document.getElementById('ayModal').classList.remove('is-active');
+  });
+});
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+document.getElementById('ayModalSave')?.addEventListener('click', async () => {
+  const form = document.getElementById('ayForm');
+  const errEl = document.getElementById('ayFormError');
+  const fd = new FormData(form);
+  fd.set('is_active', document.getElementById('ayIsActive').checked ? '1' : '0');
+  const btn = document.getElementById('ayModalSave');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+  try {
+    const res = await fetch('/academic-years/save/', { method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      if (window.closeModal) window.closeModal('ayModal');
+      else document.getElementById('ayModal').classList.remove('is-active');
+      showAlert(document.getElementById('aySuccess'), data.message, 'success');
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showAlert(errEl, data.error);
+    }
+  } catch {
+    showAlert(errEl, 'Server or network error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Term';
+  }
+});
+
+// ── Set Active ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.js-set-active').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    if (!confirm('Set this as the active institutional academic term?')) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/academic-years/set-active/${id}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
+      const data = await res.json();
+      if (data.ok) {
+        showAlert(document.getElementById('aySuccess'), data.message, 'success');
+        setTimeout(() => location.reload(), 800);
+      } else {
+        alert(data.error);
+        btn.disabled = false;
+      }
+    } catch {
+      alert('Network error');
+      btn.disabled = false;
+    }
+  });
+});
+
+// ── Delete ───────────────────────────────────────────────────────────────────
+let deleteTargetId = null;
+document.querySelectorAll('.js-delete-ay').forEach(btn => {
+  btn.addEventListener('click', () => {
+    deleteTargetId = btn.dataset.id;
+    document.getElementById('ayDeleteName').textContent = btn.dataset.name;
+    document.getElementById('ayDeleteError').style.display = 'none';
+    if (window.openModal) window.openModal('ayDeleteModal');
+    else document.getElementById('ayDeleteModal').classList.add('is-active');
+  });
+});
+['ayDeleteModalClose', 'ayDeleteCancel'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('ayDeleteModal');
+    else document.getElementById('ayDeleteModal').classList.remove('is-active');
+  });
+});
+document.getElementById('ayDeleteConfirm')?.addEventListener('click', async () => {
+  const errEl = document.getElementById('ayDeleteError');
+  const btn = document.getElementById('ayDeleteConfirm');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const res = await fetch(`/academic-years/delete/${deleteTargetId}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
+    const data = await res.json();
+    if (data.ok) {
+      if (window.closeModal) window.closeModal('ayDeleteModal');
+      else document.getElementById('ayDeleteModal').classList.remove('is-active');
+      showAlert(document.getElementById('aySuccess'), data.message, 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showAlert(errEl, data.error);
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+    }
+  } catch {
+    showAlert(errEl, 'Network error');
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+  }
+});
+</script>
+{% endblock %}

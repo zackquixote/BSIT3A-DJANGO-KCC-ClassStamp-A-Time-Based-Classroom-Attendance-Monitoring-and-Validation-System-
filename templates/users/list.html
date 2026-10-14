@@ -16,13 +16,14 @@
 
 <!-- Search Bar -->
 <div class="card mb-4" style="padding: 14px 18px;">
-  <form method="GET" class="flex items-center gap-3" style="max-width: 500px;">
-    <div class="input-wrap w-full">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div class="input-wrap" style="flex: 1; min-width: 240px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
       <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, or email...">
     </div>
+    <input type="hidden" name="role" value="{{ role_tab }}">
     {% if query %}
-      <a href="{% url 'users:user_list' %}" class="btn btn-outline">Clear</a>
+      <a href="{% url 'users:user_list' %}?role={{ role_tab }}" class="btn btn-outline">Clear</a>
     {% endif %}
     <button type="submit" class="btn btn-primary">Search</button>
   </form>
@@ -30,13 +31,42 @@
 
 <div id="userAlert" class="toast toast--error mb-4" style="display: none;"></div>
 
+<!-- Role Tabs -->
+<div class="dept-filter-tabs mb-0" style="margin-bottom: 0;">
+  <a href="?role=students{% if query %}&q={{ query }}{% endif %}"
+     class="dept-tab-pill {% if role_tab == 'students' %}is-active{% endif %}"
+     id="tab-students">
+    <i class="fas fa-user-graduate"></i>
+    <span>Students</span>
+    <span class="dept-tab-count">{{ students_count }}</span>
+  </a>
+  <a href="?role=teachers{% if query %}&q={{ query }}{% endif %}"
+     class="dept-tab-pill {% if role_tab == 'teachers' %}is-active{% endif %}"
+     id="tab-teachers">
+    <i class="fas fa-chalkboard-user"></i>
+    <span>Teachers</span>
+    <span class="dept-tab-count">{{ teachers_count }}</span>
+  </a>
+  <a href="?role=admins{% if query %}&q={{ query }}{% endif %}"
+     class="dept-tab-pill {% if role_tab == 'admins' %}is-active{% endif %}"
+     id="tab-admins">
+    <i class="fas fa-shield-halved"></i>
+    <span>Admin &amp; Superadmin</span>
+    <span class="dept-tab-count">{{ admins_count }}</span>
+  </a>
+</div>
+
 <!-- Users Table Card -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: hidden; border-top-left-radius: 0; border-top-right-radius: 0;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
-      All Users {% if query %}<span class="text-muted text-sm">— search results for "{{ query }}"</span>{% endif %}
+      {% if role_tab == 'students' %}Student Accounts
+      {% elif role_tab == 'teachers' %}Teacher Accounts
+      {% else %}Admin &amp; Superadmin Accounts
+      {% endif %}
+      {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
     </div>
-    <span class="text-muted text-xs">{{ users.paginator.count }} total users</span>
+    <span class="text-muted text-xs">{{ users.paginator.count }} total</span>
   </div>
 
   <div class="table-responsive">
@@ -133,7 +163,9 @@
               <i class="fas fa-users-slash"></i>
             </div>
             <p class="font-semibold text-primary">No users found</p>
-            <p class="text-muted text-sm mt-1">Try adjusting your search criteria.</p>
+            <p class="text-muted text-sm mt-1">
+              {% if query %}Try adjusting your search criteria.{% else %}No {{ role_tab }} accounts yet.{% endif %}
+            </p>
           </td>
         </tr>
         {% endfor %}
@@ -150,19 +182,19 @@
     <ul class="pagination">
       {% if users.has_previous %}
       <li>
-        <a class="page-link" href="?page={{ users.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
+        <a class="page-link" href="?page={{ users.previous_page_number }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}">
           <i class="fas fa-chevron-left"></i>
         </a>
       </li>
       {% endif %}
       {% for num in users.paginator.page_range %}
       <li>
-        <a class="page-link {% if users.number == num %}active{% endif %}" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+        <a class="page-link {% if users.number == num %}active{% endif %}" href="?page={{ num }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
       </li>
       {% endfor %}
       {% if users.has_next %}
       <li>
-        <a class="page-link" href="?page={{ users.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
+        <a class="page-link" href="?page={{ users.next_page_number }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}">
           <i class="fas fa-chevron-right"></i>
         </a>
       </li>
@@ -268,7 +300,7 @@
   const errorBox = document.getElementById('editUserFormError');
   const alertBox = document.getElementById('userAlert');
   const modalTitle = document.getElementById('editUserModalTitle');
-  const passwordHint = document.getElementById('editPasswordHint');
+  const passwordHint = document.getElementById('edit_password_hint');
   const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
   let currentDeleteId = null;
 
@@ -358,4 +390,19 @@
   });
 })();
 </script>
+
+<style>
+/* Style tabs as links (not buttons) to work cleanly */
+.dept-filter-tabs a.dept-tab-pill {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Square bottom corners for card right below tabs */
+.dept-filter-tabs + .card {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+</style>
 {% endblock %}
