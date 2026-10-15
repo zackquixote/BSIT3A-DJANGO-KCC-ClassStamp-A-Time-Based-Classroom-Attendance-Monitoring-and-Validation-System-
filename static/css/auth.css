@@ -8,7 +8,7 @@
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  background-color: #060b17;
+  background-color: #0c152b;
   color: #f8fafc;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
@@ -225,7 +225,10 @@
 /* ── RIGHT PANEL: Form Container ─────────────────────────────── */
 .kcc-form-panel {
   flex: 0.9;
-  background-color: #060b17;
+  background: 
+    radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 15% 85%, rgba(30, 58, 138, 0.15) 0%, transparent 50%),
+    linear-gradient(135deg, #0c152b 0%, #111d3b 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -281,8 +284,8 @@
 .kcc-input {
   width: 100%;
   height: 46px;
-  background: #0d1728 !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: #142242 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 8px !important;
   padding: 0 16px 0 42px !important;
   color: #f8fafc !important;
@@ -292,13 +295,13 @@
 }
 
 .kcc-input::placeholder {
-  color: #475569 !important;
+  color: #64748b !important;
 }
 
 .kcc-input:focus {
-  background: #101c32 !important;
+  background: #192b52 !important;
   border-color: #f5c444 !important;
-  box-shadow: 0 0 0 3px rgba(245, 196, 68, 0.18) !important;
+  box-shadow: 0 0 0 3px rgba(245, 196, 68, 0.22) !important;
   outline: none !important;
 }
 

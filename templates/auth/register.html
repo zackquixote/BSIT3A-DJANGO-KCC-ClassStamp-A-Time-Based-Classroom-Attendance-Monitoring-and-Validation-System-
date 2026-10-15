@@ -138,6 +138,45 @@
             </div>
           </div>
 
+          <!-- Gender & Phone Number Row -->
+          <div class="kcc-form-row">
+            <div class="form-group">
+              <label class="form-label" for="id_gender">Gender / Sex</label>
+              <div class="input-wrap">
+                <i class="fas fa-venus-mars input-icon"></i>
+                <select id="id_gender" name="gender" class="form-control kcc-input {% if errors.gender %}is-invalid{% endif %}" required>
+                  <option value="" disabled {% if not form_data.gender %}selected{% endif %}>Select gender</option>
+                  <option value="M" {% if form_data.gender == 'M' %}selected{% endif %}>Male</option>
+                  <option value="F" {% if form_data.gender == 'F' %}selected{% endif %}>Female</option>
+                </select>
+              </div>
+              {% if errors.gender %}
+                <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.gender }}</span>
+              {% endif %}
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="id_phone_number">Contact / Phone Number</label>
+              <div class="input-wrap">
+                <i class="fas fa-phone input-icon"></i>
+                <input
+                  type="tel"
+                  id="id_phone_number"
+                  name="phone_number"
+                  class="form-control kcc-input {% if errors.phone_number %}is-invalid{% endif %}"
+                  placeholder="e.g. 0912-345-6789"
+                  value="{{ form_data.phone_number|default:'' }}"
+                  autocomplete="tel"
+                  maxlength="15"
+                  required
+                >
+              </div>
+              {% if errors.phone_number %}
+                <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.phone_number }}</span>
+              {% endif %}
+            </div>
+          </div>
+
           <!-- Student ID & Year Level Row -->
           <div class="kcc-form-row">
             <div class="form-group">
@@ -215,49 +254,26 @@
             {% endif %}
           </div>
 
-          <!-- Email & Username Row -->
-          <div class="kcc-form-row">
-            <div class="form-group">
-              <label class="form-label" for="id_email">Email Address</label>
-              <div class="input-wrap">
-                <i class="far fa-envelope input-icon"></i>
-                <input
-                  type="email"
-                  id="id_email"
-                  name="email"
-                  class="form-control kcc-input {% if errors.email %}is-invalid{% endif %}"
-                  placeholder="yourname@kcc.edu.ph"
-                  value="{{ form_data.email|default:'' }}"
-                  autocomplete="email"
-                  required
-                >
-              </div>
-              <div id="emailStatus"></div>
-              {% if errors.email %}
-                <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.email }}</span>
-              {% endif %}
+          <!-- Email Address (Full Width) -->
+          <div class="form-group">
+            <label class="form-label" for="id_email">Email Address</label>
+            <div class="input-wrap">
+              <i class="far fa-envelope input-icon"></i>
+              <input
+                type="email"
+                id="id_email"
+                name="email"
+                class="form-control kcc-input {% if errors.email %}is-invalid{% endif %}"
+                placeholder="yourname@kcc.edu.ph"
+                value="{{ form_data.email|default:'' }}"
+                autocomplete="email"
+                required
+              >
             </div>
-
-            <div class="form-group">
-              <label class="form-label" for="id_username">Username</label>
-              <div class="input-wrap">
-                <i class="fas fa-at input-icon"></i>
-                <input
-                  type="text"
-                  id="id_username"
-                  name="username"
-                  class="form-control kcc-input {% if errors.username %}is-invalid{% endif %}"
-                  placeholder="Choose a username"
-                  value="{{ form_data.username|default:'' }}"
-                  autocomplete="username"
-                  required
-                >
-              </div>
-              <div id="usernameStatus"></div>
-              {% if errors.username %}
-                <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.username }}</span>
-              {% endif %}
-            </div>
+            <div id="emailStatus"></div>
+            {% if errors.email %}
+              <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.email }}</span>
+            {% endif %}
           </div>
 
           <!-- Password Row -->
@@ -457,10 +473,17 @@
         }, 350);
       }
 
-      const usernameInput = document.getElementById('id_username');
-      if (usernameInput) {
-        usernameInput.addEventListener('input', function () {
-          scheduleAvailabilityCheck('username', this.value.trim(), document.getElementById('usernameStatus'));
+      // 3. Contact Phone Auto-Format (09XX-XXX-XXXX)
+      const phoneInput = document.getElementById('id_phone_number');
+      if (phoneInput) {
+        phoneInput.addEventListener('input', function () {
+          let val = this.value.replace(/[^\d]/g, '');
+          if (val.length > 4 && val.length <= 7) {
+            val = val.substring(0, 4) + '-' + val.substring(4);
+          } else if (val.length > 7) {
+            val = val.substring(0, 4) + '-' + val.substring(4, 7) + '-' + val.substring(7, 11);
+          }
+          this.value = val;
         });
       }
 

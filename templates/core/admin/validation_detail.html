@@ -155,40 +155,10 @@
     <div class="card" style="padding: 24px;">
       <!-- Form Header -->
       <div class="flex items-center justify-between pb-4 mb-4" style="border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 12px;">
-          {% if student_profile.estimated_gender == 'F' %}
-            <div class="student-avatar-wrap student-avatar--female" style="width: 44px; height: 44px;" title="Female Student">
-              <svg class="student-avatar-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="20" fill="#e11d48"/>
-                <path d="M7 38C7 30.5 13 28 20 28C27 28 33 30.5 33 38" fill="#ffe4e6"/>
-                <path d="M16 28L20 33L24 28" fill="#f43f5e"/>
-                <rect x="17.5" y="21.5" width="5" height="7" rx="1.5" fill="#fed7aa"/>
-                <path d="M11.5 18C11.5 11.5 15 8 20 8C25 8 28.5 11.5 28.5 18C28.5 24 27 27 27 27C27 27 24.5 21 24.5 20C24.5 19 24.5 15 20 15C15.5 15 15.5 19 15.5 20C15.5 21 13 27 13 27C13 27 11.5 24 11.5 18Z" fill="#881337"/>
-                <ellipse cx="20" cy="17.5" rx="6.5" ry="7.5" fill="#fde68a"/>
-                <path d="M13.5 15.5C14.5 11 17 9.5 20 9.5C23.5 9.5 26 11.5 26.5 15C24.5 13 22.5 12.5 20 12.5C17 12.5 15 13.5 13.5 15.5Z" fill="#9f1239"/>
-                <circle cx="17.8" cy="17.5" r="0.9" fill="#4c0519"/>
-                <circle cx="22.2" cy="17.5" r="0.9" fill="#4c0519"/>
-              </svg>
-              <span class="gender-badge-dot gender-badge-dot--female" style="width: 15px; height: 15px; font-size: 8px;">
-                <i class="fas fa-venus"></i>
-              </span>
-            </div>
-          {% else %}
-            <div class="student-avatar-wrap student-avatar--male" style="width: 44px; height: 44px;" title="Male Student">
-              <svg class="student-avatar-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="20" fill="#2563eb"/>
-                <path d="M7 38C7 30.5 13 28 20 28C27 28 33 30.5 33 38" fill="#e0f2fe"/>
-                <path d="M16 28L20 33L24 28" fill="#0284c7"/>
-                <rect x="17.5" y="21.5" width="5" height="7" rx="1.5" fill="#fcd34d"/>
-                <ellipse cx="20" cy="17" rx="6.5" ry="7.5" fill="#fed7aa"/>
-                <path d="M13 14C13 9.5 16 7 20 7C24.5 7 27 9.5 27 13.5C25.5 12 23 10.5 19.5 11C16.5 11.5 14.5 12.5 13 14Z" fill="#1e293b"/>
-                <circle cx="17.8" cy="17.2" r="0.9" fill="#0f172a"/>
-                <circle cx="22.2" cy="17.2" r="0.9" fill="#0f172a"/>
-              </svg>
-              <span class="gender-badge-dot gender-badge-dot--male" style="width: 15px; height: 15px; font-size: 8px;">
-                <i class="fas fa-mars"></i>
-              </span>
-            </div>
-          {% endif %}
+        <div class="flex items-center gap-3">
+          <div class="student-avatar-initial" style="width: 46px; height: 46px; min-width: 46px; font-size: 1.05rem;" title="{{ student_profile.user.get_full_name|default:student_profile.user.username }}">
+            {{ student_profile.initials }}
+          </div>
           <div>
             <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
               {{ student_profile.user.get_full_name }}
@@ -306,17 +276,17 @@
           </div>
         </div>
 
-        <!-- Email & Username row -->
+        <!-- Gender & Phone Number row -->
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="reg_email">Email Address</label>
+            <label class="form-label" for="reg_gender">Gender / Sex</label>
             <div class="input-wrap">
-              <i class="fas fa-envelope input-icon"></i>
+              <i class="fas fa-venus-mars input-icon"></i>
               <input
-                type="email"
-                id="reg_email"
+                type="text"
+                id="reg_gender"
                 class="form-control"
-                value="{{ student_profile.user.email }}"
+                value="{{ student_profile.get_gender_display|default:student_profile.gender|default:'Not specified' }}"
                 readonly
                 style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
               >
@@ -324,18 +294,34 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="reg_username">Username</label>
+            <label class="form-label" for="reg_phone">Contact / Phone Number</label>
             <div class="input-wrap">
-              <i class="fas fa-at input-icon"></i>
+              <i class="fas fa-phone input-icon"></i>
               <input
                 type="text"
-                id="reg_username"
-                class="form-control"
-                value="{{ student_profile.user.username }}"
+                id="reg_phone"
+                class="form-control font-semibold"
+                value="{{ student_profile.phone_number|default:'Not provided' }}"
                 readonly
                 style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
               >
             </div>
+          </div>
+        </div>
+
+        <!-- Email Address -->
+        <div class="form-group">
+          <label class="form-label" for="reg_email">Email Address</label>
+          <div class="input-wrap">
+            <i class="fas fa-envelope input-icon"></i>
+            <input
+              type="email"
+              id="reg_email"
+              class="form-control"
+              value="{{ student_profile.user.email }}"
+              readonly
+              style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
+            >
           </div>
         </div>
 

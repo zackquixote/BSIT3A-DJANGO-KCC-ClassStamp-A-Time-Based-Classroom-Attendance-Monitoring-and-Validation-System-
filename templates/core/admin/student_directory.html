@@ -271,60 +271,32 @@
     gap: 10px;
   }
 
-  /* ── Student Vector Avatars (Male & Female) ── */
-  .student-avatar-wrap {
-    position: relative;
+  /* ── Student Profile Initials Avatar Shortcut (Professional Badge) ── */
+  .student-avatar-initial {
     width: 36px;
     height: 36px;
-    flex-shrink: 0;
-  }
-
-  .student-avatar-svg {
-    width: 36px;
-    height: 36px;
+    min-width: 36px;
     border-radius: 50%;
-    display: block;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #253356 0%, #171d34 100%);
     border: 1.5px solid rgba(255, 255, 255, 0.15);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .student-avatar-svg:hover {
-    transform: scale(1.08);
-  }
-
-  .student-avatar--female .student-avatar-svg {
-    border-color: rgba(244, 63, 94, 0.45);
-    box-shadow: 0 0 10px rgba(244, 63, 94, 0.25);
-  }
-
-  .student-avatar--male .student-avatar-svg {
-    border-color: rgba(59, 130, 246, 0.45);
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
-  }
-
-  .gender-badge-dot {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 8px;
-    color: #ffffff;
-    border: 1.5px solid #0f172a;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    user-select: none;
+    text-transform: uppercase;
   }
 
-  .gender-badge-dot--female {
-    background: linear-gradient(135deg, #f43f5e, #e11d48);
-  }
-
-  .gender-badge-dot--male {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  .student-avatar-initial:hover {
+    transform: scale(1.06);
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
   }
 
   .student-name {
@@ -599,69 +571,11 @@
           <!-- Name & Avatar -->
           <td>
             <div class="student-cell-profile">
-              {% if student.estimated_gender == 'F' %}
-                <!-- Female Avatar Vector Illustration -->
-                <div class="student-avatar-wrap student-avatar--female" title="Female Student Profile">
-                  <svg class="student-avatar-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                      <linearGradient id="femBg_{{ student.pk }}" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#fb7185"/>
-                        <stop offset="100%" stop-color="#e11d48"/>
-                      </linearGradient>
-                    </defs>
-                    <circle cx="20" cy="20" r="20" fill="url(#femBg_{{ student.pk }})"/>
-                    <!-- Shoulder/Blouse -->
-                    <path d="M7 38C7 30.5 13 28 20 28C27 28 33 30.5 33 38" fill="#ffe4e6"/>
-                    <path d="M16 28L20 33L24 28" fill="#f43f5e"/>
-                    <!-- Neck -->
-                    <rect x="17.5" y="21.5" width="5" height="7" rx="1.5" fill="#fed7aa"/>
-                    <!-- Long Hair Backing -->
-                    <path d="M11.5 18C11.5 11.5 15 8 20 8C25 8 28.5 11.5 28.5 18C28.5 24 27 27 27 27C27 27 24.5 21 24.5 20C24.5 19 24.5 15 20 15C15.5 15 15.5 19 15.5 20C15.5 21 13 27 13 27C13 27 11.5 24 11.5 18Z" fill="#881337"/>
-                    <!-- Face -->
-                    <ellipse cx="20" cy="17.5" rx="6.5" ry="7.5" fill="#fde68a"/>
-                    <!-- Bangs / Front Hair -->
-                    <path d="M13.5 15.5C14.5 11 17 9.5 20 9.5C23.5 9.5 26 11.5 26.5 15C24.5 13 22.5 12.5 20 12.5C17 12.5 15 13.5 13.5 15.5Z" fill="#9f1239"/>
-                    <!-- Facial Features -->
-                    <circle cx="17.8" cy="17.5" r="0.9" fill="#4c0519"/>
-                    <circle cx="22.2" cy="17.5" r="0.9" fill="#4c0519"/>
-                    <path d="M18.8 20.8C19.3 21.6 20.7 21.6 21.2 20.8" stroke="#be123c" stroke-width="0.9" stroke-linecap="round"/>
-                  </svg>
-                  <span class="gender-badge-dot gender-badge-dot--female" title="Female">
-                    <i class="fas fa-venus"></i>
-                  </span>
+              <a href="{% url 'validation_detail' student.student_number %}" style="text-decoration: none;" title="{{ student.user.get_full_name|default:student.user.username }}">
+                <div class="student-avatar-initial">
+                  {{ student.initials }}
                 </div>
-              {% else %}
-                <!-- Male Avatar Vector Illustration -->
-                <div class="student-avatar-wrap student-avatar--male" title="Male Student Profile">
-                  <svg class="student-avatar-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                      <linearGradient id="maleBg_{{ student.pk }}" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#38bdf8"/>
-                        <stop offset="100%" stop-color="#1d4ed8"/>
-                      </linearGradient>
-                    </defs>
-                    <circle cx="20" cy="20" r="20" fill="url(#maleBg_{{ student.pk }})"/>
-                    <!-- Shoulder/Collared Shirt -->
-                    <path d="M7 38C7 30.5 13 28 20 28C27 28 33 30.5 33 38" fill="#e0f2fe"/>
-                    <path d="M16 28L20 33L24 28" fill="#0284c7"/>
-                    <!-- Neck -->
-                    <rect x="17.5" y="21.5" width="5" height="7" rx="1.5" fill="#fcd34d"/>
-                    <!-- Face -->
-                    <ellipse cx="20" cy="17" rx="6.5" ry="7.5" fill="#fed7aa"/>
-                    <!-- Male Hair -->
-                    <path d="M13 14C13 9.5 16 7 20 7C24.5 7 27 9.5 27 13.5C25.5 12 23 10.5 19.5 11C16.5 11.5 14.5 12.5 13 14Z" fill="#1e293b"/>
-                    <path d="M13 14C13 16 13.8 17.5 14 18.5C14.5 17 15 15.5 15 14Z" fill="#1e293b"/>
-                    <path d="M27 13.5C27 15.5 26.2 17 26 18C25.5 16.5 25 15 25 13.5Z" fill="#1e293b"/>
-                    <!-- Facial Features -->
-                    <circle cx="17.8" cy="17.2" r="0.9" fill="#0f172a"/>
-                    <circle cx="22.2" cy="17.2" r="0.9" fill="#0f172a"/>
-                    <path d="M18.8 20.4C19.3 21.2 20.7 21.2 21.2 20.4" stroke="#d97706" stroke-width="0.9" stroke-linecap="round"/>
-                  </svg>
-                  <span class="gender-badge-dot gender-badge-dot--male" title="Male">
-                    <i class="fas fa-mars"></i>
-                  </span>
-                </div>
-              {% endif %}
+              </a>
               <div>
                 <div class="student-name">
                   <a href="{% url 'validation_detail' student.student_number %}" style="color: inherit; text-decoration: none;">
@@ -669,7 +583,7 @@
                   </a>
                 </div>
                 <div class="student-sub">
-                  @{{ student.user.username }} · {{ student.user.email }}
+                  {{ student.user.email }}{% if student.phone_number %} · {{ student.phone_number }}{% endif %}
                 </div>
               </div>
             </div>

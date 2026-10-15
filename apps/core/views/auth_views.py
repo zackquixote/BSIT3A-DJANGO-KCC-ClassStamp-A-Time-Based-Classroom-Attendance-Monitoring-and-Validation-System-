@@ -171,14 +171,17 @@ def register_view(request):
             'programs': programs,
         })
 
+    student_num = request.POST.get('student_number', '').strip()
     form_data = {
-        'username': request.POST.get('username', '').strip(),
+        'username': request.POST.get('username', '').strip() or student_num,
         'first_name': request.POST.get('first_name', '').strip(),
         'last_name': request.POST.get('last_name', '').strip(),
+        'gender': request.POST.get('gender', '').strip().upper(),
+        'phone_number': request.POST.get('phone_number', '').strip(),
         'email': request.POST.get('email', '').strip(),
         'password': request.POST.get('password', ''),
         'confirm_password': request.POST.get('confirm_password', ''),
-        'student_number': request.POST.get('student_number', '').strip(),
+        'student_number': student_num,
         'department_id': request.POST.get('department_id', '').strip(),
         'program_id': request.POST.get('program_id', '').strip(),
         'year_level': request.POST.get('year_level', '').strip(),

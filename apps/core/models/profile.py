@@ -51,6 +51,14 @@ class Profile(models.Model):
         (APPROVAL_REJECTED, 'Rejected'),
     ]
 
+    # // [Gender Enumeration]
+    GENDER_MALE = 'M'
+    GENDER_FEMALE = 'F'
+    GENDER_CHOICES = [
+        (GENDER_MALE, 'Male'),
+        (GENDER_FEMALE, 'Female'),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -93,6 +101,17 @@ class Profile(models.Model):
         unique=True,
         null=True, blank=True,
         help_text="// Institutional Student ID number from physical KCC badge"
+    )
+    gender = models.CharField(
+        max_length=1,
+        choices=GENDER_CHOICES,
+        null=True, blank=True,
+        help_text="// Student sex / gender (M: Male, F: Female)"
+    )
+    phone_number = models.CharField(
+        max_length=20,
+        null=True, blank=True,
+        help_text="// Student mobile contact number (e.g. 09123456789)"
     )
     registration_proof = models.FileField(
         upload_to='registration_proofs/',
@@ -147,10 +166,35 @@ class Profile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
+    def initials(self):
+        """
+        // Return 1-2 letter uppercase initials for profile avatar badges (e.g. 'Yaster Josua Dado' -> 'YD').
+        """
+        first = (self.user.first_name or '').strip()
+        last = (self.user.last_name or '').strip()
+        if first and last:
+            return f"{first[0]}{last[0]}".upper()
+        if first:
+            parts = first.split()
+            if len(parts) >= 2:
+                return f"{parts[0][0]}{parts[-1][0]}".upper()
+            return first[:2].upper()
+        if last:
+            parts = last.split()
+            if len(parts) >= 2:
+                return f"{parts[0][0]}{parts[-1][0]}".upper()
+            return last[:2].upper()
+        if self.user.username:
+            return self.user.username[:2].upper()
+        return "??"
+
+    @property
     def estimated_gender(self):
         """
-        // Heuristic gender detection for student vector avatar illustrations.
+        // Gender accessor: returns explicit gender if set, fallback to heuristic.
         """
+        if self.gender:
+            return self.gender
         first = (self.user.first_name or '').strip().lower()
         female_names = (
             'micaella', 'mica', 'maria', 'mary', 'ana', 'anna', 'jane', 'joy',

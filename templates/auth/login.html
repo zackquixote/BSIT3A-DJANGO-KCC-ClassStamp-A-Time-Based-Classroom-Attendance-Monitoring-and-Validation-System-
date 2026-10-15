@@ -100,7 +100,7 @@
           {% csrf_token %}
 
           <div class="form-group">
-            <label class="form-label" for="id_username">Username, Student ID, or email</label>
+            <label class="form-label" for="id_username">Student ID or email</label>
             <div class="input-wrap">
               <i class="far fa-user input-icon"></i>
               <input
@@ -108,7 +108,7 @@
                 id="id_username"
                 name="username"
                 class="form-control kcc-input"
-                placeholder="Username, Student ID, or Email"
+                placeholder="Student ID or Email"
                 autocomplete="username"
                 value="{{ request.POST.username|default:'' }}"
                 {% if locked %}disabled{% endif %}

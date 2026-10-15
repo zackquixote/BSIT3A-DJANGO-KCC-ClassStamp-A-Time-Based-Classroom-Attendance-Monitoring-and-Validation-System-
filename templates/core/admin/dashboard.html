@@ -8,52 +8,85 @@
     <p class="page-subtitle">Classroom monitoring, student validation queue, and collegiate records</p>
   </div>
   <div class="page-header-actions">
-    <span class="badge {% if open_session_count > 0 %}badge--success{% else %}badge--info{% endif %}">
-      <i class="fas fa-circle-dot"></i>
-      {% if open_session_count > 0 %}{{ open_session_count }} live session{{ open_session_count|pluralize }}{% else %}No active sessions{% endif %}
-    </span>
+
+    <!-- ── Notification Bell Dropdown ──────────────────────────── -->
+    <div class="notif-bell-wrapper" id="notifBellWrapper">
+      <button type="button" class="btn-bell-notification {% if not pending_count %}btn-bell--idle{% endif %}"
+              id="notifBellBtn"
+              aria-label="Notifications{% if pending_count %}: {{ pending_count }} pending{% endif %}"
+              aria-expanded="false"
+              aria-haspopup="true">
+        {% if pending_count %}
+          <i class="fas fa-bell"></i>
+          <span class="bell-badge-count">{{ pending_count }}</span>
+        {% else %}
+          <i class="far fa-bell"></i>
+        {% endif %}
+      </button>
+
+      <div class="notif-dropdown" id="notifDropdown" role="dialog" aria-label="Notifications panel">
+        <!-- Header -->
+        <div class="notif-dropdown-header">
+          <div class="notif-dropdown-title">
+            <i class="fas fa-bell"></i>
+            <span>Notifications & Activity</span>
+          </div>
+          {% if pending_count %}
+            <span class="notif-dropdown-badge">{{ pending_count }} Pending</span>
+          {% endif %}
+        </div>
+
+        <!-- Body -->
+        <div class="notif-dropdown-body">
+          {% if pending_students %}
+            <p class="notif-section-label">Awaiting Account Review</p>
+            {% for s in pending_students %}
+              <a href="{% url 'validation_detail' s.student_number %}" class="notif-item">
+                <div class="notif-item-avatar">
+                  {{ s.initials }}
+                </div>
+                <div class="notif-item-info">
+                  <span class="notif-item-name">{{ s.user.get_full_name }}</span>
+                  <span class="notif-item-sub">
+                    {{ s.student_number }}
+                    {% if s.program %}· {{ s.program.code }}{% endif %}
+                  </span>
+                  <span class="notif-item-time">
+                    <i class="fas fa-clock"></i>
+                    {{ s.created_at|timesince }} ago
+                  </span>
+                </div>
+                <div class="notif-item-arrow">
+                  <i class="fas fa-chevron-right"></i>
+                </div>
+              </a>
+            {% endfor %}
+          {% else %}
+            <div class="notif-empty-state">
+              <div class="notif-empty-icon"><i class="far fa-bell-slash"></i></div>
+              <p class="notif-empty-title">All caught up!</p>
+              <p class="notif-empty-sub">No pending student registrations at this time.</p>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="notif-dropdown-footer">
+          <a href="{% url 'validation_queue' %}" class="notif-footer-link">
+            <i class="fas fa-list-check"></i>
+            View Full Validation Queue
+            {% if pending_count %}<span class="notif-footer-badge">{{ pending_count }}</span>{% endif %}
+          </a>
+        </div>
+      </div>
+    </div>
+    <!-- ── / Notification Bell Dropdown ──────────────────────── -->
+
     <a href="{% url 'student_directory' %}" class="btn btn-outline">
       <i class="fas fa-user-graduate"></i> Student Directory
     </a>
   </div>
 </div>
-
-{# ── Validation Queue Notification Banner ──────────────────────────────────── #}
-{% if pending_count %}
-<div class="vq-notification-banner vq-banner--warning mb-4" id="validationBanner">
-  <div class="vq-banner-left">
-    <div class="vq-banner-icon">
-      <i class="fas fa-bell"></i>
-    </div>
-    <div>
-      <div class="vq-banner-title">
-        <span id="pendingCountDisplay">{{ pending_count }}</span> Student Registration{{ pending_count|pluralize }} Awaiting Review
-      </div>
-      <div class="vq-banner-sub">New accounts need your approval before students can access the system.</div>
-    </div>
-  </div>
-  <a href="{% url 'validation_pending_queue' %}" class="btn btn-primary btn-sm">
-    <i class="fas fa-list-check"></i> Review Pending Accounts
-  </a>
-</div>
-{% else %}
-<div class="vq-notification-banner vq-banner--warning mb-4" id="validationBanner" style="display: none;">
-  <div class="vq-banner-left">
-    <div class="vq-banner-icon">
-      <i class="fas fa-bell"></i>
-    </div>
-    <div>
-      <div class="vq-banner-title">
-        <span id="pendingCountDisplay">0</span> Student Registrations Awaiting Review
-      </div>
-      <div class="vq-banner-sub">New accounts need your approval before students can access the system.</div>
-    </div>
-  </div>
-  <a href="{% url 'validation_pending_queue' %}" class="btn btn-primary btn-sm">
-    <i class="fas fa-list-check"></i> Review Pending Accounts
-  </a>
-</div>
-{% endif %}
 
 <!-- KPI Cards Grid: 3 per row -->
 <div class="admin-kpi-grid mb-6">
@@ -336,6 +369,31 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+<script>
+// ── Notification Bell Dropdown Toggle ──────────────────────────────────────
+(function () {
+  'use strict';
+  const btn      = document.getElementById('notifBellBtn');
+  const dropdown = document.getElementById('notifDropdown');
+  const wrapper  = document.getElementById('notifBellWrapper');
+  if (!btn || !dropdown) return;
+
+  function openDropdown()  { dropdown.classList.add('is-open');    btn.setAttribute('aria-expanded', 'true');  }
+  function closeDropdown() { dropdown.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); }
+  function toggleDropdown() { dropdown.classList.contains('is-open') ? closeDropdown() : openDropdown(); }
+
+  btn.addEventListener('click', function (e) { e.stopPropagation(); toggleDropdown(); });
+
+  document.addEventListener('click', function (e) {
+    if (!wrapper.contains(e.target)) closeDropdown();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeDropdown(); btn.focus(); }
+  });
+})();
+</script>
+
 <style>
 /* ═══════════════════════════════════════════════════════════════
    ADMIN DASHBOARD — Modern Redesign
@@ -597,52 +655,321 @@ document.addEventListener('DOMContentLoaded', function () {
 
 .hover-gold:hover { color: var(--accent-gold-h) !important; }
 
-/* ── Validation Banner ────────────────────────────────────────── */
-.vq-notification-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 20px;
-  border-radius: 12px;
-  border: 1px solid;
-  flex-wrap: wrap;
-  animation: bannerFadeIn 0.35s ease;
+/* ── Notification Bell Wrapper & Dropdown ─────────────────────── */
+.notif-bell-wrapper {
+  position: relative;
+  flex-shrink: 0;
 }
-@keyframes bannerFadeIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.vq-banner--warning {
-  background: linear-gradient(135deg, rgba(245,158,11,0.13), rgba(245,158,11,0.05));
-  border-color: rgba(245,158,11,0.4);
-}
-.vq-banner-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.vq-banner-icon {
+
+/* ── Bell Button ───────────────────────────────────────────────── */
+.btn-bell-notification {
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: 10px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1.5px solid rgba(245, 158, 11, 0.4);
+  color: var(--accent-gold, #f59e0b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  transition: all 0.22s ease;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.btn-bell-notification:hover,
+.btn-bell-notification[aria-expanded="true"] {
+  background: rgba(245, 158, 11, 0.28);
+  border-color: rgba(245, 158, 11, 0.75);
+  color: #fbbf24;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.32);
+}
+
+.btn-bell--idle {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary, #94a3b8);
+}
+
+.btn-bell--idle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.bell-badge-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #ef4444;
+  border: 2px solid #0b1120;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+  animation: bellPulse 2.2s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes bellPulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 6px  rgba(239, 68, 68, 0.6); }
+  50%       { transform: scale(1.18); box-shadow: 0 0 16px rgba(239, 68, 68, 1.0); }
+}
+
+/* ── Dropdown Panel ────────────────────────────────────────────── */
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 360px;
+  max-height: 520px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #111d3b 0%, #0c1529 100%);
+  border: 1px solid rgba(99, 130, 255, 0.22);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255,255,255,0.04) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1060;
+  /* Hidden by default */
+  opacity: 0;
+  transform: translateY(-8px) scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  transform-origin: top right;
+}
+
+.notif-dropdown.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Header */
+.notif-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   flex-shrink: 0;
-  background: rgba(245,158,11,0.22);
-  color: #f59e0b;
 }
-.vq-banner-title {
+
+.notif-dropdown-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.9rem;
   font-weight: 700;
-  font-size: 0.93rem;
-  color: var(--text-primary);
-  margin-bottom: 2px;
+  color: #e2e8f0;
+  letter-spacing: 0.01em;
 }
-.vq-banner-sub {
+
+.notif-dropdown-title i {
+  color: var(--accent-gold, #f59e0b);
+  font-size: 0.95rem;
+}
+
+.notif-dropdown-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  letter-spacing: 0.03em;
+}
+
+/* Body */
+.notif-dropdown-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+.notif-dropdown-body::-webkit-scrollbar { width: 5px; }
+.notif-dropdown-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
+
+.notif-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+  padding: 6px 18px 4px;
+  margin: 0;
+}
+
+/* Notification Item */
+.notif-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.notif-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.notif-item-avatar {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(245,158,11,0.22), rgba(245,158,11,0.08));
+  border: 1.5px solid rgba(245,158,11,0.38);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.notif-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notif-item-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-item-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-item-time {
+  font-size: 0.68rem;
+  color: rgba(100,116,139,0.8);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notif-item-arrow {
+  color: rgba(100,116,139,0.5);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.notif-item:hover .notif-item-arrow {
+  transform: translateX(3px);
+  color: var(--accent-gold, #f59e0b);
+}
+
+/* Empty State */
+.notif-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 24px;
+  text-align: center;
+  gap: 8px;
+}
+
+.notif-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: rgba(100,116,139,0.5);
+  margin-bottom: 4px;
+}
+
+.notif-empty-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.notif-empty-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Footer */
+.notif-dropdown-footer {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 10px 18px;
+  flex-shrink: 0;
+}
+
+.notif-footer-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #7c9cff;
+  text-decoration: none;
+  padding: 7px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+  justify-content: center;
+}
+
+.notif-footer-link:hover {
+  background: rgba(124,156,255,0.1);
+  color: #a5b8ff;
+}
+
+.notif-footer-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  margin-left: auto;
 }
 </style>
 {% endblock %}

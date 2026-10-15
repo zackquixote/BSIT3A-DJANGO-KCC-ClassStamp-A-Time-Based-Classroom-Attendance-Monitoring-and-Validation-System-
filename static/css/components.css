@@ -815,6 +815,34 @@ select.form-control option:hover {
   font-weight: 700;
 }
 
+/* ── Student Profile Initials Avatar Shortcut (Professional Badge) ── */
+.student-avatar-initial {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #253356 0%, #171d34 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  user-select: none;
+  text-transform: uppercase;
+}
+
+.student-avatar-initial:hover {
+  transform: scale(1.06);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
+}
+
 /* ── Vector Avatars (Male & Female Illustration Profiles) ────── */
 .student-avatar-wrap {
   position: relative;

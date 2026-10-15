@@ -48,8 +48,10 @@ def provision_student_account(form_data: dict, proof_file=None):
     """
     program = Program.objects.get(pk=int(form_data['program_id']))
 
+    username = (form_data.get('username') or '').strip() or form_data['student_number']
+
     user = User.objects.create_user(
-        username=form_data['username'],
+        username=username,
         email=form_data['email'],
         first_name=form_data['first_name'],
         last_name=form_data['last_name'],
@@ -63,6 +65,8 @@ def provision_student_account(form_data: dict, proof_file=None):
         user=user,
         role=Profile.ROLE_STUDENT,
         student_number=form_data['student_number'],
+        gender=form_data.get('gender') or None,
+        phone_number=form_data.get('phone_number') or None,
         registration_proof=proof_file,
         program=program,
         year_level=int(form_data['year_level']),

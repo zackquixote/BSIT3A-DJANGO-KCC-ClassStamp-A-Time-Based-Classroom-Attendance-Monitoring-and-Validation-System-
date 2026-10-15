@@ -141,3 +141,32 @@ class StudentDirectoryViewTests(TestCase):
         self.assertEqual(imported_student.user.last_name, 'Yulo')
         # QR secret must be 64 characters at the point of import.
         self.assertEqual(len(imported_student.qr_secret), 64)
+
+    # ------------------------------------------------------------------
+    # Initials & Avatar Badge
+    # ------------------------------------------------------------------
+
+    def test_profile_initials_computation(self):
+        # 1. Standard first + last name: "Juan Luna" -> "JL"
+        self.assertEqual(self.profile.initials, "JL")
+
+        # 2. Multi-word first name + last name: "Yaster Josua Dado" -> "YD"
+        u2 = User.objects.create_user(username='yj_dado', first_name='Yaster Josua', last_name='Dado')
+        p2 = Profile.objects.create(user=u2, role=Profile.ROLE_STUDENT, program=self.prog, year_level=3, student_number='2024-611044')
+        self.assertEqual(p2.initials, "YD")
+
+        # 3. Full name in first_name with empty last_name: "Yaster Josua Dado" -> "YD"
+        u3 = User.objects.create_user(username='yj_full', first_name='Yaster Josua Dado', last_name='')
+        p3 = Profile.objects.create(user=u3, role=Profile.ROLE_STUDENT, program=self.prog, year_level=3, student_number='2024-611045')
+        self.assertEqual(p3.initials, "YD")
+
+        # 4. Single word in first_name: "Ronelo" -> "RO"
+        u4 = User.objects.create_user(username='ronelo', first_name='Ronelo', last_name='')
+        p4 = Profile.objects.create(user=u4, role=Profile.ROLE_STUDENT, program=self.prog, year_level=3, student_number='2024-611046')
+        self.assertEqual(p4.initials, "RO")
+
+        # 5. Username fallback when names are empty
+        u5 = User.objects.create_user(username='admin')
+        p5 = Profile.objects.create(user=u5, role=Profile.ROLE_ADMIN)
+        self.assertEqual(p5.initials, "AD")
+

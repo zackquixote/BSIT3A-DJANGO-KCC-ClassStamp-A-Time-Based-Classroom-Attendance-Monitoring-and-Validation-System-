@@ -26,6 +26,7 @@
 # // ==============================================================================
 """
 
+import re
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -131,24 +132,34 @@ def _validate_registration_data(data):
     """
     errors = {}
 
-    username = data.get('username', '').strip()
+    student_number = data.get('student_number', '').strip()
+    username = data.get('username', '').strip() or student_number
     first_name = data.get('first_name', '').strip()
     last_name = data.get('last_name', '').strip()
+    gender = data.get('gender', '').strip().upper()
+    phone_number = data.get('phone_number', '').strip()
     email = data.get('email', '').strip()
     password = data.get('password', '')
     confirm_password = data.get('confirm_password', '')
 
     # // 1. User Identity Fields
-    if not username:
-        errors['username'] = 'Username is required.'
-    elif User.objects.filter(username=username).exists():
-        errors['username'] = 'Username already taken.'
-
     if not first_name:
         errors['first_name'] = 'First name is required.'
 
     if not last_name:
         errors['last_name'] = 'Last name is required.'
+
+    if not gender:
+        errors['gender'] = 'Please select your gender.'
+    elif gender not in ['M', 'F']:
+        errors['gender'] = 'Invalid gender selected.'
+
+    if not phone_number:
+        errors['phone_number'] = 'Phone number is required.'
+    else:
+        clean_phone = re.sub(r'[\s\-\(\)\+]', '', phone_number)
+        if not clean_phone.isdigit() or len(clean_phone) < 10 or len(clean_phone) > 13:
+            errors['phone_number'] = 'Please enter a valid mobile number (e.g., 09123456789).'
 
     # // 2. Email Validation
     if not email:
@@ -174,11 +185,12 @@ def _validate_registration_data(data):
             errors['password'] = ' '.join(e.messages)
 
     # // 4. Academic Enrollment Constraints
-    student_number = data.get('student_number', '').strip()
     if not student_number:
         errors['student_number'] = 'Student ID number is required.'
     elif Profile.objects.filter(student_number=student_number).exists():
         errors['student_number'] = 'Student ID number already registered.'
+    elif User.objects.filter(username=username).exists():
+        errors['student_number'] = 'An account with this Student ID or username already exists.'
 
     program_id = data.get('program_id', '').strip()
     year_level = data.get('year_level', '').strip()
