@@ -278,16 +278,16 @@ def _student_dashboard_stats(profile):
     //   excused_count        — Total EXCUSED records
     //   enrolled_class_count — Active class enrollments
     """
-    records = AttendanceRecord.objects.filter(student_profile=profile)
-    return {
-        'present_count': records.filter(status=AttendanceRecord.STATUS_PRESENT).count(),
-        'late_count': records.filter(status=AttendanceRecord.STATUS_LATE).count(),
-        'absent_count': records.filter(status=AttendanceRecord.STATUS_ABSENT).count(),
-        'excused_count': records.filter(status=AttendanceRecord.STATUS_EXCUSED).count(),
-        'enrolled_class_count': Enrollment.objects.filter(
-            student_profile=profile, status=Enrollment.STATUS_ACTIVE,
-        ).count(),
-    }
+    stats = AttendanceRecord.objects.filter(student_profile=profile).aggregate(
+        present_count=Count('id', filter=Q(status=AttendanceRecord.STATUS_PRESENT)),
+        late_count=Count('id', filter=Q(status=AttendanceRecord.STATUS_LATE)),
+        absent_count=Count('id', filter=Q(status=AttendanceRecord.STATUS_ABSENT)),
+        excused_count=Count('id', filter=Q(status=AttendanceRecord.STATUS_EXCUSED)),
+    )
+    stats['enrolled_class_count'] = Enrollment.objects.filter(
+        student_profile=profile, status=Enrollment.STATUS_ACTIVE,
+    ).count()
+    return stats
 
 
 # // ==============================================================================

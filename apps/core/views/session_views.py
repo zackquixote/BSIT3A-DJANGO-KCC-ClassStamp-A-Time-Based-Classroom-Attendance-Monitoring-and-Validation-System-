@@ -166,7 +166,7 @@ def teacher_session_scan(request, session_id):
     # Existing attendance records for this session
     attendance_records = {
         rec.student_profile_id: rec
-        for rec in AttendanceRecord.objects.filter(session=session)
+        for rec in AttendanceRecord.objects.filter(session=session).select_related('student_profile__user', 'student_profile__program')
     }
 
     # Build student roster status items

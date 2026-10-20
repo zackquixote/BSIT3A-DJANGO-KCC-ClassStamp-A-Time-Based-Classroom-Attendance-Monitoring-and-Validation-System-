@@ -19,7 +19,17 @@
       var id = btn.dataset.id;
       if (!id) return;
 
-      if (!confirm('Set this as the active institutional academic term?')) return;
+      var confirmed = window.App && window.App.confirm
+        ? await window.App.confirm({
+            title: 'Set Active Academic Year',
+            message: 'Set this as the active institutional academic term for all classes and timetables?',
+            confirmText: 'Set Active',
+            confirmClass: 'btn-primary',
+            type: 'primary'
+          })
+        : confirm('Set this as the active institutional academic term?');
+
+      if (!confirmed) return;
 
       if (window.App && window.App.setButtonLoading) {
         window.App.setButtonLoading(btn, true, 'Activating...');

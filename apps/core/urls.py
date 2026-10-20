@@ -5,6 +5,7 @@ urlpatterns = [
     # // Auth routes
     path('', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('session/keepalive/', views.session_keepalive, name='session_keepalive'),
     path('register/', views.register_view, name='register'),
     path('register/check-availability/', views.check_registration_availability, name='check_registration_availability'),
 

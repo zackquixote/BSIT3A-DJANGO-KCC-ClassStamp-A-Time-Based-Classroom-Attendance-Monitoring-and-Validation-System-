@@ -43,13 +43,16 @@
     if (outcome === 'PRESENT') {
       playTone(880, 0.15, 'sine'); // High A
       setTimeout(function () { playTone(1320, 0.25, 'sine'); }, 120); // High E harmonic
+      if (navigator.vibrate) navigator.vibrate(80);
     } else if (outcome === 'LATE') {
       playTone(660, 0.2, 'triangle');
-      setTimeout(function () { playTone(550, 0.25, 'triangle'), 150; });
+      setTimeout(function () { playTone(550, 0.25, 'triangle'); }, 150);
+      if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
     } else {
       // Error / Duplicate Buzz
       playTone(220, 0.2, 'sawtooth');
       setTimeout(function () { playTone(180, 0.25, 'sawtooth'); }, 120);
+      if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
     }
   }
 

@@ -51,7 +51,7 @@
   <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
     <div class="input-wrap" style="flex: 1; min-width: 220px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by code or title…">
+      <input type="text" name="q" value="{{ query }}" class="form-control" data-table-search=".table" placeholder="Search by code or title…">
     </div>
     <!-- Department filter -->
     <select name="department" class="form-control" style="width: 180px;" id="filterDept">

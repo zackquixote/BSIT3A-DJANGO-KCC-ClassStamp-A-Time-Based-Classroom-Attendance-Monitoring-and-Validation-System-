@@ -5,11 +5,31 @@
   function initPendingActions() {
     // ── Approve confirmation ────────────────────────────────────
     document.querySelectorAll('.approve-form').forEach(function (form) {
-      form.addEventListener('submit', function (e) {
+      form.addEventListener('submit', async function (e) {
+        if (form._confirmed) {
+          form._confirmed = false;
+          return;
+        }
+        e.preventDefault();
         var btn = form.querySelector('button[type="submit"]');
         var name = btn ? btn.getAttribute('data-name') : 'this student';
-        if (!confirm('Approve registration for ' + name + '?')) {
-          e.preventDefault();
+
+        var ok = window.App && window.App.confirm
+          ? await window.App.confirm({
+              title: 'Approve Registration',
+              message: 'Approve student registration for ' + name + '?',
+              confirmText: 'Approve',
+              confirmClass: 'btn-primary',
+              type: 'primary'
+            })
+          : confirm('Approve registration for ' + name + '?');
+
+        if (ok) {
+          if (window.App && window.App.setButtonLoading && btn) {
+            window.App.setButtonLoading(btn, true, 'Approving...');
+          }
+          form._confirmed = true;
+          form.submit();
         }
       });
     });

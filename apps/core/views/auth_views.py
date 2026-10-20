@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.core.models import Department, Profile, Program
@@ -144,6 +145,20 @@ def logout_view(request):
     response['Pragma'] = 'no-cache'
     response['Expires'] = '0'
     return response
+
+
+# // ==============================================================================
+# // VIEW: Session Keepalive Endpoint (/session/keepalive/)
+# // ==============================================================================
+def session_keepalive(request):
+    """
+    // [AJAX Controller] Refreshes session last_activity timestamp to prevent
+    // premature timeout when the user interacts with the session warning dialog.
+    """
+    if request.user.is_authenticated:
+        request.session['last_activity'] = timezone.now().isoformat()
+        return JsonResponse({'ok': True, 'refreshed': True})
+    return JsonResponse({'ok': False, 'error': 'unauthenticated'}, status=401)
 
 
 # // ==============================================================================

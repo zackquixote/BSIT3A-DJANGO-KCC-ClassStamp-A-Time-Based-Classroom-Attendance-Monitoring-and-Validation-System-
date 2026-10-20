@@ -20,7 +20,18 @@
       e.preventDefault();
       var isActive = toggleBtn.dataset.active === '1';
       var label = isActive ? 'Deactivate' : 'Activate';
-      if (!confirm(label + ' this faculty account?')) return;
+
+      var confirmed = window.App && window.App.confirm
+        ? await window.App.confirm({
+            title: label + ' Faculty Account',
+            message: 'Are you sure you want to ' + label.toLowerCase() + ' this faculty account?',
+            confirmText: label,
+            confirmClass: isActive ? 'btn-danger' : 'btn-primary',
+            type: isActive ? 'danger' : 'primary'
+          })
+        : confirm(label + ' this faculty account?');
+
+      if (!confirmed) return;
 
       if (window.App && window.App.setButtonLoading) {
         window.App.setButtonLoading(toggleBtn, true, 'Updating...');

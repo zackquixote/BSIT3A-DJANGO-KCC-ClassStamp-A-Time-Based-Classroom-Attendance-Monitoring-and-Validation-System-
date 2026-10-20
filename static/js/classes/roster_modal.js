@@ -14,9 +14,19 @@
 
   function bindRemoveEnrollmentButtons() {
     document.querySelectorAll('.btn-remove-enrollment').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!confirm('Are you sure you want to withdraw this student from this class section?')) return;
-        var enrollmentId = this.dataset.id;
+      btn.addEventListener('click', async function () {
+        var confirmed = window.App && window.App.confirm
+          ? await window.App.confirm({
+              title: 'Withdraw Student',
+              message: 'Are you sure you want to withdraw this student from this class section?',
+              confirmText: 'Withdraw',
+              confirmClass: 'btn-danger',
+              type: 'danger'
+            })
+          : confirm('Are you sure you want to withdraw this student from this class section?');
+
+        if (!confirmed) return;
+        var enrollmentId = btn.dataset.id;
         var fd = new FormData();
         fd.append('csrfmiddlewaretoken', getCSRF());
 

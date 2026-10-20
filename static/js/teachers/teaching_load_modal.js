@@ -67,7 +67,17 @@
       container.querySelectorAll('.js-unassign-class').forEach(function (btn) {
         btn.addEventListener('click', async function () {
           var classCode = btn.dataset.classCode;
-          if (!confirm('Remove class section "' + classCode + '" from this teacher\'s load?')) return;
+          var confirmed = window.App && window.App.confirm
+            ? await window.App.confirm({
+                title: 'Remove from Teaching Load',
+                message: 'Remove class section "' + classCode + '" from this teacher\'s load?',
+                confirmText: 'Remove',
+                confirmClass: 'btn-danger',
+                type: 'danger'
+              })
+            : confirm('Remove class section "' + classCode + '" from this teacher\'s load?');
+
+          if (!confirmed) return;
           btn.disabled = true;
           btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           try {

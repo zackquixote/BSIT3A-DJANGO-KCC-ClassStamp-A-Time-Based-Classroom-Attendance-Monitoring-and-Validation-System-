@@ -107,8 +107,17 @@
       // 3. Clicked on remove curriculum mapping button inside the modal
       const removeBtn = e.target.closest('.js-remove-curr');
       if (removeBtn) {
-        e.preventDefault();
-        if (!confirm('Remove this curriculum entry?')) return;
+        var confirmed = window.App && window.App.confirm
+          ? await window.App.confirm({
+              title: 'Remove Curriculum Entry',
+              message: 'Are you sure you want to remove this curriculum mapping entry?',
+              confirmText: 'Remove',
+              confirmClass: 'btn-danger',
+              type: 'danger'
+            })
+          : confirm('Remove this curriculum entry?');
+
+        if (!confirmed) return;
         removeBtn.disabled = true;
         removeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
