@@ -231,6 +231,10 @@ class Profile(models.Model):
     class Meta:
         app_label = 'core'
         db_table = 'tblcs_profile'
+        indexes = [
+            models.Index(fields=['role', 'program', 'approval_status', 'year_level'], name='idx_profile_student_active'),
+            models.Index(fields=['department', 'year_level'], name='idx_profile_dept_year'),
+        ]
 
     def __str__(self):
         return f'{self.user.get_full_name() or self.user.username} ({self.role})'

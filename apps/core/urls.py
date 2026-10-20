@@ -39,6 +39,8 @@ urlpatterns = [
     path('programs/', views.program_list, name='program_list'),
     path('programs/save/', views.program_save, name='program_save'),
     path('programs/delete/<int:pk>/', views.program_delete, name='program_delete'),
+    path('programs/<int:program_id>/students/', views.program_students_per_year, name='program_students_per_year'),
+    path('programs/export-csv/<int:program_id>/', views.program_students_csv_export, name='program_students_csv_export'),
 
     # // Admin: Subject & Curriculum Management
     path('subjects/', views.subject_list, name='subject_list'),
@@ -87,7 +89,6 @@ urlpatterns = [
     path('api/admin/pending-count/', views.admin_pending_count_json, name='admin_pending_count_json'),
     path('api/admin/attendance-chart/', views.admin_attendance_chart_json, name='admin_attendance_chart_json'),
     path('api/subjects/lookup/', views.subject_lookup_json, name='subject_lookup_json'),
-
     # // Teacher: Classroom Attendance Sessions & Live QR Scanner
     path('teacher/session/open/', views.teacher_session_open, name='teacher_session_open'),
     path('teacher/session/<int:session_id>/scan/', views.teacher_session_scan, name='teacher_session_scan'),

@@ -1,0 +1,156 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}Program Students -- {{ program.code }} -- KCC ClassStamp{% endblock %}
+
+{% block content %}
+<!-- Program Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Students -- {{ program.code }} -- {{ program.name }}</h1>
+    <p class="page-subtitle">Approved students enrolled in this degree program, grouped by year level and department</p>
+  </div>
+  <div class="page-header-actions flex items-end space-x-2">
+    <a href="{% url 'program_list' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left"></i> Back to Programs
+    </a>
+    <span class="text-muted text-xs">-- {{ total_students }} total approved students</span>
+    <a href="{% url 'program_students_csv_export' program.id %}" class="btn btn-primary" title="Export Students as CSV">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- Department & Year Distribution Stats Grid -->
+<div class="stat-grid mb-6">
+  {% for dept_code, total in dept_totals_list %}
+  <div class="stat-card stat-card--dept">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-building"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total|default:0 }}</span>
+      <span class="stat-label">{{ dept_code }}</span>
+    </div>
+  </div>
+  {% empty %}
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--muted">
+      <i class="fas fa-user-slash"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">0</span>
+      <span class="stat-label">No Data</span>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-users"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_students }}</span>
+      <span class="stat-label">Total Students</span>
+    </div>
+  </div>
+</div>
+
+<!-- Students Table with Pagination -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="card-title mb-0">Students by Year & Department</h3>
+    <span class="text-muted text-xs">{{ total_students }} approved students</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th>Student Name</th>
+            <th style="width: 140px;">Student ID</th>
+            <th style="width: 100px;">Year</th>
+            <th style="width: 180px;">Department</th>
+            <th style="width: 140px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students_page.object_list %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td>
+              <div class="font-semibold text-primary">
+                {{ student.user.get_full_name|default:student.user.username }}
+              </div>
+              <div class="text-muted text-xs">
+                @{{ student.user.username }}
+              </div>
+            </td>
+            <td style="white-space: nowrap;">
+              <span class="student-id-tag">{{ student.student_number|default:"—" }}</span>
+            </td>
+            <td>
+              {% if student.year_level %}
+                <span class="badge badge--purple font-semibold">Yr {{ student.year_level }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if student.program and student.program.department %}
+                <span class="font-semibold text-primary" title="{{ student.program.department.name }}">
+                  {{ student.program.department.code }}
+                </span>
+              {% elif student.department %}
+                <span class="font-semibold text-primary" title="{{ student.department.name }}">
+                  {{ student.department.code }}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              <a href="{% url 'validation_detail' student.user.classstamp_profile.student_number %}" class="btn btn-outline btn-xs" title="View Student Profile & Review Form">
+                <i class="fas fa-id-card"></i> View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 40px 20px;" class="text-muted">
+              <i class="fas fa-graduation-cap" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
+              No approved students found for this program.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Pagination Controls -->
+{% if is_paginated %}
+<div class="card-footer d-flex justify-content-between align-items-center">
+  <span class="text-secondary text-xs">
+    Showing {{ students_page.start_index }} to {{ students_page.end_index }} of {{ students_page.paginator.count }} total
+  </span>
+  <div class="pagination flex items-center gap-1">
+    {% if students_page.has_previous %}
+      <a href="?page={{ students_page.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline btn-sm" style="padding: 2px 8px; font-size: 0.75rem;">
+        <i class="fas fa-chevron-left"></i> Prev
+      </a>
+    {% endif %}
+
+    <span class="badge badge--warning font-semibold" style="padding: 4px 10px; font-size: 0.75rem;">
+      Page {{ students_page.number }} of {{ students_page.paginator.num_pages }}
+    </span>
+
+    {% if students_page.has_next %}
+      <a href="?page={{ students_page.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline btn-sm" style="padding: 2px 8px; font-size: 0.75rem;">
+        Next <i class="fas fa-chevron-right"></i>
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

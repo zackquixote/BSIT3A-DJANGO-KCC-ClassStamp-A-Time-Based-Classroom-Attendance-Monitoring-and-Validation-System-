@@ -24,7 +24,9 @@ from apps.core.serializers import serialize_program
 from apps.core.services import (
     create_or_update_program,
     delete_or_deactivate_program,
+    export_program_students_csv,
 )
+from apps.core.views.helpers import get_program_student_stats
 
 
 # // ==============================================================================
@@ -34,8 +36,8 @@ from apps.core.services import (
 @role_required(Profile.ROLE_ADMIN)
 def program_list(request):
     """
-    // [Admin Controller] Degree Program Directory
-    // Lists all college programs with parent department, duration, and student count.
+# [Admin Controller] Degree Program Directory
+# Lists all college programs with parent department, duration, and student count.
     """
     query = request.GET.get('q', '').strip()
     dept_filter = request.GET.get('department', '').strip()
@@ -89,8 +91,8 @@ def program_list(request):
 @require_http_methods(['POST'])
 def program_save(request):
     """
-    // [Admin Controller] Create or Update Academic Program
-    // Validates program uniqueness, duration bounds, and parent department.
+# [Admin Controller] Create or Update Academic Program
+# Validates program uniqueness, duration bounds, and parent department.
     """
     prog_id = request.POST.get('id', '').strip()
     dept_id = request.POST.get('department_id', '').strip()
@@ -170,8 +172,8 @@ def program_save(request):
 @require_http_methods(['POST'])
 def program_delete(request, pk):
     """
-    // [Admin Controller] Delete or Deactivate Degree Program
-    // Safeguard: If student profiles exist under program, soft-deactivates to prevent FK collision.
+# [Admin Controller] Delete or Deactivate Degree Program
+# Safeguard: If student profiles exist under program, soft-deactivates to prevent FK collision.
     """
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
     result = delete_or_deactivate_program(actor=request.user, pk=pk)
@@ -182,3 +184,75 @@ def program_delete(request, pk):
     messages.success(request, result['message'])
     return redirect('program_list')
 
+
+# // ==============================================================================
+# // VIEW: Program Students Per Year (/programs/<id>/students/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def program_students_per_year(request, program_id):
+    """
+    // [Admin Controller] Students Per Year by Program
+    // Displays a list of approved students enrolled in the program,
+    // grouped by year level and department, with pagination for large datasets.
+    """
+    program = get_object_or_404(
+        Program.objects.select_related('department'),
+        id=program_id,
+    )
+
+    stats = get_program_student_stats(program)
+
+    students_queryset = (
+        Profile.objects
+        .filter(
+            role=Profile.ROLE_STUDENT,
+            program=program,
+            approval_status=Profile.APPROVAL_APPROVED,
+            year_level__isnull=False,
+        )
+        .select_related('department', 'user')
+        .order_by('department__name', 'year_level', 'user__first_name', 'user__last_name')
+    )
+
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        students_queryset = students_queryset.filter(
+            Q(user__first_name__icontains=search_query)
+            | Q(user__last_name__icontains=search_query)
+            | Q(student_number__icontains=search_query)
+            | Q(user__username__icontains=search_query)
+        )
+
+    paginator = Paginator(students_queryset, 20)
+    page_number = request.GET.get('page', 1)
+    students_page = paginator.get_page(page_number)
+
+    context = {
+        'program': program,
+        'students_page': students_page,
+        'is_paginated': paginator.num_pages > 1,
+        'page_obj': students_page,
+        'paginator': paginator,
+        'search_query': search_query,
+        **stats,
+    }
+
+    return render(request, 'core/admin/program_students_per_year.html', context)
+
+
+# // ==============================================================================
+# // AJAX: CSV Export (/programs/export-csv/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def program_students_csv_export(request, program_id):
+    """
+    // [Admin Controller] Export Students CSV
+    // Exports all approved students for the program to CSV format.
+    """
+    program = get_object_or_404(
+        Program.objects.select_related('department'),
+        id=program_id,
+    )
+    return export_program_students_csv(program)

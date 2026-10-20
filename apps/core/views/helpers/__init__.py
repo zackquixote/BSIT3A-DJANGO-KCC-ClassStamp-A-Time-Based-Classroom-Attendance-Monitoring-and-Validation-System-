@@ -14,6 +14,7 @@
 # // ==============================================================================
 """
 
+from .academic_helpers import get_program_student_stats
 from .auth_helpers import (
     INVALID_LOGIN_MESSAGE,
     LOCK_DURATION,
@@ -47,4 +48,6 @@ __all__ = [
     '_teacher_dashboard_stats',
     '_student_dashboard_stats',
     'get_attendance_chart_data',
+    # Academic stat helpers
+    'get_program_student_stats',
 ]

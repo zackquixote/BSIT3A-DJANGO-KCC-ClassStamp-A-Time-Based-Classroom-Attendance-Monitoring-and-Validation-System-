@@ -32,6 +32,11 @@ from .approval_service import (
     reject_student_registration,
 )
 from .auth_service import provision_student_account
+from .export_service import (
+    export_program_students_csv,
+    export_student_directory_csv,
+    export_student_import_sample_csv,
+)
 from .student_service import (
     build_student_queryset,
     import_students_from_csv,
@@ -69,4 +74,8 @@ __all__ = [
     # Student directory & import
     'build_student_queryset',
     'import_students_from_csv',
+    # CSV Exports
+    'export_program_students_csv',
+    'export_student_directory_csv',
+    'export_student_import_sample_csv',
 ]

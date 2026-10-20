@@ -79,6 +79,8 @@ from .program_views import (
     program_delete,
     program_list,
     program_save,
+    program_students_csv_export,
+    program_students_per_year,
 )
 
 # // ------------------------------------------------------------------------------
@@ -213,9 +215,12 @@ __all__ = [
     'department_delete',
 
     # Programs
+    program_students_csv_export,
+    program_students_csv_export,
     'program_list',
     'program_save',
     'program_delete',
+    'program_students_per_year',
 
     # Student Masterlist & Ingestion
     'student_directory',

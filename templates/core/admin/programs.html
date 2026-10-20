@@ -113,7 +113,9 @@
             <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
           </td>
           <td>
-            <div class="font-semibold text-primary">{{ p.name }}</div>
+            <a href="{% url 'program_students_per_year' p.id %}" class="text-primary font-semibold program-name-link">
+              {{ p.name }}
+            </a>
             <div class="text-muted text-xs">Created {{ p.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
