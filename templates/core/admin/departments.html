@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Collegiate Departments</span>
+    </div>
     <h1 class="page-title">College Departments</h1>
     <p class="page-subtitle">Manage institutional academic divisions and collegiate units</p>
   </div>
@@ -97,10 +102,14 @@
         <tr data-row-id="{{ d.id }}">
           <td class="text-muted">{{ d.id }}</td>
           <td>
-            <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
+            <span class="js-inline-editable" data-type="department" data-id="{{ d.id }}" data-field="code" data-value="{{ d.code }}">
+              <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
+            </span>
           </td>
           <td>
-            <div class="font-semibold text-primary">{{ d.name }}</div>
+            <span class="js-inline-editable" data-type="department" data-id="{{ d.id }}" data-field="name" data-value="{{ d.name }}">
+              <span class="font-semibold text-primary">{{ d.name }}</span>
+            </span>
             <div class="text-muted text-xs">Created {{ d.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
@@ -269,5 +278,6 @@
 <script src="{% static 'js/departments/departments_common.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/departments/department_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/departments/delete_department.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 {% endblock %}
 

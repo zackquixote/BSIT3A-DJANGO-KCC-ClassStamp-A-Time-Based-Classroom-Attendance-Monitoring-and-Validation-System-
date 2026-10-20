@@ -19,11 +19,62 @@
 # // ==============================================================================
 """
 
+import logging
 import secrets
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.utils import timezone
 
 from apps.core.models import AuditEvent, Profile
+
+logger = logging.getLogger(__name__)
+
+
+def _send_validation_email(profile: Profile, approved: bool, reason: str = ''):
+    """
+    // [Notification] Transactional email alert dispatched upon registration approval or rejection (#17).
+    // Fails silently if SMTP is unreachable so core DB transactions never fail.
+    """
+    user = getattr(profile, 'user', None)
+    if not user or not user.email:
+        return
+
+    student_name = user.get_full_name() or user.username
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@classstamp.local')
+
+    if approved:
+        subject = f'[KCC ClassStamp] Account Approved — {profile.student_number}'
+        message = (
+            f"Hello {student_name},\n\n"
+            f"Your student registration account for KCC ClassStamp has been approved!\n"
+            f"Student Number: {profile.student_number}\n\n"
+            f"You can now sign in to your dashboard to generate dynamic attendance QR stamps "
+            f"and monitor your classroom attendance records.\n\n"
+            f"— KCC ClassStamp Registrar & Administrative Services"
+        )
+    else:
+        subject = f'[KCC ClassStamp] Registration Status Notice — {profile.student_number}'
+        message = (
+            f"Hello {student_name},\n\n"
+            f"Your student registration account for KCC ClassStamp has been evaluated.\n"
+            f"Status: REJECTED\n"
+            f"Reason: {reason}\n\n"
+            f"If you believe this was in error, please correct your submitted documents "
+            f"or visit the Registrar's Office for assistance.\n\n"
+            f"— KCC ClassStamp Registrar & Administrative Services"
+        )
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+    except Exception as exc:
+        logger.warning('Failed to dispatch validation email to %s: %s', user.email, exc)
 
 
 def approve_student_registration(profile: Profile, actor) -> Profile:
@@ -67,6 +118,9 @@ def approve_student_registration(profile: Profile, actor) -> Profile:
         object_id=str(profile.pk),
         new_value=f'Approved {profile.student_number} ({profile.user.get_username()})',
     )
+
+    # // [Transactional Email Notification (#17)]
+    _send_validation_email(profile, approved=True)
 
     return profile
 
@@ -113,5 +167,8 @@ def reject_student_registration(profile: Profile, actor, reason: str) -> Profile
         new_value=f'Rejected {profile.student_number} ({profile.user.get_username()})',
         reason=reason.strip(),
     )
+
+    # // [Transactional Email Notification (#17)]
+    _send_validation_email(profile, approved=False, reason=reason.strip())
 
     return profile

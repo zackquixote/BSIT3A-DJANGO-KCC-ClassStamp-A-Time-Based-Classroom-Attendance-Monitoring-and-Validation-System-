@@ -19,7 +19,17 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import AcademicYear, Class, Department, Profile, Subject
+from apps.core.models import (
+    AcademicYear,
+    AttendanceRecord,
+    Class,
+    ClassSession,
+    ClassSlot,
+    Department,
+    Enrollment,
+    Profile,
+    Subject,
+)
 from apps.core.serializers.teacher_serializers import serialize_teacher, serialize_teacher_summary
 from apps.core.services import (
     delete_or_deactivate_teacher,
@@ -344,4 +354,92 @@ def teacher_unassign_class_ajax(request, pk: int, class_id: int):
             'ok': True,
             'message': f"Class {code} removed from faculty teaching load."
         })
+
+
+# // ==============================================================================
+# // VIEW: Per-Teacher Analytical Telemetry (/teachers/<pk>/analytics/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def teacher_analytics_json(request, pk: int):
+    """
+    // [Admin Controller] Analytical Telemetry for Faculty Members
+    // Summarizes teaching loads, active sections, total distinct students,
+    // conducted classroom sessions, and attendance compliance rates.
+    """
+    teacher = get_object_or_404(
+        Profile.objects.select_related('user', 'department'),
+        pk=pk,
+        role=Profile.ROLE_TEACHER,
+    )
+
+    classes_qs = (
+        Class.objects
+        .filter(teacher_profile=teacher)
+        .select_related('subject', 'academic_year')
+        .annotate(
+            enrolled_count=Count('enrollments', filter=Q(enrollments__status=Enrollment.STATUS_ACTIVE), distinct=True),
+            slots_count=Count('slots', filter=Q(slots__is_active=True), distinct=True),
+        )
+        .order_by('-is_active', 'class_code')
+    )
+
+    total_classes = classes_qs.count()
+    active_classes = classes_qs.filter(is_active=True).count()
+
+    total_students_taught = (
+        Enrollment.objects
+        .filter(class_obj__teacher_profile=teacher, status=Enrollment.STATUS_ACTIVE)
+        .values('student_profile')
+        .distinct()
+        .count()
+    )
+
+    total_sessions = ClassSession.objects.filter(slot__class_obj__teacher_profile=teacher).count()
+
+    records_qs = AttendanceRecord.objects.filter(session__slot__class_obj__teacher_profile=teacher)
+    total_records = records_qs.count()
+    attended_records = records_qs.filter(status__in=[AttendanceRecord.STATUS_PRESENT, AttendanceRecord.STATUS_LATE]).count()
+    overall_compliance = round((attended_records / total_records) * 100, 1) if total_records > 0 else 0
+
+    class_items = []
+    for c in classes_qs:
+        c_records = AttendanceRecord.objects.filter(session__slot__class_obj=c)
+        c_tot = c_records.count()
+        c_att = c_records.filter(status__in=[AttendanceRecord.STATUS_PRESENT, AttendanceRecord.STATUS_LATE]).count()
+        c_rate = round((c_att / c_tot) * 100, 1) if c_tot > 0 else 0
+
+        class_items.append({
+            'id': c.id,
+            'class_code': c.class_code,
+            'is_active': c.is_active,
+            'subject_code': c.subject.code if c.subject else '—',
+            'subject_name': c.subject.name if c.subject else '—',
+            'academic_year': c.academic_year.name if c.academic_year else '—',
+            'enrolled_count': c.enrolled_count,
+            'slots_count': c.slots_count,
+            'attendance_rate': c_rate,
+            'sessions_count': ClassSession.objects.filter(slot__class_obj=c).count(),
+        })
+
+    return JsonResponse({
+        'success': True,
+        'teacher': {
+            'id': teacher.id,
+            'name': teacher.user.get_full_name() or teacher.user.username,
+            'email': teacher.user.email or '—',
+            'employee_id': teacher.employee_id or '—',
+            'department': teacher.department.code if teacher.department else '—',
+            'is_active': teacher.user.is_active,
+        },
+        'summary': {
+            'total_classes': total_classes,
+            'active_classes': active_classes,
+            'total_students_taught': total_students_taught,
+            'total_sessions': total_sessions,
+            'overall_compliance': overall_compliance,
+        },
+        'classes': class_items,
+    })
+
 

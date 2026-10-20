@@ -10,13 +10,14 @@
 # // ==============================================================================
 """
 
+import csv
 import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
@@ -24,8 +25,10 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.core.decorators import role_required
 from apps.core.models import (
     AcademicYear,
+    AttendanceRecord,
     AuditEvent,
     Class,
+    ClassSession,
     ClassSlot,
     Enrollment,
     Profile,
@@ -469,3 +472,163 @@ def class_roster_remove(request, enrollment_id):
     )
 
     return JsonResponse({'success': True})
+
+
+# // ==============================================================================
+# // VIEW: Per-Class Section Attendance Matrix Sheet (/classes/<int:class_id>/matrix/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def class_attendance_matrix(request, class_id):
+    """
+    // [Admin Controller] Attendance Matrix Sheet
+    // Returns full 2D grid matrix (Enrolled Students x Session Dates) with
+    // individual statuses, summary tallies, and attendance compliance rates.
+    // Supports CSV export via ?format=csv.
+    """
+    class_obj = get_object_or_404(
+        Class.objects.select_related('subject', 'teacher_profile__user', 'academic_year'),
+        id=class_id,
+    )
+
+    # All active enrollments sorted by student last name, first name
+    enrollments = (
+        Enrollment.objects
+        .filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
+        .select_related('student_profile__user', 'student_profile__program')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
+    )
+
+    # All class sessions held for this class
+    sessions = (
+        ClassSession.objects
+        .filter(slot__class_obj=class_obj)
+        .select_related('slot')
+        .order_by('session_date', 'opened_at')
+    )
+
+    # All attendance records for these sessions
+    records = (
+        AttendanceRecord.objects
+        .filter(session__in=sessions)
+        .select_related('student_profile')
+    )
+
+    # Fast lookup dictionary: (student_profile_id, session_id) -> record
+    record_map = {}
+    for r in records:
+        record_map[(r.student_profile_id, r.session_id)] = r
+
+    session_list = []
+    for s in sessions:
+        session_list.append({
+            'id': s.id,
+            'date': s.session_date.strftime('%Y-%m-%d'),
+            'display_date': s.session_date.strftime('%b %d'),
+            'weekday': s.session_date.strftime('%a'),
+            'room': s.slot.room if s.slot and s.slot.room else '—',
+            'status': s.status,
+        })
+
+    student_rows = []
+    total_attended_overall = 0
+    total_possible_overall = 0
+
+    for en in enrollments:
+        profile = en.student_profile
+        user = profile.user
+        student_name = user.get_full_name() or user.username
+        student_num = profile.student_number or '—'
+        program_code = profile.program.code if profile.program else '—'
+
+        present_cnt = 0
+        late_cnt = 0
+        absent_cnt = 0
+        excused_cnt = 0
+        cells = []
+
+        for s in sessions:
+            rec = record_map.get((profile.id, s.id))
+            if rec:
+                st = rec.status
+                if st == AttendanceRecord.STATUS_PRESENT:
+                    present_cnt += 1
+                elif st == AttendanceRecord.STATUS_LATE:
+                    late_cnt += 1
+                elif st == AttendanceRecord.STATUS_ABSENT:
+                    absent_cnt += 1
+                elif st == AttendanceRecord.STATUS_EXCUSED:
+                    excused_cnt += 1
+                cells.append({
+                    'status': st,
+                    'method': rec.method,
+                    'stamped_at': timezone.localtime(rec.stamped_at).strftime('%I:%M %p') if rec.stamped_at else '—',
+                })
+            else:
+                cells.append({
+                    'status': '—',
+                    'method': None,
+                    'stamped_at': '—',
+                })
+
+        attended = present_cnt + late_cnt
+        total_sessions = len(sessions)
+        rate = round((attended / total_sessions) * 100, 1) if total_sessions > 0 else 0
+
+        total_attended_overall += attended
+        total_possible_overall += total_sessions
+
+        student_rows.append({
+            'student_id': profile.id,
+            'student_number': student_num,
+            'name': student_name,
+            'program': program_code,
+            'cells': cells,
+            'present': present_cnt,
+            'late': late_cnt,
+            'absent': absent_cnt,
+            'excused': excused_cnt,
+            'attended': attended,
+            'rate': rate,
+        })
+
+    overall_rate = round((total_attended_overall / total_possible_overall) * 100, 1) if total_possible_overall > 0 else 0
+
+    # CSV Export format
+    if request.GET.get('format') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        filename = f"attendance_matrix_{class_obj.class_code}_{timezone.localdate().strftime('%Y%m%d')}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        headers = ['Student ID', 'Student Name', 'Program']
+        for s in session_list:
+            headers.append(f"{s['display_date']} ({s['weekday']})")
+        headers.extend(['Present', 'Late', 'Absent', 'Excused', 'Attendance Rate %'])
+        writer.writerow(headers)
+
+        for row in student_rows:
+            csv_row = [row['student_number'], row['name'], row['program']]
+            for c in row['cells']:
+                csv_row.append(c['status'])
+            csv_row.extend([row['present'], row['late'], row['absent'], row['excused'], f"{row['rate']}%"])
+            writer.writerow(csv_row)
+
+        return response
+
+    return JsonResponse({
+        'success': True,
+        'class_code': class_obj.class_code,
+        'subject_code': class_obj.subject.code,
+        'subject_name': class_obj.subject.name,
+        'teacher_name': class_obj.teacher_profile.user.get_full_name() if class_obj.teacher_profile else '—',
+        'academic_year': class_obj.academic_year.name if class_obj.academic_year else '—',
+        'sessions': session_list,
+        'students': student_rows,
+        'summary': {
+            'total_students': len(student_rows),
+            'total_sessions': len(session_list),
+            'overall_rate': overall_rate,
+        },
+    })
+

@@ -4,6 +4,13 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <a href="{% url 'validation_hub' %}">Account Validation</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Validation Queue</span>
+    </div>
     <h1 class="page-title">Account Validation</h1>
     <p class="page-subtitle">Review, filter, and approve pending student registrations across collegiate departments</p>
   </div>

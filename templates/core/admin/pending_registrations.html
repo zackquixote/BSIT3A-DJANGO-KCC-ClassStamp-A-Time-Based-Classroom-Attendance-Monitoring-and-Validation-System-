@@ -4,6 +4,13 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <a href="{% url 'validation_hub' %}">Account Validation</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Pending Registrations</span>
+    </div>
     <h1 class="page-title">Pending Registrations</h1>
     <p class="page-subtitle">Review, filter, and approve pending student registrations across collegiate departments</p>
   </div>
@@ -126,6 +133,9 @@
     <table class="table" id="pendingTable">
       <thead>
         <tr>
+          <th class="batch-check-col" style="width: 44px; text-align: center;">
+            <input type="checkbox" id="batchSelectAll" class="batch-check" title="Select all pending students">
+          </th>
           <th>Student Name</th>
           <th>Student No.</th>
           <th>Department</th>
@@ -146,6 +156,9 @@
           data-email="{{ p.user.email|lower }}"
           data-username="{{ p.user.username|lower }}"
         >
+          <td class="batch-check-col" style="text-align: center;">
+            <input type="checkbox" class="batch-check row-select-checkbox" data-id="{{ p.pk }}" data-name="{{ p.user.get_full_name|escapejs }}">
+          </td>
           <td class="font-semibold text-primary">
             <div class="flex items-center gap-3">
               <a href="{% url 'validation_detail' p.student_number %}" title="Click to view full registration form">
@@ -221,7 +234,7 @@
         </tr>
         {% empty %}
         <tr id="emptyTableRow">
-          <td colspan="6" style="padding: 40px 20px; text-align: center;">
+          <td colspan="7" style="padding: 40px 20px; text-align: center;">
             <i class="fas fa-inbox" style="font-size: 2rem; color: var(--text-muted, #94a3b8);"></i>
             <p class="text-muted text-sm" style="margin-top: 10px;">
               {% if selected_department or selected_program or query %}
@@ -238,7 +251,7 @@
 
         <!-- Filter-empty placeholder (for instant client-side filtering) -->
         <tr id="noFilterMatchesRow" style="display: none;">
-          <td colspan="6" style="padding: 40px 20px; text-align: center;">
+          <td colspan="7" style="padding: 40px 20px; text-align: center;">
             <i class="fas fa-filter-circle-xmark" style="font-size: 2rem; color: var(--text-muted, #94a3b8);"></i>
             <p class="text-muted text-sm" style="margin-top: 10px;">
               No pending registrations match the active department, program, or search filters.
@@ -301,6 +314,59 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Floating Batch Action Bar (#3) ────────────────────────────────── -->
+<div id="batchActionBar" class="batch-action-bar" data-batch-url="{% url 'batch_validation_action' %}">
+  <div class="flex items-center gap-2">
+    <i class="fas fa-check-double" style="color: var(--accent-gold);"></i>
+    <span class="batch-count"><span id="batchSelectedCount">0</span> selected</span>
+  </div>
+  <button type="button" class="btn btn-success btn-sm" id="batchApproveBtn">
+    <i class="fas fa-circle-check"></i> Approve (<span class="batch-selected-num">0</span>)
+  </button>
+  <button type="button" class="btn btn-danger btn-sm" id="batchRejectBtn">
+    <i class="fas fa-circle-xmark"></i> Reject (<span class="batch-selected-num">0</span>)
+  </button>
+  <button type="button" class="btn btn-outline btn-sm" id="batchClearBtn" style="padding: 4px 8px; font-size: 0.75rem;">
+    Clear
+  </button>
+</div>
+
+<!-- ── Batch Reject Modal (#3) ──────────────────────────────────────── -->
+<div id="batchRejectModal" class="modal">
+  <div class="modal-dialog" style="max-width: 480px;">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 1.3rem;">🚫</span>
+        <div>
+          <h3 class="modal-title" style="margin: 0; font-size: 1.05rem;">Batch Reject Registrations</h3>
+          <div class="text-muted text-xs">Rejecting <span id="batchRejectCount">0</span> selected students</div>
+        </div>
+      </div>
+      <button type="button" class="modal-close" data-modal-dismiss="batchRejectModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label text-sm" for="batchRejectReason">
+          Rejection Reason <span class="text-danger">*</span>
+        </label>
+        <textarea
+          id="batchRejectReason"
+          rows="3"
+          required
+          placeholder="Reason for rejecting these students (recorded in audit log)..."
+          class="form-control text-sm"
+        ></textarea>
+      </div>
+      <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+        <button type="button" class="btn btn-outline btn-sm" data-modal-dismiss="batchRejectModal">Cancel</button>
+        <button type="button" id="confirmBatchRejectBtn" class="btn btn-danger btn-sm">
+          <i class="fas fa-circle-xmark"></i> Confirm Batch Rejection
+        </button>
+      </div>
     </div>
   </div>
 </div>

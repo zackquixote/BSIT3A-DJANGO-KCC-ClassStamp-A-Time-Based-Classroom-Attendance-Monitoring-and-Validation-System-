@@ -35,10 +35,34 @@
       });
     }
 
+    var progressWrap   = document.getElementById('importProgressWrap');
+    var progressBar    = document.getElementById('importProgressBar');
+    var progressStatus  = document.getElementById('progressStatusText');
+    var progressPercent = document.getElementById('progressPercent');
+    var progressSub    = document.getElementById('progressSubText');
+
     if (importForm && submitBtn) {
       importForm.addEventListener('submit', function () {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingesting Roster... Please wait';
+
+        if (progressWrap) progressWrap.style.display = 'block';
+
+        var steps = [
+          { pct: 20, status: 'Parsing CSV spreadsheet...', sub: 'Reading rows, columns, and validating encodings...', delay: 100 },
+          { pct: 48, status: 'Validating student records...', sub: 'Checking student ID formats and collegiate programs...', delay: 380 },
+          { pct: 76, status: 'Provisioning accounts...', sub: 'Generating 64-character dynamic QR credentials...', delay: 750 },
+          { pct: 94, status: 'Writing atomic transaction...', sub: 'Committing roster entries to database...', delay: 1200 }
+        ];
+
+        steps.forEach(function (step) {
+          setTimeout(function () {
+            if (progressBar) progressBar.style.width = step.pct + '%';
+            if (progressPercent) progressPercent.textContent = step.pct + '%';
+            if (progressStatus) progressStatus.textContent = step.status;
+            if (progressSub) progressSub.textContent = step.sub;
+          }, step.delay);
+        });
       });
     }
   }

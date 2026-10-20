@@ -149,3 +149,76 @@ def anomaly_adjudicate(request, pk):
 
     messages.success(request, f"Security Flag #{flag.id} successfully updated to {new_status}.")
     return redirect('anomaly_list')
+
+
+# // ==============================================================================
+# // VIEW: Bulk Dismiss / Confirm Anomaly Flags (#11)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def anomaly_bulk_action(request):
+    """
+    // [Batch Action] Bulk adjudicate multiple AnomalyFlag records.
+    // POST: decision=DISMISS|CONFIRM_PROXY, ids[]=pk, reason=<str>
+    // Returns JSON: {updated: N, skipped: N}
+    """
+    from django.http import JsonResponse as _JR
+    decision = request.POST.get('decision', '').strip()
+    reason = request.POST.get('reason', 'Bulk administrative adjudication').strip()
+    raw_ids = request.POST.getlist('ids[]') or request.POST.getlist('ids')
+
+    valid_decisions = [c[0] for c in ReviewAction.DECISION_CHOICES]
+    if decision not in valid_decisions:
+        return _JR({'error': 'Invalid decision.'}, status=400)
+
+    pks = []
+    for raw in raw_ids:
+        try:
+            pks.append(int(raw))
+        except (ValueError, TypeError):
+            pass
+
+    if not pks:
+        return _JR({'error': 'No flags selected.'}, status=400)
+
+    flags = AnomalyFlag.objects.filter(pk__in=pks, status=AnomalyFlag.STATUS_OPEN)
+
+    if decision == ReviewAction.DECISION_DISMISS:
+        new_status = AnomalyFlag.STATUS_DISMISSED
+    elif decision == ReviewAction.DECISION_CONFIRM_PROXY:
+        new_status = AnomalyFlag.STATUS_CONFIRMED
+    else:
+        new_status = AnomalyFlag.STATUS_DISMISSED
+
+    updated = 0
+    now = timezone.now()
+    review_actions = []
+    audit_events = []
+
+    for flag in flags:
+        flag.status = new_status
+        flag.resolved_at = now
+        review_actions.append(ReviewAction(
+            anomaly_flag=flag,
+            reviewer=request.user,
+            decision=decision,
+            reason=reason,
+        ))
+        audit_events.append(AuditEvent(
+            actor=request.user,
+            action='ADJUDICATE_ANOMALY',
+            object_type='AnomalyFlag',
+            object_id=str(flag.id),
+            old_value=AnomalyFlag.STATUS_OPEN,
+            new_value=new_status,
+            reason=f"Bulk: {decision} | {reason}",
+        ))
+        updated += 1
+
+    AnomalyFlag.objects.bulk_update(flags, ['status', 'resolved_at'])
+    ReviewAction.objects.bulk_create(review_actions)
+    AuditEvent.objects.bulk_create(audit_events)
+
+    return _JR({'updated': updated, 'new_status': new_status})
+

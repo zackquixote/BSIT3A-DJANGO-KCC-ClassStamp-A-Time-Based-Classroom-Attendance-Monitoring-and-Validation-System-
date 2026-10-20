@@ -104,8 +104,13 @@ def user_list_page(request):
     tab_teachers_count = teachers_qs.count()
     tab_admins_count = admins_qs.count()
 
-    # Paginate the active tab
-    per_page = 15
+    # Paginate the active tab — honour user-chosen page size (15/25/50/100)
+    try:
+        per_page = int(request.GET.get('per_page', 25))
+    except (ValueError, TypeError):
+        per_page = 25
+    per_page = per_page if per_page in (15, 25, 50, 100) else 25
+
     if role_tab == 'teachers':
         paginator = Paginator(teachers_qs, per_page)
     elif role_tab == 'admins':
@@ -128,6 +133,7 @@ def user_list_page(request):
         'dept_filter': dept_filter,
         'prog_filter': prog_filter,
         'year_filter': year_filter,
+        'per_page': per_page,
         'students_count': tab_students_count,
         'teachers_count': tab_teachers_count,
         'admins_count': tab_admins_count,

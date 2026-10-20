@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Teachers &amp; Faculty</span>
+    </div>
     <h1 class="page-title">Teachers & Faculty</h1>
     <p class="page-subtitle">Manage faculty accounts, department assignments, and teaching class loads</p>
   </div>
@@ -155,11 +160,17 @@
               <button class="btn btn-outline btn-sm js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Manage Teaching Load">
                 <i class="fas fa-book-bookmark text-gold"></i>
               </button>
+              <button class="btn btn-outline btn-sm js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="View Faculty Analytics & Teaching Load">
+                <i class="fas fa-chart-pie text-green"></i>
+              </button>
               <button class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Details">
                 <i class="fas fa-eye"></i>
               </button>
               <button class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit">
                 <i class="fas fa-pen"></i>
+              </button>
+              <button class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Force Reset Password">
+                <i class="fas fa-key text-warning"></i>
               </button>
               <button class="btn btn-outline btn-sm js-toggle-teacher {% if not t.user.is_active %}btn-success{% endif %}" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}" title="Toggle Active">
                 <i class="fas {% if t.user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
@@ -379,6 +390,78 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Faculty Analytics & Teaching Load Breakdown -->
+<div class="modal" id="teacherAnalyticsModal">
+  <div class="modal-dialog" style="max-width: 820px;">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" id="teacherAnalyticsTitle">Faculty Analytics &amp; Teaching Load</h2>
+        <p class="text-xs text-muted" id="teacherAnalyticsSubtitle" style="margin-top: 2px;">
+          Instructor performance telemetry &amp; class compliance overview
+        </p>
+      </div>
+      <button type="button" class="modal-close" data-modal-dismiss="teacherAnalyticsModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding: 16px 20px;">
+      <!-- Instructor Profile Header Strip -->
+      <div class="flex items-center justify-between p-3 mb-3" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);">
+        <div class="flex items-center gap-3">
+          <div class="notif-item-avatar" id="analyticsAvatar" style="width: 44px; height: 44px; font-size: 1.05rem; font-weight: 700; background: var(--accent-gold); color: #000; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            FA
+          </div>
+          <div>
+            <div class="font-bold text-sm text-primary" id="analyticsTeacherName">—</div>
+            <div class="text-xs text-muted" id="analyticsTeacherMeta">—</div>
+          </div>
+        </div>
+        <div>
+          <span class="badge badge--blue" id="analyticsDeptBadge">—</span>
+        </div>
+      </div>
+
+      <!-- 4 KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
+        <div class="stat-card" style="padding: 10px 12px;">
+          <div class="stat-info">
+            <span class="stat-value text-gold" id="analyticsTotalClasses" style="font-size: 1.25rem;">0</span>
+            <span class="stat-label" style="font-size: 0.65rem;">Active Classes</span>
+          </div>
+        </div>
+        <div class="stat-card" style="padding: 10px 12px;">
+          <div class="stat-info">
+            <span class="stat-value text-primary" id="analyticsTotalStudents" style="font-size: 1.25rem;">0</span>
+            <span class="stat-label" style="font-size: 0.65rem;">Students Taught</span>
+          </div>
+        </div>
+        <div class="stat-card" style="padding: 10px 12px;">
+          <div class="stat-info">
+            <span class="stat-value text-blue" id="analyticsTotalSessions" style="font-size: 1.25rem;">0</span>
+            <span class="stat-label" style="font-size: 0.65rem;">Sessions Opened</span>
+          </div>
+        </div>
+        <div class="stat-card" style="padding: 10px 12px;">
+          <div class="stat-info">
+            <span class="stat-value text-green" id="analyticsOverallRate" style="font-size: 1.25rem;">0%</span>
+            <span class="stat-label" style="font-size: 0.65rem;">Attendance Rate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assigned Sections Table -->
+      <h4 class="font-bold text-xs text-primary mb-2">Assigned Class Sections &amp; Performance</h4>
+      <div id="analyticsClassesContainer" style="max-height: 280px; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-sm);">
+        <div style="padding: 30px; text-align: center;" id="analyticsLoading">
+          <i class="fas fa-spinner fa-spin text-gold" style="font-size: 1.5rem;"></i>
+          <p class="text-xs text-muted mt-2">Loading teaching load analytics...</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline btn-sm" data-modal-dismiss="teacherAnalyticsModal">Close</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -391,4 +474,5 @@
 <script src="{% static 'js/teachers/delete_teacher.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/teachers/toggle_teacher.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261020_v1"></script>
 {% endblock %}

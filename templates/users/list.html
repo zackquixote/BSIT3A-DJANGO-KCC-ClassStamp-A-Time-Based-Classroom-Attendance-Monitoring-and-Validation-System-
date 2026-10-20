@@ -12,8 +12,10 @@
     <a href="{% url 'users:user_export_csv' %}?role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if prog_filter %}&program={{ prog_filter }}{% endif %}{% if year_filter %}&year_level={{ year_filter }}{% endif %}" class="btn btn-outline">
       <i class="fas fa-file-csv text-gold"></i> Export CSV
     </a>
-    <button type="button" class="btn btn-primary" data-modal-target="editUserModal" id="addUserBtn">
-      <i class="fas fa-user-plus"></i> Add User
+    <button type="button" class="btn btn-primary" data-modal-target="editUserModal" id="addUserBtn"
+            data-preset-role="{% if role_tab == 'teachers' %}TEACHER{% elif role_tab == 'admins' %}ADMIN{% else %}STUDENT{% endif %}">
+      <i class="fas fa-user-plus"></i>
+      Add {% if role_tab == 'teachers' %}Teacher{% elif role_tab == 'admins' %}Admin{% else %}Student{% endif %}
     </button>
   </div>
 </div>
@@ -44,7 +46,7 @@
   </div>
 
   <!-- Students -->
-  <a href="?role=students" class="card stat-card--kpi card--hoverable" style="text-decoration: none; border-color: {% if role_tab == 'students' %}var(--gold){% else %}var(--glass-border){% endif %};">
+  <a href="?role=students" class="card stat-card--kpi card--hoverable {% if role_tab == 'students' %}stat-card--active{% endif %}" style="text-decoration: none;">
     <div class="flex items-center justify-between">
       <div>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Students</p>
@@ -61,7 +63,7 @@
   </a>
 
   <!-- Faculty -->
-  <a href="?role=teachers" class="card stat-card--kpi card--hoverable" style="text-decoration: none; border-color: {% if role_tab == 'teachers' %}var(--gold){% else %}var(--glass-border){% endif %};">
+  <a href="?role=teachers" class="card stat-card--kpi card--hoverable {% if role_tab == 'teachers' %}stat-card--active{% endif %}" style="text-decoration: none;">
     <div class="flex items-center justify-between">
       <div>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Faculty / Teachers</p>
@@ -78,7 +80,7 @@
   </a>
 
   <!-- Admins -->
-  <a href="?role=admins" class="card stat-card--kpi card--hoverable" style="text-decoration: none; border-color: {% if role_tab == 'admins' %}var(--gold){% else %}var(--glass-border){% endif %};">
+  <a href="?role=admins" class="card stat-card--kpi card--hoverable {% if role_tab == 'admins' %}stat-card--active{% endif %}" style="text-decoration: none;">
     <div class="flex items-center justify-between">
       <div>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Admin &amp; Staff</p>
@@ -142,6 +144,16 @@
         </select>
       </div>
     {% endif %}
+
+    <!-- Per-page selector -->
+    <div style="min-width: 110px; margin-left: auto;" title="Accounts per page">
+      <select name="per_page" class="form-control" onchange="this.form.submit()" title="Rows per page">
+        <option value="15"  {% if per_page == 15  %}selected{% endif %}>15 / page</option>
+        <option value="25"  {% if per_page == 25  %}selected{% endif %}>25 / page</option>
+        <option value="50"  {% if per_page == 50  %}selected{% endif %}>50 / page</option>
+        <option value="100" {% if per_page == 100 %}selected{% endif %}>100 / page</option>
+      </select>
+    </div>
 
     <div class="flex items-center gap-2">
       <button type="submit" class="btn btn-primary" title="Execute Search">
@@ -224,6 +236,7 @@
             <th>Department</th>
             <th>Class Load</th>
             <th>Email</th>
+            <th>Last Login</th>
             <th>Account Access</th>
           {% else %}
             <th>Username</th>
@@ -338,6 +351,17 @@
             </td>
             <!-- Email -->
             <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <!-- Last Login (Teachers) -->
+            <td class="text-muted text-xs">
+              {% if u.last_login %}
+                <span title="{{ u.last_login|date:'Y-m-d H:i' }}">
+                  <i class="fas fa-clock" style="color: var(--accent-gold); font-size: 0.65rem;"></i>
+                  {{ u.last_login|timesince }} ago
+                </span>
+              {% else %}
+                <span class="badge badge--danger text-xs" title="Never logged in"><i class="fas fa-circle-exclamation"></i> Never</span>
+              {% endif %}
+            </td>
             <!-- Account Access Status Toggle -->
             <td>
               <label class="form-switch" style="margin: 0; display: inline-flex;" title="{% if u.id == request.user.id %}Cannot deactivate yourself{% else %}Click to toggle Active / Inactive status{% endif %}">
@@ -355,24 +379,36 @@
           {% else %}
             <!-- Admin Username -->
             <td>
-              <span class="font-mono font-semibold" style="color: #c084fc;">{{ u.username }}</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="font-mono font-semibold" style="color: #c084fc;">{{ u.username }}</span>
+                {% if u.id == request.user.id %}
+                  <span class="badge text-xs" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);padding:1px 5px;">You</span>
+                {% endif %}
+              </div>
             </td>
             <!-- Privilege Level -->
             <td>
               {% if u.is_superuser %}
-                <span class="badge badge--purple"><i class="fas fa-shield-halved"></i> Superuser</span>
+                <span class="badge badge--purple" style="box-shadow:0 0 8px rgba(168,85,247,0.4);">
+                  <i class="fas fa-crown"></i> Superuser
+                </span>
               {% else %}
-                <span class="badge badge--warning" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);"><i class="fas fa-user-shield"></i> Administrator</span>
+                <span class="badge" style="background:rgba(168,85,247,0.12);color:#c084fc;border:1px solid rgba(168,85,247,0.3);">
+                  <i class="fas fa-user-shield"></i> Administrator
+                </span>
               {% endif %}
             </td>
             <!-- Email -->
             <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
-            <!-- Last Login -->
+            <!-- Last Login (with recency indicator) -->
             <td class="text-muted text-xs">
               {% if u.last_login %}
-                {{ u.last_login|date:"M j, Y H:i" }}
+                <span title="{{ u.last_login|date:'Y-m-d H:i' }}">
+                  <i class="fas fa-clock" style="color: var(--accent-gold); font-size: 0.65rem;"></i>
+                  {{ u.last_login|timesince }} ago
+                </span>
               {% else %}
-                <span class="text-muted">Never</span>
+                <span class="badge badge--danger text-xs"><i class="fas fa-circle-exclamation"></i> Never</span>
               {% endif %}
             </td>
             <!-- Account Access Status Toggle -->
@@ -736,6 +772,28 @@
 <script src="{% static 'js/users/reset_password_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/users/delete_user.js' %}?v=20261020_v1"></script>
 
+<script>
+// Pre-select role in Add User modal based on current tab
+document.addEventListener('DOMContentLoaded', function () {
+  var addBtn = document.getElementById('addUserBtn');
+  if (!addBtn) return;
+  var presetRole = addBtn.getAttribute('data-preset-role');
+  if (!presetRole) return;
+
+  addBtn.addEventListener('click', function () {
+    // Wait one tick for modal to open, then set role
+    setTimeout(function () {
+      var roleSelect = document.getElementById('edit_role');
+      if (roleSelect) {
+        roleSelect.value = presetRole;
+        // Trigger change so academic fields show/hide correctly
+        roleSelect.dispatchEvent(new Event('change'));
+      }
+    }, 50);
+  });
+});
+</script>
+
 <style>
 /* Style tabs as links to work cleanly with Obsidian dark glass styling */
 .dept-filter-tabs a.dept-tab-pill {
@@ -751,6 +809,16 @@
 .stat-card--kpi:hover {
   transform: translateY(-2px);
   border-color: rgba(245, 158, 11, 0.4);
+}
+/* Active KPI card (current role tab) */
+.stat-card--active {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.2);
+}
+/* Crown glow for superuser rows */
+tr:has(.fa-crown) {
+  background: rgba(168,85,247,0.03);
+  border-left: 2px solid rgba(168,85,247,0.25);
 }
 </style>
 {% endblock %}

@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header" style="margin-bottom: 20px;">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Class Sections &amp; Schedules</span>
+    </div>
     <div class="flex items-center gap-2 mb-1">
       <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
         <i class="fas fa-chalkboard"></i> Academic Timetable & Rosters
@@ -233,6 +238,15 @@
                       data-class-code="{{ c.class_code }}"
                       title="Manage Weekly Timetable Slots">
                 <i class="fas fa-clock"></i> Schedule
+              </button>
+
+              <!-- Attendance Matrix Button -->
+              <button type="button" class="btn btn-outline btn-xs js-open-matrix"
+                      data-class-id="{{ c.id }}"
+                      data-class-code="{{ c.class_code }}"
+                      data-matrix-url="{% url 'class_attendance_matrix' c.id %}"
+                      title="View Classroom Attendance Matrix Sheet">
+                <i class="fas fa-table-cells"></i> Matrix
               </button>
 
               <!-- Roster Enlistment Button -->
@@ -476,6 +490,65 @@
     </div>
   </div>
 </div>
+
+<!-- ── Attendance Matrix Sheet Modal ───────────────────────────── -->
+<div class="dash-modal-backdrop" id="matrixModal">
+  <div class="dash-modal" style="max-width: 980px; width: 95vw;" role="dialog" aria-labelledby="matrixModalTitle">
+    <div class="dash-modal-head">
+      <div>
+        <h3 class="dash-modal-title" id="matrixModalTitle">
+          <i class="fas fa-table-cells text-gold"></i>
+          <span>Attendance Matrix Sheet: <span id="matrixClassCode" class="text-primary">—</span></span>
+        </h3>
+        <p class="text-xs text-muted" id="matrixSubheading" style="margin-top: 3px;">
+          Subject &amp; Instructor Attendance Telemetry
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="#" id="matrixExportCsvBtn" class="btn btn-outline btn-xs" target="_blank" title="Export this matrix grid as CSV">
+          <i class="fas fa-file-csv text-green"></i> Export CSV
+        </a>
+        <button type="button" class="dash-modal-close" id="closeMatrixModal" aria-label="Close">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="dash-modal-body" style="padding: 16px 20px;">
+      <!-- Matrix Telemetry Strip -->
+      <div class="dash-heatmap-summary mb-3" id="matrixTelemetryStrip">
+        <div class="dash-heatmap-stat">
+          <span class="text-xs text-muted">Enrolled Students:</span>
+          <strong class="text-primary" id="matrixTotalStudents">0</strong>
+        </div>
+        <div class="dash-heatmap-stat">
+          <span class="text-xs text-muted">Sessions Held:</span>
+          <strong class="text-gold" id="matrixTotalSessions">0</strong>
+        </div>
+        <div class="dash-heatmap-stat">
+          <span class="text-xs text-muted">Section Compliance Rate:</span>
+          <strong class="text-green" id="matrixOverallRate">0%</strong>
+        </div>
+        <div class="dash-heatmap-stat" style="margin-left: auto;">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="badge badge--success badge--xs">P = Present</span>
+            <span class="badge badge--warning badge--xs">L = Late</span>
+            <span class="badge badge--danger badge--xs">A = Absent</span>
+            <span class="badge badge--info badge--xs">E = Excused</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matrix Interactive Sheet -->
+      <div id="matrixTableContainer" style="max-height: 440px; overflow: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-sm);">
+        <div style="padding: 40px; text-align: center;" id="matrixLoadingState">
+          <i class="fas fa-spinner fa-spin text-gold" style="font-size: 1.5rem;"></i>
+          <p class="text-xs text-muted mt-2">Loading attendance matrix sheet...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -484,5 +557,6 @@
 <script src="{% static 'js/classes/class_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
 {% endblock %}
 

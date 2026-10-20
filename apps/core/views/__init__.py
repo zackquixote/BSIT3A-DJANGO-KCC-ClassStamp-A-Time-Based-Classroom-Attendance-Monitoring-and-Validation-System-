@@ -30,6 +30,7 @@ from .auth_views import (
     _reset_lock_state,
     _set_lock_state,
     _validate_registration_data,
+    admin_reset_user_password,
     check_registration_availability,
     login_view,
     logout_view,
@@ -46,6 +47,7 @@ from .dashboard_views import (
     _teacher_dashboard_stats,
     admin_attendance_chart_json,
     admin_dashboard,
+    admin_live_stream,
     dashboard_redirect,
     student_dashboard,
     teacher_dashboard,
@@ -56,6 +58,7 @@ from .dashboard_views import (
 # // ------------------------------------------------------------------------------
 from .validation_views import (
     approve_student,
+    batch_validation_action,
     recently_reviewed_list,
     reject_student,
     validation_detail,
@@ -108,6 +111,7 @@ from .audit_views import (
 # // 7b. Security Anomaly & Fraud Adjudication Subsystem
 # // ------------------------------------------------------------------------------
 from .anomaly_views import (
+    anomaly_bulk_action,
     anomaly_list,
     anomaly_adjudicate,
 )
@@ -130,14 +134,15 @@ from .subject_views import (
 # // 9. Teacher & Faculty Management Subsystem
 # // ------------------------------------------------------------------------------
 from .teacher_views import (
-    teacher_list,
+    teacher_analytics_json,
+    teacher_assign_class_ajax,
     teacher_create,
-    teacher_update,
-    teacher_toggle,
     teacher_delete,
     teacher_get,
-    teacher_assign_class_ajax,
+    teacher_list,
+    teacher_toggle,
     teacher_unassign_class_ajax,
+    teacher_update,
 )
 
 # // ------------------------------------------------------------------------------
@@ -155,14 +160,15 @@ from .academic_year_views import (
 # // 11. Class Section, Schedule & Enrollment Subsystem
 # // ------------------------------------------------------------------------------
 from .class_views import (
+    class_attendance_matrix,
     class_list,
-    class_save,
-    class_toggle,
-    class_slot_save,
-    class_slot_delete,
-    class_roster_get,
     class_roster_enroll,
+    class_roster_get,
     class_roster_remove,
+    class_save,
+    class_slot_delete,
+    class_slot_save,
+    class_toggle,
 )
 
 # // ------------------------------------------------------------------------------
@@ -195,6 +201,7 @@ __all__ = [
     # Dashboards
     'dashboard_redirect',
     'admin_dashboard',
+    'admin_live_stream',
     'teacher_dashboard',
     'student_dashboard',
     '_admin_dashboard_stats',
@@ -251,6 +258,7 @@ __all__ = [
     'teacher_toggle',
     'teacher_delete',
     'teacher_get',
+    'teacher_analytics_json',
 
     # Academic Years
     'academic_year_list',
@@ -258,6 +266,17 @@ __all__ = [
     'academic_year_set_active',
     'academic_year_delete',
     'academic_year_get',
+
+    # Class Sections & Schedules
+    'class_list',
+    'class_save',
+    'class_toggle',
+    'class_slot_save',
+    'class_slot_delete',
+    'class_roster_get',
+    'class_roster_enroll',
+    'class_roster_remove',
+    'class_attendance_matrix',
 
     # Sessions & Live Scanner
     'teacher_session_open',

@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Subjects &amp; Curriculum</span>
+    </div>
     <h1 class="page-title">Subjects & Curriculum</h1>
     <p class="page-subtitle">Manage the institutional course catalogue and program curriculum matrix</p>
   </div>

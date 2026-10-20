@@ -473,6 +473,11 @@
 <div class="dir-header">
   <div class="dir-title-group">
     <div>
+      <div class="breadcrumb-nav">
+        <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+        <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+        <span class="breadcrumb-current">Student Directory</span>
+      </div>
       <h1 class="dir-page-title">Student Directory</h1>
     </div>
 
@@ -752,6 +757,9 @@
               <a href="{% url 'validation_detail' student.student_number %}" class="btn btn-outline btn-sm" title="View Student Profile & Review Form">
                 <i class="fas fa-id-card"></i> View Profile
               </a>
+              <button type="button" class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password">
+                <i class="fas fa-key text-warning"></i>
+              </button>
             </div>
           </td>
         </tr>
