@@ -403,8 +403,60 @@
     }
   }
 
-  .print-only-header {
-    display: none;
+  /* ── Year Level Filter Tabs ── */
+  .year-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 0 8px 0;
+    margin-bottom: 2px;
+    scrollbar-width: thin;
+    flex-shrink: 0;
+  }
+  .year-tab-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    border-radius: 9999px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary, #94a3b8);
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .year-tab-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-primary, #f8fafc);
+  }
+  .year-tab-pill.is-active {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: var(--accent-gold, #f59e0b);
+    color: var(--accent-gold, #f59e0b);
+    font-weight: 600;
+  }
+  .year-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+  }
+  .year-tab-pill.is-active .year-tab-count {
+    background: var(--accent-gold, #f59e0b);
+    color: #0f172a;
   }
 </style>
 {% endblock %}
@@ -468,7 +520,7 @@
         id="filter_q"
         name="q"
         class="form-control"
-        placeholder="Search Student ID, Name, Username..."
+        placeholder="Search Student ID, Name, or Email..."
         value="{{ query }}"
       >
     </div>
@@ -547,6 +599,45 @@
       </a>
     </div>
   </form>
+</div>
+
+<!-- Year Level Quick Filter Tabs -->
+<div class="year-filter-tabs">
+  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}"
+     class="year-tab-pill {% if not selected_year %}is-active{% endif %}"
+     title="Show students across all year levels">
+    <i class="fas fa-layer-group"></i>
+    <span>All Years</span>
+    <span class="year-tab-count">{{ count_all_years }}</span>
+  </a>
+  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=1"
+     class="year-tab-pill {% if selected_year == '1' %}is-active{% endif %}"
+     title="Show 1st Year students only">
+    <i class="fas fa-graduation-cap"></i>
+    <span>1st Year</span>
+    <span class="year-tab-count">{{ count_y1 }}</span>
+  </a>
+  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=2"
+     class="year-tab-pill {% if selected_year == '2' %}is-active{% endif %}"
+     title="Show 2nd Year students only">
+    <i class="fas fa-graduation-cap"></i>
+    <span>2nd Year</span>
+    <span class="year-tab-count">{{ count_y2 }}</span>
+  </a>
+  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=3"
+     class="year-tab-pill {% if selected_year == '3' %}is-active{% endif %}"
+     title="Show 3rd Year students only">
+    <i class="fas fa-graduation-cap"></i>
+    <span>3rd Year</span>
+    <span class="year-tab-count">{{ count_y3 }}</span>
+  </a>
+  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=4"
+     class="year-tab-pill {% if selected_year == '4' %}is-active{% endif %}"
+     title="Show 4th Year students only">
+    <i class="fas fa-graduation-cap"></i>
+    <span>4th Year</span>
+    <span class="year-tab-count">{{ count_y4 }}</span>
+  </a>
 </div>
 
 <!-- Student Masterlist Viewport Table Card -->

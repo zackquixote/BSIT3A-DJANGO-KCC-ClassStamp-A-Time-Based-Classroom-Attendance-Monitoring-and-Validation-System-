@@ -99,10 +99,10 @@
           <th>Faculty Member</th>
           <th>Username</th>
           <th>Department</th>
-          <th>Classes</th>
+          <th>Teaching Load &amp; Subjects</th>
           <th>Account Status</th>
           <th>Joined</th>
-          <th style="text-align: right; width: 180px;">Actions</th>
+          <th style="text-align: right; width: 210px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -120,7 +120,7 @@
               </div>
             </div>
           </td>
-          <td class="text-muted">{{ t.user.username }}</td>
+          <td class="text-muted font-mono text-xs">{{ t.user.username }}</td>
           <td>
             {% if t.department %}
               <span class="badge badge--blue">{{ t.department.code }}</span>
@@ -129,7 +129,18 @@
             {% endif %}
           </td>
           <td>
-            <span class="badge badge--gold">{{ t.class_count }}</span>
+            {% if t.taught_classes.all %}
+              <div class="flex items-center gap-1" style="flex-wrap: wrap; max-width: 260px;">
+                {% for c in t.taught_classes.all %}
+                  <span class="badge badge--primary font-mono text-xs" style="padding: 2px 7px; margin-bottom: 2px;" title="{{ c.class_code }} • {{ c.subject.name }} ({{ c.academic_year.name }})">
+                    <i class="fas fa-book-open text-gold" style="font-size: 0.65rem;"></i> {{ c.subject.code }}
+                    <span class="text-muted" style="font-size: 0.68rem; margin-left: 2px;">{{ c.class_code }}</span>
+                  </span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="badge badge--muted text-xs">No active load</span>
+            {% endif %}
           </td>
           <td>
             {% if t.user.is_active %}
@@ -141,6 +152,9 @@
           <td class="text-muted text-sm">{{ t.user.date_joined|date:"M d, Y" }}</td>
           <td style="text-align: right;">
             <div class="flex justify-end gap-2">
+              <button class="btn btn-outline btn-sm js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Manage Teaching Load">
+                <i class="fas fa-book-bookmark text-gold"></i>
+              </button>
               <button class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Details">
                 <i class="fas fa-eye"></i>
               </button>
@@ -274,6 +288,97 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: Manage Teaching Load -->
+<div class="modal" id="teachingLoadModal">
+  <div class="modal-dialog" style="max-width: 680px;">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-book-bookmark text-gold"></i> Manage Teaching Load</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="teachingLoadModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+      <!-- Faculty Header Banner -->
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 20px;" class="flex items-center justify-between">
+        <div>
+          <div class="text-xs text-muted uppercase font-semibold">Faculty Member</div>
+          <div class="font-semibold text-primary text-base" id="loadTeacherName">—</div>
+          <div class="text-muted text-xs font-mono" id="loadTeacherDept">—</div>
+        </div>
+        <span class="badge badge--gold font-mono text-xs" id="loadTeacherCount">0 Sections</span>
+      </div>
+
+      <!-- Current Teaching Load Section -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-primary text-sm flex items-center gap-2">
+            <i class="fas fa-chalkboard-user text-gold"></i> Active Class Sections &amp; Subjects
+          </h3>
+          <span class="text-muted text-xs">Currently instructed sections</span>
+        </div>
+        <div id="loadClassesList" style="min-height: 60px;">
+          <div class="text-center text-muted py-3 text-xs">Loading classes...</div>
+        </div>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 20px 0;">
+
+      <!-- Assign New Class Section Form -->
+      <div>
+        <h3 class="font-semibold text-primary text-sm mb-3 flex items-center gap-2">
+          <i class="fas fa-plus-circle text-gold"></i> Allocate New Subject Section
+        </h3>
+        <form id="assignLoadForm" autocomplete="off">
+          {% csrf_token %}
+          <input type="hidden" id="assignTeacherId" name="teacher_id">
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="assignAcademicYear">Academic Term <span class="text-danger">*</span></label>
+              <select id="assignAcademicYear" name="academic_year_id" class="form-control" required>
+                {% for ay in all_academic_years %}
+                <option value="{{ ay.id }}" {% if ay.is_active %}selected{% endif %}>{{ ay.name }}{% if ay.is_active %} (Current){% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="assignSubject">Subject Offering <span class="text-danger">*</span></label>
+              <select id="assignSubject" name="subject_id" class="form-control" required>
+                <option value="">— select subject —</option>
+                {% for sub in all_subjects %}
+                <option value="{{ sub.id }}">{{ sub.code }} — {{ sub.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="assignClassCode">Class / Section Code <span class="text-danger">*</span></label>
+              <input type="text" id="assignClassCode" name="class_code" class="form-control font-mono" placeholder="e.g. BSIT-1A-IT111 or BSIT-2A-IT211" required>
+              <span class="text-muted text-xs mt-1" style="display:block;">Unique section identifier for student enrollment.</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="assignGrace">Grace Minutes</label>
+              <input type="number" id="assignGrace" name="grace_minutes" class="form-control" value="10" min="0" max="60">
+            </div>
+          </div>
+
+          <div id="assignLoadError" class="toast toast--error mb-3" style="display: none;"></div>
+          <div id="assignLoadSuccess" class="toast toast--success mb-3" style="display: none;"></div>
+
+          <div style="text-align: right;">
+            <button type="submit" class="btn btn-primary" id="assignLoadSubmit">
+              <i class="fas fa-plus"></i> Assign to Teacher Load
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-modal-dismiss="teachingLoadModal">Done</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -389,13 +494,15 @@ document.querySelectorAll('.js-view-teacher').forEach(btn => {
       if (!data.ok) return;
       const t = data.teacher;
       const classesList = t.classes.length ? t.classes.map(c => `
-        <div style="padding:8px 12px;border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;">
-          <span class="badge badge--purple">${c.class_code}</span>
-          <span class="text-sm ml-2">${c.subject_name}</span>
-          <span class="badge badge--muted ml-2">${c.academic_year}</span>
-          ${c.is_active ? '' : '<span class="badge badge--muted ml-1">Inactive</span>'}
+        <div style="padding:10px 14px;border:1px solid var(--glass-border);border-radius:var(--radius-md);margin-bottom:8px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <span class="badge badge--primary font-mono">${c.class_code}</span>
+            <span class="text-sm font-semibold ml-2 text-primary">${c.subject_code} — ${c.subject_name}</span>
+            <div class="text-muted text-xs mt-1"><i class="fas fa-calendar-day text-gold mr-1"></i> ${c.academic_year}</div>
+          </div>
+          ${c.is_active ? '<span class="badge badge--green text-xs">Active</span>' : '<span class="badge badge--muted text-xs">Archived</span>'}
         </div>
-      `).join('') : '<div class="text-muted text-sm">No class sections assigned.</div>';
+      `).join('') : '<div class="text-muted text-sm" style="padding:16px 0;text-align:center;">No class sections assigned yet.</div>';
 
       document.getElementById('teacherDetailBody').innerHTML = `
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
@@ -487,6 +594,156 @@ document.getElementById('teacherDeleteConfirm')?.addEventListener('click', async
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
   }
 });
-</script>
+
+// ── Teaching Load Modal Controller ──────────────────────────────────────────
+let currentLoadTeacherId = null;
+
+async function refreshTeacherLoadList(teacherId) {
+  const container = document.getElementById('loadClassesList');
+  container.innerHTML = '<div class="text-center text-muted py-3 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Refreshing load...</div>';
+  try {
+    const res = await fetch(`/teachers/get/${teacherId}/`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Failed to load details');
+    const t = data.teacher;
+    document.getElementById('loadTeacherName').textContent = t.full_name;
+    document.getElementById('loadTeacherDept').textContent = `${t.department_code} — ${t.department_name}`;
+    document.getElementById('loadTeacherCount').textContent = `${t.classes.length} Section${t.classes.length === 1 ? '' : 's'}`;
+
+    if (!t.classes || t.classes.length === 0) {
+      container.innerHTML = `
+        <div style="background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); border-radius: var(--radius-md); padding: 18px; text-align: center;" class="text-muted text-xs">
+          <i class="fas fa-folder-open" style="font-size: 1.4rem; opacity: 0.4; display: block; margin-bottom: 6px;"></i>
+          No class sections assigned to this teacher yet. Use the form below to allocate subjects.
+        </div>
+      `;
+      return;
+    }
+
+    let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+    t.classes.forEach(c => {
+      html += `
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="badge badge--primary font-mono text-xs font-bold">${c.class_code}</span>
+              <span class="font-semibold text-primary text-xs">${c.subject_code} — ${c.subject_name}</span>
+            </div>
+            <div class="text-muted text-xs mt-0.5">
+              <i class="fas fa-calendar-day text-gold mr-1"></i> ${c.academic_year} &nbsp;•&nbsp; Grace: ${c.grace_minutes} mins
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm js-unassign-class" data-teacher-id="${teacherId}" data-class-id="${c.id}" data-class-code="${c.class_code}" style="padding: 4px 8px; color: #f87171; border-color: rgba(239,68,68,0.3);" title="Remove from load">
+            <i class="fas fa-trash-can"></i>
+          </button>
+        </div>
+      `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Attach unassign event handlers
+    container.querySelectorAll('.js-unassign-class').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const classCode = btn.dataset.classCode;
+        if (!confirm(`Remove class section "${classCode}" from this teacher's load?`)) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/teachers/${btn.dataset.teacherId}/unassign-class/${btn.dataset.classId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF }
+          });
+          const resData = await res.json();
+          if (resData.ok) {
+            refreshTeacherLoadList(teacherId);
+            showAlert(document.getElementById('teacherSuccess'), resData.message, 'success');
+          } else {
+            alert(resData.error || 'Failed to unassign class.');
+            btn.disabled = false;
+          }
+        } catch {
+          alert('Network communication error.');
+          btn.disabled = false;
+        }
+      });
+    });
+
+  } catch (err) {
+    container.innerHTML = `<div class="text-danger text-center text-xs py-3">${err.message}</div>`;
+  }
+}
+
+document.querySelectorAll('.js-assign-load').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentLoadTeacherId = btn.dataset.id;
+    document.getElementById('assignTeacherId').value = currentLoadTeacherId;
+    document.getElementById('assignClassCode').value = '';
+    document.getElementById('assignLoadError').style.display = 'none';
+    document.getElementById('assignLoadSuccess').style.display = 'none';
+    refreshTeacherLoadList(currentLoadTeacherId);
+    if (window.openModal) window.openModal('teachingLoadModal');
+    else document.getElementById('teachingLoadModal').classList.add('is-active');
+  });
+});
+
+// Auto-suggest class code when Subject is selected
+document.getElementById('assignSubject')?.addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  if (!opt || !opt.value) return;
+  const subCode = opt.textContent.split('—')[0].trim();
+  const codeInput = document.getElementById('assignClassCode');
+  if (!codeInput.value || codeInput.value.startsWith('BSIT-')) {
+    const match = subCode.match(/\d/);
+    const yr = match ? match[0] : '1';
+    codeInput.value = `BSIT-${yr}A-${subCode}`;
+  }
+});
+
+document.getElementById('assignLoadForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitBtn = document.getElementById('assignLoadSubmit');
+  const errBox = document.getElementById('assignLoadError');
+  const succBox = document.getElementById('assignLoadSuccess');
+  errBox.style.display = 'none';
+  succBox.style.display = 'none';
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assigning...';
+
+  try {
+    const fd = new FormData(document.getElementById('assignLoadForm'));
+    const res = await fetch(`/teachers/${currentLoadTeacherId}/assign-class/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF },
+      body: fd
+    });
+    const data = await res.json();
+    if (data.ok) {
+      succBox.textContent = data.message;
+      succBox.style.display = 'block';
+      document.getElementById('assignClassCode').value = '';
+      refreshTeacherLoadList(currentLoadTeacherId);
+      setTimeout(() => { succBox.style.display = 'none'; }, 4000);
+    } else {
+      errBox.textContent = data.error || 'Failed to assign class.';
+      errBox.style.display = 'block';
+    }
+  } catch (err) {
+    errBox.textContent = 'Network communication error.';
+    errBox.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-plus"></i> Assign to Teacher Load';
+  }
+});
+
+// Refresh table on modal dismissal if changes occurred
+document.querySelectorAll('[data-modal-dismiss="teachingLoadModal"]').forEach(el => {
+  el.addEventListener('click', () => {
+    if (window.closeModal) window.closeModal('teachingLoadModal');
+    else document.getElementById('teachingLoadModal').classList.remove('is-active');
+    location.reload();
+  });
+});
 </script>
 {% endblock %}

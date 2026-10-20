@@ -59,6 +59,16 @@ class Profile(models.Model):
         (GENDER_FEMALE, 'Female'),
     ]
 
+    # // [Student Classification / Standing Enumeration]
+    STUDENT_TYPE_REGULAR = 'REGULAR'
+    STUDENT_TYPE_IRREGULAR = 'IRREGULAR'
+    STUDENT_TYPE_TRANSFEREE = 'TRANSFEREE'
+    STUDENT_TYPE_CHOICES = [
+        (STUDENT_TYPE_REGULAR, 'Regular'),
+        (STUDENT_TYPE_IRREGULAR, 'Irregular'),
+        (STUDENT_TYPE_TRANSFEREE, 'Transferee'),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -101,6 +111,13 @@ class Profile(models.Model):
         unique=True,
         null=True, blank=True,
         help_text="// Institutional Student ID number from physical KCC badge"
+    )
+    student_type = models.CharField(
+        max_length=10,
+        choices=STUDENT_TYPE_CHOICES,
+        default=STUDENT_TYPE_REGULAR,
+        null=True, blank=True,
+        help_text="// Student classification (REGULAR, IRREGULAR, TRANSFEREE)"
     )
     gender = models.CharField(
         max_length=1,

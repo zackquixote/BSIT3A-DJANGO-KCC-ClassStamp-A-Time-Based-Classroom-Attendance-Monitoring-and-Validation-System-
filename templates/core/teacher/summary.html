@@ -1,0 +1,185 @@
+{% extends "theme/base.html" %}
+
+{% block title %}Session Summary — {{ class_obj.class_code }} — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Dashboard">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
+      <span class="badge badge--muted">{{ class_obj.subject.code }}</span>
+      <span class="badge badge--danger"><i class="fas fa-lock"></i> Session Concluded</span>
+    </div>
+    <h1 class="page-title text-xl">Attendance Session Roll &amp; Summary</h1>
+    <p class="page-subtitle text-xs">
+      <i class="fas fa-calendar-check text-gold"></i> Meeting Date: {{ session.session_date|date:"l, F j, Y" }} &nbsp;•&nbsp;
+      <i class="fas fa-clock"></i> Concluded at {{ session.closed_at|date:"h:i A"|default:"End of session" }}
+    </p>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <button type="button" class="btn btn-outline" onclick="window.print()" title="Print official roll">
+      <i class="fas fa-print"></i> Print Sheet
+    </button>
+    <a href="{% url 'teacher_session_scan' session.id %}" class="btn btn-primary" title="Reopen scanning chamber if needed">
+      <i class="fas fa-qrcode"></i> Reopen Scanner
+    </a>
+  </div>
+</div>
+
+<!-- Telemetry Stat Grid -->
+<div class="stat-grid mb-4">
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Total Students</p>
+        <h3 class="stat-value font-mono text-primary mt-1">{{ total_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--gold-light); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-users" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Active Class Roster</div>
+  </div>
+
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Present (On-Time)</p>
+        <h3 class="stat-value font-mono text-success mt-1">{{ present_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-circle-check" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Within grace window</div>
+  </div>
+
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Late (Tardy)</p>
+        <h3 class="stat-value font-mono text-warning mt-1">{{ late_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-clock" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Past grace cutoff</div>
+  </div>
+
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Attendance Rate</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: #60a5fa;">{{ compliance_rate }}%</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-chart-pie" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">{{ absent_count }} Absent &bull; {{ excused_count }} Excused</div>
+  </div>
+</div>
+
+<!-- Attendance Roll Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-clipboard-check text-gold"></i> Concluded Attendance Roster
+    </div>
+    <span class="text-muted text-xs font-mono">{{ records.count }} total recorded entries</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="summaryTable">
+      <thead>
+        <tr>
+          <th style="width: 50px;">#</th>
+          <th>Student Account</th>
+          <th>Student ID</th>
+          <th>Program &amp; Year</th>
+          <th>Status</th>
+          <th>Stamp Time</th>
+          <th>Tardy Delay</th>
+          <th>Method</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="text-muted">{{ forloop.counter }}</td>
+          <td>
+            <div class="flex items-center gap-3">
+              <span class="avatar-initial" style="width: 34px; height: 34px; font-size: 0.8rem;">
+                {{ r.student_profile.initials }}
+              </span>
+              <div>
+                <div class="font-semibold text-primary">{{ r.student_profile.user.get_full_name|default:r.student_profile.student_number }}</div>
+                <div class="text-muted text-xs font-mono">{{ r.student_profile.user.email|default:"No email" }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="font-mono text-gold font-semibold">{{ r.student_profile.student_number }}</span>
+          </td>
+          <td>
+            <span class="badge badge--primary text-xs">{{ r.student_profile.program.code }}</span>
+            <span class="text-muted text-xs ml-1">Year {{ r.student_profile.year_level|default:1 }}</span>
+          </td>
+          <td>
+            {% if r.status == 'PRESENT' %}
+              <span class="badge badge--success"><i class="fas fa-circle-check"></i> Present</span>
+            {% elif r.status == 'LATE' %}
+              <span class="badge badge--warning"><i class="fas fa-clock"></i> Late</span>
+            {% elif r.status == 'ABSENT' %}
+              <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Absent</span>
+            {% elif r.status == 'EXCUSED' %}
+              <span class="badge badge--purple"><i class="fas fa-file-medical"></i> Excused</span>
+            {% endif %}
+          </td>
+          <td class="text-muted text-xs font-mono">
+            {% if r.stamped_at %}
+              {{ r.stamped_at|date:"h:i:s A" }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>
+            {% if r.late_minutes > 0 %}
+              <span class="badge badge--warning text-xs font-mono">+{{ r.late_minutes }} mins</span>
+            {% else %}
+              <span class="text-muted text-xs">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.method == 'QR' %}
+              <span class="badge badge--muted text-xs"><i class="fas fa-qrcode"></i> QR Badge</span>
+            {% elif r.method == 'MANUAL' %}
+              <span class="badge badge--warning text-xs"><i class="fas fa-user-pen"></i> Manual</span>
+            {% elif r.method == 'SYSTEM' %}
+              <span class="badge badge--danger text-xs"><i class="fas fa-robot"></i> Auto-Close</span>
+            {% else %}
+              <span class="badge badge--muted text-xs">{{ r.method }}</span>
+            {% endif %}
+          </td>
+          <td class="text-muted text-xs">
+            {{ r.correction_reason|default:"—" }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 48px 16px;" class="text-muted text-sm">
+            No attendance records found for this session.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

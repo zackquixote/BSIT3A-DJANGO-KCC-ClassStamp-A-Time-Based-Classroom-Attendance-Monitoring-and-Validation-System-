@@ -182,6 +182,7 @@ def register_view(request):
         'password': request.POST.get('password', ''),
         'confirm_password': request.POST.get('confirm_password', ''),
         'student_number': student_num,
+        'student_type': request.POST.get('student_type', 'REGULAR').strip().upper() or 'REGULAR',
         'department_id': request.POST.get('department_id', '').strip(),
         'program_id': request.POST.get('program_id', '').strip(),
         'year_level': request.POST.get('year_level', '').strip(),

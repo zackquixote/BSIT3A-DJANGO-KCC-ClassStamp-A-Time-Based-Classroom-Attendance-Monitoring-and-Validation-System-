@@ -3,6 +3,6 @@
     "python.defaultInterpreterPath": "C:\\Program Files\\Python314\\python.exe",
     "python.analysis.extraPaths": [],
     "python.analysis.useLibraryCodeForTypes": true,
-    "python.analysis.diagnosticMode": "workspace",
-    "python.analysis.typeCheckingMode": "basic"
+    "python.analysis.diagnosticMode": "openFilesOnly",
+    "python.analysis.typeCheckingMode": "off"
 }

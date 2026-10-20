@@ -9,7 +9,10 @@
 # // ==============================================================================
 """
 
+from datetime import datetime
+
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
 from apps.core.decorators import approved_required, role_required
@@ -18,6 +21,7 @@ from apps.core.views.helpers import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
     _teacher_dashboard_stats,
+    get_attendance_chart_data,
 )
 
 
@@ -69,6 +73,34 @@ def admin_dashboard(request):
     // [Admin Portal] Renders admin overview with institutional metrics.
     """
     return render(request, 'core/admin/dashboard.html', _admin_dashboard_stats())
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def admin_attendance_chart_json(request):
+    """
+    // [AJAX Endpoint] Dynamic Attendance Analytics
+    // Returns JSON payload for Chart.js across 7, 14, 30 days or specific calendar dates.
+    """
+    days_param = request.GET.get('days', '7').strip()
+    date_param = request.GET.get('date', '').strip()
+
+    target_date = None
+    if date_param:
+        try:
+            target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError:
+            target_date = None
+
+    try:
+        days = int(days_param)
+        if days not in [7, 14, 30]:
+            days = 7
+    except (ValueError, TypeError):
+        days = 7
+
+    data = get_attendance_chart_data(days=days, target_date=target_date)
+    return JsonResponse(data)
 
 
 # // ==============================================================================

@@ -65,6 +65,7 @@ def provision_student_account(form_data: dict, proof_file=None):
         user=user,
         role=Profile.ROLE_STUDENT,
         student_number=form_data['student_number'],
+        student_type=form_data.get('student_type') or Profile.STUDENT_TYPE_REGULAR,
         gender=form_data.get('gender') or None,
         phone_number=form_data.get('phone_number') or None,
         registration_proof=proof_file,

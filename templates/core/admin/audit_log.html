@@ -1,30 +1,85 @@
-﻿{% extends "theme/base.html" %}
+{% extends "theme/base.html" %}
 {% block title %}Audit Log — KCC ClassStamp{% endblock %}
 
 {% block content %}
-<div class="page-header" style="margin-bottom: 22px;">
+<div class="page-header" style="margin-bottom: 20px;">
   <div>
     <div class="flex items-center gap-2 mb-1">
       <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
         <i class="fas fa-shield-halved"></i> Security & Compliance
       </span>
+      {% if category == 'admin' %}
+        <span class="badge badge--success" style="font-size: 0.7rem; padding: 2px 8px;">
+          <i class="fas fa-user-shield"></i> Admin Actions Filter Active
+        </span>
+      {% elif category == 'auth' %}
+        <span class="badge badge--info" style="font-size: 0.7rem; padding: 2px 8px;">
+          <i class="fas fa-key"></i> Auth Filter Active
+        </span>
+      {% endif %}
     </div>
     <h1 class="page-title" style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">
       System Audit Log
     </h1>
     <p class="page-subtitle" style="font-size: 0.88rem;">
-      Immutable record of all high-privilege administrative operations — {{ total_count }} total event(s)
+      Immutable forensic trail of administrative and security events &mdash; {{ total_count }} matching event(s)
     </p>
   </div>
-  <a href="{% url 'admin_dashboard' %}" class="btn btn-outline" style="padding: 10px 18px;">
-    <i class="fas fa-arrow-left"></i> Back to Dashboard
-  </a>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'admin_audit_log_export_csv' %}?{{ base_query_string }}" class="btn btn-primary" style="padding: 10px 18px;" title="Export currently filtered audit logs to CSV">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </a>
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline" style="padding: 10px 18px;">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
 </div>
 
-<!-- Filter Bar -->
+<!-- ── Category Selector Pills ─────────────────────────────────── -->
+<div class="mb-3" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+  <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 4px; display: inline-flex; gap: 4px; flex-wrap: wrap;">
+    <a href="?category=all{% if per_page != '25' %}&per_page={{ per_page }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}"
+       class="btn btn-sm {% if category == 'all' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-list-ul"></i> All Events
+      <span class="badge badge--dark" style="margin-left: 6px; font-size: 0.68rem; background: rgba(255,255,255,0.12);">{{ count_all }}</span>
+    </a>
+    <a href="?category=admin{% if per_page != '25' %}&per_page={{ per_page }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}"
+       class="btn btn-sm {% if category == 'admin' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-shield-halved"></i> Administrative & Security
+      <span class="badge badge--purple" style="margin-left: 6px; font-size: 0.68rem;">{{ count_admin }}</span>
+    </a>
+    <a href="?category=auth{% if per_page != '25' %}&per_page={{ per_page }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}"
+       class="btn btn-sm {% if category == 'auth' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-key"></i> Logins & Sessions
+      <span class="badge badge--info" style="margin-left: 6px; font-size: 0.68rem;">{{ count_auth }}</span>
+    </a>
+  </div>
+
+  <div class="text-xs text-muted">
+    Showing <strong>{{ events.start_index|default:0 }}</strong>&ndash;<strong>{{ events.end_index|default:0 }}</strong> of <strong>{{ total_count }}</strong>
+  </div>
+</div>
+
+<!-- ── Enhanced Filter Card ────────────────────────────────────── -->
 <div class="card mb-4" style="padding: 14px 18px;">
   <form method="GET" class="flex items-center gap-3 flex-wrap">
-    <div class="input-wrap" style="min-width: 220px;">
+    <input type="hidden" name="category" value="{{ category }}">
+
+    <!-- Search Query -->
+    <div class="input-wrap" style="flex: 1; min-width: 220px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text"
+             name="q"
+             class="form-control"
+             placeholder="Search actor, action, object ID, or remarks..."
+             value="{{ search_q }}">
+    </div>
+
+    <!-- Action Filter Dropdown -->
+    <div class="input-wrap" style="min-width: 180px;">
       <i class="fas fa-filter input-icon"></i>
       <select name="action" class="form-control" onchange="this.form.submit()">
         <option value="">All Action Types</option>
@@ -33,15 +88,42 @@
         {% endfor %}
       </select>
     </div>
-    {% if action_filter %}
-      <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm">
-        <i class="fas fa-xmark"></i> Clear Filter
+
+    <!-- Date Picker -->
+    <div class="input-wrap" style="min-width: 150px;">
+      <i class="fas fa-calendar-day input-icon"></i>
+      <input type="date"
+             name="date"
+             class="form-control"
+             value="{{ date_filter }}"
+             title="Filter events by specific date"
+             onchange="this.form.submit()">
+    </div>
+
+    <!-- Page Size Selector -->
+    <div class="input-wrap" style="min-width: 130px;">
+      <i class="fas fa-list-ol input-icon"></i>
+      <select name="per_page" class="form-control" onchange="this.form.submit()">
+        <option value="25" {% if per_page == '25' %}selected{% endif %}>25 per page</option>
+        <option value="50" {% if per_page == '50' %}selected{% endif %}>50 per page</option>
+        <option value="100" {% if per_page == '100' %}selected{% endif %}>100 per page</option>
+        <option value="all" {% if per_page == 'all' %}selected{% endif %}>Show All</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-sm" style="padding: 9px 15px;">
+      <i class="fas fa-search"></i> Filter
+    </button>
+
+    {% if action_filter or search_q or date_filter or per_page != '25' or category != 'all' %}
+      <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm" style="padding: 9px 14px;" title="Reset all filters">
+        <i class="fas fa-rotate-left"></i> Reset
       </a>
     {% endif %}
   </form>
 </div>
 
-<!-- Events Table -->
+<!-- ── Events Table ────────────────────────────────────────────── -->
 <div class="card" style="padding: 0; overflow: hidden;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="flex items-center gap-3">
@@ -49,11 +131,18 @@
         <i class="fas fa-scroll"></i>
       </div>
       <div>
-        <div class="font-bold text-primary" style="font-size: 1rem;">Audit Trail</div>
-        <span class="text-muted text-xs">Append-only — entries are never modified or deleted</span>
+        <div class="font-bold text-primary" style="font-size: 1rem;">
+          Audit Trail
+          {% if category == 'admin' %}
+            <span class="text-xs text-secondary font-normal">&mdash; Administrative Actions</span>
+          {% elif category == 'auth' %}
+            <span class="text-xs text-secondary font-normal">&mdash; Login & Logout Sessions</span>
+          {% endif %}
+        </div>
+        <span class="text-muted text-xs">Append-only immutable record &mdash; entries are cryptographically signed & never altered</span>
       </div>
     </div>
-    <span class="badge badge--info">Page {{ events.number }} of {{ events.paginator.num_pages }}</span>
+    <span class="badge badge--info">Page {{ events.number }} of {{ events.paginator.num_pages|default:1 }}</span>
   </div>
 
   {% if events %}
@@ -79,7 +168,9 @@
             <span class="badge
               {% if 'APPROVE' in e.action %}badge--success
               {% elif 'REJECT' in e.action or 'DELETE' in e.action %}badge--error
+              {% elif 'LOGIN_FAILED' in e.action %}badge--error
               {% elif 'LOGIN' in e.action %}badge--info
+              {% elif 'LOGOUT' in e.action %}badge--warning
               {% elif 'DEACTIVATE' in e.action %}badge--warning
               {% else %}badge--purple{% endif %}"
               style="font-size: 0.7rem; font-family: monospace;">
@@ -95,7 +186,7 @@
             <span class="text-muted">{{ e.object_type }}</span>
             {% if e.object_id %}<span class="text-xs text-muted"> #{{ e.object_id }}</span>{% endif %}
           </td>
-          <td class="text-xs text-muted" style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <td class="text-xs text-muted" style="max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             {% if e.new_value %}{{ e.new_value }}{% elif e.old_value %}{{ e.old_value }}{% elif e.reason %}{{ e.reason }}{% else %}&mdash;{% endif %}
           </td>
         </tr>
@@ -104,20 +195,65 @@
     </table>
   </div>
 
-  <!-- Pagination -->
+  <!-- ── Smart Numbered Pagination ─────────────────────────────── -->
   {% if events.has_other_pages %}
-  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; gap: 8px;">
-    {% if events.has_previous %}
-      <a href="?page={{ events.previous_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}" class="btn btn-outline btn-sm">
-        <i class="fas fa-chevron-left"></i> Prev
-      </a>
-    {% endif %}
-    <span class="text-muted text-sm">{{ events.number }} / {{ events.paginator.num_pages }}</span>
-    {% if events.has_next %}
-      <a href="?page={{ events.next_page_number }}{% if action_filter %}&action={{ action_filter }}{% endif %}" class="btn btn-outline btn-sm">
-        Next <i class="fas fa-chevron-right"></i>
-      </a>
-    {% endif %}
+  <div style="padding: 16px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div class="text-xs text-muted">
+      Page <strong>{{ events.number }}</strong> of <strong>{{ events.paginator.num_pages }}</strong> &bull; (Total <strong>{{ total_count }}</strong> events)
+    </div>
+
+    <div class="flex items-center gap-1">
+      {% if events.number > 1 %}
+        <a href="?page=1{% if base_query_string %}&{{ base_query_string }}{% endif %}"
+           class="btn btn-outline btn-sm"
+           title="First Page"
+           style="padding: 5px 9px; font-size: 0.74rem;">
+          <i class="fas fa-angles-left"></i>
+        </a>
+        <a href="?page={{ events.previous_page_number }}{% if base_query_string %}&{{ base_query_string }}{% endif %}"
+           class="btn btn-outline btn-sm"
+           title="Previous Page"
+           style="padding: 5px 10px; font-size: 0.74rem;">
+          <i class="fas fa-chevron-left"></i> Prev
+        </a>
+      {% endif %}
+
+      {% for p in events.paginator.page_range %}
+        {% if p >= events.number|add:"-2" and p <= events.number|add:"2" %}
+          {% if p == events.number %}
+            <span class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 0.76rem; font-weight: 700; pointer-events: none;">
+              {{ p }}
+            </span>
+          {% else %}
+            <a href="?page={{ p }}{% if base_query_string %}&{{ base_query_string }}{% endif %}"
+               class="btn btn-outline btn-sm"
+               style="padding: 5px 11px; font-size: 0.76rem;">
+              {{ p }}
+            </a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {% if events.has_next %}
+        <a href="?page={{ events.next_page_number }}{% if base_query_string %}&{{ base_query_string }}{% endif %}"
+           class="btn btn-outline btn-sm"
+           title="Next Page"
+           style="padding: 5px 10px; font-size: 0.74rem;">
+          Next <i class="fas fa-chevron-right"></i>
+        </a>
+        <a href="?page={{ events.paginator.num_pages }}{% if base_query_string %}&{{ base_query_string }}{% endif %}"
+           class="btn btn-outline btn-sm"
+           title="Last Page"
+           style="padding: 5px 9px; font-size: 0.74rem;">
+          <i class="fas fa-angles-right"></i>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <span class="text-xs text-muted">Showing all <strong>{{ total_count }}</strong> event(s)</span>
+    <span class="badge badge--success badge--xs"><i class="fas fa-check"></i> Single Page View</span>
   </div>
   {% endif %}
 
@@ -127,7 +263,12 @@
       <i class="fas fa-scroll"></i>
     </div>
     <h3 class="text-primary font-bold" style="font-size: 1.1rem; margin-bottom: 4px;">No Audit Events Found</h3>
-    <p class="text-muted text-sm">No events match the current filter. Try clearing the filter to see all records.</p>
+    <p class="text-muted text-sm" style="max-width: 420px; margin: 0 auto 16px;">
+      No events matched your current filters. Try resetting the filters or selecting another category tab.
+    </p>
+    <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm">
+      <i class="fas fa-rotate-left"></i> Reset All Filters
+    </a>
   </div>
   {% endif %}
 </div>

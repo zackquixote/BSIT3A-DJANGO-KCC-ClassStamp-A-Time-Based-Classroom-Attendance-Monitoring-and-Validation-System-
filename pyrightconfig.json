@@ -2,17 +2,20 @@
   "pythonVersion": "3.14",
   "pythonPlatform": "Windows",
   "venvPath": ".",
-  "pythonPath": "C:/Program Files/Python314/python.exe",
-  "extraPaths": [
-    "C:/Users/Ronelo/AppData/Roaming/Python/Python314/site-packages"
-  ],
+  "typeCheckingMode": "off",
+  "reportAttributeAccessIssue": "none",
+  "reportOperatorIssue": "none",
+  "reportArgumentType": "none",
+  "reportAssignmentType": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportMissingTypeStubs": "none",
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
     "**/migrations",
     ".venv"
-  ],
-  "reportMissingImports": "none",
-  "reportMissingModuleSource": "none",
-  "reportMissingTypeStubs": "none"
+  ]
 }

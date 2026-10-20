@@ -60,34 +60,41 @@
         <i class="fas fa-chalkboard-user sidebar-link-icon"></i>
         <span>Teachers</span>
       </a>
+      <a href="{% url 'class_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':5' == 'class' %}active{% endif %}">
+        <i class="fas fa-chalkboard sidebar-link-icon"></i>
+        <span>Classes &amp; Schedules</span>
+      </a>
       <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}">
         <i class="fas fa-calendar-days sidebar-link-icon"></i>
         <span>Academic Years</span>
       </a>
 
       <span class="sidebar-section-label">Security</span>
+      <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}">
+        <i class="fas fa-triangle-exclamation sidebar-link-icon"></i>
+        <span>Security Alerts</span>
+        {% if open_anomaly_count %}
+          <span class="sidebar-badge" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);">{{ open_anomaly_count }}</span>
+        {% endif %}
+      </a>
       <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}">
         <i class="fas fa-shield-halved sidebar-link-icon"></i>
         <span>Audit Log</span>
       </a>
 
     {% elif profile and profile.role == 'TEACHER' %}
-      <span class="sidebar-section-label">Teacher</span>
-      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teacher_dashboard' %}active{% endif %}">
+      <span class="sidebar-section-label">Faculty Portal</span>
+      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name in 'teacher_dashboard teacher_session_scan teacher_session_summary' %}active{% endif %}">
         <i class="fas fa-gauge-high sidebar-link-icon"></i>
         <span>Dashboard</span>
       </a>
-      <a href="#" class="sidebar-link">
+      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link">
         <i class="fas fa-qrcode sidebar-link-icon"></i>
-        <span>Scan QR</span>
+        <span>Scan Attendance</span>
       </a>
-      <a href="#" class="sidebar-link">
-        <i class="fas fa-list-check sidebar-link-icon"></i>
+      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link">
+        <i class="fas fa-chalkboard sidebar-link-icon"></i>
         <span>My Classes</span>
-      </a>
-      <a href="#" class="sidebar-link">
-        <i class="fas fa-clock sidebar-link-icon"></i>
-        <span>Sessions</span>
       </a>
 
     {% elif profile and profile.role == 'STUDENT' %}

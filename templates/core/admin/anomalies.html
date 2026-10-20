@@ -1,0 +1,301 @@
+{% extends "theme/base.html" %}
+{% block title %}Security Alerts & Anomaly Review — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 20px;">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge--danger" style="font-size: 0.72rem; padding: 2px 10px;">
+        <i class="fas fa-triangle-exclamation"></i> Security Intelligence
+      </span>
+      {% if count_open %}
+        <span class="badge badge--warning" style="font-size: 0.7rem; padding: 2px 8px;">
+          {{ count_open }} Open Issue{{ count_open|pluralize }} Requiring Review
+        </span>
+      {% else %}
+        <span class="badge badge--success" style="font-size: 0.7rem; padding: 2px 8px;">
+          <i class="fas fa-check-circle"></i> All Clear
+        </span>
+      {% endif %}
+    </div>
+    <h1 class="page-title" style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">
+      Attendance Anomaly & Fraud Flags
+    </h1>
+    <p class="page-subtitle" style="font-size: 0.88rem;">
+      Forensic adjudication of automated suspicious scan attempts, proxy sharing, and token replays
+    </p>
+  </div>
+  <a href="{% url 'admin_dashboard' %}" class="btn btn-outline" style="padding: 10px 18px;">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+
+<!-- ── Stat Grid ──────────────────────────────────────────────── -->
+<div class="stat-grid mb-4">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--red">
+      <i class="fas fa-triangle-exclamation"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value text-error">{{ count_open }}</span>
+      <span class="stat-label">Open Alerts</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-user-xmark"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ count_confirmed }}</span>
+      <span class="stat-label">Confirmed Proxies</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-shield-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ count_dismissed }}</span>
+      <span class="stat-label">Dismissed / Resolved</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-fingerprint"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ count_all }}</span>
+      <span class="stat-label">Total Flags Tracked</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Status Selector & Filters ──────────────────────────────── -->
+<div class="mb-3" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+  <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 4px; display: inline-flex; gap: 4px; flex-wrap: wrap;">
+    <a href="?status=OPEN{% if search_q %}&q={{ search_q }}{% endif %}"
+       class="btn btn-sm {% if status_filter == 'OPEN' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-bell"></i> Open Flags
+      <span class="badge badge--danger" style="margin-left: 6px; font-size: 0.68rem;">{{ count_open }}</span>
+    </a>
+    <a href="?status=CONFIRMED{% if search_q %}&q={{ search_q }}{% endif %}"
+       class="btn btn-sm {% if status_filter == 'CONFIRMED' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-ban"></i> Confirmed
+      <span class="badge badge--dark" style="margin-left: 6px; font-size: 0.68rem; background: rgba(255,255,255,0.12);">{{ count_confirmed }}</span>
+    </a>
+    <a href="?status=DISMISSED{% if search_q %}&q={{ search_q }}{% endif %}"
+       class="btn btn-sm {% if status_filter == 'DISMISSED' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-check"></i> Dismissed
+      <span class="badge badge--dark" style="margin-left: 6px; font-size: 0.68rem; background: rgba(255,255,255,0.12);">{{ count_dismissed }}</span>
+    </a>
+    <a href="?status=ALL{% if search_q %}&q={{ search_q }}{% endif %}"
+       class="btn btn-sm {% if status_filter == 'ALL' %}btn-primary{% else %}btn-ghost text-muted{% endif %}"
+       style="border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; padding: 6px 14px;">
+      <i class="fas fa-list"></i> All Records
+      <span class="badge badge--dark" style="margin-left: 6px; font-size: 0.68rem; background: rgba(255,255,255,0.12);">{{ count_all }}</span>
+    </a>
+  </div>
+
+  <form method="GET" class="flex items-center gap-2" style="min-width: 260px;">
+    <input type="hidden" name="status" value="{{ status_filter }}">
+    <div class="input-wrap" style="flex: 1;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" class="form-control" placeholder="Search student, rule code..." value="{{ search_q }}">
+    </div>
+    <button type="submit" class="btn btn-outline btn-sm" style="padding: 9px 12px;">Search</button>
+  </form>
+</div>
+
+<!-- ── Anomaly Records Table ───────────────────────────────────── -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  {% if flags %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Rule & Risk</th>
+          <th>Student Details</th>
+          <th>Class & Session</th>
+          <th>Forensic Detection Reason</th>
+          <th>Status</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for flag in flags %}
+        <tr>
+          <td>
+            <div class="font-bold text-sm text-primary">{{ flag.rule_code }}</div>
+            <div class="text-xs text-muted mt-0.5">
+              Flag #{{ flag.id }} · {{ flag.created_at|timesince }} ago
+            </div>
+            {% if flag.risk_score %}
+              <div class="mt-1">
+                <span class="badge {% if flag.risk_score >= 0.75 %}badge--danger{% elif flag.risk_score >= 0.4 %}badge--warning{% else %}badge--info{% endif %} badge--xs">
+                  Risk: {{ flag.risk_score }}
+                </span>
+              </div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="font-semibold text-sm">
+              {{ flag.attendance_record.student_profile.user.get_full_name|default:flag.attendance_record.student_profile.user.username }}
+            </div>
+            <div class="text-xs text-muted">
+              {{ flag.attendance_record.student_profile.student_number|default:"No ID" }}
+              {% if flag.attendance_record.student_profile.program %}
+                · {{ flag.attendance_record.student_profile.program.code }}
+              {% endif %}
+            </div>
+          </td>
+          <td>
+            <div class="font-semibold text-sm text-primary">
+              {{ flag.attendance_record.session.slot.class_obj.class_code|default:"—" }}
+            </div>
+            <div class="text-xs text-muted">
+              {{ flag.attendance_record.session.slot.class_obj.subject.code }} · {{ flag.attendance_record.session.session_date }}
+            </div>
+          </td>
+          <td style="max-width: 320px;">
+            <div class="text-xs text-muted" style="line-height: 1.4;">
+              {{ flag.reason }}
+            </div>
+            {% for action in flag.review_actions.all %}
+              <div class="text-xs mt-1 p-1" style="background: rgba(255,255,255,0.03); border-radius: 4px; border: 1px solid var(--glass-border);">
+                <strong class="text-primary">{{ action.get_decision_display }}</strong> by {{ action.reviewer.username }}:
+                <span class="text-muted">{{ action.reason }}</span>
+              </div>
+            {% endfor %}
+          </td>
+          <td>
+            {% if flag.status == 'OPEN' %}
+              <span class="badge badge--danger badge--xs"><i class="fas fa-circle-exclamation"></i> Open</span>
+            {% elif flag.status == 'CONFIRMED' %}
+              <span class="badge badge--warning badge--xs"><i class="fas fa-ban"></i> Confirmed Proxy</span>
+            {% elif flag.status == 'DISMISSED' %}
+              <span class="badge badge--success badge--xs"><i class="fas fa-check"></i> Dismissed</span>
+            {% elif flag.status == 'EXCUSED' %}
+              <span class="badge badge--info badge--xs"><i class="fas fa-notes-medical"></i> Excused</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="flex items-center gap-2" style="justify-content: flex-end;">
+              {% if flag.status == 'OPEN' %}
+                <button type="button" class="btn btn-primary btn-xs adjudicate-btn"
+                        data-flag-id="{{ flag.id }}"
+                        data-rule="{{ flag.rule_code }}"
+                        data-student="{{ flag.attendance_record.student_profile.user.get_full_name|default:flag.attendance_record.student_profile.user.username }}">
+                  <i class="fas fa-gavel"></i> Adjudicate
+                </button>
+              {% else %}
+                <span class="text-xs text-muted font-mono">Resolved</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding: 60px 20px; text-align: center;">
+    <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #4ade80; margin-bottom: 12px;">
+      <i class="fas fa-shield-check"></i>
+    </div>
+    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin: 0 0 6px;">No Flagged Security Anomalies</h3>
+    <p class="text-muted text-xs" style="max-width: 400px; margin: 0 auto;">
+      {% if status_filter == 'OPEN' %}
+        There are currently no open fraud or attendance security alerts requiring administrative action.
+      {% else %}
+        No security flags matching the current filter criteria were found.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Adjudication Modal ─────────────────────────────────────── -->
+<div class="dash-modal-backdrop" id="adjudicateModal">
+  <div class="dash-modal" role="dialog" aria-labelledby="modalTitle" style="max-width: 480px;">
+    <div class="dash-modal-head">
+      <h3 class="dash-modal-title" id="modalTitle">
+        <i class="fas fa-gavel text-gold"></i>
+        <span>Adjudicate Security Alert</span>
+      </h3>
+      <button type="button" class="dash-modal-close" id="closeAdjudicateBtn" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" id="adjudicateForm" action="">
+      {% csrf_token %}
+      <div class="dash-modal-body" style="gap: 14px; padding: 18px 20px;">
+        <div class="p-2" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm);">
+          <div class="text-xs text-muted">Target Student: <strong class="text-primary" id="modalStudentName">—</strong></div>
+          <div class="text-xs text-muted mt-1">Rule Flag: <strong class="text-gold" id="modalRuleCode">—</strong></div>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Adjudication Decision *</label>
+          <select name="decision" class="form-control" required style="width: 100%;">
+            <option value="">Select Official Ruling...</option>
+            <option value="DISMISS">Dismiss (False Positive / Verified Legitimate)</option>
+            <option value="CONFIRM_PROXY">Confirm Proxy (Fraudulent Check-in / Proxy Device)</option>
+            <option value="EXCUSE">Excuse (Mitigating Circumstances / Valid Reason)</option>
+            <option value="OTHER">Other Ruling</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Official Justification / Notes *</label>
+          <textarea name="reason" class="form-control" rows="3" required placeholder="Explain forensic review findings or why this decision was reached..."></textarea>
+        </div>
+      </div>
+      <div style="padding: 12px 20px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-outline btn-sm" id="cancelAdjudicateBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Submit Ruling</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const modal = document.getElementById('adjudicateModal');
+  const closeBtn = document.getElementById('closeAdjudicateBtn');
+  const cancelBtn = document.getElementById('cancelAdjudicateBtn');
+  const form = document.getElementById('adjudicateForm');
+  const modalStudentName = document.getElementById('modalStudentName');
+  const modalRuleCode = document.getElementById('modalRuleCode');
+
+  document.querySelectorAll('.adjudicate-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const flagId = this.dataset.flagId;
+      modalStudentName.textContent = this.dataset.student;
+      modalRuleCode.textContent = this.dataset.rule;
+      form.action = '/admin/anomalies/' + flagId + '/adjudicate/';
+      modal.classList.add('is-open');
+    });
+  });
+
+  function closeModal() {
+    modal.classList.remove('is-open');
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (modal) {
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeModal();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+  });
+});
+</script>
+{% endblock %}

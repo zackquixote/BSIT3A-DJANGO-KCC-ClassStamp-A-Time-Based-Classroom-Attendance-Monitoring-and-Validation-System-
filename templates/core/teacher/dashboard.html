@@ -1,73 +1,366 @@
 {% extends "theme/base.html" %}
-{% block title %}Teacher Dashboard — KCC ClassStamp{% endblock %}
+
+{% block title %}Teacher Portal &amp; Attendance Console — KCC ClassStamp{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<!-- Page Header -->
+<div class="page-header mb-4">
   <div>
-    <h1 class="page-title">Teacher Dashboard</h1>
-    <p class="page-subtitle">Your classes and attendance sessions</p>
+    <h1 class="page-title">Faculty Attendance Console</h1>
+    <p class="page-subtitle">
+      Welcome back, <strong class="text-primary">{{ request.user.get_full_name|default:request.user.username }}</strong> &nbsp;•&nbsp; 
+      <span class="text-gold font-mono">{{ today_date|date:"l, F j, Y" }}</span>
+    </p>
+  </div>
+  <div>
+    <button type="button" class="btn btn-primary" data-modal-target="quickLaunchModal" id="quickLaunchBtn">
+      <i class="fas fa-satellite-dish"></i> Open Attendance Session
+    </button>
   </div>
 </div>
 
-<div class="stat-grid mb-6">
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--blue">
-      <i class="fas fa-chalkboard-user"></i>
-    </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ class_count }}</span>
-      <span class="stat-label">My Active Classes</span>
+<!-- Ongoing Active Session Alert Banner (if any session is currently OPEN) -->
+{% if open_sessions %}
+  {% for s in open_sessions %}
+  <div class="card mb-4" style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.4); padding: 16px 20px;">
+    <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 12px;">
+      <div class="flex items-center gap-3">
+        <div class="stat-icon" style="background: rgba(34, 197, 94, 0.2); color: #4ade80; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+          <i class="fas fa-satellite-dish fa-spin"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="badge badge--success text-xs font-bold">SESSION IN PROGRESS</span>
+            <span class="font-mono text-gold font-semibold">{{ s.slot.class_obj.class_code }}</span>
+          </div>
+          <h3 class="font-semibold text-primary text-base mt-0.5">{{ s.slot.class_obj.subject.code }} — {{ s.slot.class_obj.subject.name }}</h3>
+          <p class="text-muted text-xs">
+            <i class="fas fa-location-dot text-gold"></i> {{ s.slot.room|default:"Classroom" }} &nbsp;•&nbsp;
+            Opened at {{ s.opened_at|date:"h:i A" }}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="{% url 'teacher_session_scan' s.id %}" class="btn btn-primary" style="padding: 10px 18px; font-weight: 600;">
+          <i class="fas fa-qrcode"></i> Enter Scanner Chamber
+        </a>
+      </div>
     </div>
   </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--green">
-      <i class="fas fa-calendar-check"></i>
+  {% endfor %}
+{% endif %}
+
+<!-- Telemetry KPI Stat Grid -->
+<div class="stat-grid mb-4">
+  <!-- My Active Classes -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Assigned Classes</p>
+        <h3 class="stat-value font-mono text-primary mt-1">{{ class_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-chalkboard-user" style="font-size: 1.2rem;"></i>
+      </div>
     </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ open_session_count }}</span>
-      <span class="stat-label">Open Sessions</span>
+    <div class="mt-2 text-xs text-muted">Active Teaching Sections</div>
+  </div>
+
+  <!-- Open Sessions -->
+  <div class="card stat-card--kpi card--hoverable" style="border-color: {% if open_session_count > 0 %}rgba(34, 197, 94, 0.5){% else %}var(--glass-border){% endif %};">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Active Sessions</p>
+        <h3 class="stat-value font-mono text-success mt-1">{{ open_session_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-camera" style="font-size: 1.2rem;"></i>
+      </div>
     </div>
+    <div class="mt-2 text-xs text-muted">Currently scanning rooms</div>
+  </div>
+
+  <!-- Total Students in Roster -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Total Students</p>
+        <h3 class="stat-value font-mono text-warning mt-1">{{ total_students_roster }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-users" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Across all your class rosters</div>
+  </div>
+
+  <!-- Historical Meetings & Compliance -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Compliance Rate</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: #c084fc;">{{ overall_attendance_rate }}%</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-chart-line" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">{{ total_sessions_count }} meeting{{ total_sessions_count|pluralize }} conducted</div>
   </div>
 </div>
 
-<div class="card" style="padding: 0; overflow: hidden;">
-  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border);">
-    <div class="font-semibold text-primary">My Classes</div>
+<!-- Today's Class Schedule Launcher -->
+<div class="card mb-4" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-clock text-gold"></i> Today's Teaching Schedule ({{ today_date|date:"l" }})
+    </div>
+    <span class="text-muted text-xs">{{ today_slots.count }} scheduled slot{{ today_slots.count|pluralize }} today</span>
   </div>
-  {% if classes %}
+
   <div class="table-responsive">
     <table class="table">
       <thead>
         <tr>
+          <th>Time Window</th>
           <th>Class Code</th>
           <th>Subject</th>
-          <th>Academic Year</th>
-          <th style="text-align: right;">Actions</th>
+          <th>Room</th>
+          <th style="text-align: right;">Session Action</th>
         </tr>
       </thead>
       <tbody>
-        {% for c in classes %}
+        {% for slot in today_slots %}
         <tr>
-          <td class="font-semibold">{{ c.class_code }}</td>
-          <td class="text-muted">{{ c.subject.code }} — {{ c.subject.name }}</td>
-          <td class="text-muted">{{ c.academic_year.name }}</td>
           <td>
-            <div class="flex items-center gap-2" style="justify-content: flex-end;">
-              <button class="btn btn-secondary" type="button" title="QR Scanner coming in Phase 4">
-                <i class="fas fa-qrcode"></i> Scan
+            <span class="font-mono text-primary font-semibold text-sm">
+              <i class="fas fa-clock text-gold text-xs mr-1"></i> {{ slot.starts_at|time:"h:i A" }} – {{ slot.ends_at|time:"h:i A" }}
+            </span>
+          </td>
+          <td>
+            <span class="badge badge--primary font-mono">{{ slot.class_obj.class_code }}</span>
+          </td>
+          <td>
+            <div class="font-semibold text-primary">{{ slot.class_obj.subject.code }}</div>
+            <div class="text-muted text-xs">{{ slot.class_obj.subject.name }}</div>
+          </td>
+          <td>
+            <span class="text-muted text-xs"><i class="fas fa-location-dot text-gold"></i> {{ slot.room|default:"TBA" }}</span>
+          </td>
+          <td style="text-align: right;">
+            <form method="POST" action="{% url 'teacher_session_open' %}" style="display: inline-block;">
+              {% csrf_token %}
+              <input type="hidden" name="class_id" value="{{ slot.class_obj.id }}">
+              <input type="hidden" name="slot_id" value="{{ slot.id }}">
+              <button type="submit" class="btn btn-primary btn-sm" style="padding: 6px 14px;">
+                <i class="fas fa-qrcode"></i> Open Attendance Session
               </button>
-            </div>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 28px 16px;" class="text-muted text-sm">
+            <i class="fas fa-calendar-day" style="font-size: 1.5rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
+            No scheduled timetable slots for today ({{ today_date|date:"l" }}). You can still launch an ad-hoc session below.
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}
-  <div style="padding: 40px 20px; text-align: center;">
-    <i class="fas fa-chalkboard" style="font-size: 2rem; color: var(--text-muted, #94a3b8);"></i>
-    <p class="text-muted text-sm" style="margin-top: 10px;">You have no active classes yet.</p>
+</div>
+
+<!-- Recent Completed Attendance Sessions & Summary Log -->
+<div class="card mb-4" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-clipboard-check text-gold"></i> Recent Attendance Sessions &amp; Meeting Rolls
+    </div>
+    <span class="text-muted text-xs">{{ recent_sessions|length }} recorded session{{ recent_sessions|length|pluralize }}</span>
   </div>
-  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Meeting Date &amp; Time</th>
+          <th>Class Section</th>
+          <th>Subject</th>
+          <th>Attendance Breakdown</th>
+          <th>Compliance</th>
+          <th>Status</th>
+          <th style="text-align: right; width: 170px;">Official Roll</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in recent_sessions %}
+        <tr>
+          <td>
+            <div class="font-semibold text-primary font-mono text-xs">
+              <i class="fas fa-calendar-day text-gold mr-1"></i> {{ s.session_date|date:"M d, Y" }}
+            </div>
+            <div class="text-muted text-xs font-mono">
+              {{ s.opened_at|date:"h:i A" }}{% if s.closed_at %} – {{ s.closed_at|date:"h:i A" }}{% endif %}
+            </div>
+          </td>
+          <td>
+            <span class="badge badge--primary font-mono">{{ s.slot.class_obj.class_code }}</span>
+          </td>
+          <td>
+            <div class="font-semibold text-primary text-xs">{{ s.slot.class_obj.subject.code }}</div>
+            <div class="text-muted text-xs" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.slot.class_obj.subject.name }}</div>
+          </td>
+          <td>
+            <div class="flex items-center gap-1">
+              <span class="badge badge--success text-xs font-mono" title="Present on time">
+                <i class="fas fa-check"></i> {{ s.present_count }}
+              </span>
+              <span class="badge badge--warning text-xs font-mono" title="Late stamp">
+                <i class="fas fa-clock"></i> {{ s.late_count }}
+              </span>
+              <span class="badge badge--danger text-xs font-mono" title="Absent / Unstamped">
+                <i class="fas fa-xmark"></i> {{ s.absent_count }}
+              </span>
+              {% if s.excused_count > 0 %}
+              <span class="badge badge--muted text-xs font-mono" title="Excused">
+                {{ s.excused_count }} Ex
+              </span>
+              {% endif %}
+            </div>
+          </td>
+          <td>
+            {% if s.attendance_rate >= 80 %}
+              <span class="badge badge--success font-mono text-xs">{{ s.attendance_rate }}%</span>
+            {% elif s.attendance_rate >= 60 %}
+              <span class="badge badge--warning font-mono text-xs">{{ s.attendance_rate }}%</span>
+            {% else %}
+              <span class="badge badge--danger font-mono text-xs">{{ s.attendance_rate }}%</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge--muted text-xs font-mono">
+              <i class="fas fa-lock"></i> CLOSED
+            </span>
+          </td>
+          <td style="text-align: right;">
+            <a href="{% url 'teacher_session_summary' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 12px; font-weight: 600;">
+              <i class="fas fa-file-invoice text-gold"></i> View Summary Roll
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px 16px;" class="text-muted text-sm">
+            <i class="fas fa-folder-open" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
+            No concluded attendance meetings yet. Once you open and close a session, its official attendance roll will be recorded here.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- My Assigned Classes Masterlist -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-chalkboard text-gold"></i> My Active Classes &amp; Sections
+    </div>
+    <span class="text-muted text-xs">{{ classes.count }} active section{{ classes.count|pluralize }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Class Code</th>
+          <th>Subject Description</th>
+          <th>Academic Term</th>
+          <th>Roster Size</th>
+          <th>Grace Window</th>
+          <th style="text-align: right; width: 180px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in classes %}
+        <tr>
+          <td>
+            <span class="badge badge--primary font-mono font-semibold">{{ c.class_code }}</span>
+          </td>
+          <td>
+            <div class="font-semibold text-primary">{{ c.subject.code }} — {{ c.subject.name }}</div>
+            <div class="text-muted text-xs">{{ c.slot_count }} weekly meeting slot{{ c.slot_count|pluralize }}</div>
+          </td>
+          <td>
+            <span class="text-muted text-xs">{{ c.academic_year.name }}</span>
+          </td>
+          <td>
+            <span class="badge badge--muted font-mono"><i class="fas fa-user-graduate"></i> {{ c.roster_count }} student{{ c.roster_count|pluralize }}</span>
+          </td>
+          <td>
+            <span class="text-muted text-xs font-mono"><i class="fas fa-stopwatch text-gold"></i> {{ c.grace_minutes }} mins</span>
+          </td>
+          <td style="text-align: right;">
+            <form method="POST" action="{% url 'teacher_session_open' %}" style="display: inline-block;">
+              {% csrf_token %}
+              <input type="hidden" name="class_id" value="{{ c.id }}">
+              <button type="submit" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="Open attendance scanning session">
+                <i class="fas fa-qrcode text-gold"></i> Start Session
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 48px 16px;" class="text-muted text-sm">
+            <i class="fas fa-chalkboard-user" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 10px; display: block;"></i>
+            You do not have any assigned classes yet. Please coordinate with the College Department or System Administrator.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Quick Launch Attendance Session                                        -->
+<!-- ============================================================================== -->
+<div class="modal" id="quickLaunchModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-satellite-dish text-gold"></i> Open Attendance Session</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="quickLaunchModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" action="{% url 'teacher_session_open' %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <div class="form-group mb-3">
+          <label class="form-label" for="launch_class_id">Select Class Section <span class="text-danger">*</span></label>
+          <select id="launch_class_id" name="class_id" class="form-control" required>
+            {% for c in classes %}
+              <option value="{{ c.id }}">{{ c.class_code }} — {{ c.subject.code }} ({{ c.roster_count }} students)</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; margin-top: 14px;">
+          <div class="text-xs text-muted uppercase font-semibold">Today's Meeting Instance</div>
+          <div class="text-sm font-semibold text-primary mt-1">{{ today_date|date:"l, F j, Y" }}</div>
+          <p class="text-muted text-xs mt-1">Opening a session creates an active room and launches the camera scanner chamber.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="quickLaunchModal">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-qrcode"></i> Launch &amp; Enter Scanner
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

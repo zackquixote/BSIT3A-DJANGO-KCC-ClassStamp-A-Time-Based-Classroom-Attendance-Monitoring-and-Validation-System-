@@ -56,6 +56,8 @@ urlpatterns = [
     path('teachers/toggle/<int:pk>/', views.teacher_toggle, name='teacher_toggle'),
     path('teachers/delete/<int:pk>/', views.teacher_delete, name='teacher_delete'),
     path('teachers/get/<int:pk>/', views.teacher_get, name='teacher_get'),
+    path('teachers/<int:pk>/assign-class/', views.teacher_assign_class_ajax, name='teacher_assign_class_ajax'),
+    path('teachers/<int:pk>/unassign-class/<int:class_id>/', views.teacher_unassign_class_ajax, name='teacher_unassign_class_ajax'),
 
     # // Admin: Academic Year & Term Management
     path('academic-years/', views.academic_year_list, name='academic_year_list'),
@@ -64,9 +66,33 @@ urlpatterns = [
     path('academic-years/delete/<int:pk>/', views.academic_year_delete, name='academic_year_delete'),
     path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
 
+    # // Admin: Class Sections, Schedules & Roster Enrollment
+    path('classes/', views.class_list, name='class_list'),
+    path('classes/save/', views.class_save, name='class_save'),
+    path('classes/toggle/<int:pk>/', views.class_toggle, name='class_toggle'),
+    path('classes/<int:class_id>/slot/save/', views.class_slot_save, name='class_slot_save'),
+    path('classes/slot/delete/<int:slot_id>/', views.class_slot_delete, name='class_slot_delete'),
+    path('classes/<int:class_id>/roster/', views.class_roster_get, name='class_roster_get'),
+    path('classes/<int:class_id>/roster/enroll/', views.class_roster_enroll, name='class_roster_enroll'),
+    path('classes/roster/remove/<int:enrollment_id>/', views.class_roster_remove, name='class_roster_remove'),
+
+    # // Admin: Security Intelligence & Anomaly Adjudication
+    path('admin/anomalies/', views.anomaly_list, name='anomaly_list'),
+    path('admin/anomalies/<int:pk>/adjudicate/', views.anomaly_adjudicate, name='anomaly_adjudicate'),
+
     # // Admin: Audit Log & AJAX API Endpoints
     path('admin/audit-log/', views.admin_audit_log, name='admin_audit_log'),
+    path('admin/audit-log/export-csv/', views.admin_audit_log_export_csv, name='admin_audit_log_export_csv'),
     path('api/admin/activity-feed/', views.admin_activity_feed_json, name='admin_activity_feed_json'),
     path('api/admin/pending-count/', views.admin_pending_count_json, name='admin_pending_count_json'),
+    path('api/admin/attendance-chart/', views.admin_attendance_chart_json, name='admin_attendance_chart_json'),
     path('api/subjects/lookup/', views.subject_lookup_json, name='subject_lookup_json'),
+
+    # // Teacher: Classroom Attendance Sessions & Live QR Scanner
+    path('teacher/session/open/', views.teacher_session_open, name='teacher_session_open'),
+    path('teacher/session/<int:session_id>/scan/', views.teacher_session_scan, name='teacher_session_scan'),
+    path('teacher/session/<int:session_id>/close/', views.teacher_session_close, name='teacher_session_close'),
+    path('teacher/session/<int:session_id>/summary/', views.teacher_session_summary, name='teacher_session_summary'),
+    path('teacher/session/<int:session_id>/override/', views.teacher_manual_override_ajax, name='teacher_manual_override_ajax'),
+    path('api/attendance/scan/', views.attendance_scan_api, name='attendance_scan_api'),
 ]

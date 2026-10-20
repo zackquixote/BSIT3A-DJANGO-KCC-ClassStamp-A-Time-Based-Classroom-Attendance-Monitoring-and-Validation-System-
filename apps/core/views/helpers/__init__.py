@@ -28,6 +28,7 @@ from .dashboard_helpers import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
     _teacher_dashboard_stats,
+    get_attendance_chart_data,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     '_admin_dashboard_stats',
     '_teacher_dashboard_stats',
     '_student_dashboard_stats',
+    'get_attendance_chart_data',
 ]

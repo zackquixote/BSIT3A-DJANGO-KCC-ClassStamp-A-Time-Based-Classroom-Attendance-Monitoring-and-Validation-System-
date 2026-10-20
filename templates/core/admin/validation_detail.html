@@ -74,7 +74,7 @@
         <tr>
           <td class="font-semibold text-primary">
             <a href="{% url 'validation_detail' d.student_number %}" class="student-name-link">{{ d.user.get_full_name }}</a>
-            <span class="text-muted text-xs block">@{{ d.user.username }} · {{ d.user.email }}</span>
+            <span class="text-muted text-xs block">{{ d.user.email }}</span>
           </td>
           <td class="text-gold font-semibold">{{ d.student_number }}</td>
           <td class="text-muted">{{ d.program.code }}</td>
@@ -211,8 +211,8 @@
           </div>
         </div>
 
-        <!-- Student ID & Year Level row -->
-        <div class="form-row">
+        <!-- Student ID, Year Level & Academic Classification row -->
+        <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
           <div class="form-group">
             <label class="form-label" for="reg_student_number">Student ID Number</label>
             <div class="input-wrap">
@@ -229,7 +229,7 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="reg_year_level">Year Level</label>
+            <label class="form-label" for="reg_year_level">Year Level Standing</label>
             <div class="input-wrap">
               <i class="fas fa-layer-group input-icon"></i>
               <input
@@ -240,6 +240,22 @@
                 readonly
                 style="background: rgba(10, 18, 36, 0.6); color: var(--text-primary);"
               >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Academic Classification</label>
+            <div class="input-wrap" style="height: 42px;">
+              <i class="fas fa-user-tag input-icon" style="z-index: 2;"></i>
+              <div class="form-control" style="background: rgba(10, 18, 36, 0.6); display: flex; align-items: center; padding-left: 38px; height: 100%;">
+                {% if student_profile.student_type == 'IRREGULAR' %}
+                  <span class="badge badge--warning" style="font-size: 0.78rem;"><i class="fas fa-shuffle"></i> Irregular / Returnee</span>
+                {% elif student_profile.student_type == 'TRANSFEREE' %}
+                  <span class="badge badge--purple" style="font-size: 0.78rem;"><i class="fas fa-right-left"></i> Transferee</span>
+                {% else %}
+                  <span class="badge badge--info" style="font-size: 0.78rem;"><i class="fas fa-user-check"></i> Regular Student</span>
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>

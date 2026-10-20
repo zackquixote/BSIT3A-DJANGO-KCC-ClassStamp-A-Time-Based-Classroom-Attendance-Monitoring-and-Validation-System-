@@ -26,3 +26,6 @@
 
 /* ── 8. Account Validation Queue & Dossier Review ────────────── */
 @import url('validation.css');
+
+/* ── 9. Admin Command Center Dashboard ───────────────────────── */
+@import url('dashboard.css');

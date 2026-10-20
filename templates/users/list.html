@@ -1,53 +1,186 @@
 {% extends "theme/base.html" %}
-{% block title %}User Management — KCC ClassStamp{% endblock %}
+{% block title %}User Management & Access Control — KCC ClassStamp{% endblock %}
 
 {% block content %}
+<!-- Page Header -->
 <div class="page-header">
   <div>
-    <h1 class="page-title">User Management</h1>
-    <p class="page-subtitle">Manage system user accounts, credentials, and access roles</p>
+    <h1 class="page-title">User Management &amp; Access Control</h1>
+    <p class="page-subtitle">Central identity directory, authentication credentials, and role-based security access</p>
   </div>
-  <div>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'users:user_export_csv' %}?role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if prog_filter %}&program={{ prog_filter }}{% endif %}{% if year_filter %}&year_level={{ year_filter }}{% endif %}" class="btn btn-outline">
+      <i class="fas fa-file-csv text-gold"></i> Export CSV
+    </a>
     <button type="button" class="btn btn-primary" data-modal-target="editUserModal" id="addUserBtn">
-      <i class="fas fa-plus-circle"></i> Add User
+      <i class="fas fa-user-plus"></i> Add User
     </button>
   </div>
 </div>
 
-<!-- Search Bar -->
-<div class="card mb-4" style="padding: 14px 18px;">
-  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
-    <div class="input-wrap" style="flex: 1; min-width: 240px;">
-      <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, or email...">
+<!-- KPI Stat Grid -->
+<div class="stat-grid mb-4">
+  <!-- Total System Accounts -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Total Accounts</p>
+        <h3 class="stat-value font-mono text-primary mt-1">{{ total_users_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--gold-light); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-users" style="font-size: 1.2rem;"></i>
+      </div>
     </div>
+    <div class="mt-2 text-xs text-muted flex items-center justify-between">
+      <span>System Identity Pool</span>
+      {% if total_inactive_count > 0 %}
+        <a href="?role={{ role_tab }}&status=inactive" class="badge badge--danger" style="text-decoration: none;" title="Filter inactive accounts">
+          <i class="fas fa-user-slash"></i> {{ total_inactive_count }} Inactive
+        </a>
+      {% else %}
+        <span class="badge badge--success"><i class="fas fa-shield-check"></i> 100% Active</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Students -->
+  <a href="?role=students" class="card stat-card--kpi card--hoverable" style="text-decoration: none; border-color: {% if role_tab == 'students' %}var(--gold){% else %}var(--glass-border){% endif %};">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Students</p>
+        <h3 class="stat-value font-mono text-success mt-1">{{ total_students_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-user-graduate" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted flex items-center justify-between">
+      <span>Enrolled Student Accounts</span>
+      <span class="badge badge--muted text-xs">{{ students_count }} in view</span>
+    </div>
+  </a>
+
+  <!-- Faculty -->
+  <a href="?role=teachers" class="card stat-card--kpi card--hoverable" style="text-decoration: none; border-color: {% if role_tab == 'teachers' %}var(--gold){% else %}var(--glass-border){% endif %};">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Faculty / Teachers</p>
+        <h3 class="stat-value font-mono text-warning mt-1">{{ total_teachers_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-chalkboard-user" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted flex items-center justify-between">
+      <span>Instructors &amp; Faculty</span>
+      <span class="badge badge--muted text-xs">{{ teachers_count }} in view</span>
+    </div>
+  </a>
+
+  <!-- Admins -->
+  <a href="?role=admins" class="card stat-card--kpi card--hoverable" style="text-decoration: none; border-color: {% if role_tab == 'admins' %}var(--gold){% else %}var(--glass-border){% endif %};">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Admin &amp; Staff</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: #c084fc;">{{ total_admins_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-shield-halved" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted flex items-center justify-between">
+      <span>Privileged Controllers</span>
+      <span class="badge badge--muted text-xs">{{ admins_count }} in view</span>
+    </div>
+  </a>
+</div>
+
+<!-- Search & Role-Specific Filter Bar -->
+<div class="card mb-4" style="padding: 16px 20px;">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
     <input type="hidden" name="role" value="{{ role_tab }}">
-    {% if query %}
-      <a href="{% url 'users:user_list' %}?role={{ role_tab }}" class="btn btn-outline">Clear</a>
+    
+    <div class="input-wrap" style="flex: 1.5; min-width: 240px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, {% if role_tab == 'students' %}student ID{% elif role_tab == 'teachers' %}faculty ID / username{% else %}username{% endif %}, or email...">
+    </div>
+
+    <div style="min-width: 140px;">
+      <select name="status" class="form-control" onchange="this.form.submit()">
+        <option value="">Status: All</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
+      </select>
+    </div>
+
+    {% if role_tab == 'students' %}
+      <div style="min-width: 160px;">
+        <select name="program" class="form-control" onchange="this.form.submit()">
+          <option value="">Program: All</option>
+          {% for p in programs %}
+            <option value="{{ p.id }}" {% if prog_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="min-width: 130px;">
+        <select name="year_level" class="form-control" onchange="this.form.submit()">
+          <option value="">Year: All</option>
+          <option value="1" {% if year_filter == '1' %}selected{% endif %}>1st Year</option>
+          <option value="2" {% if year_filter == '2' %}selected{% endif %}>2nd Year</option>
+          <option value="3" {% if year_filter == '3' %}selected{% endif %}>3rd Year</option>
+          <option value="4" {% if year_filter == '4' %}selected{% endif %}>4th Year</option>
+        </select>
+      </div>
+    {% elif role_tab == 'teachers' %}
+      <div style="min-width: 170px;">
+        <select name="department" class="form-control" onchange="this.form.submit()">
+          <option value="">Dept: All</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
     {% endif %}
-    <button type="submit" class="btn btn-primary">Search</button>
+
+    <div class="flex items-center gap-2">
+      <button type="submit" class="btn btn-primary" title="Execute Search">
+        <i class="fas fa-filter"></i> Filter
+      </button>
+      {% if query or status_filter or dept_filter or prog_filter or year_filter %}
+        <a href="{% url 'users:user_list' %}?role={{ role_tab }}" class="btn btn-outline" title="Reset all active search filters">
+          <i class="fas fa-rotate-left"></i> Clear
+        </a>
+      {% endif %}
+    </div>
   </form>
 </div>
 
-<div id="userAlert" class="toast toast--error mb-4" style="display: none;"></div>
+<!-- Feedback Alert Bar -->
+<div id="userAlert" class="toast toast--success mb-4" style="display: none; align-items: center; justify-content: space-between;">
+  <span id="userAlertText"></span>
+  <button type="button" onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer;">
+    <i class="fas fa-xmark"></i>
+  </button>
+</div>
 
 <!-- Role Tabs -->
 <div class="dept-filter-tabs mb-0" style="margin-bottom: 0;">
-  <a href="?role=students{% if query %}&q={{ query }}{% endif %}"
+  <a href="?role=students{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if prog_filter %}&program={{ prog_filter }}{% endif %}{% if year_filter %}&year_level={{ year_filter }}{% endif %}"
      class="dept-tab-pill {% if role_tab == 'students' %}is-active{% endif %}"
      id="tab-students">
     <i class="fas fa-user-graduate"></i>
     <span>Students</span>
     <span class="dept-tab-count">{{ students_count }}</span>
   </a>
-  <a href="?role=teachers{% if query %}&q={{ query }}{% endif %}"
+  <a href="?role=teachers{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}"
      class="dept-tab-pill {% if role_tab == 'teachers' %}is-active{% endif %}"
      id="tab-teachers">
     <i class="fas fa-chalkboard-user"></i>
     <span>Teachers</span>
     <span class="dept-tab-count">{{ teachers_count }}</span>
   </a>
-  <a href="?role=admins{% if query %}&q={{ query }}{% endif %}"
+  <a href="?role=admins{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
      class="dept-tab-pill {% if role_tab == 'admins' %}is-active{% endif %}"
      id="tab-admins">
     <i class="fas fa-shield-halved"></i>
@@ -58,15 +191,19 @@
 
 <!-- Users Table Card -->
 <div class="card" style="padding: 0; overflow: hidden; border-top-left-radius: 0; border-top-right-radius: 0;">
-  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
-    <div class="font-semibold text-primary">
-      {% if role_tab == 'students' %}Student Accounts
-      {% elif role_tab == 'teachers' %}Teacher Accounts
-      {% else %}Admin &amp; Superadmin Accounts
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      {% if role_tab == 'students' %}
+        <i class="fas fa-user-graduate text-success"></i> Student Accounts
+      {% elif role_tab == 'teachers' %}
+        <i class="fas fa-chalkboard-user text-warning"></i> Faculty &amp; Instructor Accounts
+      {% else %}
+        <i class="fas fa-shield-halved" style="color: #c084fc;"></i> Administrative Accounts
       {% endif %}
       {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
+      {% if status_filter %}<span class="badge badge--muted text-xs uppercase">{{ status_filter }}</span>{% endif %}
     </div>
-    <span class="text-muted text-xs">{{ users.paginator.count }} total</span>
+    <span class="text-muted text-xs">{{ users.paginator.count }} accounts matched</span>
   </div>
 
   <div class="table-responsive">
@@ -74,13 +211,29 @@
       <thead>
         <tr>
           <th style="width: 50px;">#</th>
-          <th>Name</th>
-          <th>Username</th>
-          <th>Email</th>
+          <th>Account / Name</th>
+          {% if role_tab == 'students' %}
+            <th>Student ID</th>
+            <th>Program &amp; Standing</th>
+            <th>Type</th>
+            <th>Email</th>
+            <th>Validation</th>
+            <th>Account Access</th>
+          {% elif role_tab == 'teachers' %}
+            <th>Faculty ID / Username</th>
+            <th>Department</th>
+            <th>Class Load</th>
+            <th>Email</th>
+            <th>Account Access</th>
+          {% else %}
+            <th>Username</th>
+            <th>Privilege Role</th>
+            <th>Email</th>
+            <th>Last Login</th>
+            <th>Account Access</th>
+          {% endif %}
           <th>Joined</th>
-          <th>Status</th>
-          <th>Role</th>
-          <th style="text-align: right; width: 100px;">Actions</th>
+          <th style="text-align: right; width: 140px;">Actions</th>
         </tr>
       </thead>
       <tbody id="usersTableBody">
@@ -90,81 +243,250 @@
           <td>
             <div class="flex items-center gap-3">
               <span class="avatar-initial">
-                {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+                {% if u.first_name or u.last_name %}
+                  {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
+                {% elif u.classstamp_profile.student_number %}
+                  {{ u.classstamp_profile.student_number|slice:":2"|upper }}
+                {% else %}
+                  {{ u.username|slice:":2"|upper }}
+                {% endif %}
               </span>
               <div>
-                <div class="font-semibold">{{ u.first_name }} {{ u.last_name }}</div>
+                <div class="font-semibold">{{ u.get_full_name|default:u.classstamp_profile.student_number|default:u.username }}</div>
+                <div class="text-muted text-xs font-mono">{{ u.username }}</div>
               </div>
             </div>
           </td>
-          <td class="text-muted">{{ u.username }}</td>
-          <td class="text-muted">{{ u.email|default:"—" }}</td>
-          <td class="text-muted text-xs">{{ u.date_joined|date:"M j, Y" }}</td>
-          <td>
-            {% if u.is_active %}
-              <span class="badge badge--success"><i class="fas fa-circle-check"></i> Active</span>
-            {% else %}
-              <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if u.classstamp_profile %}
-              <span class="role-badge role-{{ u.classstamp_profile.role|lower }}">{{ u.classstamp_profile.get_role_display }}</span>
-              {% if u.classstamp_profile.role == 'STUDENT' %}
-                {% if u.classstamp_profile.approval_status == 'PENDING' %}
-                  <span class="badge badge--warning" title="Pending Validation"><i class="fas fa-clock"></i> Pending</span>
-                {% elif u.classstamp_profile.approval_status == 'APPROVED' %}
-                  <span class="badge badge--success" title="Validated"><i class="fas fa-circle-check"></i> Validated</span>
-                {% elif u.classstamp_profile.approval_status == 'REJECTED' %}
-                  <span class="badge badge--danger" title="Rejected"><i class="fas fa-circle-xmark"></i> Rejected</span>
-                {% endif %}
+
+          {% if role_tab == 'students' %}
+            <!-- Student ID -->
+            <td>
+              <span class="font-mono text-primary font-semibold" style="letter-spacing: 0.5px;">
+                {{ u.classstamp_profile.student_number|default:u.username }}
+              </span>
+            </td>
+            <!-- Program & Year -->
+            <td>
+              {% if u.classstamp_profile.program %}
+                <span class="badge badge--primary">{{ u.classstamp_profile.program.code }}</span>
+                <span class="text-muted text-xs ml-1">
+                  {{ u.classstamp_profile.year_level|default:"1" }}{% if u.classstamp_profile.year_level == 1 %}st{% elif u.classstamp_profile.year_level == 2 %}nd{% elif u.classstamp_profile.year_level == 3 %}rd{% else %}th{% endif %} Year
+                </span>
+              {% else %}
+                <span class="text-muted text-xs">—</span>
               {% endif %}
-            {% elif u.is_superuser %}
-              <span class="badge badge--purple"><i class="fas fa-shield-halved"></i> Superuser</span>
-            {% elif u.is_staff %}
-              <span class="badge badge--warning"><i class="fas fa-user-tie"></i> Staff</span>
-            {% else %}
-              <span class="badge badge--muted"><i class="fas fa-user"></i> User</span>
-            {% endif %}
-          </td>
+            </td>
+            <!-- Student Type -->
+            <td>
+              {% if u.classstamp_profile.student_type == 'IRREGULAR' %}
+                <span class="badge badge--warning text-xs">Irregular</span>
+              {% elif u.classstamp_profile.student_type == 'TRANSFEREE' %}
+                <span class="badge badge--purple text-xs">Transferee</span>
+              {% else %}
+                <span class="badge badge--muted text-xs">Regular</span>
+              {% endif %}
+            </td>
+            <!-- Email -->
+            <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <!-- Validation Status -->
+            <td>
+              {% if u.classstamp_profile.approval_status == 'PENDING' %}
+                <a href="{% url 'validation_queue' %}?q={{ u.classstamp_profile.student_number|default:u.username }}" class="badge badge--warning" title="Click to review COR" style="text-decoration:none;">
+                  <i class="fas fa-clock"></i> Pending
+                </a>
+              {% elif u.classstamp_profile.approval_status == 'APPROVED' %}
+                <span class="badge badge--success" title="Approved by Registrar"><i class="fas fa-circle-check"></i> Validated</span>
+              {% elif u.classstamp_profile.approval_status == 'REJECTED' %}
+                <span class="badge badge--danger" title="Rejected Registration"><i class="fas fa-circle-xmark"></i> Rejected</span>
+              {% else %}
+                <span class="badge badge--muted">Active</span>
+              {% endif %}
+            </td>
+            <!-- Account Access Status Toggle -->
+            <td>
+              <label class="form-switch" style="margin: 0; display: inline-flex;" title="{% if u.id == request.user.id %}Cannot deactivate yourself{% else %}Click to toggle Active / Inactive status{% endif %}">
+                <input type="checkbox"
+                       class="user-status-toggle"
+                       data-id="{{ u.id }}"
+                       {% if u.is_active %}checked{% endif %}
+                       {% if u.id == request.user.id %}disabled{% endif %}>
+                <span class="badge {% if u.is_active %}badge--success{% else %}badge--danger{% endif %} text-xs" id="status-badge-{{ u.id }}">
+                  {% if u.is_active %}<i class="fas fa-circle-check"></i> Active{% else %}<i class="fas fa-circle-xmark"></i> Inactive{% endif %}
+                </span>
+              </label>
+            </td>
+
+          {% elif role_tab == 'teachers' %}
+            <!-- Faculty ID / Username -->
+            <td>
+              <span class="font-mono text-warning font-semibold">{{ u.username }}</span>
+            </td>
+            <!-- Department -->
+            <td>
+              {% if u.classstamp_profile.department %}
+                <span class="badge badge--primary">{{ u.classstamp_profile.department.code }}</span>
+                <span class="text-muted text-xs ml-1">{{ u.classstamp_profile.department.name|truncatechars:24 }}</span>
+              {% else %}
+                <span class="text-muted text-xs">Unassigned</span>
+              {% endif %}
+            </td>
+            <!-- Class Load -->
+            <td>
+              <span class="badge badge--muted font-mono" title="Assigned active class sections">
+                <i class="fas fa-chalkboard text-gold"></i> {{ u.taught_count|default:0 }} {% if u.taught_count == 1 %}Class{% else %}Classes{% endif %}
+              </span>
+            </td>
+            <!-- Email -->
+            <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <!-- Account Access Status Toggle -->
+            <td>
+              <label class="form-switch" style="margin: 0; display: inline-flex;" title="{% if u.id == request.user.id %}Cannot deactivate yourself{% else %}Click to toggle Active / Inactive status{% endif %}">
+                <input type="checkbox"
+                       class="user-status-toggle"
+                       data-id="{{ u.id }}"
+                       {% if u.is_active %}checked{% endif %}
+                       {% if u.id == request.user.id %}disabled{% endif %}>
+                <span class="badge {% if u.is_active %}badge--success{% else %}badge--danger{% endif %} text-xs" id="status-badge-{{ u.id }}">
+                  {% if u.is_active %}<i class="fas fa-circle-check"></i> Active{% else %}<i class="fas fa-circle-xmark"></i> Inactive{% endif %}
+                </span>
+              </label>
+            </td>
+
+          {% else %}
+            <!-- Admin Username -->
+            <td>
+              <span class="font-mono font-semibold" style="color: #c084fc;">{{ u.username }}</span>
+            </td>
+            <!-- Privilege Level -->
+            <td>
+              {% if u.is_superuser %}
+                <span class="badge badge--purple"><i class="fas fa-shield-halved"></i> Superuser</span>
+              {% else %}
+                <span class="badge badge--warning" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);"><i class="fas fa-user-shield"></i> Administrator</span>
+              {% endif %}
+            </td>
+            <!-- Email -->
+            <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <!-- Last Login -->
+            <td class="text-muted text-xs">
+              {% if u.last_login %}
+                {{ u.last_login|date:"M j, Y H:i" }}
+              {% else %}
+                <span class="text-muted">Never</span>
+              {% endif %}
+            </td>
+            <!-- Account Access Status Toggle -->
+            <td>
+              <label class="form-switch" style="margin: 0; display: inline-flex;" title="{% if u.id == request.user.id %}Cannot deactivate your own active session{% else %}Click to toggle Active / Inactive status{% endif %}">
+                <input type="checkbox"
+                       class="user-status-toggle"
+                       data-id="{{ u.id }}"
+                       {% if u.is_active %}checked{% endif %}
+                       {% if u.id == request.user.id %}disabled{% endif %}>
+                <span class="badge {% if u.is_active %}badge--success{% else %}badge--danger{% endif %} text-xs" id="status-badge-{{ u.id }}">
+                  {% if u.is_active %}<i class="fas fa-circle-check"></i> Active{% else %}<i class="fas fa-circle-xmark"></i> Inactive{% endif %}
+                </span>
+              </label>
+            </td>
+          {% endif %}
+
+          <td class="text-muted text-xs">{{ u.date_joined|date:"M j, Y" }}</td>
+
+          <!-- Actions -->
           <td style="text-align: right;">
-            <div class="flex items-center justify-end gap-2" style="justify-content: flex-end;">
+            <div class="flex items-center justify-end gap-1.5" style="justify-content: flex-end;">
+              <!-- Deep Links -->
+              {% if role_tab == 'students' %}
+                {% if u.classstamp_profile.approval_status == 'PENDING' %}
+                  <a href="{% url 'validation_queue' %}?q={{ u.classstamp_profile.student_number|default:u.username }}"
+                     class="btn btn-outline"
+                     style="padding: 5px 9px;"
+                     title="Open in Validation Queue">
+                    <i class="fas fa-user-clock text-warning"></i>
+                  </a>
+                {% else %}
+                  <a href="{% url 'student_directory' %}?q={{ u.classstamp_profile.student_number|default:u.username }}"
+                     class="btn btn-outline"
+                     style="padding: 5px 9px;"
+                     title="Open Student Master Record">
+                    <i class="fas fa-id-card text-success"></i>
+                  </a>
+                {% endif %}
+              {% elif role_tab == 'teachers' %}
+                <a href="{% url 'teacher_list' %}?q={{ u.username }}"
+                   class="btn btn-outline"
+                   style="padding: 5px 9px;"
+                   title="View Faculty Teaching Schedules">
+                  <i class="fas fa-chalkboard text-gold"></i>
+                </a>
+              {% endif %}
+
+              <!-- Quick Reset Password Button -->
               <button type="button"
                       class="btn btn-outline"
-                      style="padding: 6px 10px;"
+                      style="padding: 5px 9px;"
+                      data-modal-target="resetPasswordModal"
+                      data-id="{{ u.id }}"
+                      data-username="{{ u.classstamp_profile.student_number|default:u.username }}"
+                      data-name="{{ u.get_full_name|default:u.username }}"
+                      title="Quick Password Reset">
+                <i class="fas fa-key text-warning"></i>
+              </button>
+
+              <!-- Edit Account Button -->
+              <button type="button"
+                      class="btn btn-outline"
+                      style="padding: 5px 9px;"
                       data-modal-target="editUserModal"
                       data-mode="edit"
                       data-id="{{ u.id }}"
-                      data-username="{{ u.username }}"
+                      data-username="{{ u.classstamp_profile.student_number|default:u.username }}"
                       data-first="{{ u.first_name }}"
                       data-last="{{ u.last_name }}"
                       data-email="{{ u.email }}"
+                      data-role="{% if u.classstamp_profile %}{{ u.classstamp_profile.role }}{% elif u.is_superuser %}ADMIN{% elif u.is_staff %}ADMIN{% else %}STUDENT{% endif %}"
+                      data-program="{{ u.classstamp_profile.program_id|default:'' }}"
+                      data-department="{{ u.classstamp_profile.department_id|default:'' }}"
+                      data-year="{{ u.classstamp_profile.year_level|default:'1' }}"
                       data-active="{{ u.is_active|yesno:'true,false' }}"
                       data-staff="{{ u.is_staff|yesno:'true,false' }}"
-                      title="Edit">
+                      title="Edit Account Details">
                 <i class="fas fa-pen text-gold"></i>
               </button>
-              <button type="button"
-                      class="btn btn-outline"
-                      style="padding: 6px 10px;"
-                      data-modal-target="deleteUserModal"
-                      data-id="{{ u.id }}"
-                      data-name="{{ u.username }}"
-                      title="Delete">
-                <i class="fas fa-trash text-danger"></i>
-              </button>
+
+              <!-- Delete Button -->
+              {% if u.id == request.user.id %}
+                <button type="button" class="btn btn-outline" style="padding: 5px 9px; opacity: 0.4; cursor: not-allowed;" title="Self-deletion prohibited" disabled>
+                  <i class="fas fa-trash text-muted"></i>
+                </button>
+              {% else %}
+                <button type="button"
+                        class="btn btn-outline"
+                        style="padding: 5px 9px;"
+                        data-modal-target="deleteUserModal"
+                        data-id="{{ u.id }}"
+                        data-name="{{ u.get_full_name|default:u.classstamp_profile.student_number|default:u.username }}"
+                        data-ident="{% if u.classstamp_profile.student_number %}Student ID: {{ u.classstamp_profile.student_number }}{% else %}Username: {{ u.username }}{% endif %}"
+                        title="Delete Account">
+                  <i class="fas fa-trash text-danger"></i>
+                </button>
+              {% endif %}
             </div>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" style="text-align: center; padding: 48px 16px;">
+          <td colspan="10" style="text-align: center; padding: 48px 16px;">
             <div style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 12px;">
               <i class="fas fa-users-slash"></i>
             </div>
             <p class="font-semibold text-primary">No users found</p>
             <p class="text-muted text-sm mt-1">
-              {% if query %}Try adjusting your search criteria.{% else %}No {{ role_tab }} accounts yet.{% endif %}
+              {% if query or status_filter or dept_filter or prog_filter or year_filter %}
+                No accounts match the active filter criteria. <a href="{% url 'users:user_list' %}?role={{ role_tab }}" class="text-gold font-semibold">Reset filters</a>
+              {% else %}
+                No {{ role_tab }} accounts registered yet.
+              {% endif %}
             </p>
           </td>
         </tr>
@@ -177,24 +499,24 @@
   {% if users.paginator.num_pages > 1 %}
   <div style="padding: 16px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
     <p class="text-muted text-xs">
-      Showing <span class="font-semibold text-primary">{{ users.start_index }}</span> to <span class="font-semibold text-primary">{{ users.end_index }}</span> of {{ users.paginator.count }} users
+      Showing <span class="font-semibold text-primary">{{ users.start_index }}</span> to <span class="font-semibold text-primary">{{ users.end_index }}</span> of {{ users.paginator.count }} accounts
     </p>
     <ul class="pagination">
       {% if users.has_previous %}
       <li>
-        <a class="page-link" href="?page={{ users.previous_page_number }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}">
+        <a class="page-link" href="?page={{ users.previous_page_number }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if prog_filter %}&program={{ prog_filter }}{% endif %}{% if year_filter %}&year_level={{ year_filter }}{% endif %}">
           <i class="fas fa-chevron-left"></i>
         </a>
       </li>
       {% endif %}
       {% for num in users.paginator.page_range %}
       <li>
-        <a class="page-link {% if users.number == num %}active{% endif %}" href="?page={{ num }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+        <a class="page-link {% if users.number == num %}active{% endif %}" href="?page={{ num }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if prog_filter %}&program={{ prog_filter }}{% endif %}{% if year_filter %}&year_level={{ year_filter }}{% endif %}">{{ num }}</a>
       </li>
       {% endfor %}
       {% if users.has_next %}
       <li>
-        <a class="page-link" href="?page={{ users.next_page_number }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}">
+        <a class="page-link" href="?page={{ users.next_page_number }}&role={{ role_tab }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if prog_filter %}&program={{ prog_filter }}{% endif %}{% if year_filter %}&year_level={{ year_filter }}{% endif %}">
           <i class="fas fa-chevron-right"></i>
         </a>
       </li>
@@ -204,7 +526,77 @@
   {% endif %}
 </div>
 
-<!-- Edit / Create User Modal -->
+<!-- ============================================================================== -->
+<!-- MODAL: Quick Password Reset                                                   -->
+<!-- ============================================================================== -->
+<div class="modal" id="resetPasswordModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-key text-gold"></i> Reset Account Password</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="resetPasswordModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form id="resetPasswordForm">
+      {% csrf_token %}
+      <input type="hidden" id="reset_user_id" name="user_id">
+      <div class="modal-body">
+        <div id="resetPasswordAlert" class="toast toast--error mb-3" style="display: none;"></div>
+        
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px;">
+          <div class="text-xs text-muted uppercase font-semibold">Target Account</div>
+          <div class="font-semibold text-primary mt-1" id="reset_user_name">—</div>
+          <div class="text-xs font-mono text-gold mt-0.5" id="reset_user_ident">—</div>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label">Password Mode</label>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;" class="text-sm">
+              <input type="radio" name="reset_mode" value="auto" checked id="mode_auto">
+              <span>Auto-generate strong temporary credential (Recommended)</span>
+            </label>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;" class="text-sm">
+              <input type="radio" name="reset_mode" value="manual" id="mode_manual">
+              <span>Set custom password manually</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group mb-2" id="customPasswordWrap" style="display: none;">
+          <label class="form-label" for="custom_reset_password">New Custom Password <span class="text-danger">*</span></label>
+          <input type="text" id="custom_reset_password" name="custom_password" class="form-control font-mono" placeholder="Enter new password (min. 8 chars)">
+          <span class="text-muted text-xs mt-1" style="display: block;">The user will use this exact password for their next sign in.</span>
+        </div>
+
+        <!-- Result Card (Shown upon successful reset) -->
+        <div id="resetResultCard" style="display: none; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: var(--radius-md); padding: 14px; margin-top: 14px;">
+          <div class="flex items-center gap-2 text-success text-xs font-semibold mb-2">
+            <i class="fas fa-circle-check"></i> Password Reset Successfully!
+          </div>
+          <div class="text-xs text-muted">New Temporary Password:</div>
+          <div class="flex items-center justify-between gap-2 mt-1.5">
+            <code class="font-mono text-primary font-bold text-base" id="newTempPasswordText" style="letter-spacing: 1px; background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; display: inline-block;"></code>
+            <button type="button" class="btn btn-outline" id="copyPasswordBtn" style="padding: 6px 12px;" title="Copy to clipboard">
+              <i class="fas fa-copy"></i> <span id="copyBtnText">Copy</span>
+            </button>
+          </div>
+          <div class="text-xs text-muted mt-2">Please share this credential securely with the user.</div>
+        </div>
+      </div>
+      <div class="modal-footer" id="resetModalFooter">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="resetPasswordModal">Close</button>
+        <button type="submit" class="btn btn-primary" id="submitResetPasswordBtn">
+          <i class="fas fa-rotate-right"></i> Reset Password
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Edit / Create User                                                     -->
+<!-- ============================================================================== -->
 <div class="modal" id="editUserModal">
   <div class="modal-dialog">
     <div class="modal-header">
@@ -220,74 +612,117 @@
         <div id="editUserFormError" class="toast toast--error mb-4" style="display: none;"></div>
         
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="edit_username">Username</label>
-            <input type="text" name="username" id="edit_username" class="form-control" required>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="edit_role">Account Role <span class="text-danger">*</span></label>
+            <select name="role" id="edit_role" class="form-control">
+              <option value="STUDENT">Student</option>
+              <option value="TEACHER">Teacher / Faculty</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
           </div>
-          <div class="form-group" id="edit_password_wrap">
-            <label class="form-label" for="edit_password">Password</label>
-            <input type="password" name="password" id="edit_password" class="form-control" autocomplete="new-password">
-            <span class="text-muted text-xs mt-1" id="edit_password_hint">Leave blank to keep password</span>
+          <div class="form-group" style="flex: 1.2;">
+            <label class="form-label" for="edit_username" id="edit_username_label">Student ID Number <span class="text-danger">*</span></label>
+            <input type="text" name="username" id="edit_username" class="form-control font-mono" required placeholder="e.g. 2024-110755">
+            <span class="text-muted text-xs mt-1" id="edit_username_hint" style="display: block;">Institutional badge number used for login and attendance.</span>
           </div>
+        </div>
+
+        <!-- Academic Affiliation for Students -->
+        <div class="form-row" id="row_academic_student">
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label" for="edit_program">Degree Program</label>
+            <select name="program_id" id="edit_program" class="form-control">
+              {% for p in programs %}
+                <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="edit_year_level">Year Level</label>
+            <select name="year_level" id="edit_year_level" class="form-control">
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Faculty Department for Teachers -->
+        <div class="form-group mb-3" id="row_academic_teacher" style="display: none;">
+          <label class="form-label" for="edit_department">Faculty Department</label>
+          <select name="department_id" id="edit_department" class="form-control">
+            {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
+            {% endfor %}
+          </select>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" for="edit_first_name">First Name</label>
-            <input type="text" name="first_name" id="edit_first_name" class="form-control">
+            <input type="text" name="first_name" id="edit_first_name" class="form-control" placeholder="First name">
           </div>
           <div class="form-group">
             <label class="form-label" for="edit_last_name">Last Name</label>
-            <input type="text" name="last_name" id="edit_last_name" class="form-control">
+            <input type="text" name="last_name" id="edit_last_name" class="form-control" placeholder="Last name">
           </div>
-        </div>
-
-        <div class="form-group mb-4">
-          <label class="form-label" for="edit_email">Email Address</label>
-          <input type="email" name="email" id="edit_email" class="form-control">
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Active Status</label>
-            <label class="form-switch">
-              <input type="checkbox" name="is_active" id="edit_is_active">
-              <span class="text-sm">Account Active</span>
-            </label>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="edit_email">Email Address</label>
+            <input type="email" name="email" id="edit_email" class="form-control" placeholder="user@kcc.edu.ph">
           </div>
-          <div class="form-group">
-            <label class="form-label">Staff Privileges</label>
+          <div class="form-group" id="edit_password_wrap" style="flex: 1;">
+            <label class="form-label" for="edit_password">Password</label>
+            <div class="input-wrap" style="position: relative;">
+              <input type="password" name="password" id="edit_password" class="form-control" autocomplete="new-password" placeholder="••••••••" style="padding-right: 38px;">
+              <button type="button" id="togglePasswordBtn" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" title="Show/Hide Password">
+                <i class="fas fa-eye" id="togglePasswordIcon"></i>
+              </button>
+            </div>
+            <span class="text-muted text-xs mt-1" id="edit_password_hint">Leave blank to keep current password</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Account Access Status</label>
             <label class="form-switch">
-              <input type="checkbox" name="is_staff" id="edit_is_staff">
-              <span class="text-sm">Staff Member</span>
+              <input type="checkbox" name="is_active" id="edit_is_active" value="true">
+              <span class="text-sm">Account Active (Allows system sign in)</span>
             </label>
           </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" data-modal-dismiss="editUserModal">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="saveUserBtn">Save User</button>
+        <button type="submit" class="btn btn-primary" id="saveUserBtn">Save Account</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Delete User Modal -->
+<!-- ============================================================================== -->
+<!-- MODAL: Confirm Delete User                                                    -->
+<!-- ============================================================================== -->
 <div class="modal" id="deleteUserModal">
   <div class="modal-dialog modal-dialog--sm">
     <div class="modal-header">
-      <h3 class="modal-title">Confirm Deletion</h3>
+      <h3 class="modal-title"><i class="fas fa-triangle-exclamation text-danger"></i> Confirm Deletion</h3>
       <button type="button" class="modal-close" data-modal-dismiss="deleteUserModal">
         <i class="fas fa-xmark"></i>
       </button>
     </div>
     <div class="modal-body">
-      <p class="text-secondary">Are you sure you want to permanently delete user <strong id="delete_username" class="text-primary"></strong>?</p>
-      <p class="text-muted text-xs mt-2">This action cannot be undone.</p>
+      <p class="text-secondary">Are you sure you want to permanently delete the account for <strong id="delete_username" class="text-primary"></strong>?</p>
+      <div id="delete_ident" class="text-gold font-mono text-xs mt-1 font-semibold"></div>
+      <p class="text-muted text-xs mt-2">This action removes all identity credentials and associated audit links. This cannot be undone.</p>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" data-modal-dismiss="deleteUserModal">Cancel</button>
-      <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+      <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete Account</button>
     </div>
   </div>
 </div>
@@ -299,25 +734,157 @@
   const form = document.getElementById('editUserForm');
   const errorBox = document.getElementById('editUserFormError');
   const alertBox = document.getElementById('userAlert');
+  const alertText = document.getElementById('userAlertText');
   const modalTitle = document.getElementById('editUserModalTitle');
   const passwordHint = document.getElementById('edit_password_hint');
   const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+  const roleSelect = document.getElementById('edit_role');
   let currentDeleteId = null;
 
-  function showAlert(msg) {
-    alertBox.textContent = msg;
+  function showAlert(msg, isError = false) {
+    if (!alertBox || !alertText) return;
+    alertText.textContent = msg;
+    alertBox.className = 'toast ' + (isError ? 'toast--error' : 'toast--success') + ' mb-4';
     alertBox.style.display = 'flex';
-    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+    setTimeout(() => { alertBox.style.display = 'none'; }, 4500);
+  }
+
+  function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+  }
+
+  function syncRoleFields(role) {
+    const roleVal = (role || 'STUDENT').toUpperCase();
+    const userLabel = document.getElementById('edit_username_label');
+    const userHint = document.getElementById('edit_username_hint');
+    const userInput = document.getElementById('edit_username');
+    const studentRow = document.getElementById('row_academic_student');
+    const teacherRow = document.getElementById('row_academic_teacher');
+
+    if (roleVal === 'STUDENT') {
+      userLabel.innerHTML = 'Student ID Number <span class="text-danger">*</span>';
+      userInput.placeholder = 'e.g. 2024-110755';
+      userHint.textContent = 'Institutional Student ID from badge (used for login and attendance).';
+      if (studentRow) studentRow.style.display = 'flex';
+      if (teacherRow) teacherRow.style.display = 'none';
+    } else if (roleVal === 'TEACHER') {
+      userLabel.innerHTML = 'Faculty Username / ID <span class="text-danger">*</span>';
+      userInput.placeholder = 'e.g. msantos or FAC-102';
+      userHint.textContent = 'Faculty username or employee number for portal access.';
+      if (studentRow) studentRow.style.display = 'none';
+      if (teacherRow) teacherRow.style.display = 'block';
+    } else {
+      userLabel.innerHTML = 'Admin Username <span class="text-danger">*</span>';
+      userInput.placeholder = 'e.g. admin_office';
+      userHint.textContent = 'Institutional administrator login username.';
+      if (studentRow) studentRow.style.display = 'none';
+      if (teacherRow) teacherRow.style.display = 'none';
+    }
+  }
+
+  if (roleSelect) {
+    roleSelect.addEventListener('change', function() {
+      syncRoleFields(this.value);
+    });
+  }
+
+  // Password Visibility Toggle for Edit Modal
+  const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+  const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+  const passwordInput = document.getElementById('edit_password');
+
+  if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
+    togglePasswordBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        togglePasswordIcon.classList.remove('fa-eye');
+        togglePasswordIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        togglePasswordIcon.classList.remove('fa-eye-slash');
+        togglePasswordIcon.classList.add('fa-eye');
+      }
+    });
+  }
+
+  // 1-Click Status Toggle Switches
+  document.querySelectorAll('.user-status-toggle').forEach(chk => {
+    chk.addEventListener('change', function() {
+      const userId = this.getAttribute('data-id');
+      const badge = document.getElementById('status-badge-' + userId);
+      const isChecked = this.checked;
+
+      fetch('/users/ajax/toggle-status/' + userId + '/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken()
+        }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'success') {
+          if (badge) {
+            if (data.is_active) {
+              badge.className = 'badge badge--success text-xs';
+              badge.innerHTML = '<i class="fas fa-circle-check"></i> Active';
+            } else {
+              badge.className = 'badge badge--danger text-xs';
+              badge.innerHTML = '<i class="fas fa-circle-xmark"></i> Inactive';
+            }
+          }
+          showAlert(data.message || 'Status updated.');
+        } else {
+          this.checked = !isChecked; // Revert switch
+          showAlert(data.error || 'Failed to update status.', true);
+        }
+      })
+      .catch(() => {
+        this.checked = !isChecked; // Revert switch
+        showAlert('Network error while toggling status.', true);
+      });
+    });
+  });
+
+  // Reset Password Modal Setup
+  const resetForm = document.getElementById('resetPasswordForm');
+  const resetUserIdInput = document.getElementById('reset_user_id');
+  const resetUserName = document.getElementById('reset_user_name');
+  const resetUserIdent = document.getElementById('reset_user_ident');
+  const modeAuto = document.getElementById('mode_auto');
+  const modeManual = document.getElementById('mode_manual');
+  const customPasswordWrap = document.getElementById('customPasswordWrap');
+  const customResetPassword = document.getElementById('custom_reset_password');
+  const resetResultCard = document.getElementById('resetResultCard');
+  const newTempPasswordText = document.getElementById('newTempPasswordText');
+  const copyPasswordBtn = document.getElementById('copyPasswordBtn');
+  const copyBtnText = document.getElementById('copyBtnText');
+  const resetPasswordAlert = document.getElementById('resetPasswordAlert');
+  const submitResetBtn = document.getElementById('submitResetPasswordBtn');
+
+  if (modeAuto && modeManual) {
+    modeAuto.addEventListener('change', () => {
+      if (customPasswordWrap) customPasswordWrap.style.display = 'none';
+      if (customResetPassword) customResetPassword.value = '';
+    });
+    modeManual.addEventListener('change', () => {
+      if (customPasswordWrap) customPasswordWrap.style.display = 'block';
+    });
   }
 
   // Handle Edit/Create click
   document.addEventListener('click', function(e) {
     const editBtn = e.target.closest('[data-modal-target="editUserModal"]');
     if (editBtn) {
-      errorBox.style.display = 'none';
+      if (errorBox) errorBox.style.display = 'none';
+      if (passwordInput) passwordInput.type = 'password';
+      if (togglePasswordIcon) {
+        togglePasswordIcon.classList.remove('fa-eye-slash');
+        togglePasswordIcon.classList.add('fa-eye');
+      }
       const mode = editBtn.getAttribute('data-mode');
       if (mode === 'edit') {
-        modalTitle.textContent = 'Edit User';
+        modalTitle.textContent = 'Edit User Account';
         document.getElementById('edit_id').value = editBtn.getAttribute('data-id');
         document.getElementById('edit_username').value = editBtn.getAttribute('data-username');
         document.getElementById('edit_first_name').value = editBtn.getAttribute('data-first');
@@ -325,84 +892,212 @@
         document.getElementById('edit_email').value = editBtn.getAttribute('data-email');
         document.getElementById('edit_password').value = '';
         document.getElementById('edit_is_active').checked = editBtn.getAttribute('data-active') === 'true';
-        document.getElementById('edit_is_staff').checked = editBtn.getAttribute('data-staff') === 'true';
+
+        const role = editBtn.getAttribute('data-role') || 'STUDENT';
+        roleSelect.value = role;
+        syncRoleFields(role);
+
+        const progId = editBtn.getAttribute('data-program');
+        if (progId && document.getElementById('edit_program')) {
+          document.getElementById('edit_program').value = progId;
+        }
+        const deptId = editBtn.getAttribute('data-department');
+        if (deptId && document.getElementById('edit_department')) {
+          document.getElementById('edit_department').value = deptId;
+        }
+        const yearLevel = editBtn.getAttribute('data-year');
+        if (yearLevel && document.getElementById('edit_year_level')) {
+          document.getElementById('edit_year_level').value = yearLevel;
+        }
+
         if (passwordHint) passwordHint.style.display = 'inline';
       } else {
-        modalTitle.textContent = 'Add New User';
+        modalTitle.textContent = 'Add New Account';
         form.reset();
         document.getElementById('edit_id').value = '';
         document.getElementById('edit_is_active').checked = true;
+
+        const activeRoleTab = '{{ role_tab }}';
+        let defaultRole = 'STUDENT';
+        if (activeRoleTab === 'teachers') defaultRole = 'TEACHER';
+        else if (activeRoleTab === 'admins') defaultRole = 'ADMIN';
+
+        roleSelect.value = defaultRole;
+        syncRoleFields(defaultRole);
+
         if (passwordHint) passwordHint.style.display = 'none';
       }
     }
 
+    // Reset Password Click
+    const resetBtn = e.target.closest('[data-modal-target="resetPasswordModal"]');
+    if (resetBtn) {
+      if (resetPasswordAlert) resetPasswordAlert.style.display = 'none';
+      if (resetResultCard) resetResultCard.style.display = 'none';
+      if (submitResetBtn) submitResetBtn.style.display = 'inline-flex';
+      if (modeAuto) modeAuto.checked = true;
+      if (customPasswordWrap) customPasswordWrap.style.display = 'none';
+      if (customResetPassword) customResetPassword.value = '';
+
+      const uId = resetBtn.getAttribute('data-id');
+      const uName = resetBtn.getAttribute('data-name');
+      const uIdent = resetBtn.getAttribute('data-username');
+
+      if (resetUserIdInput) resetUserIdInput.value = uId;
+      if (resetUserName) resetUserName.textContent = uName;
+      if (resetUserIdent) resetUserIdent.textContent = 'Account ID / Username: ' + uIdent;
+    }
+
+    // Delete Button Click
     const delBtn = e.target.closest('[data-modal-target="deleteUserModal"]');
     if (delBtn) {
       currentDeleteId = delBtn.getAttribute('data-id');
       document.getElementById('delete_username').textContent = delBtn.getAttribute('data-name');
+      const identBox = document.getElementById('delete_ident');
+      if (identBox) {
+        identBox.textContent = delBtn.getAttribute('data-ident') || '';
+      }
     }
   });
 
-  // Save / Update User
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(form);
-    fetch('{% url "users:user_save_ajax" %}', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
-      body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        errorBox.textContent = data.error;
-        errorBox.style.display = 'flex';
+  // Save / Update User Submission
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const formData = new FormData(form);
+      fetch('{% url "users:user_save_ajax" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        body: formData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          if (errorBox) {
+            errorBox.textContent = data.error;
+            errorBox.style.display = 'flex';
+          }
+          return;
+        }
+        window.location.reload();
+      })
+      .catch(() => {
+        if (errorBox) {
+          errorBox.textContent = 'Server communication error.';
+          errorBox.style.display = 'flex';
+        }
+      });
+    });
+  }
+
+  // Reset Password Submission
+  if (resetForm) {
+    resetForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const uId = resetUserIdInput.value;
+      if (!uId) return;
+
+      const isManual = modeManual && modeManual.checked;
+      const customPwd = isManual ? (customResetPassword.value || '').trim() : '';
+
+      if (isManual && (!customPwd || customPwd.length < 6)) {
+        if (resetPasswordAlert) {
+          resetPasswordAlert.textContent = 'Custom password must be at least 6 characters.';
+          resetPasswordAlert.style.display = 'flex';
+        }
         return;
       }
-      window.location.reload();
-    })
-    .catch(() => {
-      errorBox.textContent = 'Server communication error.';
-      errorBox.style.display = 'flex';
+
+      const postData = new FormData();
+      if (customPwd) {
+        postData.append('password', customPwd);
+      }
+
+      fetch('/users/ajax/reset-password/' + uId + '/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        body: postData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'success') {
+          if (newTempPasswordText) newTempPasswordText.textContent = data.temporary_password;
+          if (resetResultCard) resetResultCard.style.display = 'block';
+          if (submitResetBtn) submitResetBtn.style.display = 'none';
+          if (resetPasswordAlert) resetPasswordAlert.style.display = 'none';
+          showAlert(data.message || 'Password reset successfully.');
+        } else {
+          if (resetPasswordAlert) {
+            resetPasswordAlert.textContent = data.error || 'Failed to reset password.';
+            resetPasswordAlert.style.display = 'flex';
+          }
+        }
+      })
+      .catch(() => {
+        if (resetPasswordAlert) {
+          resetPasswordAlert.textContent = 'Network error while resetting password.';
+          resetPasswordAlert.style.display = 'flex';
+        }
+      });
     });
-  });
+  }
+
+  // Copy Temporary Password to Clipboard
+  if (copyPasswordBtn && newTempPasswordText) {
+    copyPasswordBtn.addEventListener('click', function() {
+      const pwd = newTempPasswordText.textContent;
+      if (!pwd) return;
+      navigator.clipboard.writeText(pwd).then(() => {
+        if (copyBtnText) copyBtnText.textContent = 'Copied!';
+        showAlert('Temporary password copied to clipboard!');
+        setTimeout(() => {
+          if (copyBtnText) copyBtnText.textContent = 'Copy';
+        }, 2500);
+      });
+    });
+  }
 
   // Confirm Delete
-  confirmDeleteBtn.addEventListener('click', function() {
-    if (!currentDeleteId) return;
-    fetch('/users/ajax/delete/' + currentDeleteId + '/', {
-      method: 'POST',
-      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.status === 'deleted') {
-        window.location.reload();
-      } else {
-        showAlert(data.error || 'Failed to delete user.');
-        window.closeModal('deleteUserModal');
-      }
-    })
-    .catch(() => {
-      showAlert('Error deleting user.');
-      window.closeModal('deleteUserModal');
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', function() {
+      if (!currentDeleteId) return;
+      fetch('/users/ajax/delete/' + currentDeleteId + '/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'deleted') {
+          window.location.reload();
+        } else {
+          showAlert(data.error || 'Failed to delete user.', true);
+          if (window.closeModal) window.closeModal('deleteUserModal');
+        }
+      })
+      .catch(() => {
+        showAlert('Error deleting user.', true);
+        if (window.closeModal) window.closeModal('deleteUserModal');
+      });
     });
-  });
+  }
 })();
 </script>
 
 <style>
-/* Style tabs as links (not buttons) to work cleanly */
+/* Style tabs as links to work cleanly with Obsidian dark glass styling */
 .dept-filter-tabs a.dept-tab-pill {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-/* Square bottom corners for card right below tabs */
 .dept-filter-tabs + .card {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
+}
+.stat-card--kpi:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 </style>
 {% endblock %}

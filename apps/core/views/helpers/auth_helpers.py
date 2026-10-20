@@ -218,4 +218,8 @@ def _validate_registration_data(data):
         except (ValueError, TypeError):
             errors['year_level'] = 'Invalid year level.'
 
+    student_type = data.get('student_type', 'REGULAR').strip().upper()
+    if student_type and student_type not in ['REGULAR', 'IRREGULAR', 'TRANSFEREE']:
+        errors['student_type'] = 'Invalid student classification selected.'
+
     return errors

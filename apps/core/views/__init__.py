@@ -43,6 +43,7 @@ from .dashboard_views import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
     _teacher_dashboard_stats,
+    admin_attendance_chart_json,
     admin_dashboard,
     dashboard_redirect,
     student_dashboard,
@@ -95,8 +96,17 @@ from .student_views import (
 # // ------------------------------------------------------------------------------
 from .audit_views import (
     admin_audit_log,
+    admin_audit_log_export_csv,
     admin_activity_feed_json,
     admin_pending_count_json,
+)
+
+# // ------------------------------------------------------------------------------
+# // 7b. Security Anomaly & Fraud Adjudication Subsystem
+# // ------------------------------------------------------------------------------
+from .anomaly_views import (
+    anomaly_list,
+    anomaly_adjudicate,
 )
 
 # // ------------------------------------------------------------------------------
@@ -123,6 +133,8 @@ from .teacher_views import (
     teacher_toggle,
     teacher_delete,
     teacher_get,
+    teacher_assign_class_ajax,
+    teacher_unassign_class_ajax,
 )
 
 # // ------------------------------------------------------------------------------
@@ -134,6 +146,32 @@ from .academic_year_views import (
     academic_year_set_active,
     academic_year_delete,
     academic_year_get,
+)
+
+# // ------------------------------------------------------------------------------
+# // 11. Class Section, Schedule & Enrollment Subsystem
+# // ------------------------------------------------------------------------------
+from .class_views import (
+    class_list,
+    class_save,
+    class_toggle,
+    class_slot_save,
+    class_slot_delete,
+    class_roster_get,
+    class_roster_enroll,
+    class_roster_remove,
+)
+
+# // ------------------------------------------------------------------------------
+# // 12. Classroom Attendance Session & Live QR Scanner Subsystem
+# // ------------------------------------------------------------------------------
+from .session_views import (
+    attendance_scan_api,
+    teacher_manual_override_ajax,
+    teacher_session_close,
+    teacher_session_open,
+    teacher_session_scan,
+    teacher_session_summary,
 )
 
 __all__ = [
@@ -214,5 +252,13 @@ __all__ = [
     'academic_year_set_active',
     'academic_year_delete',
     'academic_year_get',
+
+    # Sessions & Live Scanner
+    'teacher_session_open',
+    'teacher_session_scan',
+    'teacher_session_close',
+    'teacher_session_summary',
+    'teacher_manual_override_ajax',
+    'attendance_scan_api',
 ]
 

@@ -43,7 +43,11 @@ def program_list(request):
     programs_qs = (
         Program.objects.select_related('department')
         .annotate(
-            student_count=Count('profiles', distinct=True),
+            student_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT), distinct=True),
+            y1_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=1), distinct=True),
+            y2_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=2), distinct=True),
+            y3_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=3), distinct=True),
+            y4_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=4), distinct=True),
         )
         .order_by('department__name', 'code')
     )

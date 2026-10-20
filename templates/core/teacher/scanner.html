@@ -1,0 +1,837 @@
+{% extends "theme/base.html" %}
+{% load static %}
+
+{% block title %}Live Attendance Scanner — {{ class_obj.class_code }} — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<!-- Session Header Ribbon -->
+<div class="page-header mb-4">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Dashboard">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
+      <span class="badge badge--muted">{{ class_obj.subject.code }}</span>
+      {% if is_open %}
+        <span class="badge badge--success" id="sessionStatusPill">
+          <i class="fas fa-satellite-dish fa-spin"></i> LIVE SCANNING
+        </span>
+      {% else %}
+        <span class="badge badge--danger" id="sessionStatusPill">
+          <i class="fas fa-lock"></i> SESSION CLOSED
+        </span>
+      {% endif %}
+    </div>
+    <h1 class="page-title text-xl">{{ class_obj.subject.name }}</h1>
+    <p class="page-subtitle text-xs">
+      <i class="fas fa-location-dot text-gold"></i> {{ slot.room|default:"Classroom" }} &nbsp;•&nbsp; 
+      <i class="fas fa-calendar-day"></i> {{ session.session_date|date:"l, F j, Y" }} &nbsp;•&nbsp;
+      <i class="fas fa-clock"></i> {{ slot.starts_at|time:"h:i A" }} – {{ slot.ends_at|time:"h:i A" }}
+    </p>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <!-- Grace Period Telemetry Pill -->
+    <div class="card" style="padding: 6px 14px; background: rgba(0,0,0,0.35); border: 1px solid var(--glass-border); display: flex; align-items: center; gap: 8px;">
+      <i class="fas fa-stopwatch text-gold" style="font-size: 1.1rem;"></i>
+      <div>
+        <div class="text-xs text-muted uppercase font-semibold" style="font-size: 0.65rem;">Grace Buffer ({{ grace_minutes }}m)</div>
+        <div class="font-mono text-sm font-bold text-success" id="graceCountdown">Calculating...</div>
+      </div>
+    </div>
+
+    <!-- Conclude Session Button -->
+    {% if is_open %}
+      <button type="button" class="btn btn-danger" data-modal-target="closeSessionModal" id="openCloseModalBtn">
+        <i class="fas fa-flag-checkered"></i> Conclude Session
+      </button>
+    {% else %}
+      <a href="{% url 'teacher_session_summary' session.id %}" class="btn btn-primary">
+        <i class="fas fa-file-invoice"></i> View Summary
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Alert Banner -->
+<div id="scannerAlert" class="toast toast--error mb-4" style="display: none; align-items: center; justify-content: space-between;">
+  <span id="scannerAlertText"></span>
+  <button type="button" onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer;">
+    <i class="fas fa-xmark"></i>
+  </button>
+</div>
+
+<!-- Studio Split-Screen Layout -->
+<div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; align-items: start;">
+
+  <!-- LEFT: Camera Chamber & Hero Stamp Feedback -->
+  <div>
+    <!-- Scanner Card -->
+    <div class="card mb-4" style="padding: 16px; position: relative;">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-semibold text-primary flex items-center gap-2">
+          <i class="fas fa-camera text-gold"></i> Live Camera Viewport
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-outline btn-xs" id="toggleAudioBtn" title="Sound feedback toggle" style="padding: 4px 8px;">
+            <i class="fas fa-volume-high text-gold" id="audioIcon"></i> <span id="audioText" class="text-xs">Audio On</span>
+          </button>
+          <button type="button" class="btn btn-outline btn-xs" id="toggleCameraBtn" style="padding: 4px 8px;">
+            <i class="fas fa-pause"></i> <span id="camBtnText" class="text-xs">Pause</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Viewport Element -->
+      <div style="position: relative; border-radius: var(--radius-md); overflow: hidden; background: #000; border: 1px solid var(--glass-border); min-height: 290px;">
+        <div id="reader" style="width: 100%;"></div>
+        
+        <!-- Live Camera Overlay Target Guides -->
+        <div id="scannerOverlay" style="position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div class="scan-laser-box">
+            <div class="scan-laser-line"></div>
+          </div>
+          <span class="text-xs font-mono mt-2" style="color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px;">
+            Point student badge QR at camera
+          </span>
+        </div>
+      </div>
+
+      <!-- Camera selection & diagnostics -->
+      <div class="flex items-center justify-between gap-3 mt-3" style="flex-wrap: wrap;">
+        <div class="flex items-center gap-2" style="flex: 1; min-width: 180px;">
+          <i class="fas fa-video text-muted text-xs"></i>
+          <select id="cameraSelect" class="form-control text-xs" style="padding: 4px 8px; height: 32px;">
+            <option value="">Detecting cameras...</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-outline btn-xs" id="manualInputToggleBtn" style="padding: 5px 10px;">
+          <i class="fas fa-keyboard"></i> Manual Code Entry
+        </button>
+      </div>
+
+      <!-- Manual Code Entry Drawer (Collapsible) -->
+      <div id="manualInputDrawer" style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; margin-top: 12px;">
+        <div class="text-xs font-semibold text-primary mb-2 flex items-center justify-between">
+          <span>Manual Student QR Payload Input</span>
+          <span class="text-muted text-xs">Format: classstamp:&lt;student_id&gt;:&lt;6-digit-token&gt;</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="manualPayloadInput" class="form-control font-mono text-xs" placeholder="classstamp:2024-110755:123456">
+          <button type="button" class="btn btn-primary btn-xs" id="manualSubmitBtn">Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO CARD: Last Verified Student -->
+    <div class="card" id="heroCard" style="padding: 16px; border: 1px solid var(--glass-border); transition: all 0.3s ease;">
+      <div class="flex items-center justify-between border-bottom pb-2 mb-3" style="border-bottom: 1px solid var(--glass-border);">
+        <div class="text-xs text-muted uppercase font-semibold">Latest Attendance Stamp</div>
+        <span class="text-xs text-muted font-mono" id="heroTimestamp">Awaiting first scan...</span>
+      </div>
+
+      <div class="flex items-center gap-4" id="heroPlaceholder">
+        <div class="stat-icon" style="background: rgba(255,255,255,0.05); color: var(--text-muted); width: 56px; height: 56px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+          <i class="fas fa-qrcode"></i>
+        </div>
+        <div>
+          <h4 class="font-semibold text-primary text-base">Ready for Scans</h4>
+          <p class="text-muted text-xs mt-0.5">Scanned student details and timestamp will immediately materialize here.</p>
+        </div>
+      </div>
+
+      <!-- Active Student Data Box (Hidden until first scan) -->
+      <div id="heroContent" style="display: none;">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="avatar-initial" id="heroInitials" style="width: 52px; height: 52px; font-size: 1.25rem;">??</span>
+            <div>
+              <h3 class="font-bold text-primary text-lg" id="heroName">—</h3>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="font-mono text-gold text-xs font-semibold" id="heroStudentNumber">—</span>
+                <span class="text-muted text-xs">•</span>
+                <span class="text-muted text-xs font-semibold" id="heroProgram">—</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <span id="heroStatusBadge" class="badge badge--success text-sm" style="padding: 6px 14px; font-weight: bold;">PRESENT</span>
+          </div>
+        </div>
+
+        <div class="mt-3 text-xs text-muted flex items-center justify-between pt-2" style="border-top: 1px dashed var(--glass-border);">
+          <span id="heroLateNote" class="text-warning"></span>
+          <span class="text-xs text-muted font-mono"><i class="fas fa-shield-check text-success"></i> Cryptographically Validated</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Real-Time Roster Ledger & Telemetry -->
+  <div>
+    <div class="card" style="padding: 0; overflow: hidden; height: calc(100vh - 170px); display: flex; flex-direction: column;">
+      
+      <!-- Telemetry Strip -->
+      <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); background: rgba(0,0,0,0.2);">
+        <div class="flex items-center justify-between mb-2">
+          <div class="font-semibold text-primary text-sm flex items-center gap-2">
+            <i class="fas fa-users-viewfinder text-gold"></i> Live Section Roster
+          </div>
+          <span class="text-xs text-muted font-mono"><span id="metricTotalEnrolled">{{ total_enrolled }}</span> Total Enrolled</span>
+        </div>
+
+        <!-- 4 Mini Metric Pills -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+          <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
+            <div class="text-xs text-muted" style="font-size: 0.65rem;">PRESENT</div>
+            <div class="font-mono font-bold text-success text-base" id="counterPresent">{{ present_count }}</div>
+          </div>
+          <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
+            <div class="text-xs text-muted" style="font-size: 0.65rem;">LATE</div>
+            <div class="font-mono font-bold text-warning text-base" id="counterLate">{{ late_count }}</div>
+          </div>
+          <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
+            <div class="text-xs text-muted" style="font-size: 0.65rem;">ABSENT</div>
+            <div class="font-mono font-bold text-danger text-base" id="counterAbsent">{{ absent_count }}</div>
+          </div>
+          <div style="background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
+            <div class="text-xs text-muted" style="font-size: 0.65rem;">PENDING</div>
+            <div class="font-mono font-bold text-primary text-base" id="counterPending">{{ pending_count }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search & Filter Controls -->
+      <div style="padding: 10px 16px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 8px;">
+        <div class="input-wrap" style="flex: 1;">
+          <i class="fas fa-magnifying-glass input-icon" style="font-size: 0.75rem;"></i>
+          <input type="text" id="rosterSearch" class="form-control text-xs" placeholder="Search by student name or ID..." style="height: 32px; padding-left: 28px;">
+        </div>
+        <select id="statusFilter" class="form-control text-xs" style="width: 120px; height: 32px; padding: 4px 8px;">
+          <option value="ALL">All Status</option>
+          <option value="PRESENT">Present</option>
+          <option value="LATE">Late</option>
+          <option value="PENDING">Pending</option>
+          <option value="ABSENT">Absent</option>
+          <option value="EXCUSED">Excused</option>
+        </select>
+      </div>
+
+      <!-- Scrollable Roster Table -->
+      <div style="flex: 1; overflow-y: auto; padding: 0;" class="table-responsive">
+        <table class="table" style="margin-bottom: 0;">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Program</th>
+              <th>Status</th>
+              <th style="text-align: right; width: 60px;">Override</th>
+            </tr>
+          </thead>
+          <tbody id="rosterTbody">
+            {% for s in roster_list %}
+            <tr id="roster-row-{{ s.student_id }}"
+                data-name="{{ s.full_name|lower }}"
+                data-ident="{{ s.student_number|lower }}"
+                data-status="{{ s.status }}">
+              <td>
+                <div class="flex items-center gap-2">
+                  <span class="avatar-initial" style="width: 30px; height: 30px; font-size: 0.75rem;">{{ s.initials }}</span>
+                  <div>
+                    <div class="font-semibold text-xs text-primary" id="roster-name-{{ s.student_id }}">{{ s.full_name }}</div>
+                    <div class="text-muted text-xs font-mono" style="font-size: 0.65rem;">{{ s.student_number }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="badge badge--primary text-xs" style="font-size: 0.65rem;">{{ s.program_code }}</span>
+              </td>
+              <td>
+                <div id="roster-status-wrap-{{ s.student_id }}">
+                  {% if s.status == 'PRESENT' %}
+                    <span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Present</span>
+                    <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">{{ s.stamped_at }}</span>
+                  {% elif s.status == 'LATE' %}
+                    <span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> Late (+{{ s.late_minutes }}m)</span>
+                    <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">{{ s.stamped_at }}</span>
+                  {% elif s.status == 'ABSENT' %}
+                    <span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Absent</span>
+                  {% elif s.status == 'EXCUSED' %}
+                    <span class="badge badge--purple text-xs"><i class="fas fa-file-medical"></i> Excused</span>
+                  {% else %}
+                    <span class="badge badge--muted text-xs"><i class="fas fa-hourglass-start"></i> Pending</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td style="text-align: right;">
+                <button type="button"
+                        class="btn btn-outline"
+                        style="padding: 4px 7px; font-size: 0.7rem;"
+                        onclick="openOverrideModal('{{ s.student_id }}', '{{ s.full_name|escapejs }}', '{{ s.student_number|escapejs }}', '{{ s.status }}')"
+                        title="Manual Status Override">
+                  <i class="fas fa-pen text-gold"></i>
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 32px 16px;" class="text-muted text-xs">
+                No active students currently enrolled in this section.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Conclude / Close Session                                               -->
+<!-- ============================================================================== -->
+<div class="modal" id="closeSessionModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-flag-checkered text-warning"></i> Conclude Attendance Session</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="closeSessionModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" action="{% url 'teacher_session_close' session.id %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <p class="text-secondary text-sm">Are you sure you want to conclude attendance monitoring for <strong class="text-primary">{{ class_obj.class_code }}</strong>?</p>
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: 12px; margin-top: 12px;">
+          <div class="flex items-center gap-2 text-danger text-xs font-semibold">
+            <i class="fas fa-triangle-exclamation"></i> Automatic Roster Finalization:
+          </div>
+          <p class="text-muted text-xs mt-1">
+            All remaining <strong class="text-danger" id="modalPendingCount">{{ pending_count }}</strong> unscanned students will automatically be marked as <strong class="text-danger">ABSENT</strong>.
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="closeSessionModal">Keep Session Open</button>
+        <button type="submit" class="btn btn-danger">
+          <i class="fas fa-check"></i> Finalize &amp; Close Session
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- MODAL: Manual Attendance Override                                            -->
+<!-- ============================================================================== -->
+<div class="modal" id="overrideModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-user-pen text-gold"></i> Manual Attendance Override</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="overrideModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form id="overrideForm">
+      {% csrf_token %}
+      <input type="hidden" id="override_student_id" name="student_id">
+      <div class="modal-body">
+        <div id="overrideAlert" class="toast toast--error mb-3" style="display: none;"></div>
+
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px;">
+          <div class="text-xs text-muted uppercase font-semibold">Student Account</div>
+          <div class="font-bold text-primary mt-0.5" id="override_student_name">—</div>
+          <div class="text-xs font-mono text-gold" id="override_student_ident">—</div>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label" for="override_status">Adjudicated Status <span class="text-danger">*</span></label>
+          <select id="override_status" name="status" class="form-control" required>
+            <option value="PRESENT">PRESENT — Marked Present</option>
+            <option value="LATE">LATE — Tardy Entry</option>
+            <option value="EXCUSED">EXCUSED — Official Excuse / Medical</option>
+            <option value="ABSENT">ABSENT — Marked Absent</option>
+          </select>
+        </div>
+
+        <div class="form-group mb-1">
+          <label class="form-label" for="override_reason">Justification / Remarks</label>
+          <textarea id="override_reason" name="reason" class="form-control text-xs" rows="2" placeholder="e.g. Phone battery drained, verified physically present in class."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="overrideModal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveOverrideBtn">Save Override</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Offline-Ready HTML5 QR Scanner Library -->
+<script src="{% static 'js/vendor/html5-qrcode.min.js' %}"></script>
+
+<script>
+(function() {
+  const sessionId = '{{ session.id }}';
+  const isSessionOpen = '{{ is_open }}' === 'True';
+  const graceCutoffTime = new Date('{{ grace_cutoff_iso }}').getTime();
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  // Sound Engine (Web Audio API Synthesizer - 100% offline, zero audio files required)
+  let audioContext = null;
+  let isMuted = false;
+
+  function initAudio() {
+    if (!audioContext) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioCtx();
+      } catch (e) {
+        console.warn('Web Audio not supported');
+      }
+    }
+    if (audioContext && audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+  }
+
+  function playTone(freq, duration, type = 'sine') {
+    if (isMuted || !audioContext) return;
+    try {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+      gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start();
+      osc.stop(audioContext.currentTime + duration);
+    } catch(e) {}
+  }
+
+  function playChime(outcome) {
+    initAudio();
+    if (outcome === 'PRESENT') {
+      playTone(880, 0.15, 'sine'); // High A
+      setTimeout(() => playTone(1320, 0.25, 'sine'), 120); // High E harmonic
+    } else if (outcome === 'LATE') {
+      playTone(660, 0.2, 'triangle');
+      setTimeout(() => playTone(550, 0.25, 'triangle'), 150);
+    } else {
+      // Error / Duplicate Buzz
+      playTone(220, 0.2, 'sawtooth');
+      setTimeout(() => playTone(180, 0.25, 'sawtooth'), 120);
+    }
+  }
+
+  // Audio Toggle
+  const toggleAudioBtn = document.getElementById('toggleAudioBtn');
+  const audioIcon = document.getElementById('audioIcon');
+  const audioText = document.getElementById('audioText');
+  if (toggleAudioBtn) {
+    toggleAudioBtn.addEventListener('click', function() {
+      isMuted = !isMuted;
+      if (isMuted) {
+        audioIcon.className = 'fas fa-volume-xmark text-muted';
+        audioText.textContent = 'Audio Muted';
+      } else {
+        audioIcon.className = 'fas fa-volume-high text-gold';
+        audioText.textContent = 'Audio On';
+        initAudio();
+        playTone(900, 0.1);
+      }
+    });
+  }
+
+  // Live Grace Period Countdown Timer
+  const graceCountdownEl = document.getElementById('graceCountdown');
+  function updateGraceTimer() {
+    const now = Date.now();
+    const diff = graceCutoffTime - now;
+    if (diff > 0) {
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      graceCountdownEl.textContent = `${mins}m ${secs < 10 ? '0' : ''}${secs}s (Present)`;
+      graceCountdownEl.className = 'font-mono text-sm font-bold text-success';
+    } else {
+      const lateMins = Math.floor(Math.abs(diff) / 60000);
+      graceCountdownEl.textContent = `Grace Ended (+${lateMins}m Late)`;
+      graceCountdownEl.className = 'font-mono text-sm font-bold text-warning';
+    }
+  }
+  updateGraceTimer();
+  setInterval(updateGraceTimer, 1000);
+
+  // Alert Handler
+  const alertBox = document.getElementById('scannerAlert');
+  const alertText = document.getElementById('scannerAlertText');
+  function showAlert(msg) {
+    if (!alertBox || !alertText) return;
+    alertText.textContent = msg;
+    alertBox.style.display = 'flex';
+    setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
+  }
+
+  // Camera QR Scanner Controller
+  let html5QrCode = null;
+  let isScanningPaused = false;
+  let lastScannedPayload = null;
+  let lastScanTimestamp = 0;
+  const DEBOUNCE_MS = 2500; // prevent multi-firing within 2.5 seconds on same code
+
+  function initCameraScanner() {
+    if (!isSessionOpen) return;
+    html5QrCode = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(cameras => {
+      const cameraSelect = document.getElementById('cameraSelect');
+      cameraSelect.innerHTML = '';
+      if (cameras && cameras.length) {
+        cameras.forEach((cam, idx) => {
+          const opt = document.createElement('option');
+          opt.value = cam.id;
+          opt.text = cam.label || `Camera ${idx + 1}`;
+          // Prefer back/rear environment camera for scanning if available
+          if (cam.label.toLowerCase().includes('back') || cam.label.toLowerCase().includes('rear')) {
+            opt.selected = true;
+          }
+          cameraSelect.appendChild(opt);
+        });
+
+        startCameraWithId(cameraSelect.value);
+
+        cameraSelect.addEventListener('change', function() {
+          if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+              startCameraWithId(this.value);
+            });
+          } else {
+            startCameraWithId(this.value);
+          }
+        });
+      } else {
+        cameraSelect.innerHTML = '<option value="">No cameras detected</option>';
+      }
+    }).catch(err => {
+      console.warn("Camera enumeration error:", err);
+      showAlert("Camera access not allowed or unavailable. Use manual input below.");
+    });
+  }
+
+  function startCameraWithId(cameraId) {
+    if (!cameraId || isScanningPaused) return;
+    const config = {
+      fps: 10,
+      qrbox: { width: 230, height: 230 },
+      aspectRatio: 1.0
+    };
+
+    html5QrCode.start(
+      cameraId,
+      config,
+      (decodedText, decodedResult) => {
+        onQrCodeScanned(decodedText);
+      },
+      (errorMessage) => {
+        // parse error / scanning in progress
+      }
+    ).catch(err => {
+      console.warn("Failed to start camera:", err);
+    });
+  }
+
+  // Camera Pause/Resume Toggle
+  const toggleCameraBtn = document.getElementById('toggleCameraBtn');
+  const camBtnText = document.getElementById('camBtnText');
+  if (toggleCameraBtn) {
+    toggleCameraBtn.addEventListener('click', function() {
+      if (!html5QrCode) return;
+      if (html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          isScanningPaused = true;
+          camBtnText.textContent = 'Resume';
+          toggleCameraBtn.innerHTML = '<i class="fas fa-play"></i> <span class="text-xs">Resume</span>';
+        });
+      } else {
+        const camId = document.getElementById('cameraSelect').value;
+        if (camId) {
+          isScanningPaused = false;
+          camBtnText.textContent = 'Pause';
+          toggleCameraBtn.innerHTML = '<i class="fas fa-pause"></i> <span class="text-xs">Pause</span>';
+          startCameraWithId(camId);
+        }
+      }
+    });
+  }
+
+  // Attendance Stamp Processing Pipeline
+  function onQrCodeScanned(payload) {
+    const now = Date.now();
+    if (payload === lastScannedPayload && (now - lastScanTimestamp < DEBOUNCE_MS)) {
+      return; // Debounce rapid multi-reads
+    }
+
+    lastScannedPayload = payload;
+    lastScanTimestamp = now;
+
+    // Send payload to backend verification endpoint
+    const postData = new FormData();
+    postData.append('session_id', sessionId);
+    postData.append('qr_payload', payload);
+
+    fetch('{% url "attendance_scan_api" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: postData
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        playChime(data.record_status);
+        updateHeroCard(data);
+        updateRosterRow(data);
+        updateCounters(data.counts);
+      } else {
+        playChime('ERROR');
+        showAlert(data.error || 'Attendance validation error.');
+      }
+    })
+    .catch(err => {
+      playChime('ERROR');
+      showAlert('Network transmission error while processing stamp.');
+    });
+  }
+
+  // Update Hero Card
+  const heroPlaceholder = document.getElementById('heroPlaceholder');
+  const heroContent = document.getElementById('heroContent');
+  const heroTimestamp = document.getElementById('heroTimestamp');
+  const heroInitials = document.getElementById('heroInitials');
+  const heroName = document.getElementById('heroName');
+  const heroStudentNumber = document.getElementById('heroStudentNumber');
+  const heroProgram = document.getElementById('heroProgram');
+  const heroStatusBadge = document.getElementById('heroStatusBadge');
+  const heroLateNote = document.getElementById('heroLateNote');
+
+  function updateHeroCard(data) {
+    if (heroPlaceholder) heroPlaceholder.style.display = 'none';
+    if (heroContent) heroContent.style.display = 'block';
+
+    if (heroTimestamp) heroTimestamp.textContent = data.stamped_at;
+    if (heroInitials) heroInitials.textContent = data.initials || '??';
+    if (heroName) heroName.textContent = data.student_name;
+    if (heroStudentNumber) heroStudentNumber.textContent = data.student_number;
+    if (heroProgram) heroProgram.textContent = `${data.program_code} · Year ${data.year_level}`;
+
+    if (data.record_status === 'PRESENT') {
+      heroStatusBadge.className = 'badge badge--success text-sm';
+      heroStatusBadge.innerHTML = '<i class="fas fa-circle-check"></i> PRESENT';
+      heroLateNote.textContent = 'Stamped on-time within grace window';
+      heroLateNote.className = 'text-success';
+    } else {
+      heroStatusBadge.className = 'badge badge--warning text-sm';
+      heroStatusBadge.innerHTML = `<i class="fas fa-clock"></i> LATE (+${data.late_minutes}m)`;
+      heroLateNote.textContent = `Tardy arrival: +${data.late_minutes} minutes past grace period cutoff`;
+      heroLateNote.className = 'text-warning';
+    }
+  }
+
+  // Update Live Roster Row
+  function updateRosterRow(data) {
+    const row = document.getElementById(`roster-row-${data.student_id}`);
+    const statusWrap = document.getElementById(`roster-status-wrap-${data.student_id}`);
+    if (row && statusWrap) {
+      row.setAttribute('data-status', data.record_status);
+
+      if (data.record_status === 'PRESENT') {
+        statusWrap.innerHTML = `
+          <span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Present</span>
+          <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">${data.stamped_at}</span>
+        `;
+      } else {
+        statusWrap.innerHTML = `
+          <span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> Late (+${data.late_minutes}m)</span>
+          <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">${data.stamped_at}</span>
+        `;
+      }
+
+      // Brief green highlight pulse
+      row.style.background = 'rgba(34, 197, 94, 0.15)';
+      setTimeout(() => { row.style.background = ''; }, 1800);
+    }
+  }
+
+  // Update Metric Counters
+  function updateCounters(counts) {
+    if (!counts) return;
+    const p = document.getElementById('counterPresent');
+    const l = document.getElementById('counterLate');
+    const a = document.getElementById('counterAbsent');
+    const pen = document.getElementById('counterPending');
+    const modalPen = document.getElementById('modalPendingCount');
+
+    if (p) p.textContent = counts.present;
+    if (l) l.textContent = counts.late;
+    if (a) a.textContent = counts.absent;
+    if (pen) pen.textContent = counts.pending;
+    if (modalPen) modalPen.textContent = counts.pending;
+  }
+
+  // Manual QR Payload Submission
+  const manualDrawer = document.getElementById('manualInputDrawer');
+  const manualToggleBtn = document.getElementById('manualInputToggleBtn');
+  const manualInput = document.getElementById('manualPayloadInput');
+  const manualSubmitBtn = document.getElementById('manualSubmitBtn');
+
+  if (manualToggleBtn && manualDrawer) {
+    manualToggleBtn.addEventListener('click', function() {
+      const isHidden = manualDrawer.style.display === 'none';
+      manualDrawer.style.display = isHidden ? 'block' : 'none';
+      if (isHidden && manualInput) manualInput.focus();
+    });
+  }
+
+  if (manualSubmitBtn && manualInput) {
+    manualSubmitBtn.addEventListener('click', function() {
+      const val = manualInput.value.trim();
+      if (!val) return;
+      onQrCodeScanned(val);
+      manualInput.value = '';
+    });
+    manualInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        manualSubmitBtn.click();
+      }
+    });
+  }
+
+  // Roster Search & Filter
+  const rosterSearch = document.getElementById('rosterSearch');
+  const statusFilter = document.getElementById('statusFilter');
+
+  function filterRoster() {
+    const q = (rosterSearch.value || '').toLowerCase().trim();
+    const st = (statusFilter.value || 'ALL').toUpperCase();
+
+    document.querySelectorAll('#rosterTbody tr').forEach(row => {
+      const name = row.getAttribute('data-name') || '';
+      const ident = row.getAttribute('data-ident') || '';
+      const status = (row.getAttribute('data-status') || '').toUpperCase();
+
+      const matchesQuery = !q || name.includes(q) || ident.includes(q);
+      const matchesStatus = st === 'ALL' || status === st;
+
+      row.style.display = (matchesQuery && matchesStatus) ? '' : 'none';
+    });
+  }
+
+  if (rosterSearch) rosterSearch.addEventListener('input', filterRoster);
+  if (statusFilter) statusFilter.addEventListener('change', filterRoster);
+
+  // Manual Status Override Modal Setup (Global function for inline onclick)
+  window.openOverrideModal = function(studentId, fullName, ident, currentStatus) {
+    document.getElementById('override_student_id').value = studentId;
+    document.getElementById('override_student_name').textContent = fullName;
+    document.getElementById('override_student_ident').textContent = `ID: ${ident}`;
+    document.getElementById('override_status').value = currentStatus === 'PENDING' ? 'PRESENT' : currentStatus;
+    document.getElementById('override_reason').value = '';
+    document.getElementById('overrideAlert').style.display = 'none';
+    window.openModal('overrideModal');
+  };
+
+  const overrideForm = document.getElementById('overrideForm');
+  const overrideAlert = document.getElementById('overrideAlert');
+  if (overrideForm) {
+    overrideForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const sId = document.getElementById('override_student_id').value;
+      const statusVal = document.getElementById('override_status').value;
+      const reasonVal = document.getElementById('override_reason').value;
+
+      const postData = new FormData();
+      postData.append('student_id', sId);
+      postData.append('status', statusVal);
+      postData.append('reason', reasonVal);
+
+      fetch(`/teacher/session/${sessionId}/override/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: postData
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'success') {
+          const row = document.getElementById(`roster-row-${sId}`);
+          const statusWrap = document.getElementById(`roster-status-wrap-${sId}`);
+          if (row && statusWrap) {
+            row.setAttribute('data-status', data.new_status);
+            if (data.new_status === 'PRESENT') {
+              statusWrap.innerHTML = `<span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Present</span> <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">${data.stamped_at}</span>`;
+            } else if (data.new_status === 'LATE') {
+              statusWrap.innerHTML = `<span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> Late</span> <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">${data.stamped_at}</span>`;
+            } else if (data.new_status === 'EXCUSED') {
+              statusWrap.innerHTML = `<span class="badge badge--purple text-xs"><i class="fas fa-file-medical"></i> Excused</span>`;
+            } else {
+              statusWrap.innerHTML = `<span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Absent</span>`;
+            }
+          }
+          updateCounters(data.counts);
+          window.closeModal('overrideModal');
+          playChime(data.new_status === 'PRESENT' ? 'PRESENT' : 'LATE');
+        } else {
+          overrideAlert.textContent = data.error || 'Failed to update record.';
+          overrideAlert.style.display = 'flex';
+        }
+      })
+      .catch(() => {
+        overrideAlert.textContent = 'Network communication error.';
+        overrideAlert.style.display = 'flex';
+      });
+    });
+  }
+
+  // Start Camera on load
+  document.addEventListener('DOMContentLoaded', function() {
+    initCameraScanner();
+  });
+
+})();
+</script>
+
+<style>
+/* Laser Scanning Frame animation */
+.scan-laser-box {
+  width: 200px;
+  height: 200px;
+  border: 2px solid rgba(245, 158, 11, 0.8);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+.scan-laser-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+  box-shadow: 0 0 8px #f59e0b;
+  animation: laserScan 2s ease-in-out infinite alternate;
+}
+@keyframes laserScan {
+  0% { top: 4%; }
+  100% { top: 96%; }
+}
+#reader video {
+  border-radius: var(--radius-md);
+  object-fit: cover !important;
+}
+</style>
+{% endblock %}

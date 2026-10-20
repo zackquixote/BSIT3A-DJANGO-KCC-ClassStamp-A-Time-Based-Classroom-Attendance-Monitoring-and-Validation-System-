@@ -1,0 +1,729 @@
+{% extends "theme/base.html" %}
+{% block title %}Class Sections & Schedules — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 20px;">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
+        <i class="fas fa-chalkboard"></i> Academic Timetable & Rosters
+      </span>
+      {% if active_ay %}
+        <span class="badge badge--success" style="font-size: 0.7rem; padding: 2px 8px;">
+          <i class="fas fa-calendar-check"></i> {{ active_ay.name }}
+        </span>
+      {% endif %}
+    </div>
+    <h1 class="page-title" style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">
+      Class Sections &amp; Schedules
+    </h1>
+    <p class="page-subtitle" style="font-size: 0.88rem;">
+      Configure classroom subject allocations, assign faculty instructors, weekly schedule slots, and student enrollments
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <button type="button" class="btn btn-primary" id="openCreateClassBtn" style="padding: 10px 18px;">
+      <i class="fas fa-plus-circle"></i> Create Class Section
+    </button>
+  </div>
+</div>
+
+<!-- ── KPI Stat Grid ──────────────────────────────────────────── -->
+<div class="stat-grid mb-4">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-chalkboard"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_classes_count }}</span>
+      <span class="stat-label">Total Classes</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-circle-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ active_classes_count }}</span>
+      <span class="stat-label">Active Sections</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-clock"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_slots_count }}</span>
+      <span class="stat-label">Timetable Slots</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-user-graduate"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ total_enrolled_count }}</span>
+      <span class="stat-label">Active Enrollments</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filter & Search Bar ────────────────────────────────────── -->
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="GET" class="flex items-center gap-3 flex-wrap">
+    <!-- Academic Year Selector -->
+    <div class="input-wrap" style="min-width: 200px;">
+      <i class="fas fa-calendar-days input-icon"></i>
+      <select name="ay" class="form-control" onchange="this.form.submit()">
+        <option value="ALL" {% if ay_filter == 'ALL' %}selected{% endif %}>All Academic Years</option>
+        {% for ay in academic_years %}
+          <option value="{{ ay.id }}" {% if ay_filter == ay.id|stringformat:"s" %}selected{% endif %}>
+            {{ ay.name }}{% if ay.is_active %} (Active){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Subject Selector -->
+    <div class="input-wrap" style="min-width: 180px;">
+      <i class="fas fa-book input-icon"></i>
+      <select name="subject" class="form-control" onchange="this.form.submit()">
+        <option value="">All Subjects</option>
+        {% for subj in subjects %}
+          <option value="{{ subj.id }}" {% if subject_filter == subj.id|stringformat:"s" %}selected{% endif %}>
+            {{ subj.code }} — {{ subj.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Teacher Selector -->
+    <div class="input-wrap" style="min-width: 180px;">
+      <i class="fas fa-chalkboard-user input-icon"></i>
+      <select name="teacher" class="form-control" onchange="this.form.submit()">
+        <option value="">All Instructors</option>
+        {% for t in teachers %}
+          <option value="{{ t.id }}" {% if teacher_filter == t.id|stringformat:"s" %}selected{% endif %}>
+            {{ t.user.get_full_name|default:t.user.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Search Query -->
+    <div class="input-wrap" style="flex: 1; min-width: 200px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" class="form-control" placeholder="Search class code or subject..." value="{{ search_q }}">
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-sm" style="padding: 9px 16px;">
+      <i class="fas fa-search"></i> Filter
+    </button>
+
+    {% if search_q or subject_filter or teacher_filter or ay_filter != active_ay.id|stringformat:"s" %}
+      <a href="{% url 'class_list' %}" class="btn btn-outline btn-sm" style="padding: 9px 14px;" title="Reset filters">
+        <i class="fas fa-rotate-left"></i> Reset
+      </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- ── Classes Master Table ────────────────────────────────────── -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="flex items-center gap-3">
+      <div class="stat-icon stat-icon--purple" style="width: 36px; height: 36px; font-size: 1rem;">
+        <i class="fas fa-list-check"></i>
+      </div>
+      <div>
+        <div class="font-bold text-primary" style="font-size: 1rem;">
+          Class Offerings
+        </div>
+        <span class="text-muted text-xs">Assigned subject sections, time windows, and active roster allocations</span>
+      </div>
+    </div>
+    <span class="badge badge--info">{{ classes.paginator.count|default:0 }} Total Class{{ classes.paginator.count|pluralize:"es" }}</span>
+  </div>
+
+  {% if classes %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Class Code</th>
+          <th>Subject &amp; Units</th>
+          <th>Instructor</th>
+          <th>Weekly Timetable Schedule</th>
+          <th>Roster Capacity</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in classes %}
+        <tr>
+          <td>
+            <div class="font-bold text-sm text-primary">{{ c.class_code }}</div>
+            <div class="text-xs text-muted mt-0.5">
+              {{ c.academic_year.name }}
+            </div>
+            <span class="badge badge--dark badge--xs mt-1" style="font-size: 0.65rem;">
+              <i class="fas fa-stopwatch"></i> {{ c.grace_minutes }}m grace
+            </span>
+          </td>
+          <td>
+            <div class="font-semibold text-sm">{{ c.subject.code }}</div>
+            <div class="text-xs text-muted" title="{{ c.subject.name }}">{{ c.subject.name|truncatechars:35 }}</div>
+          </td>
+          <td>
+            <div class="font-semibold text-sm">
+              {{ c.teacher_profile.user.get_full_name|default:c.teacher_profile.user.username }}
+            </div>
+            <div class="text-xs text-muted">
+              {% if c.teacher_profile.department %}
+                <span class="badge badge--purple badge--xs">{{ c.teacher_profile.department.code }}</span>
+              {% else %}
+                <span class="text-muted">General Faculty</span>
+              {% endif %}
+            </div>
+          </td>
+          <td style="max-width: 250px;">
+            {% with slots=c.slots.all %}
+              {% if slots %}
+                <div class="flex flex-col gap-1">
+                  {% for slot in slots %}
+                    {% if slot.is_active %}
+                      <div class="text-xs flex items-center gap-1.5" style="color: #cbd5e1;">
+                        <span class="badge badge--dark badge--xs" style="background: rgba(255,255,255,0.06); font-weight: 700;">
+                          {{ slot.get_weekday_display|slice:":3"|upper }}
+                        </span>
+                        <span>{{ slot.starts_at|time:"h:i A" }}–{{ slot.ends_at|time:"h:i A" }}</span>
+                        {% if slot.room %}
+                          <span class="text-muted" style="font-size: 0.68rem;">({{ slot.room }})</span>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="text-muted text-xs"><i class="fas fa-calendar-xmark"></i> No schedule slots set</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            <div class="font-bold text-sm {% if c.capacity and c.active_enrolled >= c.capacity %}text-warning{% else %}text-primary{% endif %}">
+              {{ c.active_enrolled }} {% if c.capacity %}<span class="text-muted font-normal">/ {{ c.capacity }}</span>{% endif %}
+            </div>
+            <div class="text-xs text-muted">
+              Enrolled Students
+            </div>
+          </td>
+          <td>
+            {% if c.is_active %}
+              <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Active</span>
+            {% else %}
+              <span class="badge badge--dark badge--xs" style="color: #94a3b8;"><i class="fas fa-eye-slash"></i> Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="flex items-center gap-1.5" style="justify-content: flex-end;">
+              <!-- Timetable Slots Button -->
+              <button type="button" class="btn btn-outline btn-xs btn-manage-slots"
+                      data-class-id="{{ c.id }}"
+                      data-class-code="{{ c.class_code }}"
+                      title="Manage Weekly Timetable Slots">
+                <i class="fas fa-clock"></i> Schedule
+              </button>
+
+              <!-- Roster Enlistment Button -->
+              <button type="button" class="btn btn-outline btn-xs btn-manage-roster"
+                      data-class-id="{{ c.id }}"
+                      data-class-code="{{ c.class_code }}"
+                      title="Manage Enrolled Student Roster">
+                <i class="fas fa-users"></i> Roster
+              </button>
+
+              <!-- Edit Class Button -->
+              <button type="button" class="btn btn-ghost btn-xs btn-edit-class"
+                      data-id="{{ c.id }}"
+                      data-code="{{ c.class_code }}"
+                      data-subject-id="{{ c.subject_id }}"
+                      data-teacher-id="{{ c.teacher_profile_id }}"
+                      data-ay-id="{{ c.academic_year_id }}"
+                      data-capacity="{{ c.capacity|default:'' }}"
+                      data-grace="{{ c.grace_minutes }}"
+                      title="Edit Section Details">
+                <i class="fas fa-pen"></i>
+              </button>
+
+              <!-- Toggle Active Button -->
+              <form method="POST" action="{% url 'class_toggle' c.id %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-xs text-muted"
+                        title="{% if c.is_active %}Deactivate Section{% else %}Activate Section{% endif %}">
+                  <i class="fas {% if c.is_active %}fa-pause text-warning{% else %}fa-play text-success{% endif %}"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding: 60px 20px; text-align: center;">
+    <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #c084fc; margin-bottom: 12px;">
+      <i class="fas fa-chalkboard"></i>
+    </div>
+    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin: 0 0 6px;">No Class Sections Found</h3>
+    <p class="text-muted text-xs" style="max-width: 400px; margin: 0 auto 16px;">
+      No academic classes match your search or filter criteria. Create your first class section to get started!
+    </p>
+    <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('openCreateClassBtn').click()">
+      <i class="fas fa-plus-circle"></i> Create Class Section
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Modal 1: Create / Edit Class ────────────────────────────── -->
+<div class="dash-modal-backdrop" id="classModal">
+  <div class="dash-modal" role="dialog" aria-labelledby="classModalTitle" style="max-width: 520px;">
+    <div class="dash-modal-head">
+      <h3 class="dash-modal-title" id="classModalTitle">
+        <i class="fas fa-chalkboard text-gold"></i>
+        <span id="classModalHeading">Create Class Section</span>
+      </h3>
+      <button type="button" class="dash-modal-close" id="closeClassModal" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" action="{% url 'class_save' %}" id="classForm">
+      {% csrf_token %}
+      <input type="hidden" name="class_id" id="formClassId" value="">
+
+      <div class="dash-modal-body" style="gap: 14px; padding: 18px 20px;">
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Class Section Code *</label>
+          <input type="text" name="class_code" id="formClassCode" class="form-control" required placeholder="e.g. BSIT-3A-WEBDEV" style="width: 100%; text-transform: uppercase;">
+          <span class="text-muted text-xs mt-1" style="display: block;">Unique section identifier per academic term</span>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Subject *</label>
+          <select name="subject_id" id="formSubjectId" class="form-control" required style="width: 100%;">
+            <option value="">Select Course Subject...</option>
+            {% for s in subjects %}
+              <option value="{{ s.id }}">{{ s.code }} — {{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Assigned Faculty Instructor *</label>
+          <select name="teacher_profile_id" id="formTeacherId" class="form-control" required style="width: 100%;">
+            <option value="">Select Instructor...</option>
+            {% for t in teachers %}
+              <option value="{{ t.id }}">
+                {{ t.user.get_full_name|default:t.user.username }} {% if t.department %}({{ t.department.code }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Term *</label>
+            <select name="academic_year_id" id="formAyId" class="form-control" required style="width: 100%;">
+              {% for ay in academic_years %}
+                <option value="{{ ay.id }}" {% if ay.is_active %}selected{% endif %}>{{ ay.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Roster Capacity</label>
+            <input type="number" name="capacity" id="formCapacity" class="form-control" min="1" max="250" placeholder="e.g. 45" style="width: 100%;">
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Grace Period Buffer (Minutes)</label>
+          <input type="number" name="grace_minutes" id="formGraceMinutes" class="form-control" min="0" max="60" value="10" required style="width: 100%;">
+          <span class="text-muted text-xs mt-1" style="display: block;">Minutes allowed after slot start time before marking LATE</span>
+        </div>
+      </div>
+
+      <div style="padding: 12px 20px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-outline btn-sm" id="cancelClassModal">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Save Section</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Modal 2: Weekly Schedule Timetable Slots ────────────────── -->
+<div class="dash-modal-backdrop" id="slotsModal">
+  <div class="dash-modal" role="dialog" aria-labelledby="slotsModalTitle" style="max-width: 560px;">
+    <div class="dash-modal-head">
+      <h3 class="dash-modal-title" id="slotsModalTitle">
+        <i class="fas fa-clock text-gold"></i>
+        <span>Weekly Schedule Slots: <span id="slotsModalClassCode" class="text-primary">—</span></span>
+      </h3>
+      <button type="button" class="dash-modal-close" id="closeSlotsModal" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="dash-modal-body" style="padding: 18px 20px; gap: 16px;">
+      <!-- Existing slots list -->
+      <div>
+        <div class="font-bold text-xs text-primary mb-2 flex items-center gap-1.5">
+          <i class="fas fa-calendar-week"></i> Current Timetable Slots
+        </div>
+        <div id="existingSlotsContainer" class="flex flex-col gap-2">
+          <!-- Dynamically populated or page reload -->
+          <p class="text-muted text-xs">Loading slots...</p>
+        </div>
+      </div>
+
+      <!-- Add New Slot Form -->
+      <div style="border-top: 1px solid var(--glass-border); padding-top: 14px;">
+        <div class="font-bold text-xs text-primary mb-2 flex items-center gap-1.5">
+          <i class="fas fa-plus-circle"></i> Add Meeting Slot
+        </div>
+        <form id="addSlotForm">
+          {% csrf_token %}
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+              <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">Day of Week *</label>
+              <select name="weekday" class="form-control" required style="width: 100%;">
+                <option value="0">Monday</option>
+                <option value="1">Tuesday</option>
+                <option value="2">Wednesday</option>
+                <option value="3">Thursday</option>
+                <option value="4">Friday</option>
+                <option value="5">Saturday</option>
+                <option value="6">Sunday</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">Assigned Room</label>
+              <input type="text" name="room" class="form-control" placeholder="e.g. IT-Lab 3 or Room 302" style="width: 100%;">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+            <div>
+              <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">Start Time *</label>
+              <input type="time" name="starts_at" class="form-control" required style="width: 100%;">
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">End Time *</label>
+              <input type="time" name="ends_at" class="form-control" required style="width: 100%;">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">
+            <i class="fas fa-plus"></i> Save Schedule Slot
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal 3: Class Roster & Student Enlistment ───────────────── -->
+<div class="dash-modal-backdrop" id="rosterModal">
+  <div class="dash-modal" role="dialog" aria-labelledby="rosterModalTitle" style="max-width: 620px;">
+    <div class="dash-modal-head">
+      <h3 class="dash-modal-title" id="rosterModalTitle">
+        <i class="fas fa-users text-gold"></i>
+        <span>Class Roster Enlistment: <span id="rosterModalClassCode" class="text-primary">—</span></span>
+      </h3>
+      <button type="button" class="dash-modal-close" id="closeRosterModal" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="dash-modal-body" style="padding: 18px 20px; gap: 14px;">
+      <!-- Enlist New Student Dropdown -->
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 12px;">
+        <label class="form-label" style="font-size: 0.74rem; font-weight: 700; margin-bottom: 6px; display: block;">
+          <i class="fas fa-user-plus text-success"></i> Enlist Approved Student
+        </label>
+        <div style="display: flex; gap: 8px;">
+          <select id="availableStudentsSelect" class="form-control" style="flex: 1;">
+            <option value="">Choose an approved student...</option>
+          </select>
+          <button type="button" class="btn btn-primary btn-sm" id="btnEnrollStudent">
+            <i class="fas fa-plus"></i> Enlist
+          </button>
+        </div>
+      </div>
+
+      <!-- Current Enrolled List -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-bold text-xs text-primary">Enrolled Students (<span id="rosterCountBadge">0</span>)</span>
+          <span class="text-xs text-muted" id="rosterCapacityText"></span>
+        </div>
+        <div id="rosterStudentsList" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+          <p class="text-muted text-xs">Loading roster...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+
+  // ── 1. Create / Edit Class Modal ──────────────────────────────
+  const classModal = document.getElementById('classModal');
+  const openCreateClassBtn = document.getElementById('openCreateClassBtn');
+  const closeClassModal = document.getElementById('closeClassModal');
+  const cancelClassModal = document.getElementById('cancelClassModal');
+  const classModalHeading = document.getElementById('classModalHeading');
+  const classForm = document.getElementById('classForm');
+
+  const formClassId = document.getElementById('formClassId');
+  const formClassCode = document.getElementById('formClassCode');
+  const formSubjectId = document.getElementById('formSubjectId');
+  const formTeacherId = document.getElementById('formTeacherId');
+  const formAyId = document.getElementById('formAyId');
+  const formCapacity = document.getElementById('formCapacity');
+  const formGraceMinutes = document.getElementById('formGraceMinutes');
+
+  if (openCreateClassBtn) {
+    openCreateClassBtn.addEventListener('click', function () {
+      classModalHeading.textContent = 'Create Class Section';
+      formClassId.value = '';
+      classForm.reset();
+      classModal.classList.add('is-open');
+    });
+  }
+
+  document.querySelectorAll('.btn-edit-class').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      classModalHeading.textContent = 'Edit Class Section';
+      formClassId.value = this.dataset.id || '';
+      formClassCode.value = this.dataset.code || '';
+      formSubjectId.value = this.dataset.subjectId || '';
+      formTeacherId.value = this.dataset.teacherId || '';
+      formAyId.value = this.dataset.ayId || '';
+      formCapacity.value = this.dataset.capacity || '';
+      formGraceMinutes.value = this.dataset.grace || '10';
+      classModal.classList.add('is-open');
+    });
+  });
+
+  function closeClassModalFn() { classModal.classList.remove('is-open'); }
+  if (closeClassModal) closeClassModal.addEventListener('click', closeClassModalFn);
+  if (cancelClassModal) cancelClassModal.addEventListener('click', closeClassModalFn);
+
+  // ── 2. Timetable Slots Modal ──────────────────────────────────
+  const slotsModal = document.getElementById('slotsModal');
+  const closeSlotsModal = document.getElementById('closeSlotsModal');
+  const slotsModalClassCode = document.getElementById('slotsModalClassCode');
+  const existingSlotsContainer = document.getElementById('existingSlotsContainer');
+  const addSlotForm = document.getElementById('addSlotForm');
+  let currentSlotClassId = null;
+
+  document.querySelectorAll('.btn-manage-slots').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      currentSlotClassId = this.dataset.classId;
+      slotsModalClassCode.textContent = this.dataset.classCode;
+      slotsModal.classList.add('is-open');
+      loadSlotsUI(this);
+    });
+  });
+
+  function loadSlotsUI(btnElement) {
+    const tr = btnElement.closest('tr');
+    const slotRows = tr.querySelectorAll('td:nth-child(4) .flex-col > div');
+    let html = '';
+    if (slotRows.length === 0) {
+      html = '<p class="text-muted text-xs">No schedule slots currently registered.</p>';
+    } else {
+      slotRows.forEach(function (row) {
+        html += '<div class="p-2" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">' +
+                '<span class="text-xs text-primary font-semibold">' + row.innerHTML + '</span>' +
+                '<span class="text-xs text-muted">(Active)</span>' +
+                '</div>';
+      });
+    }
+    existingSlotsContainer.innerHTML = html;
+  }
+
+  if (addSlotForm) {
+    addSlotForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!currentSlotClassId) return;
+      const formData = new FormData(addSlotForm);
+      fetch('/classes/' + currentSlotClassId + '/slot/save/', {
+        method: 'POST',
+        body: formData,
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.success) {
+          window.location.reload();
+        } else {
+          alert(res.message || 'Error saving slot.');
+        }
+      })
+      .catch(function (err) { alert('Request failed: ' + err); });
+    });
+  }
+
+  if (closeSlotsModal) {
+    closeSlotsModal.addEventListener('click', function () {
+      slotsModal.classList.remove('is-open');
+    });
+  }
+
+  // ── 3. Roster Enlistment Modal ────────────────────────────────
+  const rosterModal = document.getElementById('rosterModal');
+  const closeRosterModal = document.getElementById('closeRosterModal');
+  const rosterModalClassCode = document.getElementById('rosterModalClassCode');
+  const rosterCountBadge = document.getElementById('rosterCountBadge');
+  const rosterCapacityText = document.getElementById('rosterCapacityText');
+  const rosterStudentsList = document.getElementById('rosterStudentsList');
+  const availableStudentsSelect = document.getElementById('availableStudentsSelect');
+  const btnEnrollStudent = document.getElementById('btnEnrollStudent');
+  let currentRosterClassId = null;
+
+  document.querySelectorAll('.btn-manage-roster').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      currentRosterClassId = this.dataset.classId;
+      rosterModalClassCode.textContent = this.dataset.classCode;
+      rosterModal.classList.add('is-open');
+      loadRosterData(currentRosterClassId);
+    });
+  });
+
+  function loadRosterData(classId) {
+    rosterStudentsList.innerHTML = '<p class="text-muted text-xs">Loading roster...</p>';
+    fetch('/classes/' + classId + '/roster/')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.success) return;
+        rosterCountBadge.textContent = data.enrolled_count;
+        rosterCapacityText.textContent = data.capacity ? ('Capacity: ' + data.capacity + ' max') : 'No capacity limit';
+
+        // Render available dropdown
+        let optHtml = '<option value="">Choose an approved student to enlist...</option>';
+        data.available.forEach(function (s) {
+          optHtml += '<option value="' + s.profile_id + '">' + s.student_name + ' (' + s.student_id + ' · ' + s.program + ')</option>';
+        });
+        availableStudentsSelect.innerHTML = optHtml;
+
+        // Render enrolled list
+        if (data.enrolled.length === 0) {
+          rosterStudentsList.innerHTML = '<p class="text-muted text-xs p-3 text-center">No students currently enrolled in this section.</p>';
+        } else {
+          let listHtml = '';
+          data.enrolled.forEach(function (en) {
+            listHtml +=
+              '<div class="p-2 flex items-center justify-between" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px;">' +
+              '  <div>' +
+              '    <div class="font-semibold text-xs text-primary">' + en.student_name + '</div>' +
+              '    <div class="text-xs text-muted" style="font-size: 0.68rem;">' + en.student_id + ' · ' + en.program + ' · Enrolled ' + en.enrolled_at + '</div>' +
+              '  </div>' +
+              '  <button type="button" class="btn btn-ghost btn-xs text-error btn-remove-enrollment" data-id="' + en.enrollment_id + '" title="Withdraw student from section">' +
+              '    <i class="fas fa-user-minus"></i> Remove' +
+              '  </button>' +
+              '</div>';
+          });
+          rosterStudentsList.innerHTML = listHtml;
+          bindRemoveEnrollmentButtons();
+        }
+      })
+      .catch(function (err) {
+        rosterStudentsList.innerHTML = '<p class="text-error text-xs">Failed to load roster: ' + err + '</p>';
+      });
+  }
+
+  function bindRemoveEnrollmentButtons() {
+    document.querySelectorAll('.btn-remove-enrollment').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm('Are you sure you want to withdraw this student from this class section?')) return;
+        const enrollmentId = this.dataset.id;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrfToken);
+
+        fetch('/classes/roster/remove/' + enrollmentId + '/', {
+          method: 'POST',
+          body: fd,
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res.success) {
+            loadRosterData(currentRosterClassId);
+          } else {
+            alert('Failed to remove student.');
+          }
+        });
+      });
+    });
+  }
+
+  if (btnEnrollStudent) {
+    btnEnrollStudent.addEventListener('click', function () {
+      const profileId = availableStudentsSelect.value;
+      if (!profileId || !currentRosterClassId) {
+        alert('Please choose a student to enlist.');
+        return;
+      }
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      const fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrfToken);
+      fd.append('profile_id', profileId);
+
+      fetch('/classes/' + currentRosterClassId + '/roster/enroll/', {
+        method: 'POST',
+        body: fd,
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res.success) {
+          loadRosterData(currentRosterClassId);
+        } else {
+          alert(res.message || 'Failed to enlist student.');
+        }
+      })
+      .catch(function (err) { alert('Enroll request failed: ' + err); });
+    });
+  }
+
+  if (closeRosterModal) {
+    closeRosterModal.addEventListener('click', function () {
+      rosterModal.classList.remove('is-open');
+    });
+  }
+
+  // Backdrop click close for all modals
+  [classModal, slotsModal, rosterModal].forEach(function (m) {
+    if (m) {
+      m.addEventListener('click', function (e) {
+        if (e.target === m) m.classList.remove('is-open');
+      });
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      [classModal, slotsModal, rosterModal].forEach(function (m) {
+        if (m) m.classList.remove('is-open');
+      });
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -172,8 +172,17 @@
             </span>
           </td>
           <td class="text-secondary text-sm">
-            <div class="font-semibold text-primary">{{ p.program.code }}</div>
-            <div class="text-muted text-xs">{{ p.year_level }}{% if p.year_level == 1 %}st{% elif p.year_level == 2 %}nd{% elif p.year_level == 3 %}rd{% else %}th{% endif %} Year</div>
+            <div class="font-semibold text-primary" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span>{{ p.program.code }}</span>
+              {% if p.student_type == 'IRREGULAR' %}
+                <span class="badge badge--warning badge--xs" title="Irregular / Returnee Student"><i class="fas fa-shuffle"></i> Irregular</span>
+              {% elif p.student_type == 'TRANSFEREE' %}
+                <span class="badge badge--purple badge--xs" title="Transferee Student"><i class="fas fa-right-left"></i> Transferee</span>
+              {% else %}
+                <span class="badge badge--info badge--xs" title="Regular Student">Regular</span>
+              {% endif %}
+            </div>
+            <div class="text-muted text-xs mt-0.5">{{ p.year_level }}{% if p.year_level == 1 %}st{% elif p.year_level == 2 %}nd{% elif p.year_level == 3 %}rd{% else %}th{% endif %} Year Standing</div>
           </td>
           <td class="text-muted text-xs">{{ p.created_at|date:"M j, Y g:i A" }}</td>
           <td>

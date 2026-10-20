@@ -126,8 +126,38 @@
               <i class="fas fa-calendar-days"></i> {{ p.years_total }} Year{{ p.years_total|pluralize }}
             </span>
           </td>
-          <td class="text-muted">
-            <i class="fas fa-user-graduate"></i> {{ p.student_count }} Student{{ p.student_count|pluralize }}
+          <td>
+            <div>
+              <a href="{% url 'student_directory' %}?program={{ p.id }}"
+                 class="font-semibold text-primary inline-flex items-center gap-1"
+                 style="text-decoration: none;"
+                 title="View all {{ p.code }} students">
+                <i class="fas fa-user-graduate text-gold"></i>
+                <span>{{ p.student_count }} Student{{ p.student_count|pluralize }}</span>
+              </a>
+              <div class="flex items-center gap-1 mt-1" style="font-size: 0.72rem; flex-wrap: wrap;">
+                <a href="{% url 'student_directory' %}?program={{ p.id }}&year_level=1"
+                   class="year-chip {% if p.y1_count > 0 %}is-filled{% endif %}"
+                   title="View 1st Year {{ p.code }} Students">
+                  1st: <strong>{{ p.y1_count }}</strong>
+                </a>
+                <a href="{% url 'student_directory' %}?program={{ p.id }}&year_level=2"
+                   class="year-chip {% if p.y2_count > 0 %}is-filled{% endif %}"
+                   title="View 2nd Year {{ p.code }} Students">
+                  2nd: <strong>{{ p.y2_count }}</strong>
+                </a>
+                <a href="{% url 'student_directory' %}?program={{ p.id }}&year_level=3"
+                   class="year-chip {% if p.y3_count > 0 %}is-filled{% endif %}"
+                   title="View 3rd Year {{ p.code }} Students">
+                  3rd: <strong>{{ p.y3_count }}</strong>
+                </a>
+                <a href="{% url 'student_directory' %}?program={{ p.id }}&year_level=4"
+                   class="year-chip {% if p.y4_count > 0 %}is-filled{% endif %}"
+                   title="View 4th Year {{ p.code }} Students">
+                  4th: <strong>{{ p.y4_count }}</strong>
+                </a>
+              </div>
+            </div>
           </td>
           <td>
             {% if p.is_active %}
@@ -138,6 +168,12 @@
           </td>
           <td style="text-align: right;">
             <div class="flex items-center gap-2" style="justify-content: flex-end;">
+              <a href="{% url 'student_directory' %}?program={{ p.id }}"
+                 class="btn btn-outline"
+                 style="padding: 6px 10px;"
+                 title="View Students Roster ({{ p.code }})">
+                <i class="fas fa-users-viewfinder text-primary"></i>
+              </a>
               <button type="button"
                       class="btn btn-outline"
                       style="padding: 6px 10px;"
@@ -428,4 +464,34 @@
   });
 })();
 </script>
+
+<style>
+.year-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.72rem;
+  transition: all 0.15s ease;
+}
+.year-chip:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--accent-gold);
+}
+.year-chip.is-filled {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+.year-chip.is-filled:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #93c5fd;
+}
+</style>
 {% endblock %}

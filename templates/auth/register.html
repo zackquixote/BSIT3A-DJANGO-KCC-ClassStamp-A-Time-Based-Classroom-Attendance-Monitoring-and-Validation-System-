@@ -219,6 +219,29 @@
             </div>
           </div>
 
+          <!-- Student Classification & Standing (Regular, Irregular, Transferee) -->
+          <div class="form-group">
+            <label class="form-label" for="id_student_type">
+              Student Classification
+              <span class="text-xs text-gold" style="font-weight: 500;">(Academic Standing)</span>
+            </label>
+            <div class="input-wrap">
+              <i class="fas fa-user-tag input-icon"></i>
+              <select id="id_student_type" name="student_type" class="form-control kcc-input {% if errors.student_type %}is-invalid{% endif %}" required>
+                <option value="REGULAR" {% if form_data.student_type == 'REGULAR' or not form_data.student_type %}selected{% endif %}>Regular Student (Standard block schedule)</option>
+                <option value="IRREGULAR" {% if form_data.student_type == 'IRREGULAR' %}selected{% endif %}>Irregular / Returnee (With back-subjects or custom load)</option>
+                <option value="TRANSFEREE" {% if form_data.student_type == 'TRANSFEREE' %}selected{% endif %}>Transferee (From another college/institution)</option>
+              </select>
+            </div>
+            <div id="studentTypeNotice" class="text-xs mt-1" style="color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+              <i class="fas fa-info-circle text-gold"></i>
+              <span id="studentTypeNoticeText">Regular students are enrolled into standard departmental block schedules.</span>
+            </div>
+            {% if errors.student_type %}
+              <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.student_type }}</span>
+            {% endif %}
+          </div>
+
           <!-- Cascading Department Selection -->
           <div class="form-group">
             <label class="form-label" for="id_department">College Department</label>
@@ -492,6 +515,23 @@
         emailInput.addEventListener('input', function () {
           scheduleAvailabilityCheck('email', this.value.trim(), document.getElementById('emailStatus'));
         });
+      // 4. Student Classification notice update
+      const studentTypeSelect = document.getElementById('id_student_type');
+      const studentTypeNoticeText = document.getElementById('studentTypeNoticeText');
+      if (studentTypeSelect && studentTypeNoticeText) {
+        studentTypeSelect.addEventListener('change', function () {
+          if (this.value === 'IRREGULAR') {
+            studentTypeNoticeText.innerHTML = '<strong style="color: #fbbf24;">Irregular / Returnee:</strong> Please upload your official COR below so the Admin can map your cross-enrolled subjects.';
+          } else if (this.value === 'TRANSFEREE') {
+            studentTypeNoticeText.innerHTML = '<strong style="color: #c084fc;">Transferee:</strong> Please upload your official crediting evaluation / COR below to verify your eligible subjects.';
+          } else {
+            studentTypeNoticeText.textContent = 'Regular students are enrolled into standard departmental block schedules.';
+          }
+        });
+        // Run once on load if initial value is pre-selected
+        if (studentTypeSelect.value !== 'REGULAR') {
+          studentTypeSelect.dispatchEvent(new Event('change'));
+        }
       }
     })();
   </script>

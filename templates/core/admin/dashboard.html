@@ -1,15 +1,47 @@
 {% extends "theme/base.html" %}
+{% load static %}
 {% block title %}Admin Command Center — KCC ClassStamp{% endblock %}
 
-{% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Admin Dashboard</h1>
-    <p class="page-subtitle">Classroom monitoring, student validation queue, and collegiate records</p>
-  </div>
-  <div class="page-header-actions">
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261020_fit100">
+{% endblock %}
 
-    <!-- ── Notification Bell Dropdown ──────────────────────────── -->
+{% block content %}
+<!-- ── Top Header ─────────────────────────────────────────────── -->
+<div class="dash-page-header">
+  <div class="dash-page-header-left">
+    <h1 class="dash-page-title">Admin <span>Command Center</span></h1>
+    <div class="dash-header-meta">
+      <a href="{% url 'academic_year_list' %}" class="dash-term-pill" title="Click to view & manage academic years">
+        <i class="fas fa-calendar-check"></i>
+        <span>{{ active_academic_year.name|default:"A.Y. 2026–2027 · 1st Semester" }}</span>
+        <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem; opacity: 0.7;"></i>
+      </a>
+      <span class="dash-clock-pill" id="livePstClock">
+        <i class="fas fa-clock text-gold"></i>
+        <span id="clockTimeDisplay">--:--:-- PST</span>
+      </span>
+      {% if attendance_rate is not None %}
+        <span class="dash-rate-pill" title="Today's attendance compliance: {{ attendance_rate }}% attended out of {{ today_attendance_total }} recorded scan{{ today_attendance_total|pluralize }}">
+          <i class="fas fa-chart-line text-green"></i>
+          <span>{{ attendance_rate }}% Attended Today</span>
+        </span>
+      {% else %}
+        <span class="dash-rate-pill" title="System monitoring active — awaiting today's classroom attendance scans">
+          <i class="fas fa-shield-heart text-gold"></i>
+          <span>Live Monitoring</span>
+        </span>
+      {% endif %}
+      {% if open_anomaly_count %}
+        <a href="{% url 'anomaly_list' %}" class="badge badge--danger" style="text-decoration: none;" title="Security review required">
+          <i class="fas fa-triangle-exclamation"></i> {{ open_anomaly_count }} Security Alert{{ open_anomaly_count|pluralize }}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="dash-header-actions">
+    <!-- Notification Bell Dropdown -->
     <div class="notif-bell-wrapper" id="notifBellWrapper">
       <button type="button" class="btn-bell-notification {% if not pending_count %}btn-bell--idle{% endif %}"
               id="notifBellBtn"
@@ -25,7 +57,6 @@
       </button>
 
       <div class="notif-dropdown" id="notifDropdown" role="dialog" aria-label="Notifications panel">
-        <!-- Header -->
         <div class="notif-dropdown-header">
           <div class="notif-dropdown-title">
             <i class="fas fa-bell"></i>
@@ -36,7 +67,6 @@
           {% endif %}
         </div>
 
-        <!-- Body -->
         <div class="notif-dropdown-body">
           {% if pending_students %}
             <p class="notif-section-label">Awaiting Account Review</p>
@@ -46,7 +76,7 @@
                   {{ s.initials }}
                 </div>
                 <div class="notif-item-info">
-                  <span class="notif-item-name">{{ s.user.get_full_name }}</span>
+                  <span class="notif-item-name">{{ s.user.get_full_name|default:s.user.username }}</span>
                   <span class="notif-item-sub">
                     {{ s.student_number }}
                     {% if s.program %}· {{ s.program.code }}{% endif %}
@@ -70,7 +100,6 @@
           {% endif %}
         </div>
 
-        <!-- Footer -->
         <div class="notif-dropdown-footer">
           <a href="{% url 'validation_queue' %}" class="notif-footer-link">
             <i class="fas fa-list-check"></i>
@@ -80,227 +109,397 @@
         </div>
       </div>
     </div>
-    <!-- ── / Notification Bell Dropdown ──────────────────────── -->
 
-    <a href="{% url 'student_directory' %}" class="btn btn-outline">
+    <a href="{% url 'student_directory' %}" class="btn btn-outline btn-sm">
       <i class="fas fa-user-graduate"></i> Student Directory
+    </a>
+
+    <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm" title="System Audit & Export Log">
+      <i class="fas fa-file-export"></i> Logs & Reports
     </a>
   </div>
 </div>
 
-<!-- KPI Cards Grid: 3 per row -->
-<div class="admin-kpi-grid mb-6">
-  <a href="{% url 'validation_queue' %}" class="stat-card stat-card--kpi {% if pending_count %}stat-card--pulse{% endif %}">
-    <div class="stat-icon stat-icon--gold"><i class="fas fa-user-clock"></i></div>
-    <div class="stat-info">
-      <span class="stat-value" id="pendingKpiValue">{{ pending_count }}</span>
-      <span class="stat-label">Pending Validations</span>
-      <span class="kpi-delta {% if pending_delta > 0 %}kpi-delta--up{% elif pending_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
-        {% if pending_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ pending_delta }}{% elif pending_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ pending_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+<!-- ── Telemetry KPI Metric Cards (2 rows of 3 on Desktop) ─────── -->
+<div class="dash-kpi-strip">
+  <!-- 1. Pending Validations -->
+  <a href="{% url 'validation_queue' %}" class="dash-kpi-card {% if pending_count %}dash-kpi-card--pulse{% endif %}">
+    <div class="dash-kpi-icon dash-kpi-icon--gold"><i class="fas fa-user-clock"></i></div>
+    <div class="dash-kpi-body">
+      <span class="dash-kpi-value" id="pendingKpiValue">{{ pending_count }}</span>
+      <span class="dash-kpi-label">Pending Validations</span>
+      <span class="dash-kpi-delta {% if pending_delta > 0 %}dash-kpi-delta--up{% elif pending_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+        {% if pending_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ pending_delta }}{% elif pending_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ pending_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
         <span>vs yesterday</span>
       </span>
     </div>
-    {% if pending_count %}<span class="kpi-mini-badge badge badge--warning"><i class="fas fa-bell"></i> Action Needed</span>{% endif %}
+    {% if pending_count %}
+      <span class="dash-kpi-badge badge badge--warning"><i class="fas fa-bell"></i> Action Needed</span>
+    {% endif %}
   </a>
 
-  <a href="{% url 'student_directory' %}" class="stat-card stat-card--kpi">
-    <div class="stat-icon stat-icon--green"><i class="fas fa-user-graduate"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ student_count }}</span>
-      <span class="stat-label">Active Students</span>
-      <span class="kpi-delta {% if student_delta > 0 %}kpi-delta--up{% elif student_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
-        {% if student_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ student_delta }}{% elif student_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ student_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
-        <span>vs yesterday</span>
-      </span>
-    </div>
-  </a>
-
-  <a href="{% url 'users:user_list' %}" class="stat-card stat-card--kpi">
-    <div class="stat-icon stat-icon--gold"><i class="fas fa-chalkboard-user"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ teacher_count }}</span>
-      <span class="stat-label">Teaching Faculty</span>
-      <span class="kpi-delta {% if teacher_delta > 0 %}kpi-delta--up{% elif teacher_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
-        {% if teacher_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ teacher_delta }}{% elif teacher_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ teacher_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+  <!-- 2. Active Students -->
+  <a href="{% url 'student_directory' %}" class="dash-kpi-card">
+    <div class="dash-kpi-icon dash-kpi-icon--green"><i class="fas fa-user-graduate"></i></div>
+    <div class="dash-kpi-body">
+      <span class="dash-kpi-value">{{ student_count }}</span>
+      <span class="dash-kpi-label">Active Students</span>
+      <span class="dash-kpi-delta {% if student_delta > 0 %}dash-kpi-delta--up{% elif student_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+        {% if student_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ student_delta }}{% elif student_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ student_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
         <span>vs yesterday</span>
       </span>
     </div>
   </a>
 
-  <a href="{% url 'admin_audit_log' %}" class="stat-card stat-card--kpi">
-    <div class="stat-icon stat-icon--blue"><i class="fas fa-qrcode"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ open_session_count }}</span>
-      <span class="stat-label">Active Sessions</span>
-      <span class="kpi-delta {% if session_delta > 0 %}kpi-delta--up{% elif session_delta < 0 %}kpi-delta--down{% else %}kpi-delta--flat{% endif %}">
-        {% if session_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ session_delta }}{% elif session_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ session_delta }}{% else %}<i class="fas fa-minus"></i> No change{% endif %}
+  <!-- 3. Teaching Faculty -->
+  <a href="{% url 'users:user_list' %}" class="dash-kpi-card">
+    <div class="dash-kpi-icon dash-kpi-icon--gold"><i class="fas fa-chalkboard-user"></i></div>
+    <div class="dash-kpi-body">
+      <span class="dash-kpi-value">{{ teacher_count }}</span>
+      <span class="dash-kpi-label">Teaching Faculty</span>
+      <span class="dash-kpi-delta {% if teacher_delta > 0 %}dash-kpi-delta--up{% elif teacher_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+        {% if teacher_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ teacher_delta }}{% elif teacher_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ teacher_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
         <span>vs yesterday</span>
       </span>
     </div>
   </a>
 
-  <a href="{% url 'department_list' %}" class="stat-card stat-card--kpi">
-    <div class="stat-icon stat-icon--purple"><i class="fas fa-building-columns"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ department_count }}</span>
-      <span class="stat-label">Departments</span>
+  <!-- 4. Active Sessions (Clickable to inspect open classrooms) -->
+  <div class="dash-kpi-card" id="activeSessionsCard" style="cursor: pointer;" title="Click to view currently open classroom sessions">
+    <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-qrcode"></i></div>
+    <div class="dash-kpi-body">
+      <span class="dash-kpi-value">{{ open_session_count }}</span>
+      <span class="dash-kpi-label">Active Sessions</span>
+      <span class="dash-kpi-delta {% if session_delta > 0 %}dash-kpi-delta--up{% elif session_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+        {% if session_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ session_delta }}{% elif session_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ session_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
+        <span>vs yesterday</span>
+      </span>
+    </div>
+    {% if open_session_count %}
+      <span class="dash-kpi-badge badge badge--info"><i class="fas fa-satellite-dish"></i> Live</span>
+    {% endif %}
+  </div>
+
+  <!-- 5. Departments -->
+  <a href="{% url 'department_list' %}" class="dash-kpi-card">
+    <div class="dash-kpi-icon dash-kpi-icon--purple"><i class="fas fa-building-columns"></i></div>
+    <div class="dash-kpi-body">
+      <span class="dash-kpi-value">{{ department_count }}</span>
+      <span class="dash-kpi-label">Departments</span>
     </div>
   </a>
 
-  <a href="{% url 'program_list' %}" class="stat-card stat-card--kpi">
-    <div class="stat-icon stat-icon--blue"><i class="fas fa-graduation-cap"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ program_count }}</span>
-      <span class="stat-label">Degree Programs</span>
+  <!-- 6. Degree Programs -->
+  <a href="{% url 'program_list' %}" class="dash-kpi-card">
+    <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-graduation-cap"></i></div>
+    <div class="dash-kpi-body">
+      <span class="dash-kpi-value">{{ program_count }}</span>
+      <span class="dash-kpi-label">Degree Programs</span>
     </div>
   </a>
 </div>
 
-<!-- Main 3-Column Zero-Scroll Grid: Quick Launcher | Departments | Recently Approved -->
-<div class="dashboard-three-grid mb-6">
+<!-- ── Interactive Attendance Analytics (Chart.js) ───────────── -->
+<div class="dash-chart-card">
+  <div class="dash-chart-head">
+    <div class="dash-chart-title-wrap">
+      <div class="dash-chart-title">
+        <i class="fas fa-chart-column"></i>
+        <span id="dashChartTitle">Attendance Analytics Pulse</span>
+      </div>
+      <span class="dash-chart-sub" id="dashChartSubtitle">Daily breakdown of student classroom check-ins (Past 7 Days)</span>
+    </div>
+
+    <div class="dash-chart-meta">
+      <!-- Quick Range Presets (7D, 14D, 30D) -->
+      <div class="dash-chart-ranges" id="chartRangeButtons">
+        <button type="button" class="dash-chart-range-btn is-active" data-days="7" title="View past 7 days">7D</button>
+        <button type="button" class="dash-chart-range-btn" data-days="14" title="View past 14 days (includes Oct 07)">14D</button>
+        <button type="button" class="dash-chart-range-btn" data-days="30" title="View past 30 days">30D</button>
+      </div>
+
+      <!-- Specific Date Picker Input -->
+      <div class="dash-chart-picker-wrap">
+        <i class="fas fa-calendar-day"></i>
+        <input type="date" id="chartDatePicker" class="dash-chart-date-input" title="Inspect specific historical date (e.g. Oct 07, 2026)">
+      </div>
+
+      <!-- Legend (Present, Late, Absent, Excused) -->
+      <div class="dash-chart-legend">
+        <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--present"></span> Present</span>
+        <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--late"></span> Late</span>
+        <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--absent"></span> Absent</span>
+        <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--excused"></span> Excused</span>
+      </div>
+      <span class="dash-chart-live-badge"><i class="fas fa-bolt"></i> Live Feed</span>
+    </div>
+  </div>
+
+  <!-- Day Inspection Ribbon (Appears on bar click or date picker select) -->
+  <div class="dash-chart-day-inspect" id="chartDayInspect" style="display: none;">
+    <div class="dash-inspect-left">
+      <i class="fas fa-calendar-check text-gold"></i>
+      <span class="text-xs text-muted">Inspecting:</span>
+      <span id="inspectDateLabel" class="font-bold text-primary text-xs">Oct 07, 2026</span>
+    </div>
+    <div class="dash-inspect-stats">
+      <span class="text-xs text-muted">Present: <strong class="text-success" id="inspectPresent">0</strong></span>
+      <span class="dash-inspect-dot">&bull;</span>
+      <span class="text-xs text-muted">Late: <strong class="text-warning" id="inspectLate">0</strong></span>
+      <span class="dash-inspect-dot">&bull;</span>
+      <span class="text-xs text-muted">Absent: <strong class="text-error" id="inspectAbsent">0</strong></span>
+      <span class="dash-inspect-dot">&bull;</span>
+      <span class="text-xs text-muted">Excused: <strong class="text-info" id="inspectExcused">0</strong></span>
+      <span class="dash-inspect-badge" id="inspectTotal">0 Total Scans</span>
+    </div>
+    <button type="button" class="dash-inspect-close" id="closeInspectBtn" title="Close inspection ribbon">&times;</button>
+  </div>
+
+  <div class="dash-chart-canvas-wrapper">
+    <canvas id="weeklyAttendanceChart" aria-label="Attendance Analytics Chart" role="img"></canvas>
+  </div>
+</div>
+
+{{ chart_data|json_script:"dashChartData" }}
+
+<!-- ── Main 3-Column Zero-Scroll Grid ─────────────────────────── -->
+<div class="dash-panel-grid">
   <!-- 1. Quick Launcher -->
-  <div class="card card--dashboard-panel">
-    <div class="dashboard-card-head">
+  <div class="dash-panel">
+    <div class="dash-panel-head">
       <div>
-        <h2 class="dashboard-section-title"><i class="fas fa-rocket"></i> Quick Launcher</h2>
-        <p class="text-muted text-xs mt-0.5">Shortcuts to administrative modules</p>
+        <h2 class="dash-panel-title"><i class="fas fa-rocket"></i> Quick Launcher</h2>
+        <p class="dash-panel-subtitle">Instant shortcuts to administrative modules</p>
       </div>
     </div>
+    <div class="dash-panel-body">
+      <div class="dash-launcher-grid">
+        <a href="{% url 'validation_queue' %}" class="dash-launcher-btn">
+          <div class="dash-launcher-icon" style="background: rgba(245,158,11,0.18); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
+            <i class="fas fa-user-clock"></i>
+          </div>
+          <div class="dash-launcher-text">
+            <div class="dash-launcher-label">Validation Queue</div>
+            <div class="dash-launcher-sub">Review students</div>
+          </div>
+        </a>
 
-    <div class="quick-launch-grid-2col">
-      <a href="{% url 'validation_queue' %}" class="quick-launch-btn-compact">
-        <div class="quick-launch-icon-sm" style="background: rgba(245,158,11,0.18); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
-          <i class="fas fa-user-clock"></i>
-        </div>
-        <div class="quick-launch-text">
-          <div class="ql-title">Validation Queue</div>
-          <div class="ql-sub text-muted">Review students</div>
-        </div>
-      </a>
+        <a href="{% url 'student_directory' %}" class="dash-launcher-btn">
+          <div class="dash-launcher-icon" style="background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.35);">
+            <i class="fas fa-user-graduate"></i>
+          </div>
+          <div class="dash-launcher-text">
+            <div class="dash-launcher-label">Student Directory</div>
+            <div class="dash-launcher-sub">Profiles & records</div>
+          </div>
+        </a>
 
-      <a href="{% url 'student_directory' %}" class="quick-launch-btn-compact">
-        <div class="quick-launch-icon-sm" style="background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.35);">
-          <i class="fas fa-user-graduate"></i>
-        </div>
-        <div class="quick-launch-text">
-          <div class="ql-title">Student Directory</div>
-          <div class="ql-sub text-muted">Profiles & records</div>
-        </div>
-      </a>
+        <a href="{% url 'users:user_list' %}" class="dash-launcher-btn">
+          <div class="dash-launcher-icon" style="background: rgba(245,158,11,0.15); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
+            <i class="fas fa-users-gear"></i>
+          </div>
+          <div class="dash-launcher-text">
+            <div class="dash-launcher-label">User Accounts</div>
+            <div class="dash-launcher-sub">Manage roles</div>
+          </div>
+        </a>
 
-      <a href="{% url 'users:user_list' %}" class="quick-launch-btn-compact">
-        <div class="quick-launch-icon-sm" style="background: rgba(245,158,11,0.15); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
-          <i class="fas fa-users-gear"></i>
-        </div>
-        <div class="quick-launch-text">
-          <div class="ql-title">User Accounts</div>
-          <div class="ql-sub text-muted">Manage roles</div>
-        </div>
-      </a>
+        <a href="{% url 'department_list' %}" class="dash-launcher-btn">
+          <div class="dash-launcher-icon" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35);">
+            <i class="fas fa-building-columns"></i>
+          </div>
+          <div class="dash-launcher-text">
+            <div class="dash-launcher-label">Departments</div>
+            <div class="dash-launcher-sub">Academic units</div>
+          </div>
+        </a>
 
-      <a href="{% url 'department_list' %}" class="quick-launch-btn-compact">
-        <div class="quick-launch-icon-sm" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35);">
-          <i class="fas fa-building-columns"></i>
-        </div>
-        <div class="quick-launch-text">
-          <div class="ql-title">Departments</div>
-          <div class="ql-sub text-muted">Academic units</div>
-        </div>
-      </a>
+        <a href="{% url 'program_list' %}" class="dash-launcher-btn">
+          <div class="dash-launcher-icon" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35);">
+            <i class="fas fa-graduation-cap"></i>
+          </div>
+          <div class="dash-launcher-text">
+            <div class="dash-launcher-label">Programs</div>
+            <div class="dash-launcher-sub">Degree courses</div>
+          </div>
+        </a>
 
-      <a href="{% url 'program_list' %}" class="quick-launch-btn-compact">
-        <div class="quick-launch-icon-sm" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35);">
-          <i class="fas fa-graduation-cap"></i>
-        </div>
-        <div class="quick-launch-text">
-          <div class="ql-title">Programs</div>
-          <div class="ql-sub text-muted">Degree courses</div>
-        </div>
-      </a>
-
-      <a href="{% url 'admin_audit_log' %}" class="quick-launch-btn-compact">
-        <div class="quick-launch-icon-sm" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35);">
-          <i class="fas fa-shield-halved"></i>
-        </div>
-        <div class="quick-launch-text">
-          <div class="ql-title">Audit Log</div>
-          <div class="ql-sub text-muted">Security logs</div>
-        </div>
-      </a>
+        <a href="{% url 'admin_audit_log' %}" class="dash-launcher-btn">
+          <div class="dash-launcher-icon" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35);">
+            <i class="fas fa-shield-halved"></i>
+          </div>
+          <div class="dash-launcher-text">
+            <div class="dash-launcher-label">Audit Log</div>
+            <div class="dash-launcher-sub">Security records</div>
+          </div>
+        </a>
+      </div>
     </div>
   </div>
 
-  <!-- 2. Departments -->
-  <div class="card card--dashboard-panel">
-    <div class="dashboard-card-head">
+  <!-- 2. Academic Departments -->
+  <div class="dash-panel">
+    <div class="dash-panel-head">
       <div>
-        <h2 class="dashboard-section-title"><i class="fas fa-building-columns"></i> Departments</h2>
-        <p class="text-muted text-xs mt-0.5">Student distribution by unit</p>
+        <h2 class="dash-panel-title"><i class="fas fa-building-columns"></i> Departments</h2>
+        <p class="dash-panel-subtitle">Student distribution by academic unit</p>
       </div>
-      <a href="{% url 'department_list' %}" class="btn btn-outline btn-xs">Manage</a>
+      <a href="{% url 'department_list' %}" class="dash-panel-action">Manage</a>
     </div>
-
-    <div class="dept-list-compact">
-      {% for dept in departments_list %}
-        <div class="dept-item-compact">
-          <div class="flex items-center justify-between">
-            <strong class="text-xs text-primary font-semibold">{{ dept.code }}</strong>
-            <span class="badge badge--purple badge--xs">{{ dept.student_count }} student{{ dept.student_count|pluralize }}</span>
+    <div class="dash-panel-body">
+      <div class="dash-dept-list">
+        {% for dept in departments_list %}
+          <div class="dash-dept-row">
+            <span class="dash-dept-code">{{ dept.code }}</span>
+            <div class="dash-dept-info">
+              <div class="dash-dept-name" title="{{ dept.name }}">{{ dept.name }}</div>
+              <div class="dash-dept-meta">
+                <i class="fas fa-graduation-cap"></i> {{ dept.programs.count }} program{{ dept.programs.count|pluralize }}
+              </div>
+            </div>
+            <span class="dash-dept-badge badge badge--purple badge--xs">{{ dept.student_count }} student{{ dept.student_count|pluralize }}</span>
           </div>
-          <div class="text-xs text-muted truncate mt-0.5" title="{{ dept.name }}">{{ dept.name }}</div>
-          <div class="text-xs text-muted-dim mt-0.5">
-            <i class="fas fa-graduation-cap text-xs"></i> {{ dept.programs.count }} program{{ dept.programs.count|pluralize }}
+        {% empty %}
+          <div class="dash-empty">
+            <i class="fas fa-building-columns"></i>
+            <p>No departments registered yet.</p>
+            <a href="{% url 'department_list' %}" class="btn btn-primary btn-xs mt-2">
+              <i class="fas fa-plus"></i> Add Department
+            </a>
           </div>
-        </div>
-      {% empty %}
-        <div class="dashboard-empty py-4">
-          <i class="fas fa-building-columns text-sm"></i>
-          <p class="text-muted text-xs">No departments registered yet.</p>
-          <a href="{% url 'department_list' %}" class="btn btn-primary btn-xs mt-2">
-            <i class="fas fa-plus"></i> Add Department
-          </a>
-        </div>
-      {% endfor %}
+        {% endfor %}
+      </div>
     </div>
   </div>
 
-  <!-- 3. Recently Approved -->
-  <div class="card card--dashboard-panel">
-    <div class="dashboard-card-head">
-      <div>
-        <h2 class="dashboard-section-title"><i class="fas fa-circle-check"></i> Recently Approved</h2>
-        <p class="text-muted text-xs mt-0.5">Latest validated accounts</p>
+  <!-- 3. Dual Tab: Recently Approved Accounts & Live Attendance Stamps -->
+  <div class="dash-panel">
+    <div class="dash-panel-head">
+      <div class="dash-tab-group" role="tablist">
+        <button type="button" class="dash-tab-btn is-active" id="tabApprovedBtn" role="tab" aria-selected="true">
+          <i class="fas fa-circle-check"></i> Approved
+        </button>
+        <button type="button" class="dash-tab-btn" id="tabFeedBtn" role="tab" aria-selected="false">
+          <span class="dash-tab-pulse-dot"></span>
+          <i class="fas fa-tower-broadcast"></i> Live Stamps
+        </button>
       </div>
-      <a href="{% url 'recently_reviewed_list' %}" class="text-xs text-muted hover-gold">
+      <a href="{% url 'recently_reviewed_list' %}" class="dash-panel-action" id="tabApprovedLink">
         <i class="fas fa-users"></i> View All
       </a>
+      <a href="{% url 'admin_audit_log' %}" class="dash-panel-action" id="tabFeedLink" style="display: none;">
+        <i class="fas fa-list"></i> Full Feed
+      </a>
     </div>
 
-    <div class="approved-list-compact">
-      {% for student in recent_approved %}
-        <div class="approved-student-row-compact">
-          <div class="approved-avatar-sm">
-            {{ student.user.first_name|first|default:student.user.username|slice:":1"|upper }}
-          </div>
-          <div class="activity-row-body min-w-0">
-            <div class="font-medium text-xs text-primary truncate">
-              {{ student.user.get_full_name|default:student.user.username }}
+    <div class="dash-panel-body">
+      <!-- Tab Pane 1: Recently Approved -->
+      <div class="dash-approved-list" id="paneApproved">
+        {% for student in recent_approved %}
+          <div class="dash-approved-row">
+            <div class="dash-approved-avatar">
+              {{ student.user.first_name|first|default:student.user.username|slice:":1"|upper }}
             </div>
-            <div class="text-xs text-muted truncate">
-              {{ student.student_number|default:"No ID" }} • {{ student.program.code|default:"—" }}
+            <div class="dash-approved-body">
+              <div class="dash-approved-name">
+                {{ student.user.get_full_name|default:student.user.username }}
+              </div>
+              <div class="dash-approved-sub">
+                {{ student.student_number|default:"No ID" }} • {{ student.program.code|default:"—" }}
+                {% if student.student_type == 'IRREGULAR' %}
+                  <span class="text-gold">(Irreg)</span>
+                {% elif student.student_type == 'TRANSFEREE' %}
+                  <span style="color: #c084fc;">(Transferee)</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="dash-approved-meta">
+              <span class="badge badge--success badge--xs"><i class="fas fa-check"></i> Approved</span>
+              <span class="dash-approved-time">
+                {{ student.approved_at|timesince|default:"recently" }} ago
+              </span>
             </div>
           </div>
-          <div class="activity-row-meta text-right flex-shrink-0">
-            <span class="badge badge--success badge--xs"><i class="fas fa-check"></i> Approved</span>
+        {% empty %}
+          <div class="dash-empty">
+            <i class="fas fa-user-check"></i>
+            <p>No recently approved students found.</p>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Tab Pane 2: Live Attendance Stamps Feed -->
+      <div class="dash-feed-list" id="paneFeed" style="display: none;">
+        {% for stamp in activity_feed %}
+          <div class="dash-feed-row">
+            <div class="dash-feed-icon {% if stamp.status == 'PRESENT' %}dash-feed-icon--present{% else %}dash-feed-icon--late{% endif %}">
+              <i class="fas {% if stamp.status == 'PRESENT' %}fa-check{% else %}fa-clock{% endif %}"></i>
+            </div>
+            <div class="dash-feed-body">
+              <div class="dash-feed-name">{{ stamp.student }}</div>
+              <div class="dash-feed-sub">{{ stamp.class_code }} • {{ stamp.student_id }}</div>
+            </div>
+            <div class="dash-feed-meta">
+              <span class="badge {% if stamp.status == 'PRESENT' %}badge--success{% else %}badge--warning{% endif %} badge--xs">
+                {{ stamp.status }}
+              </span>
+              <div class="text-muted text-xs" style="font-size: 0.65rem; margin-top: 2px;">
+                {% if stamp.stamped_time %}<span><i class="fas fa-clock"></i> {{ stamp.stamped_time }}</span> · {% endif %}
+                <i class="fas fa-qrcode"></i> {{ stamp.method|default:"QR" }}
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="dash-empty">
+            <i class="fas fa-satellite-dish"></i>
+            <p>No live classroom stamp activity recorded yet today.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Active Sessions Modal Drawer ───────────────────────────── -->
+<div class="dash-modal-backdrop" id="activeSessionsModal">
+  <div class="dash-modal" role="dialog" aria-labelledby="activeSessionsTitle">
+    <div class="dash-modal-head">
+      <h3 class="dash-modal-title" id="activeSessionsTitle">
+        <i class="fas fa-satellite-dish text-gold"></i>
+        <span>Active Classroom Sessions ({{ open_session_count }})</span>
+      </h3>
+      <button type="button" class="dash-modal-close" id="closeSessionsModal" aria-label="Close modal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="dash-modal-body">
+      {% for session in open_sessions_list %}
+        <div class="dash-session-row">
+          <div>
+            <div class="font-semibold text-sm text-primary">
+              {{ session.slot.class_obj.class_code }} — {{ session.slot.class_obj.subject.name }}
+            </div>
             <div class="text-xs text-muted mt-0.5">
-              {{ student.approved_at|timesince|default:"recently" }} ago
+              <i class="fas fa-chalkboard-user"></i> {{ session.slot.class_obj.teacher_profile.user.get_full_name }}
+              {% if session.slot.room %} · <i class="fas fa-location-dot"></i> {{ session.slot.room }}{% endif %}
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="badge badge--success badge--xs"><i class="fas fa-circle-dot"></i> Scanning Open</span>
+            <div class="text-xs text-muted mt-1" style="font-size: 0.65rem;">
+              Opened {{ session.opened_at|timesince|default:"recently" }} ago
+            </div>
+            <div style="margin-top: 5px;">
+              <a href="{% url 'admin_audit_log' %}?q={{ session.slot.class_obj.class_code }}" class="btn btn-outline btn-xs" style="padding: 2px 7px; font-size: 0.65rem; border-color: rgba(255,255,255,0.15);" title="Inspect audit activity for {{ session.slot.class_obj.class_code }}">
+                <i class="fas fa-eye"></i> Activity
+              </a>
             </div>
           </div>
         </div>
       {% empty %}
-        <div class="dashboard-empty py-4 text-xs">
-          <i class="fas fa-user-check"></i>
-          No recently approved students found.
+        <div class="dash-empty">
+          <i class="fas fa-door-closed"></i>
+          <p>No active classroom attendance sessions currently open.</p>
         </div>
       {% endfor %}
     </div>
@@ -309,667 +508,12 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <div id="admin-dashboard-boot"
      hidden
      data-pending-count="{{ pending_count|default:0 }}"
-     data-pending-count-url="{% url 'admin_pending_count_json' %}"></div>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const boot = document.getElementById('admin-dashboard-boot');
-
-  // ── Auto-Refresh Pending Count ──────────────────────────────────────────────
-  let currentPendingCount = Number(boot.dataset.pendingCount || 0);
-  const pendingCountUrl = boot.dataset.pendingCountUrl;
-
-  function checkPendingCount() {
-    fetch(pendingCountUrl)
-      .then(r => r.json())
-      .then(data => {
-        if (data.pending_count !== undefined && data.pending_count !== currentPendingCount) {
-          currentPendingCount = data.pending_count;
-          // Update KPI value
-          const kpiVal = document.getElementById('pendingKpiValue');
-          if (kpiVal) kpiVal.textContent = currentPendingCount;
-
-          const banner = document.getElementById('validationBanner');
-          if (currentPendingCount === 0) {
-            // Queue is clear: hide the banner completely
-            if (banner) {
-              banner.style.display = 'none';
-            }
-          } else {
-            // Pending items arrived or updated: show notification banner
-            if (banner) {
-              banner.style.display = 'flex';
-              banner.className = 'vq-notification-banner vq-banner--warning mb-4';
-              const countDisplay = document.getElementById('pendingCountDisplay');
-              if (countDisplay) {
-                countDisplay.textContent = currentPendingCount;
-              } else {
-                banner.innerHTML = `
-                  <div class="vq-banner-left">
-                    <div class="vq-banner-icon"><i class="fas fa-bell"></i></div>
-                    <div>
-                      <div class="vq-banner-title"><span id="pendingCountDisplay">${currentPendingCount}</span> Student Registration${currentPendingCount !== 1 ? 's' : ''} Awaiting Review</div>
-                      <div class="vq-banner-sub">New accounts need your approval before students can access the system.</div>
-                    </div>
-                  </div>
-                  <a href="/validation/pending/" class="btn btn-primary btn-sm"><i class="fas fa-list-check"></i> Review Pending Accounts</a>
-                `;
-              }
-            }
-          }
-        }
-      })
-      .catch(err => console.debug('Pending count poll failed:', err));
-  }
-
-  // Poll every 45 seconds
-  setInterval(checkPendingCount, 45000);
-});
-</script>
-
-<script>
-// ── Notification Bell Dropdown Toggle ──────────────────────────────────────
-(function () {
-  'use strict';
-  const btn      = document.getElementById('notifBellBtn');
-  const dropdown = document.getElementById('notifDropdown');
-  const wrapper  = document.getElementById('notifBellWrapper');
-  if (!btn || !dropdown) return;
-
-  function openDropdown()  { dropdown.classList.add('is-open');    btn.setAttribute('aria-expanded', 'true');  }
-  function closeDropdown() { dropdown.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false'); }
-  function toggleDropdown() { dropdown.classList.contains('is-open') ? closeDropdown() : openDropdown(); }
-
-  btn.addEventListener('click', function (e) { e.stopPropagation(); toggleDropdown(); });
-
-  document.addEventListener('click', function (e) {
-    if (!wrapper.contains(e.target)) closeDropdown();
-  });
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { closeDropdown(); btn.focus(); }
-  });
-})();
-</script>
-
-<style>
-/* ═══════════════════════════════════════════════════════════════
-   ADMIN DASHBOARD — Modern Redesign
-   KPI: 3 per row (readable), Panels: 3-col balanced grid
-═══════════════════════════════════════════════════════════════ */
-
-/* ── KPI Grid: 3 columns on desktop (legible, not cramped) ───── */
-.admin-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.stat-card--kpi {
-  padding: 18px 20px;
-  gap: 14px;
-  align-items: center;
-}
-
-.stat-card--kpi .stat-icon {
-  width: 46px;
-  height: 46px;
-  font-size: 1.15rem;
-  flex-shrink: 0;
-}
-
-.stat-card--kpi .stat-info {
-  min-width: 0;
-}
-
-.stat-card--kpi .stat-value {
-  font-size: 1.75rem;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.stat-card--kpi .stat-label {
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  opacity: 0.65;
-  margin-top: 3px;
-  display: block;
-}
-
-.stat-card--kpi .kpi-delta {
-  font-size: 0.72rem;
-  margin-top: 5px;
-  padding: 2px 6px;
-  border-radius: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* ── 3-Column Lower Panel (desktop ≥1100px) ────────────────────── */
-.dashboard-three-grid {
-  margin-top: 28px;
-}
-
-@media (min-width: 1100px) {
-  .dashboard-three-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 18px;
-    align-items: start;
-  }
-}
-
-@media (max-width: 1099px) and (min-width: 768px) {
-  .admin-kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
-  .dashboard-three-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-}
-
-@media (max-width: 767px) {
-  .admin-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .dashboard-three-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .stat-card--kpi {
-    padding: 14px 16px;
-  }
-  .stat-card--kpi .stat-value { font-size: 1.5rem; }
-}
-
-/* ── Panel Cards ──────────────────────────────────────────────── */
-.card--dashboard-panel {
-  padding: 20px 22px !important;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.dashboard-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.dashboard-section-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  letter-spacing: 0.01em;
-}
-
-.dashboard-section-title i {
-  opacity: 0.75;
-  font-size: 0.85rem;
-}
-
-/* ── Quick Launcher: 2-col pill buttons ───────────────────────── */
-.quick-launch-grid-2col {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.quick-launch-btn-compact {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 11px 13px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  min-width: 0;
-}
-
-.quick-launch-btn-compact:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(245, 158, 11, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-}
-
-.quick-launch-icon-sm {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.92rem;
-  flex-shrink: 0;
-}
-
-.quick-launch-text { min-width: 0; overflow: hidden; }
-
-.ql-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.25;
-}
-
-.ql-sub {
-  font-size: 0.67rem;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-  line-height: 1.2;
-}
-
-/* ── Departments compact list ─────────────────────────────────── */
-.dept-list-compact {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dept-item-compact {
-  padding: 10px 13px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--glass-border);
-  transition: background 0.15s ease;
-}
-
-.dept-item-compact:hover { background: rgba(255, 255, 255, 0.05); }
-
-.text-muted-dim { color: var(--text-muted); opacity: 0.7; }
-
-/* ── Recently Approved compact list ───────────────────────────── */
-.approved-list-compact {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.approved-student-row-compact {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 13px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--glass-border);
-  transition: background 0.15s ease;
-}
-
-.approved-student-row-compact:hover { background: rgba(255, 255, 255, 0.05); }
-
-.approved-avatar-sm {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08));
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.8rem;
-  flex-shrink: 0;
-}
-
-/* ── Helper utilities ─────────────────────────────────────────── */
-.badge--xs {
-  font-size: 0.67rem !important;
-  padding: 2px 7px !important;
-}
-
-.btn-xs {
-  padding: 4px 10px !important;
-  font-size: 0.74rem !important;
-  border-radius: 6px !important;
-}
-
-.hover-gold:hover { color: var(--accent-gold-h) !important; }
-
-/* ── Notification Bell Wrapper & Dropdown ─────────────────────── */
-.notif-bell-wrapper {
-  position: relative;
-  flex-shrink: 0;
-}
-
-/* ── Bell Button ───────────────────────────────────────────────── */
-.btn-bell-notification {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(245, 158, 11, 0.14);
-  border: 1.5px solid rgba(245, 158, 11, 0.4);
-  color: var(--accent-gold, #f59e0b);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.05rem;
-  transition: all 0.22s ease;
-  text-decoration: none;
-  cursor: pointer;
-  flex-shrink: 0;
-  outline: none;
-}
-
-.btn-bell-notification:hover,
-.btn-bell-notification[aria-expanded="true"] {
-  background: rgba(245, 158, 11, 0.28);
-  border-color: rgba(245, 158, 11, 0.75);
-  color: #fbbf24;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.32);
-}
-
-.btn-bell--idle {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--text-secondary, #94a3b8);
-}
-
-.btn-bell--idle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
-
-.bell-badge-count {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  border-radius: 9999px;
-  background: #ef4444;
-  border: 2px solid #0b1120;
-  color: #ffffff;
-  font-size: 0.68rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
-  animation: bellPulse 2.2s infinite ease-in-out;
-  pointer-events: none;
-}
-
-@keyframes bellPulse {
-  0%, 100% { transform: scale(1);    box-shadow: 0 0 6px  rgba(239, 68, 68, 0.6); }
-  50%       { transform: scale(1.18); box-shadow: 0 0 16px rgba(239, 68, 68, 1.0); }
-}
-
-/* ── Dropdown Panel ────────────────────────────────────────────── */
-.notif-dropdown {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 360px;
-  max-height: 520px;
-  border-radius: 16px;
-  background: linear-gradient(160deg, #111d3b 0%, #0c1529 100%);
-  border: 1px solid rgba(99, 130, 255, 0.22);
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(255,255,255,0.04) inset;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 1060;
-  /* Hidden by default */
-  opacity: 0;
-  transform: translateY(-8px) scale(0.97);
-  pointer-events: none;
-  transition: opacity 0.22s ease, transform 0.22s ease;
-  transform-origin: top right;
-}
-
-.notif-dropdown.is-open {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
-}
-
-/* Header */
-.notif-dropdown-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  flex-shrink: 0;
-}
-
-.notif-dropdown-title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #e2e8f0;
-  letter-spacing: 0.01em;
-}
-
-.notif-dropdown-title i {
-  color: var(--accent-gold, #f59e0b);
-  font-size: 0.95rem;
-}
-
-.notif-dropdown-badge {
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 3px 9px;
-  border-radius: 9999px;
-  background: rgba(239, 68, 68, 0.18);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  letter-spacing: 0.03em;
-}
-
-/* Body */
-.notif-dropdown-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.1) transparent;
-}
-
-.notif-dropdown-body::-webkit-scrollbar { width: 5px; }
-.notif-dropdown-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
-
-.notif-section-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted, #64748b);
-  padding: 6px 18px 4px;
-  margin: 0;
-}
-
-/* Notification Item */
-.notif-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  text-decoration: none;
-  transition: background 0.15s ease;
-  cursor: pointer;
-  border-radius: 0;
-}
-
-.notif-item:hover {
-  background: rgba(255,255,255,0.05);
-}
-
-.notif-item-avatar {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(245,158,11,0.22), rgba(245,158,11,0.08));
-  border: 1.5px solid rgba(245,158,11,0.38);
-  color: #fbbf24;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  flex-shrink: 0;
-}
-
-.notif-item-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.notif-item-name {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #e2e8f0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.notif-item-sub {
-  font-size: 0.72rem;
-  color: var(--text-muted, #64748b);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.notif-item-time {
-  font-size: 0.68rem;
-  color: rgba(100,116,139,0.8);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.notif-item-arrow {
-  color: rgba(100,116,139,0.5);
-  font-size: 0.7rem;
-  flex-shrink: 0;
-  transition: transform 0.15s ease, color 0.15s ease;
-}
-
-.notif-item:hover .notif-item-arrow {
-  transform: translateX(3px);
-  color: var(--accent-gold, #f59e0b);
-}
-
-/* Empty State */
-.notif-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 36px 24px;
-  text-align: center;
-  gap: 8px;
-}
-
-.notif-empty-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.4rem;
-  color: rgba(100,116,139,0.5);
-  margin-bottom: 4px;
-}
-
-.notif-empty-title {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #94a3b8;
-  margin: 0;
-}
-
-.notif-empty-sub {
-  font-size: 0.75rem;
-  color: var(--text-muted, #64748b);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* Footer */
-.notif-dropdown-footer {
-  border-top: 1px solid rgba(255,255,255,0.07);
-  padding: 10px 18px;
-  flex-shrink: 0;
-}
-
-.notif-footer-link {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #7c9cff;
-  text-decoration: none;
-  padding: 7px 10px;
-  border-radius: 8px;
-  transition: background 0.15s ease, color 0.15s ease;
-  justify-content: center;
-}
-
-.notif-footer-link:hover {
-  background: rgba(124,156,255,0.1);
-  color: #a5b8ff;
-}
-
-.notif-footer-badge {
-  font-size: 0.65rem;
-  font-weight: 800;
-  padding: 1px 7px;
-  border-radius: 9999px;
-  background: rgba(239, 68, 68, 0.18);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.28);
-  margin-left: auto;
-}
-</style>
+     data-pending-count-url="{% url 'admin_pending_count_json' %}"
+     data-chart-url="{% url 'admin_attendance_chart_json' %}"
+     data-feed-url="{% url 'admin_activity_feed_json' %}"></div>
+<script src="{% static 'js/admin_dashboard.js' %}?v=20261020_v2"></script>
 {% endblock %}

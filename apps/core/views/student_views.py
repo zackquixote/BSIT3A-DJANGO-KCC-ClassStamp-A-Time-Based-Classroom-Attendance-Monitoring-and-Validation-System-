@@ -76,6 +76,31 @@ def student_directory(request):
 
     filtered_count = students_qs.count()
 
+    # Dynamic year level counts reflecting active department/program/status/search context
+    year_count_base = Profile.objects.filter(role=Profile.ROLE_STUDENT)
+    if dept_id:
+        year_count_base = year_count_base.filter(program__department_id=dept_id)
+    if prog_id:
+        year_count_base = year_count_base.filter(program_id=prog_id)
+    if status in [Profile.APPROVAL_APPROVED, Profile.APPROVAL_PENDING, Profile.APPROVAL_REJECTED]:
+        year_count_base = year_count_base.filter(approval_status=status)
+    if section:
+        year_count_base = year_count_base.filter(enrollments__class_obj__class_code__icontains=section).distinct()
+    if q:
+        year_count_base = year_count_base.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__username__icontains=q) |
+            Q(user__email__icontains=q) |
+            Q(student_number__icontains=q)
+        )
+
+    count_all_years = year_count_base.count()
+    count_y1 = year_count_base.filter(year_level=1).count()
+    count_y2 = year_count_base.filter(year_level=2).count()
+    count_y3 = year_count_base.filter(year_level=3).count()
+    count_y4 = year_count_base.filter(year_level=4).count()
+
     per_page_param = request.GET.get('per_page', '15').strip()
     try:
         per_page = int(per_page_param)
@@ -112,6 +137,11 @@ def student_directory(request):
         'pending_count': pending_count,
         'rejected_count': rejected_count,
         'filtered_count': filtered_count,
+        'count_all_years': count_all_years,
+        'count_y1': count_y1,
+        'count_y2': count_y2,
+        'count_y3': count_y3,
+        'count_y4': count_y4,
     }
     return render(request, 'core/admin/student_directory.html', context)
 
