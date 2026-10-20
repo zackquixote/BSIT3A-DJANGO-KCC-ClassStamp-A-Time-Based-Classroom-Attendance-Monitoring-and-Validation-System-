@@ -464,7 +464,7 @@
 {% block content %}
 <!-- Print Header (Official KCC Institutional Banner) -->
 <div class="print-only-header">
-  <h2 style="margin: 0; font-size: 1.3rem;">KORONADAL COMMISSION ON COLLEGIATE EDUCATION (KCC)</h2>
+  <h2 style="margin: 0; font-size: 1.3rem;">KABANKALAN CATHOLIC COLLEGE (KCC)</h2>
   <h3 style="margin: 3px 0; font-size: 1rem;">ClassStamp — Official Student Masterlist</h3>
   <p style="margin: 0; font-size: 0.8rem; color: #555;">Generated on {% now "F j, Y · g:i A" %}</p>
 </div>
@@ -813,46 +813,9 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
 
-<!-- Cascading Filter Dropdown Script -->
-<script>
-  (function () {
-    const deptSelect = document.getElementById('filter_dept');
-    const progSelect = document.getElementById('filter_prog');
-    const defaultProgOpt = document.getElementById('progDefaultOpt');
-    if (!deptSelect || !progSelect) return;
-
-    const allProgOptions = Array.from(progSelect.querySelectorAll('option:not(#progDefaultOpt)'));
-
-    function filterPrograms() {
-      const selectedDeptId = deptSelect.value;
-      const currentSelectedProg = progSelect.value;
-
-      progSelect.innerHTML = '';
-      progSelect.appendChild(defaultProgOpt);
-
-      let found = false;
-      allProgOptions.forEach(opt => {
-        const optDept = opt.getAttribute('data-department');
-        if (!selectedDeptId || optDept === selectedDeptId) {
-          progSelect.appendChild(opt);
-          if (opt.value === currentSelectedProg) {
-            opt.selected = true;
-            found = true;
-          }
-        }
-      });
-
-      if (!found && selectedDeptId && currentSelectedProg) {
-        defaultProgOpt.selected = true;
-      }
-    }
-
-    deptSelect.addEventListener('change', filterPrograms);
-
-    if (deptSelect.value) {
-      filterPrograms();
-    }
-  })();
-</script>
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/student_directory/student_directory.js' %}?v=20261020_v1"></script>
 {% endblock %}

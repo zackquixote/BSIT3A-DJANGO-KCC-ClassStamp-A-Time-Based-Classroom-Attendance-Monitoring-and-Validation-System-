@@ -168,39 +168,9 @@
   </div>
 
   {% if locked %}
-  <script>
-    (function () {
-      let remaining = parseInt("{{ remaining|default:0 }}", 10);
-      const messageBox = document.getElementById('status-message');
-      const interval = setInterval(function () {
-        remaining--;
-        if (remaining > 0) {
-          if (messageBox && messageBox.querySelector('span')) {
-            messageBox.querySelector('span').textContent =
-              'Too many failed attempts. Try again in ' + remaining + ' seconds.';
-          }
-        } else {
-          clearInterval(interval);
-          window.location.href = "{% url 'login' %}";
-        }
-      }, 1000);
-    })();
-  </script>
+  <div id="lockoutData" data-remaining="{{ remaining|default:0 }}" data-login-url="{% url 'login' %}" style="display:none;"></div>
   {% endif %}
 
-  <script>
-    (function () {
-      // Show/Hide password toggle
-      const toggleBtn = document.getElementById('togglePassword');
-      const passwordInput = document.getElementById('id_password');
-      if (toggleBtn && passwordInput) {
-        toggleBtn.addEventListener('click', function () {
-          const isPassword = passwordInput.type === 'password';
-          passwordInput.type = isPassword ? 'text' : 'password';
-          toggleBtn.textContent = isPassword ? 'Hide' : 'Show';
-        });
-      }
-    })();
-  </script>
+  <script src="{% static 'js/auth/login.js' %}?v=20261020_v1"></script>
 </body>
 </html>

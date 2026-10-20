@@ -519,21 +519,8 @@
   }
 </style>
 
-<!-- Interactive Chip Script -->
-<script>
-  (function () {
-    const reasonInput = document.getElementById('rejectionReasonInput');
-    const chips = document.querySelectorAll('.reject-chip');
-
-    chips.forEach(chip => {
-      chip.addEventListener('click', function () {
-        const text = this.getAttribute('data-reason');
-        if (reasonInput) {
-          reasonInput.value = text;
-          reasonInput.focus();
-        }
-      });
-    });
-  })();
-</script>
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/validation_queue/validation_detail.js' %}?v=20261020_v1"></script>
 {% endblock %}
+

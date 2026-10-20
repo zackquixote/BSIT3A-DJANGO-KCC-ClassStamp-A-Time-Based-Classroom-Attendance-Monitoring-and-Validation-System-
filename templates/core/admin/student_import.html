@@ -95,6 +95,22 @@
     color: #f59e0b;
     font-size: 0.8rem;
   }
+
+  .import-summary-card {
+    background: rgba(15, 23, 42, 0.7);
+  }
+  .import-summary-card--success {
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+  .import-summary-card--warning {
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+  .import-summary-icon--success {
+    color: #22c55e;
+  }
+  .import-summary-icon--warning {
+    color: #f59e0b;
+  }
 </style>
 {% endblock %}
 
@@ -126,10 +142,10 @@
 
 <!-- Import Summary Alert (if processed) -->
 {% if summary %}
-<div class="card mb-6" style="border-color: {% if summary.created_count %}rgba(34, 197, 94, 0.4){% else %}rgba(245, 158, 11, 0.4){% endif %}; background: rgba(15, 23, 42, 0.7);">
+<div class="card mb-6 import-summary-card {% if summary.created_count %}import-summary-card--success{% else %}import-summary-card--warning{% endif %}">
   <div class="flex items-center justify-between pb-3 mb-3" style="border-bottom: 1px solid var(--glass-border);">
     <div class="flex items-center gap-3">
-      <i class="fas {% if summary.created_count %}fa-circle-check text-green-400{% else %}fa-triangle-exclamation text-gold{% endif %}" style="font-size: 1.5rem; color: {% if summary.created_count %}#22c55e{% else %}#f59e0b{% endif %};"></i>
+      <i class="fas {% if summary.created_count %}fa-circle-check text-green-400 import-summary-icon--success{% else %}fa-triangle-exclamation text-gold import-summary-icon--warning{% endif %}" style="font-size: 1.5rem;"></i>
       <div>
         <h3 class="font-bold text-primary" style="margin: 0; font-size: 1.1rem;">
           Import Execution Summary
@@ -328,46 +344,10 @@
   </div>
 
 </div>
-
-<script>
-  (function () {
-    const fileInput = document.getElementById('csvFileInput');
-    const filenameDisplay = document.getElementById('selectedFilename');
-    const dropzone = document.getElementById('dropzoneBox');
-    const importForm = document.getElementById('importForm');
-    const submitBtn = document.getElementById('submitBtn');
-
-    if (fileInput) {
-      fileInput.addEventListener('change', function () {
-        if (this.files && this.files[0]) {
-          filenameDisplay.style.display = 'block';
-          filenameDisplay.innerHTML = `<i class="fas fa-file-csv"></i> Selected: <strong>${this.files[0].name}</strong> (${(this.files[0].size / 1024).toFixed(1)} KB)`;
-        }
-      });
-    }
-
-    if (dropzone) {
-      ['dragenter', 'dragover'].forEach(eventName => {
-        dropzone.addEventListener(eventName, e => {
-          e.preventDefault();
-          dropzone.classList.add('dragover');
-        });
-      });
-
-      ['dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, e => {
-          e.preventDefault();
-          dropzone.classList.remove('dragover');
-        });
-      });
-    }
-
-    if (importForm) {
-      importForm.addEventListener('submit', function () {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ingesting Roster... Please wait';
-      });
-    }
-  })();
-</script>
 {% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/student_directory/student_import.js' %}?v=20261020_v1"></script>
+{% endblock %}
+
