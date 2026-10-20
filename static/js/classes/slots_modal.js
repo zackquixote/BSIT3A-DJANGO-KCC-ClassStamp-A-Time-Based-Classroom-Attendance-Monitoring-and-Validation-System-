@@ -43,7 +43,11 @@
       e.preventDefault();
       currentSlotClassId = slotsBtn.dataset.classId;
       if (slotsModalClassCode) slotsModalClassCode.textContent = slotsBtn.dataset.classCode;
-      slotsModal.classList.add('is-open');
+      if (typeof window.openModal === 'function') {
+        window.openModal('slotsModal', slotsBtn);
+      } else {
+        slotsModal.classList.add('is-open', 'is-active');
+      }
       loadSlotsUI(slotsBtn);
     });
 
@@ -52,6 +56,12 @@
       addSlotForm.addEventListener('submit', function (e) {
         e.preventDefault();
         if (!currentSlotClassId) return;
+
+        var submitBtn = addSlotForm.querySelector('button[type="submit"]');
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(submitBtn, true, 'Saving Slot...');
+        }
+
         var formData = new FormData(addSlotForm);
         fetch('/classes/' + currentSlotClassId + '/slot/save/', {
           method: 'POST',
@@ -60,19 +70,42 @@
         .then(function (r) { return r.json(); })
         .then(function (res) {
           if (res.success) {
-            window.location.reload();
+            if (window.App && window.App.toast) {
+              window.App.toast('success', 'Timetable slot added successfully.');
+            }
+            setTimeout(function () { window.location.reload(); }, 600);
           } else {
-            alert(res.message || 'Error saving slot.');
+            if (window.App && window.App.toast) {
+              window.App.toast('error', res.message || 'Error saving slot.');
+            } else {
+              alert(res.message || 'Error saving slot.');
+            }
+            if (window.App && window.App.setButtonLoading) {
+              window.App.setButtonLoading(submitBtn, false);
+            }
           }
         })
-        .catch(function (err) { alert('Request failed: ' + err); });
+        .catch(function (err) {
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Request failed: ' + err);
+          } else {
+            alert('Request failed: ' + err);
+          }
+          if (window.App && window.App.setButtonLoading) {
+            window.App.setButtonLoading(submitBtn, false);
+          }
+        });
       });
     }
 
     // Close handler
     if (closeSlotsModal) {
       closeSlotsModal.addEventListener('click', function () {
-        slotsModal.classList.remove('is-open');
+        if (typeof window.closeModal === 'function') {
+          window.closeModal('slotsModal');
+        } else {
+          slotsModal.classList.remove('is-open', 'is-active');
+        }
       });
     }
   }

@@ -27,7 +27,11 @@
         var res = await fetch('/teachers/get/' + teacherId + '/');
         var data = await res.json();
         if (!data.ok) {
-          alert(data.error || 'Failed to load teacher details.');
+          if (window.App && window.App.toast) {
+            window.App.toast('error', data.error || 'Failed to load teacher details.');
+          } else {
+            alert(data.error || 'Failed to load teacher details.');
+          }
           return;
         }
 
@@ -47,11 +51,21 @@
         var errEl   = getEl('teacherFormError');         if (errEl)   errEl.style.display = 'none';
         var gpwEl   = getEl('teacherGeneratedPw');       if (gpwEl)   gpwEl.style.display = 'none';
 
-        if (App) App.showModal('teacherModal');
-        else { var m = getEl('teacherModal'); if (m) { m.classList.add('is-active'); document.body.style.overflow = 'hidden'; } }
+        if (typeof window.openModal === 'function') {
+          window.openModal('teacherModal', editBtn);
+        } else if (App && App.showModal) {
+          App.showModal('teacherModal');
+        } else {
+          var m = getEl('teacherModal');
+          if (m) { m.classList.add('is-active', 'is-open'); document.body.style.overflow = 'hidden'; }
+        }
       } catch (err) {
         console.error('Error fetching teacher details:', err);
-        alert('Network error while loading teacher details.');
+        if (window.App && window.App.toast) {
+          window.App.toast('error', 'Network error while loading teacher details.');
+        } else {
+          alert('Network error while loading teacher details.');
+        }
       } finally {
         editBtn.disabled = false;
         editBtn.innerHTML = originalHtml;

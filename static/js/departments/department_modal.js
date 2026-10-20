@@ -49,13 +49,13 @@
       }
 
       var App = getApp();
-      if (App) {
+      if (typeof window.openModal === 'function') {
+        window.openModal('editDeptModal', editBtn);
+      } else if (App && App.showModal) {
         App.showModal('editDeptModal');
-      } else if (typeof window.openModal === 'function') {
-        window.openModal('editDeptModal');
       } else {
         var modal = getEl('editDeptModal');
-        if (modal) modal.classList.add('is-active');
+        if (modal) modal.classList.add('is-active', 'is-open');
       }
     });
 
@@ -63,7 +63,11 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var formData = new FormData(form);
-      if (saveBtn) saveBtn.disabled = true;
+      if (window.App && window.App.setButtonLoading) {
+        window.App.setButtonLoading(saveBtn, true, 'Saving...');
+      } else if (saveBtn) {
+        saveBtn.disabled = true;
+      }
 
       var saveUrl = form.action || '/departments/save/';
 
@@ -81,20 +85,43 @@
         });
       })
       .then(function (res) {
-        if (saveBtn) saveBtn.disabled = false;
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(saveBtn, false);
+        } else if (saveBtn) {
+          saveBtn.disabled = false;
+        }
+
         if (res.status === 200 && res.data.status === 'success') {
+          if (window.App && window.App.toast) {
+            window.App.toast('success', res.data.message || 'Department saved successfully.');
+          }
           var App = getApp();
-          if (App) App.hideModal('editDeptModal');
-          else if (typeof window.closeModal === 'function') window.closeModal('editDeptModal');
-          window.location.reload();
+          if (typeof window.closeModal === 'function') {
+            window.closeModal('editDeptModal');
+          } else if (App && App.hideModal) {
+            App.hideModal('editDeptModal');
+          }
+          setTimeout(function () { window.location.reload(); }, 600);
         } else {
-          if (errorMsg) errorMsg.textContent = res.data.error || 'Failed to save department.';
+          var errMsg = res.data.error || 'Failed to save department.';
+          if (window.App && window.App.toast) {
+            window.App.toast('error', errMsg);
+          }
+          if (errorMsg) errorMsg.textContent = errMsg;
           if (errorBox) errorBox.style.display = 'flex';
         }
       })
       .catch(function () {
-        if (saveBtn) saveBtn.disabled = false;
-        if (errorMsg) errorMsg.textContent = 'Network or server error occurred.';
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(saveBtn, false);
+        } else if (saveBtn) {
+          saveBtn.disabled = false;
+        }
+        var netErr = 'Network or server error occurred.';
+        if (window.App && window.App.toast) {
+          window.App.toast('error', netErr);
+        }
+        if (errorMsg) errorMsg.textContent = netErr;
         if (errorBox) errorBox.style.display = 'flex';
       });
     });

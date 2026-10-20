@@ -32,7 +32,11 @@
         const res = await fetch('/subjects/get/' + subjectId + '/');
         const data = await res.json();
         if (!data.ok) {
-          alert(data.error || 'Failed to load subject details.');
+          if (window.App && window.App.toast) {
+            window.App.toast('error', data.error || 'Failed to load subject details.');
+          } else {
+            alert(data.error || 'Failed to load subject details.');
+          }
           return;
         }
 
@@ -66,15 +70,21 @@
         if (toggleCurrIcon) toggleCurrIcon.style.transform = '';
 
         const App = getApp();
-        if (App) {
+        if (typeof window.openModal === 'function') {
+          window.openModal('subjectModal', editBtn);
+        } else if (App && App.showModal) {
           App.showModal('subjectModal');
         } else {
           const m = getEl('subjectModal');
-          if (m) { m.classList.add('is-active'); document.body.style.overflow = 'hidden'; }
+          if (m) { m.classList.add('is-active', 'is-open'); document.body.style.overflow = 'hidden'; }
         }
       } catch (err) {
         console.error('Error fetching subject details:', err);
-        alert('Network error while loading subject details.');
+        if (window.App && window.App.toast) {
+          window.App.toast('error', 'Network error while loading subject details.');
+        } else {
+          alert('Network error while loading subject details.');
+        }
       } finally {
         editBtn.disabled = false;
         editBtn.innerHTML = originalHtml;

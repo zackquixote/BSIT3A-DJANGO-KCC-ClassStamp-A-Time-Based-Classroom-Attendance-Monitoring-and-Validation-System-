@@ -69,6 +69,7 @@
           var classCode = btn.dataset.classCode;
           if (!confirm('Remove class section "' + classCode + '" from this teacher\'s load?')) return;
           btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           try {
             var r = await fetch('/teachers/' + btn.dataset.teacherId + '/unassign-class/' + btn.dataset.classId + '/', {
               method: 'POST',
@@ -77,16 +78,29 @@
             var resData = await r.json();
             if (resData.ok) {
               refreshTeacherLoadList(teacherId);
+              if (window.App && window.App.toast) {
+                window.App.toast('success', resData.message || 'Class removed from load.');
+              }
               var successEl = getEl('teacherSuccess');
-              if (App) App.showAlert(successEl, resData.message, 'success');
+              if (App && App.showAlert) App.showAlert(successEl, resData.message, 'success');
               else if (successEl) { successEl.style.display = 'block'; successEl.textContent = resData.message; }
             } else {
-              alert(resData.error || 'Failed to unassign class.');
+              if (window.App && window.App.toast) {
+                window.App.toast('error', resData.error || 'Failed to unassign class.');
+              } else {
+                alert(resData.error || 'Failed to unassign class.');
+              }
               btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-trash-can"></i>';
             }
           } catch (err) {
-            alert('Network communication error.');
+            if (window.App && window.App.toast) {
+              window.App.toast('error', 'Network communication error.');
+            } else {
+              alert('Network communication error.');
+            }
             btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-trash-can"></i>';
           }
         });
       });
@@ -119,8 +133,14 @@
 
       refreshTeacherLoadList(currentLoadTeacherId);
 
-      if (App) App.showModal('teachingLoadModal');
-      else { var m = getEl('teachingLoadModal'); if (m) { m.classList.add('is-active'); document.body.style.overflow = 'hidden'; } }
+      if (typeof window.openModal === 'function') {
+        window.openModal('teachingLoadModal', loadBtn);
+      } else if (App && App.showModal) {
+        App.showModal('teachingLoadModal');
+      } else {
+        var m = getEl('teachingLoadModal');
+        if (m) { m.classList.add('is-active', 'is-open'); document.body.style.overflow = 'hidden'; }
+      }
     });
 
     // Auto-suggest class code when Subject is selected
@@ -164,15 +184,24 @@
           });
           var data = await res.json();
           if (data.ok) {
+            if (window.App && window.App.toast) {
+              window.App.toast('success', data.message || 'Class assigned to teacher load.');
+            }
             if (succBox) { succBox.textContent = data.message; succBox.style.display = 'block'; }
             var codeInput = getEl('assignClassCode');
             if (codeInput) codeInput.value = '';
             refreshTeacherLoadList(currentLoadTeacherId);
             setTimeout(function () { if (succBox) succBox.style.display = 'none'; }, 4000);
           } else {
+            if (window.App && window.App.toast) {
+              window.App.toast('error', data.error || 'Failed to assign class.');
+            }
             if (errBox) { errBox.textContent = data.error || 'Failed to assign class.'; errBox.style.display = 'block'; }
           }
         } catch (err) {
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Network communication error.');
+          }
           if (errBox) { errBox.textContent = 'Network communication error.'; errBox.style.display = 'block'; }
         } finally {
           if (submitBtn) {

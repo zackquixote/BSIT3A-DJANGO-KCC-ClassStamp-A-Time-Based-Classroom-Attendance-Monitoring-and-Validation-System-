@@ -119,14 +119,25 @@
           });
           const d = await r.json();
           if (d.ok) {
+            if (window.App && window.App.toast) {
+              window.App.toast('success', 'Curriculum mapping removed.');
+            }
             await loadCurriculumEntries();
           } else {
-            alert(d.error || 'Failed to remove curriculum entry.');
+            if (window.App && window.App.toast) {
+              window.App.toast('error', d.error || 'Failed to remove curriculum entry.');
+            } else {
+              alert(d.error || 'Failed to remove curriculum entry.');
+            }
             removeBtn.disabled = false;
             removeBtn.innerHTML = '<i class="fas fa-xmark"></i> Remove';
           }
         } catch (err) {
-          alert('Network error while removing curriculum mapping.');
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Network error while removing curriculum mapping.');
+          } else {
+            alert('Network error while removing curriculum mapping.');
+          }
           removeBtn.disabled = false;
           removeBtn.innerHTML = '<i class="fas fa-xmark"></i> Remove';
         }

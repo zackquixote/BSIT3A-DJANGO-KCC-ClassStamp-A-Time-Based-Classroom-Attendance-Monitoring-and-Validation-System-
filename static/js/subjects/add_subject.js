@@ -68,8 +68,14 @@
         if (inlineYearSel) { inlineYearSel.innerHTML = '<option value="">— year —</option>'; inlineYearSel.disabled = true; }
 
         const App = getApp();
-        if (App) App.showModal('subjectModal');
-        else { const m = getEl('subjectModal'); if (m) { m.classList.add('is-active'); document.body.style.overflow = 'hidden'; } }
+        if (typeof window.openModal === 'function') {
+          window.openModal('subjectModal', addBtn);
+        } else if (App && App.showModal) {
+          App.showModal('subjectModal');
+        } else {
+          const m = getEl('subjectModal');
+          if (m) { m.classList.add('is-active', 'is-open'); document.body.style.overflow = 'hidden'; }
+        }
       });
     }
 
@@ -84,8 +90,12 @@
         const activeEl = getEl('subjectActive');
         fd.set('is_active', (activeEl && activeEl.checked) ? '1' : '0');
 
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving\u2026';
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(saveBtn, true, 'Saving Subject...');
+        } else {
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving\u2026';
+        }
 
         const App = getApp();
 
@@ -98,7 +108,10 @@
           const data = await res.json();
           if (!data.ok) {
             const errEl = getEl('subjectFormError');
-            if (App) App.showAlert(errEl, data.error);
+            if (window.App && window.App.toast) {
+              window.App.toast('error', data.error || 'Failed to save subject.');
+            }
+            if (App && App.showAlert) App.showAlert(errEl, data.error);
             else if (errEl) { errEl.style.display = 'block'; errEl.textContent = data.error; }
             return;
           }
@@ -120,20 +133,36 @@
             } catch (_) { /* non-fatal */ }
           }
 
-          if (App) App.hideModal('subjectModal');
-          else { const m = getEl('subjectModal'); if (m) { m.classList.remove('is-active'); document.body.style.overflow = ''; } }
+          if (typeof window.closeModal === 'function') {
+            window.closeModal('subjectModal');
+          } else if (App && App.hideModal) {
+            App.hideModal('subjectModal');
+          } else {
+            const m = getEl('subjectModal');
+            if (m) { m.classList.remove('is-active', 'is-open'); document.body.style.overflow = ''; }
+          }
 
+          if (window.App && window.App.toast) {
+            window.App.toast('success', data.message);
+          }
           const successEl = getEl('subjectSuccess');
-          if (App) App.showAlert(successEl, data.message, 'success');
+          if (App && App.showAlert) App.showAlert(successEl, data.message, 'success');
           else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
-          setTimeout(function () { location.reload(); }, 800);
+          setTimeout(function () { location.reload(); }, 600);
         } catch (err) {
           const errEl = getEl('subjectFormError');
-          if (App) App.showAlert(errEl, 'Server or network error');
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Server or network error');
+          }
+          if (App && App.showAlert) App.showAlert(errEl, 'Server or network error');
           else if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Server or network error'; }
         } finally {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Subject';
+          if (window.App && window.App.setButtonLoading) {
+            window.App.setButtonLoading(saveBtn, false);
+          } else {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Subject';
+          }
         }
       });
     }

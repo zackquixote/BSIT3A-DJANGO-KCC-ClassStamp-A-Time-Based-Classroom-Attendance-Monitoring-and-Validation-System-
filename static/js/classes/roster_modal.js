@@ -27,9 +27,23 @@
         .then(function (r) { return r.json(); })
         .then(function (res) {
           if (res.success) {
+            if (window.App && window.App.toast) {
+              window.App.toast('success', 'Student removed from section.');
+            }
             loadRosterData(currentRosterClassId);
           } else {
-            alert('Failed to remove student.');
+            if (window.App && window.App.toast) {
+              window.App.toast('error', res.message || 'Failed to remove student.');
+            } else {
+              alert(res.message || 'Failed to remove student.');
+            }
+          }
+        })
+        .catch(function (err) {
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Request failed: ' + err);
+          } else {
+            alert('Request failed: ' + err);
           }
         });
       });
@@ -103,7 +117,11 @@
       currentRosterClassId = rosterBtn.dataset.classId;
       var rosterModalClassCode = getEl('rosterModalClassCode');
       if (rosterModalClassCode) rosterModalClassCode.textContent = rosterBtn.dataset.classCode;
-      rosterModal.classList.add('is-open');
+      if (typeof window.openModal === 'function') {
+        window.openModal('rosterModal', rosterBtn);
+      } else {
+        rosterModal.classList.add('is-open', 'is-active');
+      }
       loadRosterData(currentRosterClassId);
     });
 
@@ -113,9 +131,18 @@
         var availableStudentsSelect = getEl('availableStudentsSelect');
         var profileId = availableStudentsSelect && availableStudentsSelect.value;
         if (!profileId || !currentRosterClassId) {
-          alert('Please choose a student to enlist.');
+          if (window.App && window.App.toast) {
+            window.App.toast('warning', 'Please choose an approved student to enlist.');
+          } else {
+            alert('Please choose a student to enlist.');
+          }
           return;
         }
+
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(btnEnrollStudent, true, 'Enlisting...');
+        }
+
         var fd = new FormData();
         fd.append('csrfmiddlewaretoken', getCSRF());
         fd.append('profile_id', profileId);
@@ -127,19 +154,41 @@
         .then(function (r) { return r.json(); })
         .then(function (res) {
           if (res.success) {
+            if (window.App && window.App.toast) {
+              window.App.toast('success', 'Student enlisted successfully.');
+            }
             loadRosterData(currentRosterClassId);
           } else {
-            alert(res.message || 'Failed to enlist student.');
+            if (window.App && window.App.toast) {
+              window.App.toast('error', res.message || 'Failed to enlist student.');
+            } else {
+              alert(res.message || 'Failed to enlist student.');
+            }
           }
         })
-        .catch(function (err) { alert('Enroll request failed: ' + err); });
+        .catch(function (err) {
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Enroll request failed: ' + err);
+          } else {
+            alert('Enroll request failed: ' + err);
+          }
+        })
+        .finally(function () {
+          if (window.App && window.App.setButtonLoading) {
+            window.App.setButtonLoading(btnEnrollStudent, false);
+          }
+        });
       });
     }
 
     // Close handler
     if (closeRosterModal) {
       closeRosterModal.addEventListener('click', function () {
-        rosterModal.classList.remove('is-open');
+        if (typeof window.closeModal === 'function') {
+          window.closeModal('rosterModal');
+        } else {
+          rosterModal.classList.remove('is-open', 'is-active');
+        }
       });
     }
   }

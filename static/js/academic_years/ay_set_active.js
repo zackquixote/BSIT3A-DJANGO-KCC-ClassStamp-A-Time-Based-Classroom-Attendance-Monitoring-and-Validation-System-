@@ -21,7 +21,11 @@
 
       if (!confirm('Set this as the active institutional academic term?')) return;
 
-      btn.disabled = true;
+      if (window.App && window.App.setButtonLoading) {
+        window.App.setButtonLoading(btn, true, 'Activating...');
+      } else {
+        btn.disabled = true;
+      }
       var App = getApp();
       var successEl = getEl('aySuccess');
 
@@ -32,15 +36,34 @@
         });
         var data = await res.json();
         if (data.ok) {
-          if (App) App.showAlert(successEl, data.message, 'success');
-          setTimeout(function () { location.reload(); }, 800);
+          if (window.App && window.App.toast) {
+            window.App.toast('success', data.message);
+          }
+          if (App && App.showAlert) App.showAlert(successEl, data.message, 'success');
+          setTimeout(function () { location.reload(); }, 600);
         } else {
-          alert(data.error || 'Failed to set active term.');
-          btn.disabled = false;
+          if (window.App && window.App.toast) {
+            window.App.toast('error', data.error || 'Failed to set active term.');
+          } else {
+            alert(data.error || 'Failed to set active term.');
+          }
+          if (window.App && window.App.setButtonLoading) {
+            window.App.setButtonLoading(btn, false);
+          } else {
+            btn.disabled = false;
+          }
         }
       } catch (_) {
-        alert('Network error');
-        btn.disabled = false;
+        if (window.App && window.App.toast) {
+          window.App.toast('error', 'Network communication error.');
+        } else {
+          alert('Network error');
+        }
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(btn, false);
+        } else {
+          btn.disabled = false;
+        }
       }
     });
   }

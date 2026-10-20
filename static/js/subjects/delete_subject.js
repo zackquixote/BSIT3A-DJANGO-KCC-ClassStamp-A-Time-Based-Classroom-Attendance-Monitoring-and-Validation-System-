@@ -32,11 +32,13 @@
       if (errEl) errEl.style.display = 'none';
 
       const App = getApp();
-      if (App) {
+      if (typeof window.openModal === 'function') {
+        window.openModal('subjectDeleteModal', delBtn);
+      } else if (App && App.showModal) {
         App.showModal('subjectDeleteModal');
       } else {
         const m = getEl('subjectDeleteModal');
-        if (m) { m.classList.add('is-active'); document.body.style.overflow = 'hidden'; }
+        if (m) { m.classList.add('is-active', 'is-open'); document.body.style.overflow = 'hidden'; }
       }
     });
 
@@ -46,8 +48,12 @@
       confirmBtn.addEventListener('click', async function () {
         if (!deleteSubjectId) return;
 
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing\u2026';
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(confirmBtn, true, 'Removing...');
+        } else {
+          confirmBtn.disabled = true;
+          confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing\u2026';
+        }
 
         const App = getApp();
         const csrf = App ? App.CSRF : (
@@ -63,28 +69,48 @@
           });
           const data = await res.json();
           if (data.ok) {
-            if (App) App.hideModal('subjectDeleteModal');
-            else {
+            if (typeof window.closeModal === 'function') {
+              window.closeModal('subjectDeleteModal');
+            } else if (App && App.hideModal) {
+              App.hideModal('subjectDeleteModal');
+            } else {
               const m = getEl('subjectDeleteModal');
-              if (m) { m.classList.remove('is-active'); document.body.style.overflow = ''; }
+              if (m) { m.classList.remove('is-active', 'is-open'); document.body.style.overflow = ''; }
+            }
+            if (window.App && window.App.toast) {
+              window.App.toast('success', data.message);
             }
             const successEl = getEl('subjectSuccess');
-            if (App) App.showAlert(successEl, data.message, 'success');
+            if (App && App.showAlert) App.showAlert(successEl, data.message, 'success');
             else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
-            setTimeout(function () { location.reload(); }, 800);
+            setTimeout(function () { location.reload(); }, 600);
           } else {
             const errEl = getEl('subjectDeleteError');
-            if (App) App.showAlert(errEl, data.error);
+            if (window.App && window.App.toast) {
+              window.App.toast('error', data.error || 'Failed to remove subject.');
+            }
+            if (App && App.showAlert) App.showAlert(errEl, data.error);
             else if (errEl) { errEl.style.display = 'block'; errEl.textContent = data.error; }
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+            if (window.App && window.App.setButtonLoading) {
+              window.App.setButtonLoading(confirmBtn, false);
+            } else {
+              confirmBtn.disabled = false;
+              confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+            }
           }
         } catch (err) {
           const errEl = getEl('subjectDeleteError');
-          if (App) App.showAlert(errEl, 'Network error');
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Network communication error.');
+          }
+          if (App && App.showAlert) App.showAlert(errEl, 'Network error');
           else if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Network error'; }
-          confirmBtn.disabled = false;
-          confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+          if (window.App && window.App.setButtonLoading) {
+            window.App.setButtonLoading(confirmBtn, false);
+          } else {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Remove';
+          }
         }
       });
     }
