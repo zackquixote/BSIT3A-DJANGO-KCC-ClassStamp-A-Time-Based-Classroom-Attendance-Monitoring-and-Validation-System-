@@ -1,0 +1,438 @@
+/* ==============================================================================
+   KCC ClassStamp — Academic Calendar & Institutional Schedule Stylesheet
+   Pure Vanilla CSS · Dark Glassmorphic Design · FullCalendar 6 Dark Overrides
+   ============================================================================== */
+
+/* ── Calendar Page Layout ────────────────────────────────────────────────────── */
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Calendar Filter Bar ─────────────────────────────────────────────────────── */
+.calendar-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+}
+
+.calendar-filter-bar .search-box {
+  flex: 1;
+  min-width: 220px;
+  position: relative;
+}
+
+.calendar-filter-bar .search-box input {
+  padding-left: 36px;
+  width: 100%;
+}
+
+.calendar-filter-bar .search-box i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* ── FullCalendar Glassmorphic Container ─────────────────────────────────────── */
+.calendar-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* ── FullCalendar 6 Dark Theme Overrides ─────────────────────────────────────── */
+.fc {
+  --fc-page-bg-color: transparent;
+  --fc-border-color: rgba(255, 255, 255, 0.08);
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.02);
+  --fc-neutral-text-color: var(--text-secondary);
+  --fc-today-bg-color: rgba(245, 158, 11, 0.07);
+  --fc-now-indicator-color: #f59e0b;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+/* Toolbar */
+.fc .fc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px !important;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.fc .fc-button {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid var(--glass-border) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-md) !important;
+  padding: 6px 14px !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+  text-transform: capitalize !important;
+}
+
+.fc .fc-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+}
+
+.fc .fc-button-active,
+.fc .fc-button-primary:not(:disabled):active,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: var(--accent-gold) !important;
+  border-color: var(--accent-gold) !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.fc .fc-button:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+.fc .fc-button-group {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  gap: 2px;
+}
+
+.fc .fc-button-group > .fc-button {
+  border-radius: var(--radius-md) !important;
+  margin: 0 !important;
+}
+
+/* Table Header */
+.fc .fc-col-header {
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.fc .fc-col-header-cell {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 4px !important;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.fc .fc-col-header-cell.fc-day-today {
+  color: var(--accent-gold);
+}
+
+/* Table Body & Day Cells */
+.fc .fc-daygrid-day-frame {
+  min-height: 100px;
+  padding: 4px;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.fc .fc-daygrid-day:hover .fc-daygrid-day-frame {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fc .fc-daygrid-day-top {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 4px 6px;
+}
+
+.fc .fc-daygrid-day-number {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.fc .fc-day-today .fc-daygrid-day-number {
+  background: var(--accent-gold);
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+  color: rgba(148, 163, 184, 0.35);
+}
+
+/* Events in DayGrid */
+.fc-event {
+  border-radius: 6px !important;
+  padding: 3px 6px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 3px !important;
+  border-width: 1px !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fc-event:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.fc-event.fc-status--canceled {
+  opacity: 0.55;
+  text-decoration: line-through;
+  filter: grayscale(0.6);
+}
+
+.fc-event-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* List View Overrides */
+.fc-list {
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.fc-list-day-cushion {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text-primary) !important;
+}
+
+.fc-list-event:hover td {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.fc-list-event-dot {
+  border-width: 4px !important;
+}
+
+/* ── Sidebar Panels ──────────────────────────────────────────────────────────── */
+.calendar-sidebar-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.calendar-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.calendar-sidebar-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Upcoming Events Feed */
+.upcoming-event-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.upcoming-event-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(3px);
+}
+
+.upcoming-event-datebox {
+  width: 42px;
+  min-width: 42px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.upcoming-event-datebox .date-month {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.upcoming-event-datebox .date-day {
+  font-size: 1.1rem;
+  margin-top: 2px;
+}
+
+.upcoming-event-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.upcoming-event-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcoming-event-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* Category Legend Pills */
+.category-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-legend-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.category-legend-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.category-legend-pill.active {
+  border-color: var(--accent-gold);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--text-primary);
+}
+
+.category-legend-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* ── Event Detail Modal Badges ───────────────────────────────────────────────── */
+.event-detail-banner {
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.event-detail-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.event-detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.event-meta-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+}
+
+.event-meta-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.event-meta-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}

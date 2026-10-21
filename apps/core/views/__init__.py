@@ -183,7 +183,30 @@ from .session_views import (
     teacher_session_summary,
 )
 
+# // ------------------------------------------------------------------------------
+# // 13. Academic Calendar & Institutional Event Subsystem
+# // ------------------------------------------------------------------------------
+from .calendar_views import (
+    admin_calendar_event_cancel,
+    admin_calendar_event_delete,
+    admin_calendar_event_get,
+    admin_calendar_event_reschedule,
+    admin_calendar_event_save,
+    admin_calendar_events_json,
+    admin_calendar_sync_holidays,
+    admin_calendar_view,
+)
+
 __all__ = [
+    # Academic Calendar
+    'admin_calendar_view',
+    'admin_calendar_events_json',
+    'admin_calendar_event_get',
+    'admin_calendar_event_save',
+    'admin_calendar_event_reschedule',
+    'admin_calendar_event_cancel',
+    'admin_calendar_event_delete',
+    'admin_calendar_sync_holidays',
     # Auth & Registration
     'MAX_FAILED_ATTEMPTS',
     'LOCK_DURATION',

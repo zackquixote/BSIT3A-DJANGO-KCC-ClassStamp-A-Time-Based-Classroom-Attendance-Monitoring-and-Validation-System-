@@ -29,6 +29,7 @@ import pyotp
 
 from apps.core.decorators import role_required
 from apps.core.models import (
+    AcademicEvent,
     AcademicYear,
     AttendanceRecord,
     AuditEvent,
@@ -121,6 +122,23 @@ def teacher_session_open(request):
                 object_id=str(session.id),
                 new_value=f"Reopened attendance session for {class_obj.class_code} on {today}",
             )
+
+    start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+    end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
+
+    # Check for official holiday or class suspension conflict advisory
+    holiday_conflict = AcademicEvent.objects.filter(
+        status=AcademicEvent.STATUS_SCHEDULED,
+        start_datetime__lte=end_of_today,
+        end_datetime__gte=start_of_today,
+        category__in=[AcademicEvent.CATEGORY_HOLIDAY, AcademicEvent.CATEGORY_ACADEMIC_TERM]
+    ).first()
+    if holiday_conflict:
+        messages.warning(
+            request,
+            f"Calendar Advisory: Today coincides with an official event: '{holiday_conflict.title}'. "
+            f"Please verify authorization before conducting required classroom attendance."
+        )
 
     return redirect('teacher_session_scan', session_id=session.id)
 
@@ -215,6 +233,17 @@ def teacher_session_scan(request, session_id):
     )
     grace_cutoff_dt = scheduled_start_dt + timedelta(minutes=class_obj.grace_minutes)
 
+    sess_date = session.session_date
+    start_of_sess = timezone.make_aware(datetime.combine(sess_date, datetime.min.time()))
+    end_of_sess = timezone.make_aware(datetime.combine(sess_date, datetime.max.time()))
+
+    calendar_conflict = AcademicEvent.objects.filter(
+        status=AcademicEvent.STATUS_SCHEDULED,
+        start_datetime__lte=end_of_sess,
+        end_datetime__gte=start_of_sess,
+        category__in=[AcademicEvent.CATEGORY_HOLIDAY, AcademicEvent.CATEGORY_ACADEMIC_TERM]
+    ).first()
+
     context = {
         'session': session,
         'class_obj': class_obj,
@@ -229,6 +258,7 @@ def teacher_session_scan(request, session_id):
         'grace_cutoff_iso': grace_cutoff_dt.isoformat(),
         'grace_minutes': class_obj.grace_minutes,
         'is_open': session.status == ClassSession.STATUS_OPEN,
+        'calendar_conflict': calendar_conflict,
     }
     return render(request, 'core/teacher/scanner.html', context)
 

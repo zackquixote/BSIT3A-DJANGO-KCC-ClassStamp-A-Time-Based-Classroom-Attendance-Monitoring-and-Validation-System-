@@ -17,12 +17,13 @@
 # // ==============================================================================
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.core.models import (
+    AcademicEvent,
     AcademicYear,
     AnomalyFlag,
     AttendanceRecord,
@@ -136,6 +137,51 @@ def _admin_dashboard_stats():
     else:
         attendance_rate = None
 
+    # // Academic Calendar & Philippine Holiday Integration
+    upcoming_calendar_events = list(
+        AcademicEvent.objects.filter(
+            end_datetime__date__gte=today,
+            status=AcademicEvent.STATUS_SCHEDULED,
+        )
+        .select_related('academic_year')
+        .order_by('start_datetime')[:6]
+    )
+
+    today_events = list(
+        AcademicEvent.objects.filter(
+            start_datetime__date__lte=today,
+            end_datetime__date__gte=today,
+            status=AcademicEvent.STATUS_SCHEDULED,
+        ).select_related('academic_year')
+    )
+    today_holiday = next((e for e in today_events if e.category == AcademicEvent.CATEGORY_HOLIDAY), None)
+
+    # Lightweight event dates for mini-calendar day dots
+    month_start = today.replace(day=1) - timedelta(days=7)
+    month_end = today.replace(day=28) + timedelta(days=45)
+    month_events_qs = AcademicEvent.objects.filter(
+        start_datetime__date__lte=month_end,
+        end_datetime__date__gte=month_start,
+        status=AcademicEvent.STATUS_SCHEDULED,
+    ).values('id', 'title', 'category', 'start_datetime', 'end_datetime', 'is_all_day')
+
+    mini_calendar_events = []
+    for evt in month_events_qs:
+        s_date = timezone.localtime(evt['start_datetime']).strftime('%Y-%m-%d')
+        e_date = timezone.localtime(evt['end_datetime']).strftime('%Y-%m-%d')
+        meta = AcademicEvent.CATEGORY_META.get(evt['category'], AcademicEvent.CATEGORY_META[AcademicEvent.CATEGORY_OTHER])
+        mini_calendar_events.append({
+            'id': evt['id'],
+            'title': evt['title'],
+            'start_date': s_date,
+            'end_date': e_date,
+            'category': evt['category'],
+            'category_color': meta['color'],
+            'category_icon': meta['icon'],
+            'category_label': meta['label'],
+            'is_all_day': evt['is_all_day'],
+        })
+
     return {
         'pending_count': pending_count,
         'student_count': student_count,
@@ -164,6 +210,12 @@ def _admin_dashboard_stats():
         'open_sessions_list': open_sessions_list,
         'attendance_rate': attendance_rate,
         'today_attendance_total': today_attendance_total,
+        # // Academic Calendar & Holidays
+        'upcoming_calendar_events': upcoming_calendar_events,
+        'today_events': today_events,
+        'today_holiday': today_holiday,
+        'mini_calendar_events_json': mini_calendar_events,
+        'today_date': today,
     }
 
 
@@ -248,6 +300,31 @@ def _teacher_dashboard_stats(profile):
     else:
         overall_attendance_rate = 100.0
 
+    now = timezone.now()
+    start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+    end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
+
+    # Academic Calendar Events & Today's Observances for Faculty
+    upcoming_calendar_events = list(
+        AcademicEvent.objects.filter(
+            status=AcademicEvent.STATUS_SCHEDULED,
+            visibility__in=[AcademicEvent.VISIBILITY_ALL, AcademicEvent.VISIBILITY_FACULTY],
+            end_datetime__gte=now,
+        )
+        .select_related('academic_year')
+        .order_by('start_datetime')[:6]
+    )
+
+    today_events = list(
+        AcademicEvent.objects.filter(
+            status=AcademicEvent.STATUS_SCHEDULED,
+            visibility__in=[AcademicEvent.VISIBILITY_ALL, AcademicEvent.VISIBILITY_FACULTY],
+            start_datetime__lte=end_of_today,
+            end_datetime__gte=start_of_today,
+        ).select_related('academic_year')
+    )
+    today_holiday = next((e for e in today_events if e.category == AcademicEvent.CATEGORY_HOLIDAY), None)
+
     return {
         'classes': classes,
         'class_count': classes.count(),
@@ -259,26 +336,22 @@ def _teacher_dashboard_stats(profile):
         'recent_sessions': recent_sessions,
         'overall_attendance_rate': overall_attendance_rate,
         'today_date': today,
+        'upcoming_calendar_events': upcoming_calendar_events,
+        'today_events': today_events,
+        'today_holiday': today_holiday,
     }
 
 
 # // ==============================================================================
-# // HELPER: Student Dashboard Attendance Metrics
+# // HELPER: Student Dashboard Attendance Metrics & Academic Calendar
 # // ==============================================================================
 def _student_dashboard_stats(profile):
     """
-    // Summarizes attendance statuses (Present, Late, Absent, Excused) and active enrollments.
-    //
-    // Arguments:
-    //   profile (Profile): The authenticated student's Profile instance.
-    //
-    // Returns a dict containing:
-    //   present_count        — Total PRESENT records
-    //   late_count           — Total LATE records
-    //   absent_count         — Total ABSENT records
-    //   excused_count        — Total EXCUSED records
-    //   enrolled_class_count — Active class enrollments
+    // Summarizes attendance statuses (Present, Late, Absent, Excused), active enrollments,
+    // enrolled class schedule timetable, examination schedule, and public academic events.
     """
+    today = timezone.localdate()
+
     stats = AttendanceRecord.objects.filter(student_profile=profile).aggregate(
         present_count=Count('id', filter=Q(status=AttendanceRecord.STATUS_PRESENT)),
         late_count=Count('id', filter=Q(status=AttendanceRecord.STATUS_LATE)),
@@ -288,6 +361,56 @@ def _student_dashboard_stats(profile):
     stats['enrolled_class_count'] = Enrollment.objects.filter(
         student_profile=profile, status=Enrollment.STATUS_ACTIVE,
     ).count()
+
+    # Active class enrollments with scheduled slots
+    stats['active_enrollments'] = list(
+        Enrollment.objects.filter(
+            student_profile=profile,
+            status=Enrollment.STATUS_ACTIVE,
+        )
+        .select_related('class_obj', 'class_obj__subject', 'class_obj__teacher_profile__user', 'class_obj__academic_year')
+        .prefetch_related('class_obj__slots')
+    )
+
+    now = timezone.now()
+    start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+    end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
+
+    # Public Academic Events & Today's Observance
+    stats['upcoming_calendar_events'] = list(
+        AcademicEvent.objects.filter(
+            status=AcademicEvent.STATUS_SCHEDULED,
+            visibility=AcademicEvent.VISIBILITY_ALL,
+            end_datetime__gte=now,
+        )
+        .select_related('academic_year')
+        .order_by('start_datetime')[:6]
+    )
+
+    today_events = list(
+        AcademicEvent.objects.filter(
+            status=AcademicEvent.STATUS_SCHEDULED,
+            visibility=AcademicEvent.VISIBILITY_ALL,
+            start_datetime__lte=end_of_today,
+            end_datetime__gte=start_of_today,
+        ).select_related('academic_year')
+    )
+    stats['today_events'] = today_events
+    stats['today_holiday'] = next((e for e in today_events if e.category == AcademicEvent.CATEGORY_HOLIDAY), None)
+
+    # Examination Schedules (Midterms / Finals)
+    stats['upcoming_exams'] = list(
+        AcademicEvent.objects.filter(
+            status=AcademicEvent.STATUS_SCHEDULED,
+            visibility=AcademicEvent.VISIBILITY_ALL,
+            category=AcademicEvent.CATEGORY_EXAMINATION,
+            end_datetime__gte=now,
+        )
+        .select_related('academic_year')
+        .order_by('start_datetime')[:3]
+    )
+
+    stats['today_date'] = today
     return stats
 
 

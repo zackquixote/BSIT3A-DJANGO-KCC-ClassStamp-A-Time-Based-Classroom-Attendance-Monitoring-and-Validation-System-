@@ -71,6 +71,16 @@ urlpatterns = [
     path('academic-years/delete/<int:pk>/', views.academic_year_delete, name='academic_year_delete'),
     path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
 
+    # // Admin: Academic Calendar & Institutional Schedule
+    path('admin/calendar/', views.admin_calendar_view, name='admin_calendar'),
+    path('admin/calendar/events/', views.admin_calendar_events_json, name='admin_calendar_events_json'),
+    path('admin/calendar/events/save/', views.admin_calendar_event_save, name='admin_calendar_event_save'),
+    path('admin/calendar/events/<int:pk>/get/', views.admin_calendar_event_get, name='admin_calendar_event_get'),
+    path('admin/calendar/events/<int:pk>/reschedule/', views.admin_calendar_event_reschedule, name='admin_calendar_event_reschedule'),
+    path('admin/calendar/events/<int:pk>/cancel/', views.admin_calendar_event_cancel, name='admin_calendar_event_cancel'),
+    path('admin/calendar/events/<int:pk>/delete/', views.admin_calendar_event_delete, name='admin_calendar_event_delete'),
+    path('admin/calendar/sync-holidays/', views.admin_calendar_sync_holidays, name='admin_calendar_sync_holidays'),
+
     # // Admin: Class Sections, Schedules & Roster Enrollment
     path('classes/', views.class_list, name='class_list'),
     path('classes/save/', views.class_save, name='class_save'),

@@ -105,7 +105,10 @@
           <th>Code</th>
           <th>Descriptive Title</th>
           <th>Syllabus</th>
-          <th>Classes</th>
+          <th title="Active class sections this semester">Classes</th>
+          <th title="Teachers handling this subject in the active AY">Handled By
+            {% if active_ay %}<span class="text-muted text-xs font-normal">({{ active_ay.name }})</span>{% endif %}
+          </th>
           <th>Curriculum</th>
           <th>Status</th>
           <th style="text-align: right; width: 200px;">Actions</th>
@@ -128,6 +131,19 @@
           <td>
             <span class="badge badge--blue">{{ s.class_count }}</span>
           </td>
+          <td style="min-width: 180px;">
+            {% if s.current_teachers %}
+              <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                {% for tname in s.current_teachers %}
+                  <span class="badge badge--teal" style="font-size:0.7rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ tname }}">
+                    <i class="fas fa-chalkboard-teacher" style="font-size:0.6rem;"></i> {{ tname }}
+                  </span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="text-muted text-xs">— unassigned</span>
+            {% endif %}
+          </td>
           <td>
             {# Curriculum badge — hover reveals program tags via title tooltip #}
             <span class="badge badge--gold js-curr-badge" data-id="{{ s.id }}" style="cursor: pointer;"
@@ -144,6 +160,12 @@
           </td>
           <td style="text-align: right;">
             <div class="flex justify-end gap-2">
+              <a href="{% url 'class_list' %}?subject={{ s.id }}&create=1"
+                 class="btn btn-outline btn-sm"
+                 style="color: var(--teal, #0d9488); border-color: var(--teal, #0d9488);"
+                 title="Assign Teacher — Open Classes page for {{ s.code }}">
+                <i class="fas fa-chalkboard-teacher"></i>
+              </a>
               <button class="btn btn-outline btn-sm js-curriculum-btn" data-id="{{ s.id }}" data-code="{{ s.code }}"
                 title="Curriculum Mapping">
                 <i class="fas fa-sitemap"></i>
@@ -160,7 +182,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
+          <td colspan="9" class="text-center text-muted" style="padding: 48px 0;">
             <i class="fas fa-book-open" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
             No subjects found{% if query %} matching "{{ query }}"{% endif %}.
           </td>

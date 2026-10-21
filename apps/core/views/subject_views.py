@@ -20,7 +20,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
 import json
-from apps.core.models import Curriculum, Department, Profile, Program, Subject
+from apps.core.models import AcademicYear, Class, Curriculum, Department, Profile, Program, Subject
 from apps.core.serializers import serialize_subject, serialize_subject_summary
 from apps.core.serializers.academic_serializers import serialize_curriculum_entry
 from apps.core.services import (
@@ -103,6 +103,31 @@ def subject_list(request):
         for p in programs
     ])
 
+    # Build a dict of subject_id → unique teacher display names for the active AY.
+    # One bulk query — no N+1.
+    active_ay = AcademicYear.objects.filter(is_active=True).first()
+    teachers_by_subject: dict[int, list[str]] = {}
+    if active_ay:
+        ay_classes = (
+            Class.objects
+            .filter(academic_year=active_ay, is_active=True)
+            .select_related('teacher_profile__user')
+            .values_list('subject_id',
+                         'teacher_profile__user__first_name',
+                         'teacher_profile__user__last_name',
+                         'teacher_profile__user__username')
+        )
+        for sid, fname, lname, uname in ay_classes:
+            full = f'{fname or ""} {lname or ""}'.strip() or uname
+            teachers_by_subject.setdefault(sid, [])
+            if full not in teachers_by_subject[sid]:
+                teachers_by_subject[sid].append(full)
+
+    # Attach teacher list directly to each subject object so the template
+    # can access it as {{ s.current_teachers }} (avoids dict-subscript limitation).
+    for s in subjects:
+        s.current_teachers = teachers_by_subject.get(s.id, [])
+
     return render(request, 'core/admin/subjects.html', {
         'subjects': subjects,
         'query': query,
@@ -116,6 +141,7 @@ def subject_list(request):
         'departments': departments,
         'programs': programs,
         'programs_json': programs_json,
+        'active_ay': active_ay,
     })
 
 

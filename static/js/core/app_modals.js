@@ -61,14 +61,14 @@
       return;
     }
 
-    var dismissBtn = e.target.closest('[data-modal-dismiss]');
+    var dismissBtn = e.target.closest('[data-modal-dismiss], [data-modal-close], .modal-close');
     if (dismissBtn) {
       e.preventDefault();
       var targetModal = dismissBtn.closest('.modal');
       if (targetModal) {
         window.closeModal(targetModal.id || targetModal);
       } else {
-        var dismissId = dismissBtn.getAttribute('data-modal-dismiss');
+        var dismissId = dismissBtn.getAttribute('data-modal-dismiss') || dismissBtn.getAttribute('data-modal-close');
         if (dismissId) window.closeModal(dismissId);
       }
       return;

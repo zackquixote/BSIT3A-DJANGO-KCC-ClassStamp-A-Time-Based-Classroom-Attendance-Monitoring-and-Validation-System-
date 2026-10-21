@@ -326,12 +326,53 @@
 
         <div>
           <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Subject *</label>
+
+          <!-- ── Cascade Filter Strip ─────────────────────────────── -->
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:8px;"
+               id="subjectCascadeFilters">
+
+            <div>
+              <label style="font-size:0.68rem; color:var(--text-muted); display:block; margin-bottom:3px;">Department</label>
+              <select id="cascadeDept" class="form-control" style="font-size:0.78rem; padding:6px 8px;">
+                <option value="">All Depts</option>
+                {% for d in departments %}
+                  <option value="{{ d.id }}">{{ d.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.68rem; color:var(--text-muted); display:block; margin-bottom:3px;">Program</label>
+              <select id="cascadeProgram" class="form-control" style="font-size:0.78rem; padding:6px 8px;">
+                <option value="">All Programs</option>
+                {% for p in programs %}
+                  <option value="{{ p.id }}" data-dept="{{ p.department_id }}">{{ p.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.68rem; color:var(--text-muted); display:block; margin-bottom:3px;">Year Level</label>
+              <select id="cascadeYear" class="form-control" style="font-size:0.78rem; padding:6px 8px;" disabled>
+                <option value="">All Years</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+              </select>
+            </div>
+          </div>
+          <!-- ── Subject Dropdown (narrowed by cascade) ────────────── -->
           <select name="subject_id" id="formSubjectId" class="form-control" required style="width: 100%;">
             <option value="">Select Course Subject...</option>
             {% for s in subjects %}
-              <option value="{{ s.id }}">{{ s.code }} — {{ s.name }}</option>
+              <option value="{{ s.id }}" data-code="{{ s.code }}" data-name="{{ s.name }}">{{ s.code }} — {{ s.name }}</option>
             {% endfor %}
           </select>
+          <span class="text-muted text-xs mt-1" style="display:block;">
+            <a href="#" id="resetSubjectCascade" style="color:var(--gold);">↺ Show all subjects</a>
+            &nbsp;|&nbsp; select dept/program/year above to narrow the list
+          </span>
         </div>
 
         <div>
@@ -558,5 +599,156 @@
 <script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
+<script>
+/* Auto-open Create Class modal when arriving from Subjects page (?create=1) */
+(function () {
+  var params  = new URLSearchParams(window.location.search);
+  var doCreate = params.get('create') === '1';
+  var subjectId = params.get('subject') || '';
+
+  if (!doCreate) return;
+
+  /* Wait for modals to initialise (class_modal.js fires on DOMContentLoaded) */
+  window.addEventListener('DOMContentLoaded', function () {
+    var openBtn = document.getElementById('openCreateClassBtn');
+    if (openBtn) openBtn.click();              /* triggers the modal open */
+
+    /* Pre-select the subject in the dropdown */
+    if (subjectId) {
+      var subjectSel = document.getElementById('formSubjectId');
+      if (subjectSel) subjectSel.value = subjectId;
+    }
+
+    /* Clean the URL so refreshing doesn't re-open the modal */
+    if (window.history && window.history.replaceState) {
+      params.delete('create');
+      var newUrl = window.location.pathname +
+        (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  });
+}());
+</script>
+
+<!-- ── Subject Cascade Filter Data & Logic ───────────────────────── -->
+<script id="subjectCascadeData"
+        data-subjects="{{ subjects_json|escapejs }}"
+        data-departments="{{ departments_json|escapejs }}"
+        data-programs="{{ programs_json|escapejs }}"
+        data-curriculum="{{ curriculum_map_json|escapejs }}">
+</script>
+<script>
+(function () {
+  'use strict';
+
+  var dataEl      = document.getElementById('subjectCascadeData');
+  if (!dataEl) return;
+
+  var ALL_SUBJECTS    = JSON.parse(dataEl.dataset.subjects    || '[]');
+  var ALL_PROGRAMS    = JSON.parse(dataEl.dataset.programs    || '[]');
+  var CURRICULUM_MAP  = JSON.parse(dataEl.dataset.curriculum  || '{}');
+  // { "program_id": { "year_level": [subject_id, ...] } }
+
+  var deptSel    = document.getElementById('cascadeDept');
+  var programSel = document.getElementById('cascadeProgram');
+  var yearSel    = document.getElementById('cascadeYear');
+  var subjectSel = document.getElementById('formSubjectId');
+  var resetLink  = document.getElementById('resetSubjectCascade');
+
+  if (!deptSel || !programSel || !yearSel || !subjectSel) return;
+
+  /* ── helpers ── */
+  function currentSubjectIds() {
+    var pid = programSel.value;
+    var yr  = yearSel.value;
+    if (!pid) return null;                         // no program = show all
+    var progData = CURRICULUM_MAP[pid] || {};
+    if (!yr) {
+      // all years for this program
+      var ids = [];
+      Object.values(progData).forEach(function (arr) { ids = ids.concat(arr); });
+      return ids.length ? ids : null;
+    }
+    return progData[yr] || [];
+  }
+
+  function refreshSubjects() {
+    var allowed = currentSubjectIds();             // null = no filter
+    var current = subjectSel.value;
+    var opts = subjectSel.options;
+    var found = false;
+    for (var i = 0; i < opts.length; i++) {
+      var opt = opts[i];
+      if (!opt.value) { opt.style.display = ''; continue; }   // placeholder
+      var show = allowed === null || allowed.indexOf(parseInt(opt.value)) !== -1;
+      opt.style.display = show ? '' : 'none';
+      if (show && opt.value === current) found = true;
+    }
+    if (!found && current) subjectSel.value = '';   // clear stale selection
+  }
+
+  function refreshPrograms() {
+    var deptId = deptSel.value;
+    var opts   = programSel.options;
+    for (var i = 0; i < opts.length; i++) {
+      var opt = opts[i];
+      if (!opt.value) { opt.style.display = ''; continue; }
+      opt.style.display = (!deptId || opt.dataset.dept === deptId) ? '' : 'none';
+    }
+    // Reset program selection if currently hidden
+    if (programSel.value && programSel.options[programSel.selectedIndex].style.display === 'none') {
+      programSel.value = '';
+    }
+    yearSel.disabled = !programSel.value;
+    if (!programSel.value) yearSel.value = '';
+    refreshSubjects();
+  }
+
+  /* ── event wiring ── */
+  deptSel.addEventListener('change', function () {
+    programSel.value = '';
+    yearSel.value    = '';
+    yearSel.disabled = true;
+    refreshPrograms();
+  });
+
+  programSel.addEventListener('change', function () {
+    yearSel.disabled = !programSel.value;
+    if (!programSel.value) yearSel.value = '';
+    refreshSubjects();
+  });
+
+  yearSel.addEventListener('change', function () {
+    refreshSubjects();
+  });
+
+  if (resetLink) {
+    resetLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      deptSel.value    = '';
+      programSel.value = '';
+      yearSel.value    = '';
+      yearSel.disabled = true;
+      // Show all options
+      var opts = subjectSel.options;
+      for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
+      refreshPrograms();
+    });
+  }
+
+  /* Reset cascade when the modal is closed (so next open starts fresh) */
+  var closeModal   = document.getElementById('closeClassModal');
+  var cancelModal  = document.getElementById('cancelClassModal');
+  function resetCascade() {
+    deptSel.value = ''; programSel.value = ''; yearSel.value = ''; yearSel.disabled = true;
+    var opts = subjectSel.options;
+    for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
+    refreshPrograms();
+  }
+  if (closeModal)  closeModal.addEventListener('click', resetCascade);
+  if (cancelModal) cancelModal.addEventListener('click', resetCascade);
+
+}());
+</script>
 {% endblock %}
 

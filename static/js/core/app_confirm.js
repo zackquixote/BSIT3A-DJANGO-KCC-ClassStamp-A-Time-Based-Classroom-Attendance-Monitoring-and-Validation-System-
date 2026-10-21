@@ -11,7 +11,7 @@
     var message = opts.message || 'Are you sure you want to proceed?';
     var confirmText = opts.confirmText || 'Confirm';
     var cancelText = opts.cancelText || 'Cancel';
-    var type = opts.type || 'danger';
+    var type = opts.type || opts.variant || 'danger';
     var confirmClass = opts.confirmClass || (type === 'primary' ? 'btn-primary' : (type === 'warning' ? 'btn-warning' : 'btn-danger'));
 
     var iconClass = 'fas fa-triangle-exclamation';
@@ -104,5 +104,20 @@
         if (cancelBtn) cancelBtn.focus();
       }, 70);
     });
+  };
+
+  /* ── Expose global window.appConfirm ────────────────────────── */
+  window.appConfirm = function (opts) {
+    if (opts && typeof opts.onConfirm === 'function') {
+      return window.App.confirm(opts).then(function (confirmed) {
+        if (confirmed) {
+          opts.onConfirm();
+        } else if (typeof opts.onCancel === 'function') {
+          opts.onCancel();
+        }
+        return confirmed;
+      });
+    }
+    return window.App.confirm(opts);
   };
 })(window);

@@ -30,8 +30,11 @@ from apps.core.models import (
     Class,
     ClassSession,
     ClassSlot,
+    Curriculum,
+    Department,
     Enrollment,
     Profile,
+    Program,
     Subject,
 )
 
@@ -111,6 +114,42 @@ def class_list(request):
         .select_related('user', 'department')
         .order_by('user__last_name', 'user__first_name')
     )
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    programs = (
+        Program.objects.filter(is_active=True)
+        .select_related('department')
+        .order_by('code')
+    )
+
+    # Build subject cascade data for the modal JS filter
+    # curriculum_map: { program_id: { year_level: [subject_id, ...] } }
+    curriculum_entries = (
+        Curriculum.objects
+        .select_related('subject', 'program')
+        .filter(subject__is_active=True)
+        .values('program_id', 'year_level', 'subject_id')
+    )
+    curriculum_map: dict = {}
+    for entry in curriculum_entries:
+        pid = str(entry['program_id'])
+        yl  = str(entry['year_level'])
+        sid = entry['subject_id']
+        curriculum_map.setdefault(pid, {}).setdefault(yl, []).append(sid)
+
+    subjects_json = json.dumps([
+        {'id': s.id, 'code': s.code, 'name': s.name}
+        for s in subjects
+    ])
+    departments_json = json.dumps([
+        {'id': d.id, 'code': d.code, 'name': d.name}
+        for d in departments
+    ])
+    programs_json = json.dumps([
+        {'id': p.id, 'code': p.code, 'name': p.name,
+         'dept_id': p.department_id, 'years_total': p.years_total}
+        for p in programs
+    ])
+    curriculum_map_json = json.dumps(curriculum_map)
 
     return render(request, 'core/admin/classes.html', {
         'classes': classes_page,
@@ -122,12 +161,18 @@ def class_list(request):
         'academic_years': academic_years,
         'subjects': subjects,
         'teachers': teachers,
+        'departments': departments,
+        'programs': programs,
         'active_ay': active_ay,
         'total_classes_count': total_classes_count,
         'active_classes_count': active_classes_count,
         'total_slots_count': total_slots_count,
         'total_enrolled_count': total_enrolled_count,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
+        'subjects_json': subjects_json,
+        'departments_json': departments_json,
+        'programs_json': programs_json,
+        'curriculum_map_json': curriculum_map_json,
     })
 
 

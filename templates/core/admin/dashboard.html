@@ -16,6 +16,33 @@
 
 {% block content %}
 
+{% if today_holiday %}
+<!-- ── Philippine Holiday / Academic Observance Alert ────────── -->
+<div class="dash-holiday-banner" role="alert">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; color: var(--accent-gold); font-size: 1rem; flex-shrink: 0;">
+      <i class="fas fa-flag-checkered"></i>
+    </div>
+    <div>
+      <div style="font-size: 0.88rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span>Philippine Holiday / Academic Observance:</span>
+        <span style="color: var(--accent-gold);">{{ today_holiday.title }}</span>
+        {% if today_holiday.location %}<span style="font-size: 0.72rem; color: var(--text-muted);">({{ today_holiday.location }})</span>{% endif %}
+      </div>
+      <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">
+        {{ today_holiday.description|default:"Official Philippine holiday recognized in the KCC Academic Calendar. Note: Attendance validation remains active; verified administrative guidelines apply." }}
+      </div>
+    </div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <span class="badge badge--warning"><i class="fas fa-calendar-day"></i> {{ today_holiday.get_category_display }}</span>
+    <a href="{% url 'admin_calendar' %}" class="btn btn-outline btn-xs" style="border-color: rgba(245, 158, 11, 0.35); color: var(--accent-gold);">
+      <i class="fas fa-calendar"></i> View Calendar
+    </a>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Top Header ─────────────────────────────────────────────── -->
 
 <div class="dash-page-header">
@@ -779,7 +806,85 @@
 
 
 
-  <!-- 2. Academic Departments -->
+  <!-- 2. Academic Calendar (Mini Calendar) -->
+
+  <div class="dash-panel" id="dashMiniCalendar">
+
+    <div class="dash-panel-head">
+
+      <div>
+
+        <h2 class="dash-panel-title"><i class="fas fa-calendar-days text-gold"></i> Academic Calendar</h2>
+
+        <p class="dash-panel-subtitle">Official milestones & holidays</p>
+
+      </div>
+
+      <a href="{% url 'admin_calendar' %}" class="dash-panel-action" title="Open Full Academic Calendar">
+
+        Full View <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem;"></i>
+
+      </a>
+
+    </div>
+
+    <div class="dash-panel-body">
+
+      <div class="mini-cal-wrap">
+
+        <div class="mini-cal-nav">
+
+          <span class="mini-cal-title" id="miniCalMonthTitle">October 2026</span>
+
+          <div style="display: flex; gap: 4px;">
+
+            <button type="button" class="mini-cal-btn" id="miniCalPrevBtn" title="Previous Month" aria-label="Previous Month">
+
+              <i class="fas fa-chevron-left"></i>
+
+            </button>
+
+            <button type="button" class="mini-cal-btn" id="miniCalNextBtn" title="Next Month" aria-label="Next Month">
+
+              <i class="fas fa-chevron-right"></i>
+
+            </button>
+
+          </div>
+
+        </div>
+
+        <div class="mini-cal-weekdays">
+
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+
+        </div>
+
+        <div class="mini-cal-grid" id="miniCalDaysGrid"></div>
+
+        <div class="mini-cal-inspect" id="miniCalDayInspect">
+
+          <div class="mini-cal-inspect-head">
+
+            <span id="miniCalInspectDate">Today</span>
+
+            <span class="text-xs text-muted"><i class="fas fa-hand-pointer"></i> Day Schedule</span>
+
+          </div>
+
+          <div id="miniCalInspectEvents"></div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- 3. Academic Departments -->
 
   <div class="dash-panel">
 
@@ -1138,6 +1243,9 @@
      data-live-stream-url="{% url 'admin_live_stream' %}"></div>
 
 <script src="{% static 'js/admin_dashboard.js' %}?v=20261020_v3"></script>
+
+{{ mini_calendar_events_json|json_script:"mini-calendar-events-data" }}
+<script src="{% static 'js/calendar/mini_calendar.js' %}?v=20261021_v1"></script>
 
 {% endblock %}
 

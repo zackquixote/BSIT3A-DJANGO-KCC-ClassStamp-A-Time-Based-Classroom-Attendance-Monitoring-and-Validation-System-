@@ -53,6 +53,9 @@ from .audit import (
     ReviewAction,
 )
 
+# // Academic Calendar & Institutional Schedule
+from .calendar import AcademicEvent
+
 __all__ = [
     # Academic
     'AcademicYear',
@@ -60,6 +63,7 @@ __all__ = [
     'Department',
     'Program',
     'Subject',
+    'AcademicEvent',
     # Identity
     'Profile',
     # Classroom

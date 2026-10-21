@@ -54,6 +54,20 @@
   </div>
 </div>
 
+{% if calendar_conflict %}
+<!-- Calendar Observance Advisory Banner -->
+<div class="card mb-4" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); padding: 10px 16px;">
+  <div class="flex items-center gap-3">
+    <i class="fas fa-flag-checkered text-warning" style="font-size: 1.1rem;"></i>
+    <div style="flex: 1;">
+      <span class="font-bold text-xs text-warning uppercase">Institutional Advisory:</span>
+      <span class="text-xs text-primary font-semibold">{{ calendar_conflict.title }}</span>
+      <span class="text-xs text-muted">({{ calendar_conflict.get_category_display }}) &bull; Class attendance validation remains active under faculty supervision.</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Alert Banner -->
 <div id="scannerAlert" class="toast toast--error mb-4" style="display: none; align-items: center; justify-content: space-between;">
   <span id="scannerAlertText"></span>
