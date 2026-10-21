@@ -1,144 +1,476 @@
 {% extends "theme/base.html" %}
-{% block title %}Account Validation — KCC ClassStamp{% endblock %}
+{% load static %}
+{% block title %}Account Validation Center — KCC ClassStamp{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Account Validation</h1>
-    <p class="page-subtitle">Administrative identity verification and student account validation management</p>
+    <h1 class="page-title">Account Validation Center</h1>
+    <p class="page-subtitle">Administrative student identity verification queue and official approval ledger</p>
   </div>
-  <div>
-    {% if pending_count > 0 %}
-      <span class="badge badge--warning" style="font-size: 0.9rem; padding: 8px 14px;">
-        <i class="fas fa-user-clock"></i> {{ pending_count }} Awaiting Review
-      </span>
-    {% else %}
-      <span class="badge badge--green" style="font-size: 0.9rem; padding: 8px 14px;">
-        <i class="fas fa-circle-check"></i> Queue Clear
-      </span>
-    {% endif %}
+  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <span class="badge {% if pending_count > 0 %}badge--warning{% else %}badge--green{% endif %}" style="padding: 6px 12px; font-size: 0.82rem;">
+      <i class="fas {% if pending_count > 0 %}fa-user-clock{% else %}fa-circle-check{% endif %}"></i>
+      <span>Pending: <strong>{{ pending_count }}</strong></span>
+    </span>
+    <span class="badge badge--green" style="padding: 6px 12px; font-size: 0.82rem;">
+      <i class="fas fa-check"></i> Approved: <strong>{{ approved_count }}</strong>
+    </span>
+    <span class="badge badge--danger" style="padding: 6px 12px; font-size: 0.82rem;">
+      <i class="fas fa-xmark"></i> Rejected: <strong>{{ rejected_count }}</strong>
+    </span>
   </div>
 </div>
 
-<!-- Validation Modules Grid -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; margin-bottom: 28px;">
+<!-- ── Unified Workspace Navigation Tabs ──────────────────────── -->
+<div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--glass-border); margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div style="display: flex; gap: 4px;" role="tablist">
+    <button
+      type="button"
+      class="btn {% if tab != 'reviewed' %}btn-primary{% else %}btn-outline{% endif %}"
+      id="tabPendingBtn"
+      style="border-radius: var(--radius-sm) var(--radius-sm) 0 0; border-bottom: none; padding: 10px 18px; font-size: 0.88rem; font-weight: 600;"
+      role="tab"
+      aria-selected="{% if tab != 'reviewed' %}true{% else %}false{% endif %}"
+    >
+      <i class="fas fa-user-clock"></i>
+      <span>Pending Queue</span>
+      <span style="background: rgba(0,0,0,0.28); border-radius: 9999px; padding: 2px 8px; font-size: 0.72rem; margin-left: 4px;">{{ pending_count }}</span>
+    </button>
+    <button
+      type="button"
+      class="btn {% if tab == 'reviewed' %}btn-primary{% else %}btn-outline{% endif %}"
+      id="tabReviewedBtn"
+      style="border-radius: var(--radius-sm) var(--radius-sm) 0 0; border-bottom: none; padding: 10px 18px; font-size: 0.88rem; font-weight: 600;"
+      role="tab"
+      aria-selected="{% if tab == 'reviewed' %}true{% else %}false{% endif %}"
+    >
+      <i class="fas fa-clipboard-check"></i>
+      <span>Reviewed History</span>
+      <span style="background: rgba(0,0,0,0.28); border-radius: 9999px; padding: 2px 8px; font-size: 0.72rem; margin-left: 4px;">{{ reviewed_count }}</span>
+    </button>
+  </div>
 
-  <!-- Card 1: Pending Registrations -->
-  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; border-top: 3px solid var(--accent-gold);">
-    <div>
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); display: flex; align-items: center; justify-content: center; color: var(--accent-gold-h); font-size: 1.4rem;">
-            <i class="fas fa-user-clock"></i>
-          </div>
-          <div>
-            <h2 class="font-semibold text-primary" style="font-size: 1.2rem; margin: 0;">Pending Registrations</h2>
-            <div class="text-muted text-xs mt-1">Student accounts awaiting identity verification</div>
-          </div>
+  <div class="text-xs text-muted">
+    <i class="fas fa-shield-halved text-gold"></i> Strict Two-Party Review Enforced
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PANE 1: PENDING QUEUE                                          -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="panePending" style="display: {% if tab != 'reviewed' %}block{% else %}none{% endif %};">
+
+  <!-- Department Quick-Filter Tabs -->
+  <div class="dept-filter-tabs" id="deptTabsContainer">
+    <a
+      href="{% url 'validation_hub' %}?tab=pending"
+      class="dept-tab-pill {% if not selected_department %}is-active{% endif %}"
+    >
+      <i class="fas fa-layer-group"></i>
+      <span>All Departments</span>
+      <span class="dept-tab-count">{{ pending_count }}</span>
+    </a>
+    {% for d in departments %}
+    <a
+      href="{% url 'validation_hub' %}?tab=pending&department={{ d.id }}"
+      class="dept-tab-pill {% if selected_department == d.id|stringformat:'s' %}is-active{% endif %}"
+      title="{{ d.name }}"
+    >
+      <span>{{ d.code }}</span>
+      <span class="dept-tab-count">{{ d.pending_count }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Filter & Search Bar -->
+  <div class="card mb-4 filter-bar-card">
+    <form method="GET" action="{% url 'validation_hub' %}" class="filter-bar-grid">
+      <input type="hidden" name="tab" value="pending">
+
+      <!-- Department Selector -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label text-xs mb-1" for="filterDeptSelect"><i class="fas fa-building-columns text-gold"></i> Department</label>
+        <select name="department" id="filterDeptSelect" class="form-control text-sm">
+          <option value="">All Departments ({{ pending_count }})</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {% if selected_department == d.id|stringformat:'s' %}selected{% endif %}>
+              {{ d.name }} ({{ d.code }}) — {{ d.pending_count }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Program Selector -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label text-xs mb-1" for="filterProgSelect"><i class="fas fa-graduation-cap text-gold"></i> Program</label>
+        <select name="program" id="filterProgSelect" class="form-control text-sm">
+          <option value="">All Programs</option>
+          {% for p in programs %}
+            <option
+              value="{{ p.id }}"
+              {% if selected_program == p.id|stringformat:'s' %}selected{% endif %}
+            >
+              {{ p.code }} — {{ p.name }} ({{ p.pending_count }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Search Box -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label text-xs mb-1" for="filterSearchInput"><i class="fas fa-magnifying-glass text-gold"></i> Search Student</label>
+        <div class="input-wrap">
+          <i class="fas fa-search input-icon"></i>
+          <input
+            type="text"
+            name="q"
+            id="filterSearchInput"
+            value="{% if tab != 'reviewed' %}{{ query }}{% endif %}"
+            class="form-control text-sm"
+            placeholder="Search by name, student no., or email..."
+            autocomplete="off"
+          >
         </div>
-        {% if pending_count > 0 %}
-          <span class="badge badge--warning" style="font-size: 0.85rem;">{{ pending_count }} pending</span>
-        {% else %}
-          <span class="badge badge--green" style="font-size: 0.85rem;"><i class="fas fa-check"></i> 0 pending</span>
+      </div>
+
+      <!-- Actions -->
+      <div style="display: flex; gap: 8px; align-items: flex-end; padding-top: 18px;">
+        <button type="submit" class="btn btn-primary" title="Apply filter">
+          <i class="fas fa-filter"></i> Apply
+        </button>
+        {% if selected_department or selected_program or query %}
+          <a href="{% url 'validation_hub' %}?tab=pending" class="btn btn-outline" title="Reset filter">
+            <i class="fas fa-rotate-left"></i>
+          </a>
         {% endif %}
       </div>
-
-      <p class="text-secondary text-sm mb-4" style="line-height: 1.6;">
-        Inspect student submitted registration data, match student IDs against official registrar records, and approve or reject access credentials.
-      </p>
-
-      <!-- Mini Preview / Summary -->
-      <div style="background: rgba(15, 23, 42, 0.45); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px;">
-        <div class="text-muted text-xs font-semibold mb-2" style="text-transform: uppercase; letter-spacing: 0.5px;">Recent Submissions</div>
-        {% for student in latest_pending %}
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; {% if not forloop.last %}border-bottom: 1px solid rgba(255,255,255,0.05);{% endif %}">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span class="avatar-initial" style="width: 28px; height: 28px; font-size: 0.75rem;">
-                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
-              </span>
-              <div>
-                <span class="font-medium text-primary text-sm">{{ student.user.get_full_name }}</span>
-                <span class="text-muted text-xs ml-1 font-mono">({{ student.student_number }})</span>
-              </div>
-            </div>
-            <span class="badge badge--purple text-xs">{{ student.program.code|default:"—" }}</span>
-          </div>
-        {% empty %}
-          <div class="text-center text-muted text-xs py-2">
-            <i class="fas fa-circle-check text-green mr-1"></i> No pending student accounts. All registrations are reviewed!
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div>
-      <a href="{% url 'validation_pending_queue' %}" class="btn btn-primary" style="width: 100%; justify-content: center; height: 44px; font-weight: 600;">
-        <i class="fas fa-list-check"></i> Open Pending Registrations
-        {% if pending_count > 0 %}<span style="background: rgba(0,0,0,0.25); border-radius: 12px; padding: 2px 8px; margin-left: 6px; font-size: 0.8rem;">{{ pending_count }}</span>{% endif %}
-      </a>
-    </div>
+    </form>
   </div>
 
-  <!-- Card 2: Recently Reviewed -->
-  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; border-top: 3px solid #22c55e;">
-    <div>
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px;">
-        <div style="display: flex; align-items: center; gap: 14px;">
-          <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); display: flex; align-items: center; justify-content: center; color: #4ade80; font-size: 1.4rem;">
-            <i class="fas fa-clipboard-check"></i>
-          </div>
-          <div>
-            <h2 class="font-semibold text-primary" style="font-size: 1.2rem; margin: 0;">Recently Reviewed</h2>
-            <div class="text-muted text-xs mt-1">Audit log of approved and rejected accounts</div>
-          </div>
+  <!-- Pending Table or Empty State -->
+  {% if pending %}
+    <div class="card mb-4" style="padding: 0; overflow: hidden;">
+      <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div class="font-semibold text-primary text-sm">
+          Awaiting Verification ({{ pending|length }})
         </div>
-        <span class="badge badge--green" style="font-size: 0.85rem;">{{ reviewed_count }} evaluated</span>
+        <span class="text-xs text-muted">Click student name to view complete e-registration dossier</span>
       </div>
 
-      <p class="text-secondary text-sm mb-4" style="line-height: 1.6;">
-        Access complete historical records of validated student profiles, including verification timestamps, approval decisions, and audit trails.
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Student No.</th>
+              <th>Department</th>
+              <th>Program &amp; Year</th>
+              <th>Registered</th>
+              <th style="text-align: right; width: 310px;">Decision &amp; Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in pending %}
+              <tr>
+                <td class="font-semibold text-primary">
+                  <div class="flex items-center gap-3">
+                    <span class="avatar-initial">{{ p.user.first_name|first|upper }}{{ p.user.last_name|first|upper }}</span>
+                    <div>
+                      <a href="{% url 'validation_detail' p.student_number %}" class="student-name-link font-semibold">
+                        {{ p.user.get_full_name }}
+                      </a>
+                      <div class="text-muted text-xs">{{ p.user.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="font-semibold text-primary" style="letter-spacing: 0.5px;">{{ p.student_number }}</span>
+                </td>
+                <td>
+                  <span class="badge badge--purple font-semibold">
+                    {{ p.program.department.code }}
+                  </span>
+                </td>
+                <td class="text-secondary text-sm">
+                  <div class="font-semibold text-primary">{{ p.program.code }}</div>
+                  <div class="text-muted text-xs">{{ p.year_level }}{% if p.year_level == 1 %}st{% elif p.year_level == 2 %}nd{% elif p.year_level == 3 %}rd{% else %}th{% endif %} Year</div>
+                </td>
+                <td class="text-muted text-xs">{{ p.created_at|date:"M j, Y g:i A" }}</td>
+                <td>
+                  <div class="flex items-center gap-2" style="justify-content: flex-end;">
+                    <a href="{% url 'validation_detail' p.student_number %}" class="btn btn-outline btn-sm" style="padding: 5px 9px; font-size: 0.78rem;">
+                      <i class="fas fa-file-lines"></i> View Form
+                    </a>
+                    <form method="post" action="{% url 'approve_student' p.student_number %}" style="display: inline;">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-success btn-sm" style="padding: 5px 9px; font-size: 0.78rem;">
+                        <i class="fas fa-circle-check"></i> Approve
+                      </button>
+                    </form>
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm open-reject-modal"
+                      style="padding: 5px 9px; font-size: 0.78rem;"
+                      data-name="{{ p.user.get_full_name|escapejs }}"
+                      data-reject-url="{% url 'reject_student' p.student_number %}"
+                    >
+                      <i class="fas fa-circle-xmark"></i> Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <!-- Modern Clean Empty State -->
+    <div class="card" style="padding: 48px 24px; text-align: center; margin-bottom: 24px;">
+      <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 1.6rem; color: #4ade80; box-shadow: 0 0 20px rgba(34,197,94,0.15);">
+        <i class="fas fa-circle-check"></i>
+      </div>
+      <h3 style="font-size: 1.2rem; font-weight: 700; color: #ffffff; margin-bottom: 6px;">
+        Validation Queue is Clear
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 480px; margin: 0 auto 20px; line-height: 1.6;">
+        There are currently no student accounts awaiting identity verification. All accounts have been reviewed. New student signups will appear here instantly.
       </p>
-
-      <!-- Mini Preview / Summary -->
-      <div style="background: rgba(15, 23, 42, 0.45); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <div class="text-muted text-xs font-semibold" style="text-transform: uppercase; letter-spacing: 0.5px;">Latest Decisions</div>
-          <div class="text-xs">
-            <span class="text-success font-semibold">{{ approved_count }} Approved</span> &bull;
-            <span class="text-danger font-semibold">{{ rejected_count }} Rejected</span>
-          </div>
-        </div>
-        {% for student in latest_reviewed %}
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; {% if not forloop.last %}border-bottom: 1px solid rgba(255,255,255,0.05);{% endif %}">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span class="avatar-initial" style="width: 28px; height: 28px; font-size: 0.75rem;">
-                {{ student.user.first_name|first|upper }}{{ student.user.last_name|first|upper }}
-              </span>
-              <div>
-                <span class="font-medium text-primary text-sm">{{ student.user.get_full_name }}</span>
-                <span class="text-muted text-xs ml-1 font-mono">({{ student.student_number }})</span>
-              </div>
-            </div>
-            {% if student.approval_status == 'APPROVED' %}
-              <span class="badge badge--green text-xs"><i class="fas fa-check"></i> Approved</span>
-            {% else %}
-              <span class="badge badge--danger text-xs"><i class="fas fa-xmark"></i> Rejected</span>
-            {% endif %}
-          </div>
-        {% empty %}
-          <div class="text-center text-muted text-xs py-2">
-            No reviewed student accounts yet.
-          </div>
-        {% endfor %}
+      <div>
+        <button type="button" class="btn btn-outline" id="btnGoToReviewed" style="font-weight: 600;">
+          <i class="fas fa-clipboard-check"></i> View Reviewed History ({{ reviewed_count }}) &rarr;
+        </button>
       </div>
     </div>
+  {% endif %}
 
-    <div>
-      <a href="{% url 'recently_reviewed_list' %}" class="btn btn-outline" style="width: 100%; justify-content: center; height: 44px; font-weight: 600;">
-        <i class="fas fa-clock-rotate-left"></i> View All Recently Reviewed &rarr;
-      </a>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PANE 2: REVIEWED HISTORY                                       -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="paneReviewed" style="display: {% if tab == 'reviewed' %}block{% else %}none{% endif %};">
+
+  <!-- Reviewed Search & Decision Filter -->
+  <div class="card mb-4" style="padding: 14px 18px;">
+    <form method="GET" action="{% url 'validation_hub' %}" class="flex items-center gap-3" style="flex-wrap: wrap;">
+      <input type="hidden" name="tab" value="reviewed">
+
+      <div class="input-wrap" style="flex: 1; min-width: 240px;">
+        <i class="fas fa-magnifying-glass input-icon"></i>
+        <input
+          type="text"
+          name="q"
+          value="{% if tab == 'reviewed' %}{{ query }}{% endif %}"
+          class="form-control text-sm"
+          placeholder="Search by name, student no., or email..."
+        >
+      </div>
+
+      <select name="decision" class="form-control text-sm" style="width: 170px;">
+        <option value="">All Decisions ({{ reviewed_count }})</option>
+        <option value="approved" {% if decision_filter == 'approved' %}selected{% endif %}>Approved Only ({{ approved_count }})</option>
+        <option value="rejected" {% if decision_filter == 'rejected' %}selected{% endif %}>Rejected Only ({{ rejected_count }})</option>
+      </select>
+
+      <button type="submit" class="btn btn-primary text-sm">
+        <i class="fas fa-filter"></i> Filter
+      </button>
+
+      {% if query or decision_filter %}
+        <a href="{% url 'validation_hub' %}?tab=reviewed" class="btn btn-outline text-sm">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Reviewed Accounts Table -->
+  <div class="card mb-4" style="padding: 0; overflow: hidden;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+      <div class="font-semibold text-primary text-sm">
+        All Evaluated Student Records
+        {% if query %}<span class="text-muted text-xs">— matching "{{ query }}"</span>{% endif %}
+      </div>
+      <span class="text-muted text-xs">{{ reviewed.paginator.count }} total records</span>
     </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Student Name</th>
+            <th>Student No.</th>
+            <th>Department / Program</th>
+            <th>Decision</th>
+            <th>Reviewed By</th>
+            <th>Reviewed At</th>
+            <th style="text-align: right; width: 110px;">Dossier</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in reviewed %}
+            <tr>
+              <td>
+                <a href="{% url 'validation_detail' p.student_number %}" class="student-name-link font-semibold">
+                  {{ p.user.get_full_name|default:p.user.username }}
+                </a>
+                <div class="text-muted text-xs">{{ p.user.email }}</div>
+              </td>
+              <td class="text-muted font-semibold">{{ p.student_number }}</td>
+              <td>
+                <span class="badge badge--purple font-semibold">{{ p.program.department.code|default:"—" }}</span>
+                <span class="text-secondary text-sm ml-1">{{ p.program.code|default:"—" }}</span>
+              </td>
+              <td>
+                {% if p.approval_status == 'APPROVED' %}
+                  <span class="badge badge--green text-xs"><i class="fas fa-check"></i> Approved</span>
+                {% else %}
+                  <span class="badge badge--danger text-xs"><i class="fas fa-xmark"></i> Rejected</span>
+                {% endif %}
+              </td>
+              <td class="text-muted text-xs">
+                {% if p.approved_by %}
+                  <i class="fas fa-user-shield text-gold mr-1"></i>{{ p.approved_by.get_full_name|default:p.approved_by.username }}
+                {% else %}
+                  <span class="text-dim">System</span>
+                {% endif %}
+              </td>
+              <td class="text-muted text-xs">
+                {{ p.approved_at|date:"M j, Y g:i A"|default:p.updated_at|date:"M j, Y g:i A" }}
+              </td>
+              <td style="text-align: right;">
+                <a href="{% url 'validation_detail' p.student_number %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="View student dossier">
+                  <i class="fas fa-eye"></i> View
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-6">
+                No reviewed student accounts found.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if reviewed.has_other_pages %}
+      <div style="padding: 12px 18px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+        <span class="text-muted text-xs">Page {{ reviewed.number }} of {{ reviewed.paginator.num_pages }}</span>
+        <div style="display: flex; gap: 6px;">
+          {% if reviewed.has_previous %}
+            <a href="{% url 'validation_hub' %}?tab=reviewed&page={{ reviewed.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if decision_filter %}&decision={{ decision_filter }}{% endif %}" class="btn btn-outline btn-xs">Previous</a>
+          {% endif %}
+          {% if reviewed.has_next %}
+            <a href="{% url 'validation_hub' %}?tab=reviewed&page={{ reviewed.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if decision_filter %}&decision={{ decision_filter }}{% endif %}" class="btn btn-outline btn-xs">Next</a>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
   </div>
 
 </div>
+
+<!-- ── Quick Reject Reason Modal ──────────────────────────────── -->
+<div class="dash-modal-backdrop" id="rejectModalBackdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+  <div class="card" style="width: 100%; max-width: 480px; margin: 20px; border-color: rgba(239,68,68,0.4);" role="dialog">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+      <h3 style="font-size: 1.05rem; font-weight: 700; color: #f87171; margin: 0; display: flex; align-items: center; gap: 8px;">
+        <i class="fas fa-triangle-exclamation"></i> Reject Registration
+      </h3>
+      <button type="button" id="closeRejectModalBtn" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+    </div>
+    <form method="POST" id="rejectForm" action="">
+      {% csrf_token %}
+      <p class="text-sm text-secondary mb-3">
+        Are you sure you want to reject the registration of <strong id="rejectStudentName" class="text-primary"></strong>?
+      </p>
+      <div class="form-group mb-4">
+        <label class="form-label text-xs mb-1" for="rejectionReasonInput">Reason for rejection (will be sent to student):</label>
+        <textarea
+          name="rejection_reason"
+          id="rejectionReasonInput"
+          class="form-control text-sm"
+          rows="3"
+          placeholder="e.g., Student ID does not match official registrar records, invalid proof of enrollment..."
+          required
+        ></textarea>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-outline" id="cancelRejectBtn">Cancel</button>
+        <button type="submit" class="btn btn-danger">Confirm Rejection</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const tabPendingBtn = document.getElementById('tabPendingBtn');
+  const tabReviewedBtn = document.getElementById('tabReviewedBtn');
+  const panePending = document.getElementById('panePending');
+  const paneReviewed = document.getElementById('paneReviewed');
+  const btnGoToReviewed = document.getElementById('btnGoToReviewed');
+
+  function switchTab(target) {
+    if (target === 'reviewed') {
+      panePending.style.display = 'none';
+      paneReviewed.style.display = 'block';
+      tabReviewedBtn.classList.remove('btn-outline');
+      tabReviewedBtn.classList.add('btn-primary');
+      tabPendingBtn.classList.remove('btn-primary');
+      tabPendingBtn.classList.add('btn-outline');
+      tabReviewedBtn.setAttribute('aria-selected', 'true');
+      tabPendingBtn.setAttribute('aria-selected', 'false');
+    } else {
+      panePending.style.display = 'block';
+      paneReviewed.style.display = 'none';
+      tabPendingBtn.classList.remove('btn-outline');
+      tabPendingBtn.classList.add('btn-primary');
+      tabReviewedBtn.classList.remove('btn-primary');
+      tabReviewedBtn.classList.add('btn-outline');
+      tabPendingBtn.setAttribute('aria-selected', 'true');
+      tabReviewedBtn.setAttribute('aria-selected', 'false');
+    }
+  }
+
+  if (tabPendingBtn) {
+    tabPendingBtn.addEventListener('click', function () { switchTab('pending'); });
+  }
+  if (tabReviewedBtn) {
+    tabReviewedBtn.addEventListener('click', function () { switchTab('reviewed'); });
+  }
+  if (btnGoToReviewed) {
+    btnGoToReviewed.addEventListener('click', function () { switchTab('reviewed'); });
+  }
+
+  // Reject Modal Handlers
+  const rejectModal = document.getElementById('rejectModalBackdrop');
+  const rejectForm = document.getElementById('rejectForm');
+  const rejectName = document.getElementById('rejectStudentName');
+  const closeRejectBtn = document.getElementById('closeRejectModalBtn');
+  const cancelRejectBtn = document.getElementById('cancelRejectBtn');
+
+  document.querySelectorAll('.open-reject-modal').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const name = this.dataset.name || 'this student';
+      const url = this.dataset.rejectUrl || '';
+      if (rejectName) rejectName.textContent = name;
+      if (rejectForm && url) rejectForm.action = url;
+      if (rejectModal) rejectModal.style.display = 'flex';
+    });
+  });
+
+  function closeReject() {
+    if (rejectModal) rejectModal.style.display = 'none';
+  }
+
+  if (closeRejectBtn) closeRejectBtn.addEventListener('click', closeReject);
+  if (cancelRejectBtn) cancelRejectBtn.addEventListener('click', closeReject);
+});
+</script>
 {% endblock %}

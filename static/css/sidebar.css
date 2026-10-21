@@ -1,34 +1,33 @@
 /* =============================================================
    KCC ClassStamp — Sidebar Navigation Styles
-   Pure Vanilla CSS · Obsidian Glass · Modern Pill Nav
+   Official KCC Navy & Gold Institutional Theme · Modern Clean Nav
    ============================================================= */
 
 .sidebar {
   width: var(--sidebar-w);
   height: 100vh;
-  background: rgba(10, 18, 36, 0.94);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-right: 1px solid var(--glass-border);
+  /* Authentic KCC Deep Navy Blue */
+  background: linear-gradient(180deg, #091427 0%, #07101f 60%, #050b16 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  padding: 10px 10px 10px;
+  padding: 0 8px 12px;
   position: fixed;
   left: 0;
   top: 0;
   z-index: 100;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
 .sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
 }
 
@@ -37,27 +36,43 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 4px 8px;
-  border-bottom: 1px solid var(--glass-border);
-  margin-bottom: 6px;
+  padding: 12px 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 
 .sidebar-brand-left {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   min-width: 0;
 }
 
-.sidebar-brand-img {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  border: 1.5px solid rgba(245, 158, 11, 0.5);
+.sidebar-brand-badge {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 2px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+}
+
+.sidebar-brand-logo,
+.sidebar-brand-img {
+  width: 32px !important;
+  height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+  object-fit: contain !important;
+  display: block !important;
+  flex-shrink: 0 !important;
 }
 
 .sidebar-brand-text-wrap {
@@ -69,21 +84,21 @@
 
 .sidebar-brand-text {
   font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.1;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .sidebar-brand-accent {
-  color: var(--accent-gold);
-  text-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
 }
 
 .sidebar-brand-tag {
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #94a3b8;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -95,8 +110,8 @@
   height: 28px;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  color: var(--text-muted);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -120,102 +135,86 @@
 
 .sidebar-section-label {
   display: block;
-  font-size: 0.56rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: var(--text-muted);
-  padding: 5px 8px 1px;
-  margin-top: 2px;
-  position: relative;
+  color: #64748b;
+  padding: 10px 8px 3px;
+  margin-top: 4px;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.79rem;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 0.82rem;
   font-weight: 500;
   line-height: 1.25;
-  transition: var(--transition-fast);
+  transition: all 0.15s ease;
   position: relative;
-  border: 1px solid transparent;
+  text-decoration: none;
+  border-left: 3px solid transparent;
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.06);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
 }
 
 .sidebar-link:hover .sidebar-link-icon {
-  color: var(--accent-gold);
-  transform: scale(1.08);
+  color: #fbbf24;
 }
 
 .sidebar-link.active {
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.03) 100%);
-  color: var(--accent-gold-h);
-  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
   font-weight: 600;
-  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.08);
+  border-left: 3px solid #f59e0b;
 }
 
 .sidebar-link.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 3px;
-  background: linear-gradient(180deg, var(--accent-gold-h), var(--accent-gold));
-  border-radius: 0 4px 4px 0;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+  display: none;
 }
 
 .sidebar-link-icon {
   width: 18px;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
-  transition: transform 0.2s ease, color 0.2s ease;
-  color: var(--text-muted);
+  transition: color 0.15s ease;
+  color: #64748b;
 }
 
 .sidebar-link.active .sidebar-link-icon {
-  color: var(--accent-gold);
+  color: #fbbf24;
 }
 
 .sidebar-badge {
   margin-left: auto;
-  background: rgba(245, 158, 11, 0.18);
-  color: var(--accent-gold);
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: var(--radius-full);
-  font-size: 0.58rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 1px 5px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
-  line-height: 1.2;
+  padding: 1px 7px;
+  line-height: 1.3;
 }
 
 /* ── User Profile Footer Card ────────────────────────────────── */
 .sidebar-footer {
-  padding: 6px 8px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
   margin-top: auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  backdrop-filter: blur(8px);
   flex-shrink: 0;
 }
 
@@ -228,19 +227,19 @@
 }
 
 .sidebar-user-avatar {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--accent-gold), #d97706);
-  border: 1.5px solid rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  border: 2px solid rgba(245, 158, 11, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 0.68rem;
+  font-weight: 800;
+  font-size: 0.7rem;
   color: #060b17;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 12px rgba(245,158,11,0.35);
 }
 
 .sidebar-user-info {
@@ -251,9 +250,9 @@
 }
 
 .sidebar-user-name {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 0.77rem;
+  font-weight: 700;
+  color: #f8fafc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -265,11 +264,11 @@
   height: 28px;
   border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: #64748b;
   font-size: 0.78rem;
   transition: var(--transition-fast);
   flex-shrink: 0;

@@ -454,19 +454,31 @@
     background: rgba(255, 255, 255, 0.08);
     color: inherit;
   }
-  .year-tab-pill.is-active .year-tab-count {
-    background: var(--accent-gold, #f59e0b);
-    color: #0f172a;
+  .print-only-header {
+    display: none !important;
+  }
+  @media print {
+    .print-only-header {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Print Header (Official KCC Institutional Banner) -->
+<!-- Print Header (Only visible when user prints the page) -->
 <div class="print-only-header">
-  <h2 style="margin: 0; font-size: 1.3rem;">KORONADAL COMMISSION ON COLLEGIATE EDUCATION (KCC)</h2>
-  <h3 style="margin: 3px 0; font-size: 1rem;">ClassStamp — Official Student Masterlist</h3>
-  <p style="margin: 0; font-size: 0.8rem; color: #555;">Generated on {% now "F j, Y · g:i A" %}</p>
+  <img src="{% static 'img/kcc_logo.png' %}" alt="KCC Seal" style="width: 64px; height: 64px; object-fit: contain;">
+  <div>
+    <h2 style="margin: 0; font-size: 1.3rem; font-weight: 800; color: #0f172a;">KABANKALAN CATHOLIC COLLEGE, INC. (KCC)</h2>
+    <h3 style="margin: 3px 0; font-size: 1rem; color: #1e3a8a;">ClassStamp — Official Student Masterlist</h3>
+    <p style="margin: 0; font-size: 0.8rem; color: #64748b;">Generated on {% now "F j, Y · g:i A" %}</p>
+  </div>
 </div>
 
 <!-- Compact Top Header & Controls -->

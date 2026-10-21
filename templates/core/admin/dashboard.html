@@ -3,7 +3,7 @@
 {% block title %}Admin Command Center — KCC ClassStamp{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261020_fit100">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261020_chart220">
 {% endblock %}
 
 {% block content %}
@@ -214,14 +214,14 @@
       <!-- Quick Range Presets (7D, 14D, 30D) -->
       <div class="dash-chart-ranges" id="chartRangeButtons">
         <button type="button" class="dash-chart-range-btn is-active" data-days="7" title="View past 7 days">7D</button>
-        <button type="button" class="dash-chart-range-btn" data-days="14" title="View past 14 days (includes Oct 07)">14D</button>
+        <button type="button" class="dash-chart-range-btn" data-days="14" title="View past 14 days">14D</button>
         <button type="button" class="dash-chart-range-btn" data-days="30" title="View past 30 days">30D</button>
       </div>
 
       <!-- Specific Date Picker Input -->
       <div class="dash-chart-picker-wrap">
         <i class="fas fa-calendar-day"></i>
-        <input type="date" id="chartDatePicker" class="dash-chart-date-input" title="Inspect specific historical date (e.g. Oct 07, 2026)">
+        <input type="date" id="chartDatePicker" class="dash-chart-date-input" title="Inspect specific historical date">
       </div>
 
       <!-- Legend (Present, Late, Absent, Excused) -->
@@ -231,6 +231,7 @@
         <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--absent"></span> Absent</span>
         <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--excused"></span> Excused</span>
       </div>
+
       <span class="dash-chart-live-badge"><i class="fas fa-bolt"></i> Live Feed</span>
     </div>
   </div>
@@ -240,7 +241,7 @@
     <div class="dash-inspect-left">
       <i class="fas fa-calendar-check text-gold"></i>
       <span class="text-xs text-muted">Inspecting:</span>
-      <span id="inspectDateLabel" class="font-bold text-primary text-xs">Oct 07, 2026</span>
+      <span id="inspectDateLabel" class="font-bold text-primary text-xs">Selected Date</span>
     </div>
     <div class="dash-inspect-stats">
       <span class="text-xs text-muted">Present: <strong class="text-success" id="inspectPresent">0</strong></span>
@@ -508,12 +509,12 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'libs/chartjs/chart.umd.min.js' %}"></script>
 <div id="admin-dashboard-boot"
      hidden
      data-pending-count="{{ pending_count|default:0 }}"
      data-pending-count-url="{% url 'admin_pending_count_json' %}"
      data-chart-url="{% url 'admin_attendance_chart_json' %}"
      data-feed-url="{% url 'admin_activity_feed_json' %}"></div>
-<script src="{% static 'js/admin_dashboard.js' %}?v=20261020_v2"></script>
+<script src="{% static 'js/admin_dashboard.js' %}?v=20261020_pulse_v5"></script>
 {% endblock %}

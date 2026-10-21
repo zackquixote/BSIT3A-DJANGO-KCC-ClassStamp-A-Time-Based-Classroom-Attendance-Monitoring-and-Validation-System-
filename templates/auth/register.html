@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="KCC ClassStamp — Student Account Registration & Verification">
   <title>Student Registration — KCC ClassStamp</title>
+  {% include "theme/favicons.html" %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -34,7 +35,7 @@
       <!-- Header: Logo Badge & Institution Title -->
       <div class="kcc-hero-header">
         <div class="kcc-brand-badge">
-          <img src="{% static 'img/logo.jpg' %}" alt="KCC Seal" class="kcc-brand-logo">
+          <img src="{% static 'img/kcc_logo.png' %}" alt="KCC Seal" class="kcc-brand-logo">
         </div>
         <div class="kcc-brand-text">
           <span class="kcc-inst-title">KABANKALAN CATHOLIC COLLEGE, INC.</span>
@@ -515,6 +516,8 @@
         emailInput.addEventListener('input', function () {
           scheduleAvailabilityCheck('email', this.value.trim(), document.getElementById('emailStatus'));
         });
+      }
+
       // 4. Student Classification notice update
       const studentTypeSelect = document.getElementById('id_student_type');
       const studentTypeNoticeText = document.getElementById('studentTypeNoticeText');

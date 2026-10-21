@@ -263,8 +263,8 @@ document.addEventListener('DOMContentLoaded', function () {
             intersect: false,
           },
           animation: {
-            duration: 500,
-            easing: 'easeOutQuart',
+            duration: 700,
+            easing: 'easeOutCubic',
           },
           onClick: function (evt, elements) {
             if (elements && elements.length > 0) {
@@ -280,18 +280,25 @@ document.addEventListener('DOMContentLoaded', function () {
               backgroundColor: '#070d1e',
               titleColor: '#f8fafc',
               bodyColor: '#94a3b8',
-              borderColor: 'rgba(255, 255, 255, 0.12)',
+              borderColor: 'rgba(245,158,11,0.3)',
               borderWidth: 1,
               padding: 10,
               boxPadding: 4,
               usePointStyle: true,
+              footerColor: '#fbbf24',
+              footerFont: {
+                weight: 'bold',
+                size: 11,
+                family: "'Inter', system-ui, -apple-system, sans-serif",
+              },
+              footerMarginTop: 6,
               callbacks: {
                 footer: function (items) {
                   let total = 0;
                   items.forEach(function (i) {
                     total += (Number(i.raw) || 0);
                   });
-                  return 'Total Scans: ' + total;
+                  return 'Total Scan: ' + total;
                 },
               },
             },
@@ -306,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function () {
               ticks: {
                 color: '#94a3b8',
                 font: {
-                  size: 11,
+                  size: 10,
                   weight: '500',
                   family: "'Inter', system-ui, -apple-system, sans-serif",
                 },
@@ -315,14 +322,17 @@ document.addEventListener('DOMContentLoaded', function () {
             y: {
               stacked: true,
               beginAtZero: true,
+              min: 0,
+              suggestedMax: 2,
               grid: {
                 color: 'rgba(255, 255, 255, 0.05)',
                 drawBorder: false,
               },
               ticks: {
                 color: '#64748b',
+                maxTicksLimit: 3,
                 font: {
-                  size: 10,
+                  size: 9,
                   family: "'Inter', system-ui, -apple-system, sans-serif",
                 },
                 precision: 0,

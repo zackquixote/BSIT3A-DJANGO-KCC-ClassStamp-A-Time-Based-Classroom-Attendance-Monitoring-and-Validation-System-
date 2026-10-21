@@ -34,34 +34,112 @@ from apps.core.services import (
 @role_required(Profile.ROLE_ADMIN)
 def validation_hub(request):
     """
-    // [Admin Controller] Account Validation Hub
-    // Clean entry portal displaying 2 dedicated module cards:
-    // 1. Pending Registrations (with live counter and link to dedicated pending page)
-    // 2. Recently Reviewed (with counters and link to dedicated reviewed page)
+    // [Admin Controller] Unified Account Validation Workspace
+    // Combines the Pending Queue and Reviewed History into a high-performance single workspace with tabs.
     """
-    pending_qs = Profile.objects.filter(
+    from django.core.paginator import Paginator
+
+    tab = request.GET.get('tab', 'pending').strip()
+    query = request.GET.get('q', '').strip()
+    selected_dept = request.GET.get('department', '').strip()
+    selected_prog = request.GET.get('program', '').strip()
+    decision_filter = request.GET.get('decision', '').strip()
+
+    base_pending = Profile.objects.filter(
         role=Profile.ROLE_STUDENT,
         approval_status=Profile.APPROVAL_PENDING,
     )
-    pending_count = pending_qs.count()
-    latest_pending = pending_qs.select_related('user', 'program').order_by('-created_at')[:3]
+    pending_count = base_pending.count()
 
+    # If pending count is 0 and no specific tab was requested in URL, check if user should see reviewed or pending
+    if not request.GET.get('tab') and pending_count == 0:
+        tab = 'pending'
+
+    # Pre-calculate counts of pending students per department
+    departments = Department.objects.filter(is_active=True).annotate(
+        pending_count=Count(
+            'programs__profiles',
+            filter=Q(
+                programs__profiles__role=Profile.ROLE_STUDENT,
+                programs__profiles__approval_status=Profile.APPROVAL_PENDING,
+            )
+        )
+    ).order_by('name')
+
+    programs = Program.objects.filter(is_active=True).select_related('department').annotate(
+        pending_count=Count(
+            'profiles',
+            filter=Q(
+                profiles__role=Profile.ROLE_STUDENT,
+                profiles__approval_status=Profile.APPROVAL_PENDING,
+            )
+        )
+    ).order_by('name')
+
+    pending_list = base_pending.select_related('user', 'program', 'program__department').order_by('created_at')
+
+    if selected_dept:
+        try:
+            pending_list = pending_list.filter(program__department_id=int(selected_dept))
+        except (ValueError, TypeError):
+            selected_dept = ''
+
+    if selected_prog:
+        try:
+            pending_list = pending_list.filter(program_id=int(selected_prog))
+        except (ValueError, TypeError):
+            selected_prog = ''
+
+    if query and tab == 'pending':
+        pending_list = pending_list.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__username__icontains=query) |
+            Q(user__email__icontains=query) |
+            Q(student_number__icontains=query)
+        )
+
+    # Reviewed queryset
     reviewed_qs = Profile.objects.filter(
         role=Profile.ROLE_STUDENT,
         approval_status__in=[Profile.APPROVAL_APPROVED, Profile.APPROVAL_REJECTED],
-    )
-    reviewed_count = reviewed_qs.count()
+    ).select_related('user', 'program', 'program__department', 'approved_by').order_by('-approved_at', '-updated_at')
+
     approved_count = reviewed_qs.filter(approval_status=Profile.APPROVAL_APPROVED).count()
     rejected_count = reviewed_qs.filter(approval_status=Profile.APPROVAL_REJECTED).count()
-    latest_reviewed = reviewed_qs.select_related('user', 'program', 'approved_by').order_by('-approved_at')[:3]
+    reviewed_count = approved_count + rejected_count
+
+    if query and tab == 'reviewed':
+        reviewed_qs = reviewed_qs.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__email__icontains=query) |
+            Q(student_number__icontains=query)
+        )
+
+    if decision_filter == 'approved':
+        reviewed_qs = reviewed_qs.filter(approval_status=Profile.APPROVAL_APPROVED)
+    elif decision_filter == 'rejected':
+        reviewed_qs = reviewed_qs.filter(approval_status=Profile.APPROVAL_REJECTED)
+
+    paginator = Paginator(reviewed_qs, 20)
+    page_number = request.GET.get('page', 1)
+    reviewed_page = paginator.get_page(page_number)
 
     return render(request, 'core/admin/validation_hub.html', {
+        'tab': tab,
+        'pending': pending_list,
         'pending_count': pending_count,
-        'latest_pending': latest_pending,
+        'reviewed': reviewed_page,
         'reviewed_count': reviewed_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
-        'latest_reviewed': latest_reviewed,
+        'departments': departments,
+        'programs': programs,
+        'selected_department': selected_dept,
+        'selected_program': selected_prog,
+        'decision_filter': decision_filter,
+        'query': query,
     })
 
 
@@ -249,9 +327,11 @@ def approve_student(request, student_number):
     messages.success(request, f'{profile.user.get_full_name() or profile.user.get_username()} has been approved.')
     next_url = request.POST.get('next')
     if next_url == 'detail':
-        # Redirect using pk so the URL is consistent with the pk-based navigation IDs
         return redirect('validation_detail', student_number=profile.pk)
-    return redirect('validation_pending_queue')
+    referer = request.META.get('HTTP_REFERER')
+    if referer and '/validation/' in referer:
+        return redirect(referer)
+    return redirect('validation_hub')
 
 
 # // ==============================================================================
@@ -281,19 +361,25 @@ def reject_student(request, student_number):
     )
 
     next_url = request.POST.get('next')
-    reason = request.POST.get('reason', '').strip()
+    reason = (request.POST.get('reason') or request.POST.get('rejection_reason', '')).strip()
     if not reason:
         messages.error(request, 'A rejection reason is required.')
         if next_url == 'detail':
             return redirect('validation_detail', student_number=profile.student_number)
-        return redirect('validation_pending_queue')
+        referer = request.META.get('HTTP_REFERER')
+        if referer and '/validation/' in referer:
+            return redirect(referer)
+        return redirect('validation_hub')
 
     reject_student_registration(profile, request.user, reason)
 
     messages.success(request, f'{profile.user.get_full_name() or profile.user.get_username()} has been rejected.')
     if next_url == 'detail':
         return redirect('validation_detail', student_number=profile.student_number)
-    return redirect('validation_pending_queue')
+    referer = request.META.get('HTTP_REFERER')
+    if referer and '/validation/' in referer:
+        return redirect(referer)
+    return redirect('validation_hub')
 
 
 # // ==============================================================================
