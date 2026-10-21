@@ -19,6 +19,9 @@
     </p>
   </div>
   <div class="flex items-center gap-2">
+    <button type="button" class="btn btn-outline" id="printCalendarBtn" title="Print or export current calendar schedule to PDF">
+      <i class="fas fa-print"></i> Print
+    </button>
     <button type="button" class="btn btn-outline" id="syncHolidaysBtn" title="Automatically populate official Philippine regular and special holidays">
       <i class="fas fa-umbrella-beach text-success"></i> Sync PH Holidays
     </button>
@@ -75,13 +78,21 @@
         <i class="fas fa-graduation-cap" style="font-size: 1.2rem;"></i>
       </div>
     </div>
-    <div class="mt-2 text-xs text-muted">
-      {% if active_academic_year %}
-        {{ active_academic_year.starts_on|date:"M d" }} – {{ active_academic_year.ends_on|date:"M d, Y" }}
-      {% else %}
-        Set active term in Academic Years
-      {% endif %}
+    {% if active_academic_year %}
+    <!-- Semester Progress Bar -->
+    <div class="mt-3">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span class="text-muted text-xs">{{ active_academic_year.starts_on|date:"M d" }}</span>
+        <span class="text-xs font-semibold" style="color:#c084fc;">{{ semester_progress_pct }}%</span>
+        <span class="text-muted text-xs">{{ active_academic_year.ends_on|date:"M d, Y" }}</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.08); border-radius:99px; height:6px; overflow:hidden;">
+        <div id="semesterProgressBar" class="semester-progress-fill" data-progress="{{ semester_progress_pct }}"></div>
+      </div>
     </div>
+    {% else %}
+    <div class="mt-2 text-xs text-muted">Set active term in Academic Years</div>
+    {% endif %}
   </div>
 
   <!-- Holidays & Breaks -->
@@ -153,6 +164,13 @@
   <button type="button" class="btn btn-outline btn-sm" id="resetFiltersBtn" title="Reset all calendar filters">
     <i class="fas fa-arrow-rotate-left"></i> Reset
   </button>
+
+  <!-- Jump to Date -->
+  <div style="display:flex; align-items:center; gap:6px;">
+    <label style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap;"><i class="fas fa-location-crosshairs"></i> Go to:</label>
+    <input type="date" id="jumpToDateInput" class="form-control" style="width:148px; font-size:0.8rem; padding:6px 10px;"
+           title="Jump calendar to a specific date" value="{{ today|date:'Y-m-d' }}">
+  </div>
 </div>
 
 <!-- Main Calendar Layout (Split View) -->
@@ -165,6 +183,41 @@
 
   <!-- RIGHT: Sidebar Info & Feed -->
   <div class="calendar-sidebar">
+
+    <!-- TODAY'S Events Panel -->
+    {% if today_events %}
+    <div class="calendar-sidebar-card" style="border-left: 3px solid #f59e0b;">
+      <div class="calendar-sidebar-header">
+        <div class="calendar-sidebar-title">
+          <i class="fas fa-sun text-gold"></i> Today
+          <span class="text-muted text-xs font-normal ml-1">{{ today|date:"M d, Y" }}</span>
+        </div>
+        <span class="badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:0.7rem;">{{ today_events|length }}</span>
+      </div>
+      <div class="upcoming-events-list">
+        {% for evt in today_events %}
+          <div class="upcoming-event-item" data-event-id="{{ evt.id }}" data-start="{{ evt.start_datetime|date:'Y-m-d' }}" title="Click to view details">
+            <div class="upcoming-event-datebox" data-bg="{{ evt.category_meta.bg }}" data-color="{{ evt.category_meta.color }}">
+              {% if evt.is_all_day %}
+                <span class="date-month">ALL</span>
+                <span class="date-day">DAY</span>
+              {% else %}
+                <span class="date-month">{{ evt.start_datetime|date:"h:i" }}</span>
+                <span class="date-day">{{ evt.start_datetime|date:"A" }}</span>
+              {% endif %}
+            </div>
+            <div class="upcoming-event-info">
+              <div class="upcoming-event-title">{{ evt.title }}</div>
+              <div class="upcoming-event-meta">
+                <span><i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.category_meta.label }}</span>
+                {% if evt.location %}<span>• {{ evt.location|truncatechars:20 }}</span>{% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
     <!-- Upcoming Events Feed Panel -->
     <div class="calendar-sidebar-card">
@@ -216,11 +269,15 @@
 
       <div class="category-legend-list">
         {% for cat_code, meta in category_meta.items %}
-          <div class="category-legend-pill" data-category="{{ cat_code }}">
+          <div class="category-legend-pill" data-category="{{ cat_code }}"
+               style="display:flex; align-items:center; justify-content:space-between;">
             <div class="category-legend-indicator">
               <span class="category-dot" data-dot-color="{{ meta.color }}"></span>
               <span><i class="fas {{ meta.icon }} mr-1"></i> {{ meta.label }}</span>
             </div>
+            <span style="font-size:0.65rem; padding:1px 7px; border-radius:99px;
+                         background:rgba(255,255,255,0.06); color:var(--text-muted);
+                         border:1px solid rgba(255,255,255,0.08); min-width:20px; text-align:center;">{{ meta.count }}</span>
           </div>
         {% endfor %}
       </div>
@@ -383,11 +440,14 @@
           </div>
         </div>
 
-        <!-- Meta Grid -->
         <div class="event-detail-meta-grid">
           <div class="event-meta-item">
             <div class="event-meta-label"><i class="fas fa-clock text-gold mr-1"></i> Date &amp; Time</div>
             <div class="event-meta-value text-xs font-mono" id="detailDates">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-hourglass-half text-gold mr-1"></i> Duration</div>
+            <div class="event-meta-value text-xs" id="detailDuration">—</div>
           </div>
           <div class="event-meta-item">
             <div class="event-meta-label"><i class="fas fa-location-dot text-gold mr-1"></i> Location</div>
@@ -471,5 +531,10 @@
     el.style.backgroundColor = color;
     el.style.color           = color;
   });
+  var progEl = document.getElementById('semesterProgressBar');
+  if (progEl) {
+    var pct = progEl.getAttribute('data-progress') || 0;
+    progEl.style.width = pct + '%';
+  }
 </script>
 {% endblock %}

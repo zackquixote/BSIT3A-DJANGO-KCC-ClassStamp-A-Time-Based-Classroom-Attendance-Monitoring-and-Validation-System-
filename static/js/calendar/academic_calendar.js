@@ -19,12 +19,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const eventForm = document.getElementById('eventForm');
   const addEventBtn = document.getElementById('addEventBtn');
   const syncHolidaysBtn = document.getElementById('syncHolidaysBtn');
+  const printCalendarBtn = document.getElementById('printCalendarBtn');
   const searchInput = document.getElementById('eventSearchInput');
   const categoryFilter = document.getElementById('categoryFilter');
   const academicYearFilter = document.getElementById('academicYearFilter');
   const semesterFilter = document.getElementById('semesterFilter');
   const statusFilter = document.getElementById('statusFilter');
   const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+  const jumpToDateInput = document.getElementById('jumpToDateInput');
   const isAllDayCheckbox = document.getElementById('isAllDayCheckbox');
   const startDatetimeInput = document.getElementById('startDatetimeInput');
   const endDatetimeInput = document.getElementById('endDatetimeInput');
@@ -134,6 +136,34 @@ document.addEventListener('DOMContentLoaded', function () {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
+  function calculateDuration(start, end, allDay) {
+    if (!start) return '—';
+    const s = ensureDate(start);
+    const e = end ? ensureDate(end) : s;
+    if (isNaN(s.getTime())) return '—';
+
+    if (allDay) {
+      const diffMs = e.getTime() - s.getTime();
+      const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      return diffDays === 1 ? '1 Day (All-day)' : `${diffDays} Days (All-day)`;
+    }
+
+    const diffMs = Math.max(0, e.getTime() - s.getTime());
+    const totalMinutes = Math.round(diffMs / (1000 * 60));
+    if (totalMinutes === 0) return 'Instant milestone';
+
+    const days = Math.floor(totalMinutes / (60 * 24));
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+    const mins = totalMinutes % 60;
+
+    const parts = [];
+    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
+    if (mins > 0) parts.push(`${mins} min${mins > 1 ? 's' : ''}`);
+
+    return parts.join(' ') || '< 1 min';
+  }
+
   // Toggle All-Day Date Inputs
   function updateAllDayFields(isAllDay) {
     if (!startDatetimeInput || !endDatetimeInput) return;
@@ -166,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Initialize FullCalendar 6 ────────────────────────────────────────────────
   calendar = new FullCalendar.Calendar(calendarEl, {
-    initialView: 'dayGridMonth',
+    initialView: window.innerWidth < 768 ? 'listMonth' : 'dayGridMonth',
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
@@ -186,6 +216,23 @@ document.addEventListener('DOMContentLoaded', function () {
     dayMaxEvents: 3,
     nowIndicator: true,
     height: 'auto',
+
+    // Synchronize jump-to-date input whenever user navigates view
+    datesSet: function (dateInfo) {
+      if (jumpToDateInput && calendar) {
+        const currentDate = calendar.getDate();
+        if (currentDate) {
+          jumpToDateInput.value = toDateOnlyString(currentDate);
+        }
+      }
+    },
+
+    // Responsive view fallback
+    windowResize: function (view) {
+      if (window.innerWidth < 768 && calendar.view.type === 'dayGridMonth') {
+        calendar.changeView('listMonth');
+      }
+    },
 
     // Dynamic JSON Feed with Filter Parameters
     events: function (fetchInfo, successCallback, failureCallback) {
@@ -390,6 +437,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const detailDates = document.getElementById('detailDates');
     if (detailDates) {
       detailDates.textContent = props.start_formatted ? `${props.start_formatted} — ${props.end_formatted}` : `${toDateOnlyString(event.start)}`;
+    }
+
+    const detailDuration = document.getElementById('detailDuration');
+    if (detailDuration) {
+      detailDuration.textContent = calculateDuration(event.start, event.end, event.allDay);
     }
 
     const detailLocation = document.getElementById('detailLocation');
@@ -674,6 +726,65 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Jump to Date Picker Handler
+  if (jumpToDateInput) {
+    jumpToDateInput.addEventListener('change', function () {
+      if (this.value) {
+        calendar.gotoDate(this.value);
+      }
+    });
+  }
+
+  // Print Calendar Button Handler
+  if (printCalendarBtn) {
+    printCalendarBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.print();
+    });
+  }
+
+  // Sync Philippine Holidays Button Handler
+  if (syncHolidaysBtn) {
+    syncHolidaysBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      confirmAction({
+        title: 'Synchronize Philippine Holidays',
+        message: 'Automatically ingest official Philippine regular and special non-working holidays into the academic calendar? Existing holidays will not be duplicated.',
+        confirmText: 'Sync Holidays Now',
+        type: 'primary',
+      }, function () {
+        const originalHtml = syncHolidaysBtn.innerHTML;
+        syncHolidaysBtn.disabled = true;
+        syncHolidaysBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+
+        fetch('/admin/calendar/sync-holidays/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            syncHolidaysBtn.disabled = false;
+            syncHolidaysBtn.innerHTML = originalHtml;
+            if (data.status === 'success') {
+              if (window.showToast) window.showToast(data.message, 'success');
+              calendar.refetchEvents();
+            } else {
+              if (window.showToast) window.showToast(data.error || 'Failed to sync holidays.', 'error');
+            }
+          })
+          .catch((err) => {
+            syncHolidaysBtn.disabled = false;
+            syncHolidaysBtn.innerHTML = originalHtml;
+            console.error('[Sync Holidays Error]', err);
+            if (window.showToast) window.showToast('Network error while syncing holidays.', 'error');
+          });
+      });
+    });
+  }
+
   // Reset Filters Button Trigger
   if (resetFiltersBtn) {
     resetFiltersBtn.addEventListener('click', function (e) {
@@ -683,7 +794,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (academicYearFilter) academicYearFilter.value = '';
       if (semesterFilter) semesterFilter.value = '';
       if (statusFilter) statusFilter.value = '';
+      if (jumpToDateInput) jumpToDateInput.value = toDateOnlyString(new Date());
       document.querySelectorAll('.category-legend-pill').forEach((p) => p.classList.remove('active'));
+      calendar.today();
       refetch();
     });
   }

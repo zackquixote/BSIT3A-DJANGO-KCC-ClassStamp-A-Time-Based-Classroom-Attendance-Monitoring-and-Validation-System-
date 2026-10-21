@@ -436,3 +436,166 @@
   font-weight: 600;
   color: var(--text-primary);
 }
+
+/* ── Semester Progress Bar ──────────────────────────────────────────────────── */
+.semester-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #7c3aed, #c084fc);
+  border-radius: 99px;
+  transition: width 1s ease;
+}
+
+/* ── Jump To Date Input Polish ──────────────────────────────────────────────── */
+#jumpToDateInput {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#jumpToDateInput:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+  outline: none;
+}
+
+/* ── Mobile & Responsive Calendar Tweaks ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .calendar-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .calendar-filter-bar > div,
+  .calendar-filter-bar select,
+  .calendar-filter-bar input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .fc .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .fc .fc-toolbar-title {
+    text-align: center;
+    font-size: 1.15rem !important;
+  }
+
+  .fc .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .event-detail-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Print / PDF Export Stylesheet ──────────────────────────────────────────── */
+@media print {
+  /* Hide non-printable navigation, sidebar, filter bar, modals, and headers */
+  .sidebar,
+  .header,
+  .page-header,
+  .stat-grid,
+  .calendar-filter-bar,
+  .calendar-sidebar,
+  .modal,
+  .sidebar-backdrop,
+  .toast,
+  .fc-prev-button,
+  .fc-next-button,
+  .fc-today-button,
+  .fc-button-group,
+  .btn {
+    display: none !important;
+  }
+
+  /* Reset layout for printable document */
+  body, html, .app-container, .main-content, .content-wrapper {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .calendar-layout {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .calendar-card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* FullCalendar Clean Paper Overrides */
+  .fc {
+    --fc-page-bg-color: #ffffff !important;
+    --fc-border-color: #cbd5e1 !important;
+    --fc-neutral-bg-color: #f8fafc !important;
+    --fc-neutral-text-color: #334155 !important;
+    --fc-today-bg-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-size: 0.85rem !important;
+  }
+
+  .fc .fc-toolbar {
+    margin-bottom: 12px !important;
+    justify-content: center !important;
+  }
+
+  .fc .fc-toolbar-title {
+    color: #0f172a !important;
+    font-size: 1.6rem !important;
+    font-weight: 800 !important;
+    text-align: center;
+  }
+
+  .fc .fc-col-header-cell {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border-color: #94a3b8 !important;
+  }
+
+  .fc .fc-daygrid-day-number {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+  }
+
+  .fc .fc-day-other .fc-daygrid-day-number {
+    color: #94a3b8 !important;
+  }
+
+  .fc-event {
+    border-radius: 3px !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    padding: 2px 4px !important;
+  }
+
+  .fc-event-title {
+    font-weight: 600 !important;
+    color: #ffffff !important;
+  }
+
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+}

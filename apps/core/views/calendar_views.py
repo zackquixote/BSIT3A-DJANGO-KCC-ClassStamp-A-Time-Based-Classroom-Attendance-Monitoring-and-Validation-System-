@@ -120,6 +120,7 @@ def admin_calendar_view(request):
     // category filters, and upcoming milestone summary.
     """
     now = timezone.now()
+    today = now.date()
     active_year = AcademicYear.objects.filter(is_active=True).first()
 
     # KPI Telemetry
@@ -140,6 +141,40 @@ def admin_calendar_view(request):
         status=AcademicEvent.STATUS_SCHEDULED
     ).count()
 
+    # Semester progress bar (0-100%)
+    semester_progress_pct = 0
+    if active_year:
+        total_days = (active_year.ends_on - active_year.starts_on).days or 1
+        elapsed = max(0, (today - active_year.starts_on).days)
+        semester_progress_pct = min(100, round(elapsed / total_days * 100))
+
+    # Category event counts (single bulk query)
+    cat_counts_qs = (
+        AcademicEvent.objects
+        .filter(status=AcademicEvent.STATUS_SCHEDULED)
+        .values('category')
+        .annotate(cnt=Count('id'))
+    )
+    category_counts = {row['category']: row['cnt'] for row in cat_counts_qs}
+
+    # Merge category counts INTO the meta dict so template can use {{ meta.count }}
+    category_meta_with_counts = {}
+    for code, meta in AcademicEvent.CATEGORY_META.items():
+        entry = dict(meta)
+        entry['count'] = category_counts.get(code, 0)
+        category_meta_with_counts[code] = entry
+
+    # Today's events for sidebar "Today" panel
+    today_events = list(
+        AcademicEvent.objects.filter(
+            start_datetime__date__lte=today,
+            end_datetime__date__gte=today,
+            status=AcademicEvent.STATUS_SCHEDULED,
+        )
+        .select_related('academic_year')
+        .order_by('is_all_day', 'start_datetime')[:8]
+    )
+
     # Next 10 upcoming events for sidebar feed
     upcoming_events = list(
         AcademicEvent.objects.filter(
@@ -158,14 +193,18 @@ def admin_calendar_view(request):
         'this_month_count': this_month_count,
         'holidays_count': holidays_count,
         'upcoming_events': upcoming_events,
+        'today_events': today_events,
+        'category_counts': category_counts,
+        'semester_progress_pct': semester_progress_pct,
         'active_academic_year': active_year,
         'academic_years': academic_years,
         'categories': AcademicEvent.CATEGORY_CHOICES,
-        'category_meta': AcademicEvent.CATEGORY_META,
+        'category_meta': category_meta_with_counts,
         'statuses': AcademicEvent.STATUS_CHOICES,
         'semesters': AcademicEvent.SEMESTER_CHOICES,
         'visibilities': AcademicEvent.VISIBILITY_CHOICES,
         'now': now,
+        'today': today,
     }
     return render(request, 'core/admin/calendar.html', context)
 

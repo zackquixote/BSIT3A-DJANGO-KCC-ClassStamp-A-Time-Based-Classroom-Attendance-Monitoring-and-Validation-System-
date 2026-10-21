@@ -1569,3 +1569,385 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* =============================================================
+   MODERN BENTO GRID COMMAND CENTER ENHANCEMENTS
+   High-Impact Telemetry, Live Classroom Radar & Operations Hub
+   ============================================================= */
+
+/* ── 4-Pillar Hero KPI Strip ────────────────────────────────── */
+.dash-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (max-width: 1200px) {
+  .dash-kpi-strip {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 600px) {
+  .dash-kpi-strip {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.dash-kpi-card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  text-decoration: none;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  min-height: 126px;
+}
+.dash-kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 70%);
+  pointer-events: none;
+}
+.dash-kpi-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(245, 158, 11, 0.06);
+}
+.dash-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.dash-kpi-top-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.dash-kpi-middle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.dash-kpi-value {
+  font-size: 1.85rem !important;
+  font-weight: 800 !important;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.dash-kpi-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-kpi-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+.dash-kpi-arrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.dash-kpi-card:hover .dash-kpi-arrow {
+  color: var(--accent-gold);
+  transform: translateX(3px);
+}
+.dash-kpi-progress {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.dash-kpi-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #7c3aed, #c084fc);
+  transition: width 0.8s ease;
+}
+
+/* ── Asymmetric Bento Grid ─────────────────────────────────── */
+.dash-bento-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.62fr) minmax(340px, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+@media (max-width: 1180px) {
+  .dash-bento-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.dash-bento-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.dash-bento-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ── Live Classroom Radar Panel ────────────────────────────── */
+.dash-radar-panel {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.25s ease;
+}
+.dash-radar-panel:hover {
+  border-color: var(--glass-border-hover);
+}
+.dash-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 10px #22c55e;
+  animation: dashLiveRadarPulse 1.8s infinite ease-in-out;
+}
+@keyframes dashLiveRadarPulse {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 8px #22c55e; }
+  50% { opacity: 0.35; transform: scale(0.85); box-shadow: 0 0 2px #22c55e; }
+}
+.dash-radar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.dash-radar-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 106px;
+}
+.dash-radar-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(34, 197, 94, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.dash-radar-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.dash-radar-code {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: var(--accent-gold);
+  letter-spacing: 0.02em;
+}
+.dash-radar-room {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  margin-left: 6px;
+}
+.dash-radar-subject {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-radar-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 6px;
+}
+
+/* ── Operations & Milestones Hub ───────────────────────────── */
+.dash-hub-panel {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.25s ease;
+}
+.dash-hub-panel:hover {
+  border-color: var(--glass-border-hover);
+}
+.dash-milestones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.dash-milestone-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+.dash-milestone-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.dash-milestone-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: var(--accent-gold);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.dash-m-month {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.dash-m-day {
+  font-size: 0.92rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+.dash-milestone-info {
+  flex: 1;
+  min-width: 0;
+}
+.dash-milestone-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-milestone-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.dash-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.dash-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.dash-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+/* ── Live Attendance Stream Panel ───────────────────────────── */
+.dash-stream-panel {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.dash-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+.dash-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: dashLiveRadarPulse 1.8s infinite ease-in-out;
+}
+.btn-glow-gold {
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+  animation: glowPulse 2.5s infinite ease-in-out;
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 22px rgba(245, 158, 11, 0.6); }
+}

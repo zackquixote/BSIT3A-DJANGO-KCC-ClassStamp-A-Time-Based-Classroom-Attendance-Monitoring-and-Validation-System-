@@ -136,13 +136,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── 4. Active Sessions Modal Trigger ────────────────────────────────────────
   const activeSessionsCard = document.getElementById('activeSessionsCard');
+  const radarDrawerTriggerBtn = document.getElementById('radarDrawerTriggerBtn');
   const activeSessionsModal = document.getElementById('activeSessionsModal');
   const closeSessionsModal = document.getElementById('closeSessionsModal');
 
-  if (activeSessionsCard && activeSessionsModal) {
-    activeSessionsCard.addEventListener('click', function () {
-      activeSessionsModal.classList.add('is-open');
-    });
+  function openSessionsModal() {
+    if (activeSessionsModal) activeSessionsModal.classList.add('is-open');
+  }
+
+  if (activeSessionsCard) activeSessionsCard.addEventListener('click', openSessionsModal);
+  if (radarDrawerTriggerBtn) radarDrawerTriggerBtn.addEventListener('click', openSessionsModal);
     if (closeSessionsModal) {
       closeSessionsModal.addEventListener('click', function () {
         activeSessionsModal.classList.remove('is-open');
