@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Academic Years</span>
+    </div>
     <h1 class="page-title">Academic Years</h1>
     <p class="page-subtitle">Manage semester and school-year validity windows for all class scheduling</p>
   </div>
@@ -213,150 +218,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
-
-function showAlert(el, msg, type='error') {
-  el.style.display = 'block';
-  el.className = `toast toast--${type} mb-4`;
-  el.textContent = msg;
-  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
-}
-
-// ── Open modal (create) ──────────────────────────────────────────────────────
-document.getElementById('addAyBtn')?.addEventListener('click', () => {
-  document.getElementById('ayModalTitle').textContent = 'Add Academic Year';
-  document.getElementById('ayId').value = '';
-  document.getElementById('ayName').value = '';
-  document.getElementById('ayStartsOn').value = '';
-  document.getElementById('ayEndsOn').value = '';
-  document.getElementById('ayIsActive').checked = false;
-  document.getElementById('ayFormError').style.display = 'none';
-  if (window.openModal) window.openModal('ayModal');
-  else document.getElementById('ayModal').classList.add('is-active');
-});
-
-// ── Open modal (edit) ────────────────────────────────────────────────────────
-document.querySelectorAll('.js-edit-ay').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    try {
-      const id = btn.dataset.id;
-      const res = await fetch(`/academic-years/get/${id}/`);
-      const data = await res.json();
-      if (!data.ok) return;
-      const ay = data.academic_year;
-      document.getElementById('ayModalTitle').textContent = 'Edit Academic Year';
-      document.getElementById('ayId').value = ay.id;
-      document.getElementById('ayName').value = ay.name;
-      document.getElementById('ayStartsOn').value = ay.starts_on;
-      document.getElementById('ayEndsOn').value = ay.ends_on;
-      document.getElementById('ayIsActive').checked = ay.is_active;
-      document.getElementById('ayFormError').style.display = 'none';
-      if (window.openModal) window.openModal('ayModal');
-      else document.getElementById('ayModal').classList.add('is-active');
-    } catch (e) {
-      console.error(e);
-    }
-  });
-});
-
-// ── Close modal ──────────────────────────────────────────────────────────────
-['ayModalClose', 'ayModalCancel'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('click', () => {
-    if (window.closeModal) window.closeModal('ayModal');
-    else document.getElementById('ayModal').classList.remove('is-active');
-  });
-});
-
-// ── Save ─────────────────────────────────────────────────────────────────────
-document.getElementById('ayModalSave')?.addEventListener('click', async () => {
-  const form = document.getElementById('ayForm');
-  const errEl = document.getElementById('ayFormError');
-  const fd = new FormData(form);
-  fd.set('is_active', document.getElementById('ayIsActive').checked ? '1' : '0');
-  const btn = document.getElementById('ayModalSave');
-  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-  try {
-    const res = await fetch('/academic-years/save/', { method: 'POST', headers: {'X-CSRFToken': CSRF}, body: fd });
-    const data = await res.json();
-    if (data.ok) {
-      if (window.closeModal) window.closeModal('ayModal');
-      else document.getElementById('ayModal').classList.remove('is-active');
-      showAlert(document.getElementById('aySuccess'), data.message, 'success');
-      setTimeout(() => location.reload(), 1000);
-    } else {
-      showAlert(errEl, data.error);
-    }
-  } catch {
-    showAlert(errEl, 'Server or network error');
-  } finally {
-    btn.disabled = false; btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Term';
-  }
-});
-
-// ── Set Active ───────────────────────────────────────────────────────────────
-document.querySelectorAll('.js-set-active').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const id = btn.dataset.id;
-    if (!confirm('Set this as the active institutional academic term?')) return;
-    btn.disabled = true;
-    try {
-      const res = await fetch(`/academic-years/set-active/${id}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
-      const data = await res.json();
-      if (data.ok) {
-        showAlert(document.getElementById('aySuccess'), data.message, 'success');
-        setTimeout(() => location.reload(), 800);
-      } else {
-        alert(data.error);
-        btn.disabled = false;
-      }
-    } catch {
-      alert('Network error');
-      btn.disabled = false;
-    }
-  });
-});
-
-// ── Delete ───────────────────────────────────────────────────────────────────
-let deleteTargetId = null;
-document.querySelectorAll('.js-delete-ay').forEach(btn => {
-  btn.addEventListener('click', () => {
-    deleteTargetId = btn.dataset.id;
-    document.getElementById('ayDeleteName').textContent = btn.dataset.name;
-    document.getElementById('ayDeleteError').style.display = 'none';
-    if (window.openModal) window.openModal('ayDeleteModal');
-    else document.getElementById('ayDeleteModal').classList.add('is-active');
-  });
-});
-['ayDeleteModalClose', 'ayDeleteCancel'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('click', () => {
-    if (window.closeModal) window.closeModal('ayDeleteModal');
-    else document.getElementById('ayDeleteModal').classList.remove('is-active');
-  });
-});
-document.getElementById('ayDeleteConfirm')?.addEventListener('click', async () => {
-  const errEl = document.getElementById('ayDeleteError');
-  const btn = document.getElementById('ayDeleteConfirm');
-  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-  try {
-    const res = await fetch(`/academic-years/delete/${deleteTargetId}/`, { method: 'POST', headers: {'X-CSRFToken': CSRF} });
-    const data = await res.json();
-    if (data.ok) {
-      if (window.closeModal) window.closeModal('ayDeleteModal');
-      else document.getElementById('ayDeleteModal').classList.remove('is-active');
-      showAlert(document.getElementById('aySuccess'), data.message, 'success');
-      setTimeout(() => location.reload(), 800);
-    } else {
-      showAlert(errEl, data.error);
-      btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
-    }
-  } catch {
-    showAlert(errEl, 'Network error');
-    btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Remove';
-  }
-});
-</script>
+{% load static %}
+<script src="{% static 'js/academic_years/ay_common.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/academic_years/ay_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/academic_years/ay_set_active.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/academic_years/ay_delete.js' %}?v=20261020_v1"></script>
 {% endblock %}
+

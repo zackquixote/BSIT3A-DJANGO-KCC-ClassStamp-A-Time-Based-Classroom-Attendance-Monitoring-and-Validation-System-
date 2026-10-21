@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header" style="margin-bottom: 20px;">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Class Sections &amp; Schedules</span>
+    </div>
     <div class="flex items-center gap-2 mb-1">
       <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
         <i class="fas fa-chalkboard"></i> Academic Timetable & Rosters
@@ -113,7 +118,7 @@
     <!-- Search Query -->
     <div class="input-wrap" style="flex: 1; min-width: 200px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" class="form-control" placeholder="Search class code or subject..." value="{{ search_q }}">
+      <input type="text" name="q" class="form-control" data-table-search=".table" placeholder="Search class code or subject..." value="{{ search_q }}">
     </div>
 
     <button type="submit" class="btn btn-primary btn-sm" style="padding: 9px 16px;">
@@ -235,6 +240,15 @@
                 <i class="fas fa-clock"></i> Schedule
               </button>
 
+              <!-- Attendance Matrix Button -->
+              <button type="button" class="btn btn-outline btn-xs js-open-matrix"
+                      data-class-id="{{ c.id }}"
+                      data-class-code="{{ c.class_code }}"
+                      data-matrix-url="{% url 'class_attendance_matrix' c.id %}"
+                      title="View Classroom Attendance Matrix Sheet">
+                <i class="fas fa-table-cells"></i> Matrix
+              </button>
+
               <!-- Roster Enlistment Button -->
               <button type="button" class="btn btn-outline btn-xs btn-manage-roster"
                       data-class-id="{{ c.id }}"
@@ -312,12 +326,53 @@
 
         <div>
           <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Subject *</label>
+
+          <!-- ── Cascade Filter Strip ─────────────────────────────── -->
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:8px;"
+               id="subjectCascadeFilters">
+
+            <div>
+              <label style="font-size:0.68rem; color:var(--text-muted); display:block; margin-bottom:3px;">Department</label>
+              <select id="cascadeDept" class="form-control" style="font-size:0.78rem; padding:6px 8px;">
+                <option value="">All Depts</option>
+                {% for d in departments %}
+                  <option value="{{ d.id }}">{{ d.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.68rem; color:var(--text-muted); display:block; margin-bottom:3px;">Program</label>
+              <select id="cascadeProgram" class="form-control" style="font-size:0.78rem; padding:6px 8px;">
+                <option value="">All Programs</option>
+                {% for p in programs %}
+                  <option value="{{ p.id }}" data-dept="{{ p.department_id }}">{{ p.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.68rem; color:var(--text-muted); display:block; margin-bottom:3px;">Year Level</label>
+              <select id="cascadeYear" class="form-control" style="font-size:0.78rem; padding:6px 8px;" disabled>
+                <option value="">All Years</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+              </select>
+            </div>
+          </div>
+          <!-- ── Subject Dropdown (narrowed by cascade) ────────────── -->
           <select name="subject_id" id="formSubjectId" class="form-control" required style="width: 100%;">
             <option value="">Select Course Subject...</option>
             {% for s in subjects %}
-              <option value="{{ s.id }}">{{ s.code }} — {{ s.name }}</option>
+              <option value="{{ s.id }}" data-code="{{ s.code }}" data-name="{{ s.name }}">{{ s.code }} — {{ s.name }}</option>
             {% endfor %}
           </select>
+          <span class="text-muted text-xs mt-1" style="display:block;">
+            <a href="#" id="resetSubjectCascade" style="color:var(--gold);">↺ Show all subjects</a>
+            &nbsp;|&nbsp; select dept/program/year above to narrow the list
+          </span>
         </div>
 
         <div>
@@ -476,254 +531,224 @@
     </div>
   </div>
 </div>
+
+<!-- ── Attendance Matrix Sheet Modal ───────────────────────────── -->
+<div class="dash-modal-backdrop" id="matrixModal">
+  <div class="dash-modal" style="max-width: 980px; width: 95vw;" role="dialog" aria-labelledby="matrixModalTitle">
+    <div class="dash-modal-head">
+      <div>
+        <h3 class="dash-modal-title" id="matrixModalTitle">
+          <i class="fas fa-table-cells text-gold"></i>
+          <span>Attendance Matrix Sheet: <span id="matrixClassCode" class="text-primary">—</span></span>
+        </h3>
+        <p class="text-xs text-muted" id="matrixSubheading" style="margin-top: 3px;">
+          Subject &amp; Instructor Attendance Telemetry
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="#" id="matrixExportCsvBtn" class="btn btn-outline btn-xs" target="_blank" title="Export this matrix grid as CSV">
+          <i class="fas fa-file-csv text-green"></i> Export CSV
+        </a>
+        <button type="button" class="dash-modal-close" id="closeMatrixModal" aria-label="Close">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="dash-modal-body" style="padding: 16px 20px;">
+      <!-- Matrix Telemetry Strip -->
+      <div class="dash-heatmap-summary mb-3" id="matrixTelemetryStrip">
+        <div class="dash-heatmap-stat">
+          <span class="text-xs text-muted">Enrolled Students:</span>
+          <strong class="text-primary" id="matrixTotalStudents">0</strong>
+        </div>
+        <div class="dash-heatmap-stat">
+          <span class="text-xs text-muted">Sessions Held:</span>
+          <strong class="text-gold" id="matrixTotalSessions">0</strong>
+        </div>
+        <div class="dash-heatmap-stat">
+          <span class="text-xs text-muted">Section Compliance Rate:</span>
+          <strong class="text-green" id="matrixOverallRate">0%</strong>
+        </div>
+        <div class="dash-heatmap-stat" style="margin-left: auto;">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="badge badge--success badge--xs">P = Present</span>
+            <span class="badge badge--warning badge--xs">L = Late</span>
+            <span class="badge badge--danger badge--xs">A = Absent</span>
+            <span class="badge badge--info badge--xs">E = Excused</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matrix Interactive Sheet -->
+      <div id="matrixTableContainer" style="max-height: 440px; overflow: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-sm);">
+        <div style="padding: 40px; text-align: center;" id="matrixLoadingState">
+          <i class="fas fa-spinner fa-spin text-gold" style="font-size: 1.5rem;"></i>
+          <p class="text-xs text-muted mt-2">Loading attendance matrix sheet...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+{% load static %}
+<script src="{% static 'js/classes/classes_common.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/class_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+/* Auto-open Create Class modal when arriving from Subjects page (?create=1) */
+(function () {
+  var params  = new URLSearchParams(window.location.search);
+  var doCreate = params.get('create') === '1';
+  var subjectId = params.get('subject') || '';
+
+  if (!doCreate) return;
+
+  /* Wait for modals to initialise (class_modal.js fires on DOMContentLoaded) */
+  window.addEventListener('DOMContentLoaded', function () {
+    var openBtn = document.getElementById('openCreateClassBtn');
+    if (openBtn) openBtn.click();              /* triggers the modal open */
+
+    /* Pre-select the subject in the dropdown */
+    if (subjectId) {
+      var subjectSel = document.getElementById('formSubjectId');
+      if (subjectSel) subjectSel.value = subjectId;
+    }
+
+    /* Clean the URL so refreshing doesn't re-open the modal */
+    if (window.history && window.history.replaceState) {
+      params.delete('create');
+      var newUrl = window.location.pathname +
+        (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+  });
+}());
+</script>
+
+<!-- ── Subject Cascade Filter Data & Logic ───────────────────────── -->
+<script id="subjectCascadeData"
+        data-subjects="{{ subjects_json|escapejs }}"
+        data-departments="{{ departments_json|escapejs }}"
+        data-programs="{{ programs_json|escapejs }}"
+        data-curriculum="{{ curriculum_map_json|escapejs }}">
+</script>
+<script>
+(function () {
   'use strict';
 
-  // ── 1. Create / Edit Class Modal ──────────────────────────────
-  const classModal = document.getElementById('classModal');
-  const openCreateClassBtn = document.getElementById('openCreateClassBtn');
-  const closeClassModal = document.getElementById('closeClassModal');
-  const cancelClassModal = document.getElementById('cancelClassModal');
-  const classModalHeading = document.getElementById('classModalHeading');
-  const classForm = document.getElementById('classForm');
+  var dataEl      = document.getElementById('subjectCascadeData');
+  if (!dataEl) return;
 
-  const formClassId = document.getElementById('formClassId');
-  const formClassCode = document.getElementById('formClassCode');
-  const formSubjectId = document.getElementById('formSubjectId');
-  const formTeacherId = document.getElementById('formTeacherId');
-  const formAyId = document.getElementById('formAyId');
-  const formCapacity = document.getElementById('formCapacity');
-  const formGraceMinutes = document.getElementById('formGraceMinutes');
+  var ALL_SUBJECTS    = JSON.parse(dataEl.dataset.subjects    || '[]');
+  var ALL_PROGRAMS    = JSON.parse(dataEl.dataset.programs    || '[]');
+  var CURRICULUM_MAP  = JSON.parse(dataEl.dataset.curriculum  || '{}');
+  // { "program_id": { "year_level": [subject_id, ...] } }
 
-  if (openCreateClassBtn) {
-    openCreateClassBtn.addEventListener('click', function () {
-      classModalHeading.textContent = 'Create Class Section';
-      formClassId.value = '';
-      classForm.reset();
-      classModal.classList.add('is-open');
-    });
-  }
+  var deptSel    = document.getElementById('cascadeDept');
+  var programSel = document.getElementById('cascadeProgram');
+  var yearSel    = document.getElementById('cascadeYear');
+  var subjectSel = document.getElementById('formSubjectId');
+  var resetLink  = document.getElementById('resetSubjectCascade');
 
-  document.querySelectorAll('.btn-edit-class').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      classModalHeading.textContent = 'Edit Class Section';
-      formClassId.value = this.dataset.id || '';
-      formClassCode.value = this.dataset.code || '';
-      formSubjectId.value = this.dataset.subjectId || '';
-      formTeacherId.value = this.dataset.teacherId || '';
-      formAyId.value = this.dataset.ayId || '';
-      formCapacity.value = this.dataset.capacity || '';
-      formGraceMinutes.value = this.dataset.grace || '10';
-      classModal.classList.add('is-open');
-    });
-  });
+  if (!deptSel || !programSel || !yearSel || !subjectSel) return;
 
-  function closeClassModalFn() { classModal.classList.remove('is-open'); }
-  if (closeClassModal) closeClassModal.addEventListener('click', closeClassModalFn);
-  if (cancelClassModal) cancelClassModal.addEventListener('click', closeClassModalFn);
-
-  // ── 2. Timetable Slots Modal ──────────────────────────────────
-  const slotsModal = document.getElementById('slotsModal');
-  const closeSlotsModal = document.getElementById('closeSlotsModal');
-  const slotsModalClassCode = document.getElementById('slotsModalClassCode');
-  const existingSlotsContainer = document.getElementById('existingSlotsContainer');
-  const addSlotForm = document.getElementById('addSlotForm');
-  let currentSlotClassId = null;
-
-  document.querySelectorAll('.btn-manage-slots').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      currentSlotClassId = this.dataset.classId;
-      slotsModalClassCode.textContent = this.dataset.classCode;
-      slotsModal.classList.add('is-open');
-      loadSlotsUI(this);
-    });
-  });
-
-  function loadSlotsUI(btnElement) {
-    const tr = btnElement.closest('tr');
-    const slotRows = tr.querySelectorAll('td:nth-child(4) .flex-col > div');
-    let html = '';
-    if (slotRows.length === 0) {
-      html = '<p class="text-muted text-xs">No schedule slots currently registered.</p>';
-    } else {
-      slotRows.forEach(function (row) {
-        html += '<div class="p-2" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">' +
-                '<span class="text-xs text-primary font-semibold">' + row.innerHTML + '</span>' +
-                '<span class="text-xs text-muted">(Active)</span>' +
-                '</div>';
-      });
+  /* ── helpers ── */
+  function currentSubjectIds() {
+    var pid = programSel.value;
+    var yr  = yearSel.value;
+    if (!pid) return null;                         // no program = show all
+    var progData = CURRICULUM_MAP[pid] || {};
+    if (!yr) {
+      // all years for this program
+      var ids = [];
+      Object.values(progData).forEach(function (arr) { ids = ids.concat(arr); });
+      return ids.length ? ids : null;
     }
-    existingSlotsContainer.innerHTML = html;
+    return progData[yr] || [];
   }
 
-  if (addSlotForm) {
-    addSlotForm.addEventListener('submit', function (e) {
+  function refreshSubjects() {
+    var allowed = currentSubjectIds();             // null = no filter
+    var current = subjectSel.value;
+    var opts = subjectSel.options;
+    var found = false;
+    for (var i = 0; i < opts.length; i++) {
+      var opt = opts[i];
+      if (!opt.value) { opt.style.display = ''; continue; }   // placeholder
+      var show = allowed === null || allowed.indexOf(parseInt(opt.value)) !== -1;
+      opt.style.display = show ? '' : 'none';
+      if (show && opt.value === current) found = true;
+    }
+    if (!found && current) subjectSel.value = '';   // clear stale selection
+  }
+
+  function refreshPrograms() {
+    var deptId = deptSel.value;
+    var opts   = programSel.options;
+    for (var i = 0; i < opts.length; i++) {
+      var opt = opts[i];
+      if (!opt.value) { opt.style.display = ''; continue; }
+      opt.style.display = (!deptId || opt.dataset.dept === deptId) ? '' : 'none';
+    }
+    // Reset program selection if currently hidden
+    if (programSel.value && programSel.options[programSel.selectedIndex].style.display === 'none') {
+      programSel.value = '';
+    }
+    yearSel.disabled = !programSel.value;
+    if (!programSel.value) yearSel.value = '';
+    refreshSubjects();
+  }
+
+  /* ── event wiring ── */
+  deptSel.addEventListener('change', function () {
+    programSel.value = '';
+    yearSel.value    = '';
+    yearSel.disabled = true;
+    refreshPrograms();
+  });
+
+  programSel.addEventListener('change', function () {
+    yearSel.disabled = !programSel.value;
+    if (!programSel.value) yearSel.value = '';
+    refreshSubjects();
+  });
+
+  yearSel.addEventListener('change', function () {
+    refreshSubjects();
+  });
+
+  if (resetLink) {
+    resetLink.addEventListener('click', function (e) {
       e.preventDefault();
-      if (!currentSlotClassId) return;
-      const formData = new FormData(addSlotForm);
-      fetch('/classes/' + currentSlotClassId + '/slot/save/', {
-        method: 'POST',
-        body: formData,
-      })
-      .then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (res.success) {
-          window.location.reload();
-        } else {
-          alert(res.message || 'Error saving slot.');
-        }
-      })
-      .catch(function (err) { alert('Request failed: ' + err); });
+      deptSel.value    = '';
+      programSel.value = '';
+      yearSel.value    = '';
+      yearSel.disabled = true;
+      // Show all options
+      var opts = subjectSel.options;
+      for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
+      refreshPrograms();
     });
   }
 
-  if (closeSlotsModal) {
-    closeSlotsModal.addEventListener('click', function () {
-      slotsModal.classList.remove('is-open');
-    });
+  /* Reset cascade when the modal is closed (so next open starts fresh) */
+  var closeModal   = document.getElementById('closeClassModal');
+  var cancelModal  = document.getElementById('cancelClassModal');
+  function resetCascade() {
+    deptSel.value = ''; programSel.value = ''; yearSel.value = ''; yearSel.disabled = true;
+    var opts = subjectSel.options;
+    for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
+    refreshPrograms();
   }
+  if (closeModal)  closeModal.addEventListener('click', resetCascade);
+  if (cancelModal) cancelModal.addEventListener('click', resetCascade);
 
-  // ── 3. Roster Enlistment Modal ────────────────────────────────
-  const rosterModal = document.getElementById('rosterModal');
-  const closeRosterModal = document.getElementById('closeRosterModal');
-  const rosterModalClassCode = document.getElementById('rosterModalClassCode');
-  const rosterCountBadge = document.getElementById('rosterCountBadge');
-  const rosterCapacityText = document.getElementById('rosterCapacityText');
-  const rosterStudentsList = document.getElementById('rosterStudentsList');
-  const availableStudentsSelect = document.getElementById('availableStudentsSelect');
-  const btnEnrollStudent = document.getElementById('btnEnrollStudent');
-  let currentRosterClassId = null;
-
-  document.querySelectorAll('.btn-manage-roster').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      currentRosterClassId = this.dataset.classId;
-      rosterModalClassCode.textContent = this.dataset.classCode;
-      rosterModal.classList.add('is-open');
-      loadRosterData(currentRosterClassId);
-    });
-  });
-
-  function loadRosterData(classId) {
-    rosterStudentsList.innerHTML = '<p class="text-muted text-xs">Loading roster...</p>';
-    fetch('/classes/' + classId + '/roster/')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (!data.success) return;
-        rosterCountBadge.textContent = data.enrolled_count;
-        rosterCapacityText.textContent = data.capacity ? ('Capacity: ' + data.capacity + ' max') : 'No capacity limit';
-
-        // Render available dropdown
-        let optHtml = '<option value="">Choose an approved student to enlist...</option>';
-        data.available.forEach(function (s) {
-          optHtml += '<option value="' + s.profile_id + '">' + s.student_name + ' (' + s.student_id + ' · ' + s.program + ')</option>';
-        });
-        availableStudentsSelect.innerHTML = optHtml;
-
-        // Render enrolled list
-        if (data.enrolled.length === 0) {
-          rosterStudentsList.innerHTML = '<p class="text-muted text-xs p-3 text-center">No students currently enrolled in this section.</p>';
-        } else {
-          let listHtml = '';
-          data.enrolled.forEach(function (en) {
-            listHtml +=
-              '<div class="p-2 flex items-center justify-between" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px;">' +
-              '  <div>' +
-              '    <div class="font-semibold text-xs text-primary">' + en.student_name + '</div>' +
-              '    <div class="text-xs text-muted" style="font-size: 0.68rem;">' + en.student_id + ' · ' + en.program + ' · Enrolled ' + en.enrolled_at + '</div>' +
-              '  </div>' +
-              '  <button type="button" class="btn btn-ghost btn-xs text-error btn-remove-enrollment" data-id="' + en.enrollment_id + '" title="Withdraw student from section">' +
-              '    <i class="fas fa-user-minus"></i> Remove' +
-              '  </button>' +
-              '</div>';
-          });
-          rosterStudentsList.innerHTML = listHtml;
-          bindRemoveEnrollmentButtons();
-        }
-      })
-      .catch(function (err) {
-        rosterStudentsList.innerHTML = '<p class="text-error text-xs">Failed to load roster: ' + err + '</p>';
-      });
-  }
-
-  function bindRemoveEnrollmentButtons() {
-    document.querySelectorAll('.btn-remove-enrollment').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!confirm('Are you sure you want to withdraw this student from this class section?')) return;
-        const enrollmentId = this.dataset.id;
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const fd = new FormData();
-        fd.append('csrfmiddlewaretoken', csrfToken);
-
-        fetch('/classes/roster/remove/' + enrollmentId + '/', {
-          method: 'POST',
-          body: fd,
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (res) {
-          if (res.success) {
-            loadRosterData(currentRosterClassId);
-          } else {
-            alert('Failed to remove student.');
-          }
-        });
-      });
-    });
-  }
-
-  if (btnEnrollStudent) {
-    btnEnrollStudent.addEventListener('click', function () {
-      const profileId = availableStudentsSelect.value;
-      if (!profileId || !currentRosterClassId) {
-        alert('Please choose a student to enlist.');
-        return;
-      }
-      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-      const fd = new FormData();
-      fd.append('csrfmiddlewaretoken', csrfToken);
-      fd.append('profile_id', profileId);
-
-      fetch('/classes/' + currentRosterClassId + '/roster/enroll/', {
-        method: 'POST',
-        body: fd,
-      })
-      .then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (res.success) {
-          loadRosterData(currentRosterClassId);
-        } else {
-          alert(res.message || 'Failed to enlist student.');
-        }
-      })
-      .catch(function (err) { alert('Enroll request failed: ' + err); });
-    });
-  }
-
-  if (closeRosterModal) {
-    closeRosterModal.addEventListener('click', function () {
-      rosterModal.classList.remove('is-open');
-    });
-  }
-
-  // Backdrop click close for all modals
-  [classModal, slotsModal, rosterModal].forEach(function (m) {
-    if (m) {
-      m.addEventListener('click', function (e) {
-        if (e.target === m) m.classList.remove('is-open');
-      });
-    }
-  });
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      [classModal, slotsModal, rosterModal].forEach(function (m) {
-        if (m) m.classList.remove('is-open');
-      });
-    }
-  });
-});
+}());
 </script>
 {% endblock %}
+

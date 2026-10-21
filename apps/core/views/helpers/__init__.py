@@ -29,7 +29,9 @@ from .dashboard_helpers import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
     _teacher_dashboard_stats,
+    get_activity_feed,
     get_attendance_chart_data,
+    get_pending_count,
 )
 
 __all__ = [
@@ -48,6 +50,9 @@ __all__ = [
     '_teacher_dashboard_stats',
     '_student_dashboard_stats',
     'get_attendance_chart_data',
+    'get_activity_feed',
+    'get_pending_count',
     # Academic stat helpers
     'get_program_student_stats',
 ]
+

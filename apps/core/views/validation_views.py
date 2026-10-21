@@ -14,6 +14,7 @@ import secrets
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -25,6 +26,23 @@ from apps.core.services import (
     approve_student_registration,
     reject_student_registration,
 )
+
+
+def _check_validation_rate_limit(request, max_requests=120, window_seconds=60) -> bool:
+    """
+    // [Security #16] Rate limiting on validation decisions.
+    // Caps individual admin validation calls to 120 / min to prevent accidental rapid double-submissions or loops.
+    """
+    user_id = getattr(request.user, 'pk', 'anon')
+    cache_key = f"val_rl_{user_id}"
+    try:
+        count = cache.get(cache_key, 0)
+        if count >= max_requests:
+            return False
+        cache.set(cache_key, count + 1, timeout=window_seconds)
+    except Exception:
+        pass
+    return True
 
 
 # // ==============================================================================
@@ -311,6 +329,10 @@ def approve_student(request, student_number):
     // - Rotates and seals a new 64-character QR secret for dynamic attendance stamping.
     // - Records immutable APPROVE_STUDENT entry into AuditEvent.
     """
+    if not _check_validation_rate_limit(request):
+        messages.error(request, 'Validation rate limit reached. Please wait a moment before processing further decisions.')
+        return redirect('validation_pending_queue')
+
     lookup = Q(student_number=student_number)
     if str(student_number).isdigit():
         lookup |= Q(pk=int(student_number))
@@ -349,6 +371,10 @@ def reject_student(request, student_number):
     // - Records timestamps and administrative reviewer ID.
     // - Emits REJECT_STUDENT record to AuditEvent.
     """
+    if not _check_validation_rate_limit(request):
+        messages.error(request, 'Validation rate limit reached. Please wait a moment before processing further decisions.')
+        return redirect('validation_pending_queue')
+
     lookup = Q(student_number=student_number)
     if str(student_number).isdigit():
         lookup |= Q(pk=int(student_number))
@@ -437,3 +463,71 @@ def recently_reviewed_list(request):
         'total_approved': total_approved,
         'total_rejected': total_rejected,
     })
+
+
+# // ==============================================================================
+# // VIEW: Batch Approve / Reject — Multiple Students (#3)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def batch_validation_action(request):
+    """
+    // [Admin Batch Action] Approve or reject multiple pending students at once.
+    // POST body: action=approve|reject, ids[]=pk, ids[]=pk, ... reason=<str>
+    // Returns JSON: {approved: N, rejected: N, skipped: N, errors: [...]}
+    """
+    if not _check_validation_rate_limit(request, max_requests=30, window_seconds=60):
+        return JsonResponse({'error': 'Rate limit exceeded. Please wait a moment before sending more batch actions.'}, status=429)
+
+    import json as _json
+    action = request.POST.get('action', '').strip()
+    raw_ids = request.POST.getlist('ids[]') or request.POST.getlist('ids')
+    reason = request.POST.get('reason', 'Batch administrative decision').strip()
+
+    if action not in ('approve', 'reject'):
+        return JsonResponse({'error': 'Invalid action.'}, status=400)
+
+    if not raw_ids:
+        return JsonResponse({'error': 'No student IDs provided.'}, status=400)
+
+    if action == 'reject' and not reason:
+        return JsonResponse({'error': 'A rejection reason is required for batch rejection.'}, status=400)
+
+    pks = []
+    for raw in raw_ids:
+        try:
+            pks.append(int(raw))
+        except (ValueError, TypeError):
+            pass
+
+    profiles = Profile.objects.filter(
+        pk__in=pks,
+        role=Profile.ROLE_STUDENT,
+        approval_status=Profile.APPROVAL_PENDING,
+    )
+
+    approved_count = 0
+    rejected_count = 0
+    skipped_count = 0
+    errors = []
+
+    for profile in profiles:
+        try:
+            if action == 'approve':
+                approve_student_registration(profile, request.user)
+                approved_count += 1
+            else:
+                reject_student_registration(profile, request.user, reason)
+                rejected_count += 1
+        except Exception as exc:
+            errors.append({'id': profile.pk, 'name': profile.user.get_full_name(), 'error': str(exc)})
+            skipped_count += 1
+
+    return JsonResponse({
+        'approved': approved_count,
+        'rejected': rejected_count,
+        'skipped': skipped_count,
+        'errors': errors,
+    })
+

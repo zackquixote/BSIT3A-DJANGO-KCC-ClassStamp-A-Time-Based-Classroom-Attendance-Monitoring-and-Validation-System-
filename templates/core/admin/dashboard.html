@@ -1,56 +1,126 @@
 {% extends "theme/base.html" %}
+
 {% load static %}
+
 {% block title %}Admin Command Center — KCC ClassStamp{% endblock %}
 
+
+
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261020_chart220">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261021_v1">
 {% endblock %}
 
+
+
 {% block content %}
-<!-- ── Top Header ─────────────────────────────────────────────── -->
-<div class="dash-page-header">
-  <div class="dash-page-header-left">
-    <h1 class="dash-page-title">Admin <span>Command Center</span></h1>
-    <div class="dash-header-meta">
-      <a href="{% url 'academic_year_list' %}" class="dash-term-pill" title="Click to view & manage academic years">
-        <i class="fas fa-calendar-check"></i>
-        <span>{{ active_academic_year.name|default:"A.Y. 2026–2027 · 1st Semester" }}</span>
-        <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem; opacity: 0.7;"></i>
-      </a>
-      <span class="dash-clock-pill" id="livePstClock">
-        <i class="fas fa-clock text-gold"></i>
-        <span id="clockTimeDisplay">--:--:-- PST</span>
-      </span>
-      {% if attendance_rate is not None %}
-        <span class="dash-rate-pill" title="Today's attendance compliance: {{ attendance_rate }}% attended out of {{ today_attendance_total }} recorded scan{{ today_attendance_total|pluralize }}">
-          <i class="fas fa-chart-line text-green"></i>
-          <span>{{ attendance_rate }}% Attended Today</span>
-        </span>
-      {% else %}
-        <span class="dash-rate-pill" title="System monitoring active — awaiting today's classroom attendance scans">
-          <i class="fas fa-shield-heart text-gold"></i>
-          <span>Live Monitoring</span>
-        </span>
-      {% endif %}
-      {% if open_anomaly_count %}
-        <a href="{% url 'anomaly_list' %}" class="badge badge--danger" style="text-decoration: none;" title="Security review required">
-          <i class="fas fa-triangle-exclamation"></i> {{ open_anomaly_count }} Security Alert{{ open_anomaly_count|pluralize }}
-        </a>
-      {% endif %}
+
+{% if today_holiday %}
+<!-- ── Philippine Holiday / Academic Observance Alert ────────── -->
+<div class="dash-holiday-banner" role="alert">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; color: var(--accent-gold); font-size: 1rem; flex-shrink: 0;">
+      <i class="fas fa-flag-checkered"></i>
+    </div>
+    <div>
+      <div style="font-size: 0.88rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span>Philippine Holiday / Academic Observance:</span>
+        <span style="color: var(--accent-gold);">{{ today_holiday.title }}</span>
+        {% if today_holiday.location %}<span style="font-size: 0.72rem; color: var(--text-muted);">({{ today_holiday.location }})</span>{% endif %}
+      </div>
+      <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">
+        {{ today_holiday.description|default:"Official Philippine holiday recognized in the KCC Academic Calendar. Note: Attendance validation remains active; verified administrative guidelines apply." }}
+      </div>
     </div>
   </div>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <span class="badge badge--warning"><i class="fas fa-calendar-day"></i> {{ today_holiday.get_category_display }}</span>
+    <a href="{% url 'admin_calendar' %}" class="btn btn-outline btn-xs" style="border-color: rgba(245, 158, 11, 0.35); color: var(--accent-gold);">
+      <i class="fas fa-calendar"></i> View Calendar
+    </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Top Header ─────────────────────────────────────────────── -->
+
+<div class="dash-page-header">
+
+  <div class="dash-page-header-left">
+
+    <h1 class="dash-page-title">Admin <span>Command Center</span></h1>
+
+    <div class="dash-header-meta">
+
+      <a href="{% url 'academic_year_list' %}" class="dash-term-pill" title="Click to view & manage academic years">
+
+        <i class="fas fa-calendar-check"></i>
+
+        <span>{{ active_academic_year.name|default:"A.Y. 2026–2027 · 1st Semester" }}</span>
+
+        <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem; opacity: 0.7;"></i>
+
+      </a>
+
+      <span class="dash-clock-pill" id="livePstClock">
+
+        <i class="fas fa-clock text-gold"></i>
+
+        <span id="clockTimeDisplay">--:--:-- PST</span>
+
+      </span>
+
+      {% if attendance_rate is not None %}
+
+        <span class="dash-rate-pill" title="Today's attendance compliance: {{ attendance_rate }}% attended out of {{ today_attendance_total }} recorded scan{{ today_attendance_total|pluralize }}">
+
+          <i class="fas fa-chart-line text-green"></i>
+
+          <span>{{ attendance_rate }}% Attended Today</span>
+
+        </span>
+
+      {% else %}
+
+        <span class="dash-rate-pill" title="System monitoring active — awaiting today's classroom attendance scans">
+
+          <i class="fas fa-shield-heart text-gold"></i>
+
+          <span>Live Monitoring</span>
+
+        </span>
+
+      {% endif %}
+
+      {% if open_anomaly_count %}
+
+        <a href="{% url 'anomaly_list' %}" class="badge badge--danger" style="text-decoration: none;" title="Security review required">
+
+          <i class="fas fa-triangle-exclamation"></i> {{ open_anomaly_count }} Security Alert{{ open_anomaly_count|pluralize }}
+
+        </a>
+
+      {% endif %}
+
+    </div>
+
+  </div>
+
+
 
   <div class="dash-header-actions">
     <!-- Notification Bell Dropdown -->
     <div class="notif-bell-wrapper" id="notifBellWrapper">
-      <button type="button" class="btn-bell-notification {% if not pending_count %}btn-bell--idle{% endif %}"
+      <!-- Unread dot — shown by JS when unseen notifications exist -->
+      <span class="notif-unread-dot" id="notifUnreadDot" style="display:none;" aria-hidden="true"></span>
+
+      <button type="button" class="btn-bell-notification {% if not pending_count and not open_anomaly_count %}btn-bell--idle{% endif %}"
               id="notifBellBtn"
               aria-label="Notifications{% if pending_count %}: {{ pending_count }} pending{% endif %}"
               aria-expanded="false"
               aria-haspopup="true">
-        {% if pending_count %}
+        {% if pending_count or open_anomaly_count %}
           <i class="fas fa-bell"></i>
-          <span class="bell-badge-count">{{ pending_count }}</span>
+          <span class="bell-badge-count" id="bellBadgeCount">{{ pending_count|add:open_anomaly_count }}</span>
         {% else %}
           <i class="far fa-bell"></i>
         {% endif %}
@@ -60,42 +130,67 @@
         <div class="notif-dropdown-header">
           <div class="notif-dropdown-title">
             <i class="fas fa-bell"></i>
-            <span>Notifications & Activity</span>
+            <span>Notifications &amp; Activity</span>
           </div>
-          {% if pending_count %}
-            <span class="notif-dropdown-badge">{{ pending_count }} Pending</span>
-          {% endif %}
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button type="button" class="notif-mark-read-btn" id="notifMarkReadBtn" title="Mark all as read">
+              <i class="fas fa-check-double"></i> Mark read
+            </button>
+            {% if pending_count or open_anomaly_count %}
+              <span class="notif-dropdown-badge" id="notifHeaderBadge">{{ pending_count|add:open_anomaly_count }} Unread</span>
+            {% else %}
+              <span class="notif-dropdown-badge" id="notifHeaderBadge" style="display:none;"></span>
+            {% endif %}
+          </div>
         </div>
 
-        <div class="notif-dropdown-body">
+        <div class="notif-dropdown-body" id="notifDropdownBody">
           {% if pending_students %}
-            <p class="notif-section-label">Awaiting Account Review</p>
-            {% for s in pending_students %}
-              <a href="{% url 'validation_detail' s.student_number %}" class="notif-item">
-                <div class="notif-item-avatar">
-                  {{ s.initials }}
-                </div>
-                <div class="notif-item-info">
-                  <span class="notif-item-name">{{ s.user.get_full_name|default:s.user.username }}</span>
-                  <span class="notif-item-sub">
-                    {{ s.student_number }}
-                    {% if s.program %}· {{ s.program.code }}{% endif %}
-                  </span>
-                  <span class="notif-item-time">
-                    <i class="fas fa-clock"></i>
-                    {{ s.created_at|timesince }} ago
-                  </span>
-                </div>
-                <div class="notif-item-arrow">
-                  <i class="fas fa-chevron-right"></i>
-                </div>
-              </a>
+            {% regroup pending_students by created_at|date:"Y-m-d" as grouped_students %}
+            {% for group in grouped_students %}
+              <p class="notif-group-label">
+                {% now "Y-m-d" as today_str %}
+                {% if group.grouper == today_str %}Today{% else %}Earlier{% endif %}
+              </p>
+              {% for s in group.list %}
+                <a href="{% url 'validation_detail' s.student_number %}"
+                   class="notif-item is-unread"
+                   data-notif-id="student-{{ s.student_number }}">
+                  <div class="notif-item-avatar">{{ s.initials }}</div>
+                  <div class="notif-item-info">
+                    <span class="notif-item-name">{{ s.user.get_full_name|default:s.user.username }}</span>
+                    <span class="notif-item-sub">
+                      {{ s.student_number }}{% if s.program %} &middot; {{ s.program.code }}{% endif %}
+                    </span>
+                    <span class="notif-item-time">
+                      <i class="fas fa-clock"></i>
+                      {{ s.created_at|timesince }} ago
+                    </span>
+                  </div>
+                  <div class="notif-item-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+              {% endfor %}
             {% endfor %}
-          {% else %}
+          {% endif %}
+
+          {% if open_anomaly_count %}
+            <p class="notif-group-label">Anomaly Alerts</p>
+            <a href="{% url 'admin_anomalies' %}" class="notif-item notif-item--anomaly is-unread" data-notif-id="anomaly-main">
+              <div class="notif-item-avatar"><i class="fas fa-triangle-exclamation"></i></div>
+              <div class="notif-item-info">
+                <span class="notif-item-name">{{ open_anomaly_count }} Open Anomal{{ open_anomaly_count|pluralize:"y,ies" }}</span>
+                <span class="notif-item-sub">Attendance irregularities need review</span>
+                <span class="notif-item-time"><i class="fas fa-shield-halved"></i> Requires admin action</span>
+              </div>
+              <div class="notif-item-arrow"><i class="fas fa-chevron-right"></i></div>
+            </a>
+          {% endif %}
+
+          {% if not pending_students and not open_anomaly_count %}
             <div class="notif-empty-state">
               <div class="notif-empty-icon"><i class="far fa-bell-slash"></i></div>
               <p class="notif-empty-title">All caught up!</p>
-              <p class="notif-empty-sub">No pending student registrations at this time.</p>
+              <p class="notif-empty-sub">No pending registrations or anomalies at this time.</p>
             </div>
           {% endif %}
         </div>
@@ -104,409 +199,1015 @@
           <a href="{% url 'validation_queue' %}" class="notif-footer-link">
             <i class="fas fa-list-check"></i>
             View Full Validation Queue
-            {% if pending_count %}<span class="notif-footer-badge">{{ pending_count }}</span>{% endif %}
+            {% if pending_count %}<span class="notif-footer-badge" id="notifFooterBadge">{{ pending_count }}</span>{% endif %}
           </a>
         </div>
       </div>
     </div>
 
+    <!-- SSE Arrive Toast (fixed position, managed by JS) -->
+    <div class="notif-arrive-toast" id="notifArriveToast" role="alert" aria-live="polite">
+      <div class="notif-arrive-toast-icon"><i class="fas fa-user-clock"></i></div>
+      <div class="notif-arrive-toast-body">
+        <div class="notif-arrive-toast-title" id="notifArriveTitle">New Pending Registration</div>
+        <div class="notif-arrive-toast-sub" id="notifArriveSub">A student is awaiting account review.</div>
+      </div>
+      <button type="button" class="notif-arrive-toast-close" id="notifArriveClose" aria-label="Dismiss">
+        <i class="fas fa-xmark"></i>
+      </button>
+      <div class="notif-arrive-toast-progress" id="notifArriveProgress"></div>
+    </div>
+
+
+
     <a href="{% url 'student_directory' %}" class="btn btn-outline btn-sm">
+
       <i class="fas fa-user-graduate"></i> Student Directory
+
     </a>
+
+
 
     <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm" title="System Audit & Export Log">
+
       <i class="fas fa-file-export"></i> Logs & Reports
+
     </a>
+
   </div>
+
 </div>
+
+
 
 <!-- ── Telemetry KPI Metric Cards (2 rows of 3 on Desktop) ─────── -->
+
 <div class="dash-kpi-strip">
+
   <!-- 1. Pending Validations -->
+
   <a href="{% url 'validation_queue' %}" class="dash-kpi-card {% if pending_count %}dash-kpi-card--pulse{% endif %}">
+
     <div class="dash-kpi-icon dash-kpi-icon--gold"><i class="fas fa-user-clock"></i></div>
+
     <div class="dash-kpi-body">
+
       <span class="dash-kpi-value" id="pendingKpiValue">{{ pending_count }}</span>
+
       <span class="dash-kpi-label">Pending Validations</span>
+
       <span class="dash-kpi-delta {% if pending_delta > 0 %}dash-kpi-delta--up{% elif pending_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+
         {% if pending_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ pending_delta }}{% elif pending_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ pending_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
+
         <span>vs yesterday</span>
+
       </span>
+
     </div>
+
     {% if pending_count %}
+
       <span class="dash-kpi-badge badge badge--warning"><i class="fas fa-bell"></i> Action Needed</span>
+
     {% endif %}
+
   </a>
+
+
 
   <!-- 2. Active Students -->
+
   <a href="{% url 'student_directory' %}" class="dash-kpi-card">
+
     <div class="dash-kpi-icon dash-kpi-icon--green"><i class="fas fa-user-graduate"></i></div>
+
     <div class="dash-kpi-body">
+
       <span class="dash-kpi-value">{{ student_count }}</span>
+
       <span class="dash-kpi-label">Active Students</span>
+
       <span class="dash-kpi-delta {% if student_delta > 0 %}dash-kpi-delta--up{% elif student_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+
         {% if student_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ student_delta }}{% elif student_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ student_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
+
         <span>vs yesterday</span>
+
       </span>
+
     </div>
+
   </a>
+
+
 
   <!-- 3. Teaching Faculty -->
+
   <a href="{% url 'users:user_list' %}" class="dash-kpi-card">
+
     <div class="dash-kpi-icon dash-kpi-icon--gold"><i class="fas fa-chalkboard-user"></i></div>
+
     <div class="dash-kpi-body">
+
       <span class="dash-kpi-value">{{ teacher_count }}</span>
+
       <span class="dash-kpi-label">Teaching Faculty</span>
+
       <span class="dash-kpi-delta {% if teacher_delta > 0 %}dash-kpi-delta--up{% elif teacher_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+
         {% if teacher_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ teacher_delta }}{% elif teacher_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ teacher_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
+
         <span>vs yesterday</span>
+
       </span>
+
     </div>
+
   </a>
+
+
 
   <!-- 4. Active Sessions (Clickable to inspect open classrooms) -->
+
   <div class="dash-kpi-card" id="activeSessionsCard" style="cursor: pointer;" title="Click to view currently open classroom sessions">
+
     <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-qrcode"></i></div>
+
     <div class="dash-kpi-body">
+
       <span class="dash-kpi-value">{{ open_session_count }}</span>
+
       <span class="dash-kpi-label">Active Sessions</span>
+
       <span class="dash-kpi-delta {% if session_delta > 0 %}dash-kpi-delta--up{% elif session_delta < 0 %}dash-kpi-delta--down{% else %}dash-kpi-delta--flat{% endif %}">
+
         {% if session_delta > 0 %}<i class="fas fa-arrow-up"></i> +{{ session_delta }}{% elif session_delta < 0 %}<i class="fas fa-arrow-down"></i> {{ session_delta }}{% else %}<i class="fas fa-minus"></i> 0{% endif %}
+
         <span>vs yesterday</span>
+
       </span>
+
     </div>
+
     {% if open_session_count %}
+
       <span class="dash-kpi-badge badge badge--info"><i class="fas fa-satellite-dish"></i> Live</span>
+
     {% endif %}
+
   </div>
 
+
+
   <!-- 5. Departments -->
+
   <a href="{% url 'department_list' %}" class="dash-kpi-card">
+
     <div class="dash-kpi-icon dash-kpi-icon--purple"><i class="fas fa-building-columns"></i></div>
+
     <div class="dash-kpi-body">
+
       <span class="dash-kpi-value">{{ department_count }}</span>
+
       <span class="dash-kpi-label">Departments</span>
+
     </div>
+
   </a>
+
+
 
   <!-- 6. Degree Programs -->
+
   <a href="{% url 'program_list' %}" class="dash-kpi-card">
+
     <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-graduation-cap"></i></div>
+
     <div class="dash-kpi-body">
+
       <span class="dash-kpi-value">{{ program_count }}</span>
+
       <span class="dash-kpi-label">Degree Programs</span>
+
     </div>
+
   </a>
+
 </div>
 
+
+
 <!-- ── Interactive Attendance Analytics (Chart.js) ───────────── -->
+
 <div class="dash-chart-card">
+
   <div class="dash-chart-head">
+
     <div class="dash-chart-title-wrap">
+
       <div class="dash-chart-title">
-        <i class="fas fa-chart-column"></i>
+
+        <i class="fas fa-chart-column" id="dashAnalyticsIcon"></i>
+
         <span id="dashChartTitle">Attendance Analytics Pulse</span>
+
       </div>
+
       <span class="dash-chart-sub" id="dashChartSubtitle">Daily breakdown of student classroom check-ins (Past 7 Days)</span>
+
     </div>
 
+
+
     <div class="dash-chart-meta">
-      <!-- Quick Range Presets (7D, 14D, 30D) -->
-      <div class="dash-chart-ranges" id="chartRangeButtons">
-        <button type="button" class="dash-chart-range-btn is-active" data-days="7" title="View past 7 days">7D</button>
-        <button type="button" class="dash-chart-range-btn" data-days="14" title="View past 14 days">14D</button>
-        <button type="button" class="dash-chart-range-btn" data-days="30" title="View past 30 days">30D</button>
+      <!-- View Switcher (Pulse Chart vs 35D Heatmap) -->
+      <div class="dash-view-switcher" id="dashViewSwitcher">
+        <button type="button" class="dash-view-btn is-active" id="btnViewBar" title="View Stacked Pulse Chart">
+          <i class="fas fa-chart-column"></i> Pulse
+        </button>
+        <button type="button" class="dash-view-btn" id="btnViewHeatmap" title="View 35-Day Activity Heatmap Calendar">
+          <i class="fas fa-table-cells"></i> Heatmap
+        </button>
       </div>
 
+
+
+      <!-- Quick Range Presets (7D, 14D, 30D) - Hidden when in heatmap mode -->
+
+      <div class="dash-chart-ranges" id="chartRangeButtons">
+
+        <button type="button" class="dash-chart-range-btn is-active" data-days="7" title="View past 7 days">7D</button>
+
+        <button type="button" class="dash-chart-range-btn" data-days="14" title="View past 14 days (includes Oct 07)">14D</button>
+
+        <button type="button" class="dash-chart-range-btn" data-days="30" title="View past 30 days">30D</button>
+
+      </div>
+
+
+
       <!-- Specific Date Picker Input -->
-      <div class="dash-chart-picker-wrap">
+
+      <div class="dash-chart-picker-wrap" id="chartDatePickerWrap">
+
         <i class="fas fa-calendar-day"></i>
         <input type="date" id="chartDatePicker" class="dash-chart-date-input" title="Inspect specific historical date">
       </div>
 
+
+
       <!-- Legend (Present, Late, Absent, Excused) -->
-      <div class="dash-chart-legend">
+
+      <div class="dash-chart-legend" id="dashChartLegend">
+
         <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--present"></span> Present</span>
+
         <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--late"></span> Late</span>
+
         <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--absent"></span> Absent</span>
+
         <span class="dash-chart-leg-item"><span class="dash-chart-dot dash-chart-dot--excused"></span> Excused</span>
+
       </div>
 
       <span class="dash-chart-live-badge"><i class="fas fa-bolt"></i> Live Feed</span>
+
     </div>
+
   </div>
 
+
+
   <!-- Day Inspection Ribbon (Appears on bar click or date picker select) -->
+
   <div class="dash-chart-day-inspect" id="chartDayInspect" style="display: none;">
+
     <div class="dash-inspect-left">
+
       <i class="fas fa-calendar-check text-gold"></i>
+
       <span class="text-xs text-muted">Inspecting:</span>
       <span id="inspectDateLabel" class="font-bold text-primary text-xs">Selected Date</span>
     </div>
+
     <div class="dash-inspect-stats">
+
       <span class="text-xs text-muted">Present: <strong class="text-success" id="inspectPresent">0</strong></span>
+
       <span class="dash-inspect-dot">&bull;</span>
+
       <span class="text-xs text-muted">Late: <strong class="text-warning" id="inspectLate">0</strong></span>
+
       <span class="dash-inspect-dot">&bull;</span>
+
       <span class="text-xs text-muted">Absent: <strong class="text-error" id="inspectAbsent">0</strong></span>
+
       <span class="dash-inspect-dot">&bull;</span>
+
       <span class="text-xs text-muted">Excused: <strong class="text-info" id="inspectExcused">0</strong></span>
+
       <span class="dash-inspect-badge" id="inspectTotal">0 Total Scans</span>
+
     </div>
+
     <button type="button" class="dash-inspect-close" id="closeInspectBtn" title="Close inspection ribbon">&times;</button>
+
   </div>
 
-  <div class="dash-chart-canvas-wrapper">
+
+
+  <div class="dash-chart-canvas-wrapper" id="dashChartCanvasWrap">
+
     <canvas id="weeklyAttendanceChart" aria-label="Attendance Analytics Chart" role="img"></canvas>
+
   </div>
+
+
+
+  <!-- 35-Day Attendance Heatmap Calendar View -->
+
+  <div class="dash-heatmap-wrapper" id="dashHeatmapWrapper" style="display: none;">
+
+    <div class="dash-heatmap-summary">
+
+      <div class="dash-heatmap-stat">
+
+        <span class="text-xs text-muted">Total Scans:</span>
+
+        <strong class="text-gold">{{ heatmap_data.summary.total_scans }}</strong>
+
+      </div>
+
+      <div class="dash-heatmap-stat">
+
+        <span class="text-xs text-muted">Active Days:</span>
+
+        <strong class="text-green">{{ heatmap_data.summary.active_days }} / 35</strong>
+
+      </div>
+
+      <div class="dash-heatmap-stat">
+
+        <span class="text-xs text-muted">Peak Activity:</span>
+
+        <strong class="text-primary">{{ heatmap_data.summary.peak_scans }} scans ({{ heatmap_data.summary.peak_date }})</strong>
+
+      </div>
+
+      <div class="dash-heatmap-stat">
+
+        <span class="text-xs text-muted">Daily Average:</span>
+
+        <strong class="text-muted">{{ heatmap_data.summary.avg_scans }} scans/active day</strong>
+
+      </div>
+
+      <div class="dash-heatmap-stat" style="margin-left: auto;">
+
+        <span class="text-xs text-muted"><i class="fas fa-calendar-range"></i> {{ heatmap_data.summary.range_label }}</span>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="dash-heatmap-grid">
+
+      {% for day in heatmap_data.days %}
+
+        <div class="dash-heatmap-cell dash-heatmap-cell--l{{ day.intensity }} {% if day.is_today %}dash-heatmap-cell--today{% endif %} js-heatmap-cell"
+
+             data-date="{{ day.date }}"
+
+             data-display-date="{{ day.display_date }}"
+
+             data-present="{{ day.present }}"
+
+             data-late="{{ day.late }}"
+
+             data-absent="{{ day.absent }}"
+
+             data-excused="{{ day.excused }}"
+
+             data-scans="{{ day.total_scans }}"
+
+             title="{{ day.display_date }}: {{ day.total_scans }} scans ({{ day.present }} Present, {{ day.late }} Late, {{ day.absent }} Absent, {{ day.excused }} Excused)">
+
+          <span class="dash-heatmap-cell-day">{{ day.day_num }}</span>
+
+          <span class="dash-heatmap-cell-weekday">{{ day.weekday_short|slice:":1" }}</span>
+
+        </div>
+
+      {% endfor %}
+
+    </div>
+
+
+
+    <div class="dash-heatmap-footer">
+
+      <span class="text-xs text-muted"><i class="fas fa-hand-pointer text-gold"></i> Click any day cell to inspect detailed check-in breakdown above</span>
+
+      <div class="dash-heatmap-legend">
+
+        <span class="text-xs text-muted" style="margin-right: 4px;">Less</span>
+
+        <span class="dash-heatmap-cell-sample dash-heatmap-cell--l0" title="0 scans"></span>
+
+        <span class="dash-heatmap-cell-sample dash-heatmap-cell--l1" title="1–5 scans"></span>
+
+        <span class="dash-heatmap-cell-sample dash-heatmap-cell--l2" title="6–15 scans"></span>
+
+        <span class="dash-heatmap-cell-sample dash-heatmap-cell--l3" title="16–30 scans"></span>
+
+        <span class="dash-heatmap-cell-sample dash-heatmap-cell--l4" title="31+ scans"></span>
+
+        <span class="text-xs text-muted" style="margin-left: 4px;">More</span>
+
+      </div>
+
+    </div>
+
+  </div>
+
 </div>
+
+
 
 {{ chart_data|json_script:"dashChartData" }}
 
+
+
 <!-- ── Main 3-Column Zero-Scroll Grid ─────────────────────────── -->
+
 <div class="dash-panel-grid">
+
   <!-- 1. Quick Launcher -->
+
   <div class="dash-panel">
+
     <div class="dash-panel-head">
+
       <div>
+
         <h2 class="dash-panel-title"><i class="fas fa-rocket"></i> Quick Launcher</h2>
+
         <p class="dash-panel-subtitle">Instant shortcuts to administrative modules</p>
+
       </div>
+
     </div>
+
     <div class="dash-panel-body">
+
       <div class="dash-launcher-grid">
+
         <a href="{% url 'validation_queue' %}" class="dash-launcher-btn">
+
           <div class="dash-launcher-icon" style="background: rgba(245,158,11,0.18); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
+
             <i class="fas fa-user-clock"></i>
+
           </div>
+
           <div class="dash-launcher-text">
+
             <div class="dash-launcher-label">Validation Queue</div>
+
             <div class="dash-launcher-sub">Review students</div>
+
           </div>
+
         </a>
+
+
 
         <a href="{% url 'student_directory' %}" class="dash-launcher-btn">
+
           <div class="dash-launcher-icon" style="background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.35);">
+
             <i class="fas fa-user-graduate"></i>
+
           </div>
+
           <div class="dash-launcher-text">
+
             <div class="dash-launcher-label">Student Directory</div>
+
             <div class="dash-launcher-sub">Profiles & records</div>
+
           </div>
+
         </a>
+
+
 
         <a href="{% url 'users:user_list' %}" class="dash-launcher-btn">
+
           <div class="dash-launcher-icon" style="background: rgba(245,158,11,0.15); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
+
             <i class="fas fa-users-gear"></i>
+
           </div>
+
           <div class="dash-launcher-text">
+
             <div class="dash-launcher-label">User Accounts</div>
+
             <div class="dash-launcher-sub">Manage roles</div>
+
           </div>
+
         </a>
+
+
 
         <a href="{% url 'department_list' %}" class="dash-launcher-btn">
+
           <div class="dash-launcher-icon" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35);">
+
             <i class="fas fa-building-columns"></i>
+
           </div>
+
           <div class="dash-launcher-text">
+
             <div class="dash-launcher-label">Departments</div>
+
             <div class="dash-launcher-sub">Academic units</div>
+
           </div>
+
         </a>
+
+
 
         <a href="{% url 'program_list' %}" class="dash-launcher-btn">
+
           <div class="dash-launcher-icon" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35);">
+
             <i class="fas fa-graduation-cap"></i>
+
           </div>
+
           <div class="dash-launcher-text">
+
             <div class="dash-launcher-label">Programs</div>
+
             <div class="dash-launcher-sub">Degree courses</div>
+
           </div>
+
         </a>
+
+
 
         <a href="{% url 'admin_audit_log' %}" class="dash-launcher-btn">
+
           <div class="dash-launcher-icon" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35);">
+
             <i class="fas fa-shield-halved"></i>
+
           </div>
+
           <div class="dash-launcher-text">
+
             <div class="dash-launcher-label">Audit Log</div>
+
             <div class="dash-launcher-sub">Security records</div>
+
           </div>
+
         </a>
+
       </div>
+
     </div>
+
   </div>
 
-  <!-- 2. Academic Departments -->
-  <div class="dash-panel">
+
+
+  <!-- 2. Academic Calendar (Mini Calendar) -->
+
+  <div class="dash-panel" id="dashMiniCalendar">
+
     <div class="dash-panel-head">
+
       <div>
-        <h2 class="dash-panel-title"><i class="fas fa-building-columns"></i> Departments</h2>
-        <p class="dash-panel-subtitle">Student distribution by academic unit</p>
+
+        <h2 class="dash-panel-title"><i class="fas fa-calendar-days text-gold"></i> Academic Calendar</h2>
+
+        <p class="dash-panel-subtitle">Official milestones & holidays</p>
+
       </div>
-      <a href="{% url 'department_list' %}" class="dash-panel-action">Manage</a>
+
+      <a href="{% url 'admin_calendar' %}" class="dash-panel-action" title="Open Full Academic Calendar">
+
+        Full View <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem;"></i>
+
+      </a>
+
     </div>
+
     <div class="dash-panel-body">
-      <div class="dash-dept-list">
-        {% for dept in departments_list %}
-          <div class="dash-dept-row">
-            <span class="dash-dept-code">{{ dept.code }}</span>
-            <div class="dash-dept-info">
-              <div class="dash-dept-name" title="{{ dept.name }}">{{ dept.name }}</div>
-              <div class="dash-dept-meta">
-                <i class="fas fa-graduation-cap"></i> {{ dept.programs.count }} program{{ dept.programs.count|pluralize }}
-              </div>
-            </div>
-            <span class="dash-dept-badge badge badge--purple badge--xs">{{ dept.student_count }} student{{ dept.student_count|pluralize }}</span>
+
+      <div class="mini-cal-wrap">
+
+        <div class="mini-cal-nav">
+
+          <span class="mini-cal-title" id="miniCalMonthTitle">October 2026</span>
+
+          <div style="display: flex; gap: 4px;">
+
+            <button type="button" class="mini-cal-btn" id="miniCalPrevBtn" title="Previous Month" aria-label="Previous Month">
+
+              <i class="fas fa-chevron-left"></i>
+
+            </button>
+
+            <button type="button" class="mini-cal-btn" id="miniCalNextBtn" title="Next Month" aria-label="Next Month">
+
+              <i class="fas fa-chevron-right"></i>
+
+            </button>
+
           </div>
-        {% empty %}
-          <div class="dash-empty">
-            <i class="fas fa-building-columns"></i>
-            <p>No departments registered yet.</p>
-            <a href="{% url 'department_list' %}" class="btn btn-primary btn-xs mt-2">
-              <i class="fas fa-plus"></i> Add Department
-            </a>
+
+        </div>
+
+        <div class="mini-cal-weekdays">
+
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+
+        </div>
+
+        <div class="mini-cal-grid" id="miniCalDaysGrid"></div>
+
+        <div class="mini-cal-inspect" id="miniCalDayInspect">
+
+          <div class="mini-cal-inspect-head">
+
+            <span id="miniCalInspectDate">Today</span>
+
+            <span class="text-xs text-muted"><i class="fas fa-hand-pointer"></i> Day Schedule</span>
+
           </div>
-        {% endfor %}
+
+          <div id="miniCalInspectEvents"></div>
+
+        </div>
+
       </div>
+
     </div>
+
   </div>
+
+
+
+  <!-- 3. Academic Departments -->
+
+  <div class="dash-panel">
+
+    <div class="dash-panel-head">
+
+      <div>
+
+        <h2 class="dash-panel-title"><i class="fas fa-building-columns"></i> Departments</h2>
+
+        <p class="dash-panel-subtitle">Student distribution by academic unit</p>
+
+      </div>
+
+      <a href="{% url 'department_list' %}" class="dash-panel-action">Manage</a>
+
+    </div>
+
+    <div class="dash-panel-body">
+
+      <div class="dash-dept-list">
+
+        {% for dept in departments_list %}
+
+          <div class="dash-dept-row">
+
+            <span class="dash-dept-code">{{ dept.code }}</span>
+
+            <div class="dash-dept-info">
+
+              <div class="dash-dept-name" title="{{ dept.name }}">{{ dept.name }}</div>
+
+              <div class="dash-dept-meta">
+
+                <i class="fas fa-graduation-cap"></i> {{ dept.programs.count }} program{{ dept.programs.count|pluralize }}
+
+              </div>
+
+            </div>
+
+            <span class="dash-dept-badge badge badge--purple badge--xs">{{ dept.student_count }} student{{ dept.student_count|pluralize }}</span>
+
+          </div>
+
+        {% empty %}
+
+          <div class="dash-empty">
+
+            <i class="fas fa-building-columns"></i>
+
+            <p>No departments registered yet.</p>
+
+            <a href="{% url 'department_list' %}" class="btn btn-primary btn-xs mt-2">
+
+              <i class="fas fa-plus"></i> Add Department
+
+            </a>
+
+          </div>
+
+        {% endfor %}
+
+      </div>
+
+    </div>
+
+  </div>
+
+
 
   <!-- 3. Dual Tab: Recently Approved Accounts & Live Attendance Stamps -->
+
   <div class="dash-panel">
+
     <div class="dash-panel-head">
+
       <div class="dash-tab-group" role="tablist">
+
         <button type="button" class="dash-tab-btn is-active" id="tabApprovedBtn" role="tab" aria-selected="true">
+
           <i class="fas fa-circle-check"></i> Approved
+
         </button>
+
         <button type="button" class="dash-tab-btn" id="tabFeedBtn" role="tab" aria-selected="false">
+
           <span class="dash-tab-pulse-dot"></span>
+
           <i class="fas fa-tower-broadcast"></i> Live Stamps
+
         </button>
+
       </div>
+
       <a href="{% url 'recently_reviewed_list' %}" class="dash-panel-action" id="tabApprovedLink">
+
         <i class="fas fa-users"></i> View All
+
       </a>
+
       <a href="{% url 'admin_audit_log' %}" class="dash-panel-action" id="tabFeedLink" style="display: none;">
+
         <i class="fas fa-list"></i> Full Feed
+
       </a>
+
     </div>
+
+
 
     <div class="dash-panel-body">
+
       <!-- Tab Pane 1: Recently Approved -->
+
       <div class="dash-approved-list" id="paneApproved">
+
         {% for student in recent_approved %}
+
           <div class="dash-approved-row">
+
             <div class="dash-approved-avatar">
+
               {{ student.user.first_name|first|default:student.user.username|slice:":1"|upper }}
+
             </div>
+
             <div class="dash-approved-body">
+
               <div class="dash-approved-name">
+
                 {{ student.user.get_full_name|default:student.user.username }}
+
               </div>
+
               <div class="dash-approved-sub">
+
                 {{ student.student_number|default:"No ID" }} • {{ student.program.code|default:"—" }}
+
                 {% if student.student_type == 'IRREGULAR' %}
+
                   <span class="text-gold">(Irreg)</span>
+
                 {% elif student.student_type == 'TRANSFEREE' %}
+
                   <span style="color: #c084fc;">(Transferee)</span>
+
                 {% endif %}
+
               </div>
+
             </div>
+
             <div class="dash-approved-meta">
+
               <span class="badge badge--success badge--xs"><i class="fas fa-check"></i> Approved</span>
+
               <span class="dash-approved-time">
+
                 {{ student.approved_at|timesince|default:"recently" }} ago
+
               </span>
+
             </div>
+
           </div>
+
         {% empty %}
+
           <div class="dash-empty">
+
             <i class="fas fa-user-check"></i>
+
             <p>No recently approved students found.</p>
+
           </div>
+
         {% endfor %}
+
       </div>
+
+
 
       <!-- Tab Pane 2: Live Attendance Stamps Feed -->
+
       <div class="dash-feed-list" id="paneFeed" style="display: none;">
+
         {% for stamp in activity_feed %}
+
           <div class="dash-feed-row">
+
             <div class="dash-feed-icon {% if stamp.status == 'PRESENT' %}dash-feed-icon--present{% else %}dash-feed-icon--late{% endif %}">
+
               <i class="fas {% if stamp.status == 'PRESENT' %}fa-check{% else %}fa-clock{% endif %}"></i>
+
             </div>
+
             <div class="dash-feed-body">
+
               <div class="dash-feed-name">{{ stamp.student }}</div>
+
               <div class="dash-feed-sub">{{ stamp.class_code }} • {{ stamp.student_id }}</div>
+
             </div>
+
             <div class="dash-feed-meta">
+
               <span class="badge {% if stamp.status == 'PRESENT' %}badge--success{% else %}badge--warning{% endif %} badge--xs">
+
                 {{ stamp.status }}
+
               </span>
+
               <div class="text-muted text-xs" style="font-size: 0.65rem; margin-top: 2px;">
+
                 {% if stamp.stamped_time %}<span><i class="fas fa-clock"></i> {{ stamp.stamped_time }}</span> · {% endif %}
+
                 <i class="fas fa-qrcode"></i> {{ stamp.method|default:"QR" }}
+
               </div>
+
             </div>
+
           </div>
+
         {% empty %}
+
           <div class="dash-empty">
+
             <i class="fas fa-satellite-dish"></i>
+
             <p>No live classroom stamp activity recorded yet today.</p>
+
           </div>
+
         {% endfor %}
+
       </div>
+
     </div>
+
   </div>
+
 </div>
 
+
+
 <!-- ── Active Sessions Modal Drawer ───────────────────────────── -->
+
 <div class="dash-modal-backdrop" id="activeSessionsModal">
+
   <div class="dash-modal" role="dialog" aria-labelledby="activeSessionsTitle">
+
     <div class="dash-modal-head">
+
       <h3 class="dash-modal-title" id="activeSessionsTitle">
+
         <i class="fas fa-satellite-dish text-gold"></i>
+
         <span>Active Classroom Sessions ({{ open_session_count }})</span>
+
       </h3>
+
       <button type="button" class="dash-modal-close" id="closeSessionsModal" aria-label="Close modal">
+
         <i class="fas fa-xmark"></i>
+
       </button>
+
     </div>
+
     <div class="dash-modal-body">
+
       {% for session in open_sessions_list %}
+
         <div class="dash-session-row">
+
           <div>
+
             <div class="font-semibold text-sm text-primary">
+
               {{ session.slot.class_obj.class_code }} — {{ session.slot.class_obj.subject.name }}
+
             </div>
+
             <div class="text-xs text-muted mt-0.5">
+
               <i class="fas fa-chalkboard-user"></i> {{ session.slot.class_obj.teacher_profile.user.get_full_name }}
+
               {% if session.slot.room %} · <i class="fas fa-location-dot"></i> {{ session.slot.room }}{% endif %}
+
             </div>
+
           </div>
+
           <div class="text-right">
+
             <span class="badge badge--success badge--xs"><i class="fas fa-circle-dot"></i> Scanning Open</span>
+
             <div class="text-xs text-muted mt-1" style="font-size: 0.65rem;">
+
               Opened {{ session.opened_at|timesince|default:"recently" }} ago
+
             </div>
+
             <div style="margin-top: 5px;">
+
               <a href="{% url 'admin_audit_log' %}?q={{ session.slot.class_obj.class_code }}" class="btn btn-outline btn-xs" style="padding: 2px 7px; font-size: 0.65rem; border-color: rgba(255,255,255,0.15);" title="Inspect audit activity for {{ session.slot.class_obj.class_code }}">
+
                 <i class="fas fa-eye"></i> Activity
+
               </a>
+
             </div>
+
           </div>
+
         </div>
+
       {% empty %}
+
         <div class="dash-empty">
+
           <i class="fas fa-door-closed"></i>
+
           <p>No active classroom attendance sessions currently open.</p>
+
         </div>
+
       {% endfor %}
+
     </div>
+
   </div>
+
 </div>
+
 {% endblock %}
+
+
 
 {% block extra_js %}
 <script src="{% static 'libs/chartjs/chart.umd.min.js' %}"></script>
@@ -515,6 +1216,12 @@
      data-pending-count="{{ pending_count|default:0 }}"
      data-pending-count-url="{% url 'admin_pending_count_json' %}"
      data-chart-url="{% url 'admin_attendance_chart_json' %}"
-     data-feed-url="{% url 'admin_activity_feed_json' %}"></div>
-<script src="{% static 'js/admin_dashboard.js' %}?v=20261020_pulse_v5"></script>
+     data-feed-url="{% url 'admin_activity_feed_json' %}"
+     data-live-stream-url="{% url 'admin_live_stream' %}"></div>
+
+<script src="{% static 'js/admin_dashboard.js' %}?v=20261021_v1"></script>
+
+{{ mini_calendar_events_json|json_script:"mini-calendar-events-data" }}
+<script src="{% static 'js/calendar/mini_calendar.js' %}?v=20261021_v1"></script>
 {% endblock %}
+

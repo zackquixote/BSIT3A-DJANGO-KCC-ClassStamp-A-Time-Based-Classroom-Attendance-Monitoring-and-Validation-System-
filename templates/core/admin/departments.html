@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Collegiate Departments</span>
+    </div>
     <h1 class="page-title">College Departments</h1>
     <p class="page-subtitle">Manage institutional academic divisions and collegiate units</p>
   </div>
@@ -97,10 +102,14 @@
         <tr data-row-id="{{ d.id }}">
           <td class="text-muted">{{ d.id }}</td>
           <td>
-            <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
+            <span class="js-inline-editable" data-type="department" data-id="{{ d.id }}" data-field="code" data-value="{{ d.code }}">
+              <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
+            </span>
           </td>
           <td>
-            <div class="font-semibold text-primary">{{ d.name }}</div>
+            <span class="js-inline-editable" data-type="department" data-id="{{ d.id }}" data-field="name" data-value="{{ d.name }}">
+              <span class="font-semibold text-primary">{{ d.name }}</span>
+            </span>
             <div class="text-muted text-xs">Created {{ d.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
@@ -265,129 +274,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function() {
-  const form = document.getElementById('editDeptForm');
-  const errorBox = document.getElementById('deptFormError');
-  const errorMsg = document.getElementById('deptFormErrorMsg');
-  const alertBox = document.getElementById('deptAlert');
-  const modalTitle = document.getElementById('editDeptModalTitle');
-  const deleteForm = document.getElementById('deleteDeptForm');
-  const deleteCode = document.getElementById('delete_dept_code');
-  const deleteWarning = document.getElementById('delete_dept_warning');
-
-  function showAlert(msg, isError = true) {
-    alertBox.textContent = msg;
-    alertBox.className = 'toast ' + (isError ? 'toast--error' : 'toast--success') + ' mb-4';
-    alertBox.style.display = 'flex';
-    setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
-  }
-
-  // Handle Edit/Create click
-  document.addEventListener('click', function(e) {
-    const editBtn = e.target.closest('[data-modal-target="editDeptModal"]');
-    if (editBtn) {
-      errorBox.style.display = 'none';
-      const mode = editBtn.getAttribute('data-mode');
-      if (mode === 'edit') {
-        modalTitle.textContent = 'Edit Department';
-        document.getElementById('dept_id').value = editBtn.getAttribute('data-id');
-        document.getElementById('dept_code').value = editBtn.getAttribute('data-code');
-        document.getElementById('dept_name').value = editBtn.getAttribute('data-name');
-        document.getElementById('dept_is_active').checked = editBtn.getAttribute('data-active') === 'true';
-      } else {
-        modalTitle.textContent = 'Add Department';
-        form.reset();
-        document.getElementById('dept_id').value = '';
-        document.getElementById('dept_is_active').checked = true;
-      }
-      if (typeof window.openModal === 'function') {
-        window.openModal('editDeptModal');
-      } else {
-        document.getElementById('editDeptModal').classList.add('is-active');
-      }
-    }
-
-    const delBtn = e.target.closest('[data-modal-target="deleteDeptModal"]');
-    if (delBtn) {
-      const deptId = delBtn.getAttribute('data-id');
-      const deptCode = delBtn.getAttribute('data-code');
-      const progCount = parseInt(delBtn.getAttribute('data-programs') || '0', 10);
-      const facCount = parseInt(delBtn.getAttribute('data-faculty') || '0', 10);
-
-      deleteCode.textContent = deptCode;
-      deleteForm.action = '/departments/delete/' + deptId + '/';
-
-      if (progCount > 0 || facCount > 0) {
-        deleteWarning.style.display = 'flex';
-      } else {
-        deleteWarning.style.display = 'none';
-      }
-      if (typeof window.openModal === 'function') {
-        window.openModal('deleteDeptModal');
-      } else {
-        document.getElementById('deleteDeptModal').classList.add('is-active');
-      }
-    }
-  });
-
-  // AJAX save with fallback
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(form);
-    const saveBtn = document.getElementById('saveDeptBtn');
-    saveBtn.disabled = true;
-
-    fetch('{% url "department_save" %}', {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-      },
-      body: formData
-    })
-    .then(r => r.json().then(data => ({ status: r.status, data })))
-    .then(res => {
-      saveBtn.disabled = false;
-      if (res.status === 200 && res.data.status === 'success') {
-        window.closeModal('editDeptModal');
-        window.location.reload();
-      } else {
-        errorMsg.textContent = res.data.error || 'Failed to save department.';
-        errorBox.style.display = 'flex';
-      }
-    })
-    .catch(err => {
-      saveBtn.disabled = false;
-      errorMsg.textContent = 'Network or server error occurred.';
-      errorBox.style.display = 'flex';
-    });
-  });
-
-  // AJAX delete with reload
-  deleteForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('confirmDeleteDeptBtn');
-    btn.disabled = true;
-
-    fetch(deleteForm.action, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-      }
-    })
-    .then(r => r.json().then(data => ({ status: r.status, data })))
-    .then(res => {
-      btn.disabled = false;
-      window.closeModal('deleteDeptModal');
-      window.location.reload();
-    })
-    .catch(() => {
-      btn.disabled = false;
-      deleteForm.submit(); // fallback to standard POST
-    });
-  });
-})();
-</script>
+{% load static %}
+<script src="{% static 'js/departments/departments_common.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/departments/department_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/departments/delete_department.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 {% endblock %}
+

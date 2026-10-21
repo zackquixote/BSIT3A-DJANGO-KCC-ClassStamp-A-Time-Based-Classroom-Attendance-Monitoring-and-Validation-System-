@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Degree Programs</span>
+    </div>
     <h1 class="page-title">College Programs</h1>
     <p class="page-subtitle">Configure degree offerings, academic tracks, and curriculum duration</p>
   </div>
@@ -107,15 +112,17 @@
       </thead>
       <tbody>
         {% for p in programs %}
-        <tr data-row-id="{{ p.id }}">
+        <tr data-row-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-years="{{ p.years_total }}">
           <td class="text-muted">{{ p.id }}</td>
           <td>
-            <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
+            <span class="js-inline-editable" data-type="program" data-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-field="code" data-value="{{ p.code }}">
+              <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
+            </span>
           </td>
           <td>
-            <a href="{% url 'program_students_per_year' p.id %}" class="text-primary font-semibold program-name-link">
-              {{ p.name }}
-            </a>
+            <span class="js-inline-editable" data-type="program" data-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-field="name" data-value="{{ p.name }}">
+              <span class="text-primary font-semibold">{{ p.name }}</span>
+            </span>
             <div class="text-muted text-xs">Created {{ p.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
@@ -346,126 +353,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function() {
-  const form = document.getElementById('editProgForm');
-  const errorBox = document.getElementById('progFormError');
-  const errorMsg = document.getElementById('progFormErrorMsg');
-  const alertBox = document.getElementById('progAlert');
-  const modalTitle = document.getElementById('editProgModalTitle');
-  const deleteForm = document.getElementById('deleteProgForm');
-  const deleteCode = document.getElementById('delete_prog_code');
-  const deleteWarning = document.getElementById('delete_prog_warning');
-
-  // Handle Edit/Create click
-  document.addEventListener('click', function(e) {
-    const editBtn = e.target.closest('[data-modal-target="editProgModal"]');
-    if (editBtn) {
-      errorBox.style.display = 'none';
-      const mode = editBtn.getAttribute('data-mode');
-      if (mode === 'edit') {
-        modalTitle.textContent = 'Edit Program';
-        document.getElementById('prog_id').value = editBtn.getAttribute('data-id');
-        document.getElementById('prog_department').value = editBtn.getAttribute('data-dept');
-        document.getElementById('prog_code').value = editBtn.getAttribute('data-code');
-        document.getElementById('prog_name').value = editBtn.getAttribute('data-name');
-        document.getElementById('prog_years').value = editBtn.getAttribute('data-years') || '4';
-        document.getElementById('prog_is_active').checked = editBtn.getAttribute('data-active') === 'true';
-      } else {
-        modalTitle.textContent = 'Add Program';
-        form.reset();
-        document.getElementById('prog_id').value = '';
-        document.getElementById('prog_years').value = '4';
-        document.getElementById('prog_is_active').checked = true;
-      }
-      if (typeof window.openModal === 'function') {
-        window.openModal('editProgModal');
-      } else {
-        document.getElementById('editProgModal').classList.add('is-active');
-      }
-    }
-
-    const delBtn = e.target.closest('[data-modal-target="deleteProgModal"]');
-    if (delBtn) {
-      const progId = delBtn.getAttribute('data-id');
-      const progCode = delBtn.getAttribute('data-code');
-      const studentCount = parseInt(delBtn.getAttribute('data-students') || '0', 10);
-
-      deleteCode.textContent = progCode;
-      deleteForm.action = '/programs/delete/' + progId + '/';
-
-      if (studentCount > 0) {
-        deleteWarning.style.display = 'flex';
-      } else {
-        deleteWarning.style.display = 'none';
-      }
-      if (typeof window.openModal === 'function') {
-        window.openModal('deleteProgModal');
-      } else {
-        document.getElementById('deleteProgModal').classList.add('is-active');
-      }
-    }
-  });
-
-  // AJAX save with fallback
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(form);
-    const saveBtn = document.getElementById('saveProgBtn');
-    saveBtn.disabled = true;
-
-    fetch('{% url "program_save" %}', {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-      },
-      body: formData
-    })
-    .then(r => r.json().then(data => ({ status: r.status, data })))
-    .then(res => {
-      saveBtn.disabled = false;
-      if (res.status === 200 && res.data.status === 'success') {
-        window.closeModal('editProgModal');
-        window.location.reload();
-      } else {
-        errorMsg.textContent = res.data.error || 'Failed to save program.';
-        errorBox.style.display = 'flex';
-      }
-    })
-    .catch(err => {
-      saveBtn.disabled = false;
-      errorMsg.textContent = 'Network or server error occurred.';
-      errorBox.style.display = 'flex';
-    });
-  });
-
-  // AJAX delete with reload
-  deleteForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('confirmDeleteProgBtn');
-    btn.disabled = true;
-
-    fetch(deleteForm.action, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-      }
-    })
-    .then(r => r.json().then(data => ({ status: r.status, data })))
-    .then(res => {
-      btn.disabled = false;
-      window.closeModal('deleteProgModal');
-      window.location.reload();
-    })
-    .catch(() => {
-      btn.disabled = false;
-      deleteForm.submit();
-    });
-  });
-})();
-</script>
+{% load static %}
+<script src="{% static 'js/programs/programs_common.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 
 <style>
 .year-chip {

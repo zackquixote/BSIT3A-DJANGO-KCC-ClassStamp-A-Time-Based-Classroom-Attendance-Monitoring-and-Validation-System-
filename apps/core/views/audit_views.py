@@ -132,8 +132,10 @@ def admin_activity_feed_json(request):
 @login_required(login_url='login')
 @role_required(Profile.ROLE_ADMIN)
 def admin_pending_count_json(request):
+    from apps.core.models import AnomalyFlag
     count = get_pending_count()
-    return JsonResponse({'pending_count': count})
+    anomaly_count = AnomalyFlag.objects.filter(status=AnomalyFlag.STATUS_OPEN).count()
+    return JsonResponse({'pending_count': count, 'open_anomaly_count': anomaly_count})
 
 
 @login_required(login_url='login')

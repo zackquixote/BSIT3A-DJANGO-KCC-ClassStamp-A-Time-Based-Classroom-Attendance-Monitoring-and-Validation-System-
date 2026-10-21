@@ -2,13 +2,43 @@
 {% block title %}Student Dashboard — KCC ClassStamp{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<!-- Page Header -->
+<div class="page-header mb-4">
   <div>
     <h1 class="page-title">Student Dashboard</h1>
-    <p class="page-subtitle">Welcome, {{ request.user.get_full_name|default:request.user.get_username }}</p>
+    <p class="page-subtitle">
+      Welcome, <strong class="text-primary">{{ request.user.get_full_name|default:request.user.get_username }}</strong> &nbsp;•&nbsp; 
+      <span class="text-gold font-mono">{{ today_date|date:"l, F j, Y" }}</span>
+    </p>
   </div>
 </div>
 
+{% if today_holiday %}
+<!-- Holiday Alert Banner -->
+<div class="card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%); border: 1px solid rgba(245, 158, 11, 0.35); padding: 14px 18px;">
+  <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 12px;">
+    <div class="flex items-center gap-3">
+      <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; color: var(--accent-gold); font-size: 1.1rem; flex-shrink: 0;">
+        <i class="fas fa-flag-checkered"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge--warning text-xs font-bold">{{ today_holiday.get_category_display|upper }}</span>
+          <span class="font-bold text-primary text-base">{{ today_holiday.title }}</span>
+        </div>
+        <p class="text-secondary text-xs mt-1 mb-0">
+          {{ today_holiday.description|default:"Official Philippine Holiday recognized in KCC Academic Calendar." }}
+        </p>
+      </div>
+    </div>
+    <div>
+      <span class="badge badge--outline text-xs"><i class="fas fa-calendar-day"></i> Academic Observance</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Telemetry KPI Stat Cards -->
 <div class="stat-grid mb-6">
   <div class="stat-card">
     <div class="stat-icon stat-icon--green">
@@ -48,9 +78,86 @@
   </div>
 </div>
 
-<div class="card">
-  <p class="text-muted text-sm">
-    Your personal QR code and full attendance log will be available in Phases 3 and 5.
-  </p>
+<!-- Calendar Milestones & Enrolled Timetable -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  <!-- Upcoming Term Milestones & Published Calendar -->
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+      <div class="font-semibold text-primary flex items-center gap-2">
+        <i class="fas fa-calendar-days text-gold"></i> College Academic Calendar
+      </div>
+      <span class="text-muted text-xs">Official Dates</span>
+    </div>
+    <div style="padding: 12px 16px;">
+      {% for evt in upcoming_calendar_events %}
+        <div style="padding: 10px 12px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {{ evt.category_meta.color }}; border-radius: 6px;">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.05); color: {{ evt.category_meta.color }}; border: 1px solid {{ evt.category_meta.color }}40;">
+              <i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.get_category_display }}
+            </span>
+            <span class="text-muted font-mono" style="font-size: 0.7rem;">{{ evt.start_datetime|date:"M d, Y" }}</span>
+          </div>
+          <div class="font-bold text-sm text-primary">{{ evt.title }}</div>
+          {% if evt.description %}
+            <p class="text-muted text-xs mt-1 mb-0" style="font-size: 0.72rem; line-height: 1.35;">{{ evt.description|truncatechars:80 }}</p>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-muted text-xs" style="text-align: center; padding: 16px 0;">No upcoming milestones currently scheduled.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Examination Schedules & Active Course Timetable -->
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+      <div class="font-semibold text-primary flex items-center gap-2">
+        <i class="fas fa-file-pen text-gold"></i> Examination Windows &amp; Timetable
+      </div>
+      <span class="text-muted text-xs">Institutional Schedule</span>
+    </div>
+    <div style="padding: 12px 16px;">
+      {% if upcoming_exams %}
+        <div class="mb-3">
+          <div class="text-xs font-bold text-warning uppercase mb-2">Upcoming Exam Windows</div>
+          {% for exam in upcoming_exams %}
+            <div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; margin-bottom: 6px;">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-primary">{{ exam.title }}</span>
+                <span class="text-gold font-mono">{{ exam.start_datetime|date:"M d, Y" }}</span>
+              </div>
+              {% if exam.location %}
+                <div class="text-muted text-xs mt-0.5"><i class="fas fa-location-dot"></i> {{ exam.location }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="text-xs font-bold text-muted uppercase mb-2">My Enrolled Classes</div>
+      {% for enr in active_enrollments %}
+        <div style="padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 6px; margin-bottom: 6px;">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-primary">{{ enr.class_obj.subject.code }} — {{ enr.class_obj.class_code }}</span>
+            <span class="badge badge--primary badge--xs font-mono">{{ enr.class_obj.subject.units }} units</span>
+          </div>
+          <div class="text-muted text-xs mt-0.5" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ enr.class_obj.subject.name }}
+          </div>
+          {% if enr.class_obj.slots.all %}
+            <div class="mt-1 flex items-center gap-1 flex-wrap">
+              {% for slot in enr.class_obj.slots.all %}
+                <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.04); font-size: 0.65rem;">
+                  {{ slot.get_weekday_display|slice:":3" }} {{ slot.starts_at|time:"h:i A" }}–{{ slot.ends_at|time:"h:i A" }}{% if slot.room %} ({{ slot.room }}){% endif %}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-muted text-xs" style="text-align: center; padding: 12px 0;">No active class enrollments on record.</p>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 {% endblock %}

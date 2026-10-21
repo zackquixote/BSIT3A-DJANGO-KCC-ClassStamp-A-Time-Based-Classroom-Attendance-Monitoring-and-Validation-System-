@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.core.models import Department, Profile, Program
@@ -147,6 +148,20 @@ def logout_view(request):
 
 
 # // ==============================================================================
+# // VIEW: Session Keepalive Endpoint (/session/keepalive/)
+# // ==============================================================================
+def session_keepalive(request):
+    """
+    // [AJAX Controller] Refreshes session last_activity timestamp to prevent
+    // premature timeout when the user interacts with the session warning dialog.
+    """
+    if request.user.is_authenticated:
+        request.session['last_activity'] = timezone.now().isoformat()
+        return JsonResponse({'ok': True, 'refreshed': True})
+    return JsonResponse({'ok': False, 'error': 'unauthenticated'}, status=401)
+
+
+# // ==============================================================================
 # // VIEW: Student Self-Registration Controller
 # // ==============================================================================
 @require_http_methods(['GET', 'POST'])
@@ -242,3 +257,56 @@ def check_registration_availability(request):
         return JsonResponse({'available': True, 'message': 'Email address is available.'})
 
     return JsonResponse({'available': True, 'message': ''})
+
+
+# // ==============================================================================
+# // VIEW: Admin Force-Reset User Password (#4)
+# // ==============================================================================
+from django.contrib.auth.decorators import login_required  # noqa: E402 (already imported)
+from apps.core.decorators import role_required as _role_required  # noqa: E402
+
+
+@login_required(login_url='login')
+@_role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def admin_reset_user_password(request, user_id):
+    """
+    // [Admin Security Action] Force-reset a teacher or student account password.
+    // Generates a random 10-char temporary password and sets it immediately.
+    // Returns JSON {temp_password: '...'} for the admin to relay to the user.
+    // Emits ADMIN_PASSWORD_RESET to AuditEvent.
+    """
+    from apps.core.models import AuditEvent
+
+    target_user = None
+    try:
+        target_user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found.'}, status=404)
+
+    # Only allow resetting teachers and students (not other admins)
+    profile = getattr(target_user, 'classstamp_profile', None)
+    if profile is None or profile.role == Profile.ROLE_ADMIN:
+        return JsonResponse({'error': 'Cannot reset password for this account type.'}, status=403)
+
+    # Generate secure 10-char alphanumeric temp password
+    alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(10))
+
+    target_user.set_password(temp_password)
+    target_user.save(update_fields=['password'])
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='ADMIN_PASSWORD_RESET',
+        object_type='User',
+        object_id=str(target_user.pk),
+        reason=f'Admin forced password reset for {target_user.username} ({profile.role})',
+    )
+
+    return JsonResponse({
+        'temp_password': temp_password,
+        'username': target_user.username,
+        'full_name': target_user.get_full_name() or target_user.username,
+    })
+

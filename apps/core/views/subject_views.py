@@ -19,7 +19,8 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import Curriculum, Profile, Program, Subject
+import json
+from apps.core.models import AcademicYear, Class, Curriculum, Department, Profile, Program, Subject
 from apps.core.serializers import serialize_subject, serialize_subject_summary
 from apps.core.serializers.academic_serializers import serialize_curriculum_entry
 from apps.core.services import (
@@ -43,6 +44,7 @@ def subject_list(request):
     """
     query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
+    dept_filter = request.GET.get('department', '').strip()
     program_filter = request.GET.get('program', '').strip()
 
     subjects_qs = (
@@ -63,6 +65,11 @@ def subject_list(request):
     elif status_filter == 'inactive':
         subjects_qs = subjects_qs.filter(is_active=False)
 
+    if dept_filter:
+        subjects_qs = subjects_qs.filter(
+            curriculum_entries__program__department_id=dept_filter
+        ).distinct()
+
     if program_filter:
         subjects_qs = subjects_qs.filter(
             curriculum_entries__program_id=program_filter
@@ -77,18 +84,64 @@ def subject_list(request):
     inactive_count = total_count - active_count
     curriculum_count = Curriculum.objects.count()
 
-    programs = Program.objects.filter(is_active=True).order_by('code')
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    programs = (
+        Program.objects.filter(is_active=True)
+        .select_related('department')
+        .order_by('code')
+    )
+
+    # Serialise programs for JS cascade (dept_id, years_total needed)
+    programs_json = json.dumps([
+        {
+            'id': p.id,
+            'code': p.code,
+            'name': p.name,
+            'dept_id': p.department_id,
+            'years_total': p.years_total,
+        }
+        for p in programs
+    ])
+
+    # Build a dict of subject_id → unique teacher display names for the active AY.
+    # One bulk query — no N+1.
+    active_ay = AcademicYear.objects.filter(is_active=True).first()
+    teachers_by_subject: dict[int, list[str]] = {}
+    if active_ay:
+        ay_classes = (
+            Class.objects
+            .filter(academic_year=active_ay, is_active=True)
+            .select_related('teacher_profile__user')
+            .values_list('subject_id',
+                         'teacher_profile__user__first_name',
+                         'teacher_profile__user__last_name',
+                         'teacher_profile__user__username')
+        )
+        for sid, fname, lname, uname in ay_classes:
+            full = f'{fname or ""} {lname or ""}'.strip() or uname
+            teachers_by_subject.setdefault(sid, [])
+            if full not in teachers_by_subject[sid]:
+                teachers_by_subject[sid].append(full)
+
+    # Attach teacher list directly to each subject object so the template
+    # can access it as {{ s.current_teachers }} (avoids dict-subscript limitation).
+    for s in subjects:
+        s.current_teachers = teachers_by_subject.get(s.id, [])
 
     return render(request, 'core/admin/subjects.html', {
         'subjects': subjects,
         'query': query,
         'status_filter': status_filter,
+        'dept_filter': dept_filter,
         'program_filter': program_filter,
         'total_count': total_count,
         'active_count': active_count,
         'inactive_count': inactive_count,
         'curriculum_count': curriculum_count,
+        'departments': departments,
         'programs': programs,
+        'programs_json': programs_json,
+        'active_ay': active_ay,
     })
 
 

@@ -19,6 +19,32 @@
   </div>
 </div>
 
+{% if today_holiday %}
+<!-- Official Holiday / Observance Alert Banner -->
+<div class="card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.08) 100%); border: 1px solid rgba(245, 158, 11, 0.35); padding: 14px 20px;">
+  <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 12px;">
+    <div class="flex items-center gap-3">
+      <div style="width: 42px; height: 42px; border-radius: 8px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; color: var(--accent-gold); font-size: 1.15rem; flex-shrink: 0;">
+        <i class="fas fa-flag-checkered"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge--warning text-xs font-bold">{{ today_holiday.get_category_display|upper }}</span>
+          <span class="font-bold text-primary text-base">{{ today_holiday.title }}</span>
+        </div>
+        <p class="text-secondary text-xs mt-1 mb-0">
+          {{ today_holiday.description|default:"Official Philippine Holiday recognized in KCC Academic Calendar." }}
+          <span class="text-gold">&bull; Advisory: Please verify administrative announcements regarding class suspensions before conducting sessions.</span>
+        </p>
+      </div>
+    </div>
+    <div>
+      <span class="badge badge--outline text-xs"><i class="fas fa-shield-halved"></i> Institutional Advisory</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Ongoing Active Session Alert Banner (if any session is currently OPEN) -->
 {% if open_sessions %}
   {% for s in open_sessions %}
@@ -170,6 +196,36 @@
     </table>
   </div>
 </div>
+
+{% if upcoming_calendar_events %}
+<!-- College Academic Milestones & Published Schedule -->
+<div class="card mb-4" style="padding: 0; overflow: hidden;">
+  <div style="padding: 14px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-calendar-days text-gold"></i> College Academic Milestones &amp; Important Dates
+    </div>
+    <span class="text-muted text-xs">Official KCC Academic Calendar</span>
+  </div>
+  <div style="padding: 14px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+    {% for evt in upcoming_calendar_events %}
+      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {{ evt.category_meta.color }}; border-radius: 6px; padding: 10px 14px;">
+        <div class="flex items-center justify-between text-xs mb-1.5">
+          <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.05); color: {{ evt.category_meta.color }}; border: 1px solid {{ evt.category_meta.color }}40;">
+            <i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.get_category_display }}
+          </span>
+          <span class="text-muted font-mono" style="font-size: 0.7rem;">
+            {{ evt.start_datetime|date:"M d, Y" }}
+          </span>
+        </div>
+        <div class="font-bold text-sm text-primary">{{ evt.title }}</div>
+        {% if evt.description %}
+          <p class="text-muted text-xs mt-1 mb-0" style="font-size: 0.72rem; line-height: 1.35;">{{ evt.description|truncatechars:90 }}</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <!-- Recent Completed Attendance Sessions & Summary Log -->
 <div class="card mb-4" style="padding: 0; overflow: hidden;">

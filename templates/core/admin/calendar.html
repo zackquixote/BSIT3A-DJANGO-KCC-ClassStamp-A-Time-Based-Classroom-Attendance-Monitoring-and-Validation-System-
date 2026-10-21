@@ -1,0 +1,475 @@
+{% extends "theme/base.html" %}
+{% load static %}
+
+{% block title %}Academic Calendar — Institutional Schedule — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/calendar.css' %}?v=20261021">
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+  <div>
+    <h1 class="page-title flex items-center gap-2">
+      <i class="fas fa-calendar-alt text-gold"></i> Academic Calendar &amp; Institutional Schedule
+    </h1>
+    <p class="page-subtitle">
+      Plan institutional milestones, enrollment periods, examinations, holidays, and campus activities.
+    </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <button type="button" class="btn btn-outline" id="syncHolidaysBtn" title="Automatically populate official Philippine regular and special holidays">
+      <i class="fas fa-umbrella-beach text-success"></i> Sync PH Holidays
+    </button>
+    <button type="button" class="btn btn-primary" id="addEventBtn">
+      <i class="fas fa-plus"></i> Add Event
+    </button>
+  </div>
+</div>
+
+<!-- KPI Telemetry Stat Grid -->
+<div class="stat-grid mb-4">
+  <!-- Upcoming Events -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Upcoming Events</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: var(--accent-gold);">{{ upcoming_events_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-calendar-check" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Scheduled institutional milestones</div>
+  </div>
+
+  <!-- Events This Month -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Events This Month</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: #60a5fa;">{{ this_month_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-clock" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">{{ now|date:"F Y" }} activity window</div>
+  </div>
+
+  <!-- Active Academic Term -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Active Academic Term</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="font-size: 1.15rem; color: #c084fc;">
+          {% if active_academic_year %}
+            {{ active_academic_year.name }}
+          {% else %}
+            <span class="text-muted text-sm font-normal">None active</span>
+          {% endif %}
+        </h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-graduation-cap" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">
+      {% if active_academic_year %}
+        {{ active_academic_year.starts_on|date:"M d" }} – {{ active_academic_year.ends_on|date:"M d, Y" }}
+      {% else %}
+        Set active term in Academic Years
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Holidays & Breaks -->
+  <div class="card stat-card--kpi card--hoverable">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Holidays &amp; Breaks</p>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: #4ade80;">{{ holidays_count }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-umbrella-beach" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Non-working official holidays</div>
+  </div>
+</div>
+
+<!-- Calendar Filter Bar -->
+<div class="calendar-filter-bar">
+  <!-- Search -->
+  <div class="search-box">
+    <i class="fas fa-search"></i>
+    <input type="text" id="eventSearchInput" class="form-control" placeholder="Search events by title, description or room...">
+  </div>
+
+  <!-- Category Filter -->
+  <div style="min-width: 170px;">
+    <select id="categoryFilter" class="form-control" title="Filter by event category">
+      <option value="">All Categories</option>
+      {% for code, label in categories %}
+        <option value="{{ code }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Academic Year Filter -->
+  <div style="min-width: 170px;">
+    <select id="academicYearFilter" class="form-control" title="Filter by academic year">
+      <option value="">All Academic Years</option>
+      {% for ay in academic_years %}
+        <option value="{{ ay.id }}" {% if ay.is_active %}selected{% endif %}>
+          {{ ay.name }}{% if ay.is_active %} (Active){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Semester Filter -->
+  <div style="min-width: 150px;">
+    <select id="semesterFilter" class="form-control" title="Filter by semester">
+      <option value="">All Semesters</option>
+      {% for code, label in semesters %}
+        <option value="{{ code }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Status Filter -->
+  <div style="min-width: 130px;">
+    <select id="statusFilter" class="form-control" title="Filter by event status">
+      <option value="">All Statuses</option>
+      {% for code, label in statuses %}
+        <option value="{{ code }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Reset Button -->
+  <button type="button" class="btn btn-outline btn-sm" id="resetFiltersBtn" title="Reset all calendar filters">
+    <i class="fas fa-arrow-rotate-left"></i> Reset
+  </button>
+</div>
+
+<!-- Main Calendar Layout (Split View) -->
+<div class="calendar-layout">
+
+  <!-- LEFT: FullCalendar Interactive Grid -->
+  <div class="calendar-card">
+    <div id="academicCalendar"></div>
+  </div>
+
+  <!-- RIGHT: Sidebar Info & Feed -->
+  <div class="calendar-sidebar">
+
+    <!-- Upcoming Events Feed Panel -->
+    <div class="calendar-sidebar-card">
+      <div class="calendar-sidebar-header">
+        <div class="calendar-sidebar-title">
+          <i class="fas fa-bullhorn text-gold"></i> Upcoming Milestones
+        </div>
+        <span class="badge badge--primary text-xs font-mono">{{ upcoming_events|length }}</span>
+      </div>
+
+      <div class="upcoming-events-list">
+        {% for evt in upcoming_events %}
+          <div class="upcoming-event-item" data-event-id="{{ evt.id }}" data-start="{{ evt.start_datetime|date:'Y-m-d' }}" title="Click to view details">
+            <div class="upcoming-event-datebox"
+                 data-bg="{{ evt.category_meta.bg }}"
+                 data-color="{{ evt.category_meta.color }}">
+              <span class="date-month">{{ evt.start_datetime|date:"M" }}</span>
+              <span class="date-day">{{ evt.start_datetime|date:"d" }}</span>
+            </div>
+            <div class="upcoming-event-info">
+              <div class="upcoming-event-title">{{ evt.title }}</div>
+              <div class="upcoming-event-meta">
+                <span><i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.category_meta.label }}</span>
+                {% if evt.is_all_day %}
+                  <span>• All Day</span>
+                {% else %}
+                  <span>• {{ evt.start_datetime|date:"h:i A" }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-center py-4 text-muted text-xs">
+            <i class="fas fa-calendar-xmark text-lg mb-2 block" style="opacity: 0.4;"></i>
+            No upcoming events scheduled yet.
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Category Legend & Quick Filter Panel -->
+    <div class="calendar-sidebar-card">
+      <div class="calendar-sidebar-header">
+        <div class="calendar-sidebar-title">
+          <i class="fas fa-tags text-gold"></i> Event Categories
+        </div>
+        <span class="text-muted text-xs">Click to filter</span>
+      </div>
+
+      <div class="category-legend-list">
+        {% for cat_code, meta in category_meta.items %}
+          <div class="category-legend-pill" data-category="{{ cat_code }}">
+            <div class="category-legend-indicator">
+              <span class="category-dot" data-dot-color="{{ meta.color }}"></span>
+              <span><i class="fas {{ meta.icon }} mr-1"></i> {{ meta.label }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- MODAL: Add / Edit Academic Event -->
+<div class="modal" id="eventModal">
+  <div class="modal-dialog" style="max-width: 600px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title flex items-center gap-2" id="eventModalTitle">
+          <i class="fas fa-calendar-plus text-gold"></i> Create Academic Event
+        </h3>
+        <button type="button" class="modal-close" data-modal-dismiss="eventModal" data-modal-close="eventModal" aria-label="Close modal">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="eventForm">
+        {% csrf_token %}
+        <input type="hidden" name="event_id" id="modalEventId" value="">
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Overlap Warning Banner -->
+          <div id="overlapWarningBox" class="toast toast--warning" style="display: none; padding: 10px 14px; margin-bottom: 4px;">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span id="overlapWarningText" class="text-xs"></span>
+          </div>
+
+          <!-- Title -->
+          <div class="form-group">
+            <label class="form-label" for="eventTitleInput">Event Title <span class="text-danger">*</span></label>
+            <input type="text" name="title" id="eventTitleInput" class="form-control" placeholder="e.g. Midterm Examinations Week, Foundation Day" required maxlength="200">
+          </div>
+
+          <!-- Category & Status -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="eventCategory">Category <span class="text-danger">*</span></label>
+              <select name="category" id="eventCategory" class="form-control" required>
+                {% for code, label in categories %}
+                  <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eventStatus">Status</label>
+              <select name="status" id="eventStatus" class="form-control">
+                {% for code, label in statuses %}
+                  <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Academic Year & Semester -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="eventAcademicYear">Academic Year</label>
+              <select name="academic_year" id="eventAcademicYear" class="form-control">
+                <option value="">General (Institutional)</option>
+                {% for ay in academic_years %}
+                  <option value="{{ ay.id }}" {% if ay.is_active %}selected{% endif %}>
+                    {{ ay.name }}{% if ay.is_active %} (Active){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eventSemester">Semester Scope</label>
+              <select name="semester" id="eventSemester" class="form-control">
+                {% for code, label in semesters %}
+                  <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- All Day Checkbox -->
+          <div class="flex items-center gap-2 pt-1">
+            <input type="checkbox" name="is_all_day" id="isAllDayCheckbox" style="width: 18px; height: 18px; accent-color: var(--accent-gold); cursor: pointer;">
+            <label for="isAllDayCheckbox" class="text-sm font-semibold text-primary cursor-pointer">
+              All-Day Event (Spans full date without specific time)
+            </label>
+          </div>
+
+          <!-- Datetime Range -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="startDatetimeInput">Start Date &amp; Time <span class="text-danger">*</span></label>
+              <input type="datetime-local" name="start_datetime" id="startDatetimeInput" class="form-control font-mono text-sm" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="endDatetimeInput">End Date &amp; Time <span class="text-danger">*</span></label>
+              <input type="datetime-local" name="end_datetime" id="endDatetimeInput" class="form-control font-mono text-sm" required>
+            </div>
+          </div>
+
+          <!-- Location & Visibility -->
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px;">
+            <div class="form-group">
+              <label class="form-label" for="eventLocationInput">Location / Venue</label>
+              <input type="text" name="location" id="eventLocationInput" class="form-control" placeholder="e.g. College Gymnasium, Room 304, Zoom Link">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eventVisibility">Audience Visibility</label>
+              <select name="visibility" id="eventVisibility" class="form-control">
+                {% for code, label in visibilities %}
+                  <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label class="form-label" for="eventDescriptionInput">Description &amp; Instructions</label>
+            <textarea name="description" id="eventDescriptionInput" rows="3" class="form-control" placeholder="Additional briefing, agenda, or guidelines for faculty and students..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-modal-dismiss="eventModal" data-modal-close="eventModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="eventSubmitBtn">
+            <i class="fas fa-check"></i> <span id="eventSubmitBtnText">Save Event</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Event Details & Adjudication View -->
+<div class="modal" id="eventDetailModal">
+  <div class="modal-dialog" style="max-width: 550px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title flex items-center gap-2">
+          <i class="fas fa-calendar-day text-gold"></i> Event Details
+        </h3>
+        <button type="button" class="modal-close" data-modal-dismiss="eventDetailModal" data-modal-close="eventDetailModal" aria-label="Close modal">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Event Top Banner -->
+        <div class="event-detail-banner" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);">
+          <i id="detailCategoryIcon" class="fas fa-calendar event-detail-icon"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div class="flex items-center gap-2 mb-1">
+              <span id="detailCategoryBadge" class="badge" style="font-weight: 700;">Category</span>
+              <span id="detailStatusBadge" class="badge badge--success">Scheduled</span>
+            </div>
+            <h2 id="detailTitle" class="text-lg font-bold text-primary mt-1" style="word-break: break-word;">Event Title</h2>
+          </div>
+        </div>
+
+        <!-- Meta Grid -->
+        <div class="event-detail-meta-grid">
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-clock text-gold mr-1"></i> Date &amp; Time</div>
+            <div class="event-meta-value text-xs font-mono" id="detailDates">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-location-dot text-gold mr-1"></i> Location</div>
+            <div class="event-meta-value text-xs" id="detailLocation">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-graduation-cap text-gold mr-1"></i> Academic Year</div>
+            <div class="event-meta-value text-xs" id="detailAcademicYear">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-layer-group text-gold mr-1"></i> Semester Scope</div>
+            <div class="event-meta-value text-xs" id="detailSemester">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-eye text-gold mr-1"></i> Visibility</div>
+            <div class="event-meta-value text-xs" id="detailVisibility">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-user-shield text-gold mr-1"></i> Created By</div>
+            <div class="event-meta-value text-xs" id="detailCreatedBy">—</div>
+          </div>
+        </div>
+
+        <!-- Schedule Conflict Warning Box (Visible when holiday/event overlaps class slots) -->
+        <div id="detailConflictBox" class="card mb-3" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); padding: 10px 14px;">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-triangle-exclamation text-warning"></i>
+            <span class="font-bold text-xs text-warning">Class Timetable Overlap Notice:</span>
+          </div>
+          <p id="detailConflictText" class="text-xs text-secondary mt-1 mb-0" style="line-height: 1.4;">
+            This event coincides with scheduled classroom slots. Teachers and students will see advisory notices on their dashboards.
+          </p>
+        </div>
+
+        <!-- Description Box -->
+        <div class="form-group mb-0">
+          <label class="form-label text-xs uppercase font-semibold text-muted">Briefing / Description</label>
+          <div id="detailDescription" class="card" style="padding: 12px 16px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap;">
+            —
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-outline btn-sm text-danger" id="deleteEventBtn" title="Permanently delete event">
+            <i class="fas fa-trash-can"></i> Delete
+          </button>
+          <button type="button" class="btn btn-outline btn-sm text-warning" id="cancelEventBtn">
+            <i class="fas fa-ban" id="cancelEventBtnIcon"></i> <span id="cancelEventBtnText">Cancel Event</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-outline" data-modal-dismiss="eventDetailModal" data-modal-close="eventDetailModal">Close</button>
+          <button type="button" class="btn btn-primary" id="editEventBtn">
+            <i class="fas fa-pen-to-square"></i> Edit Event
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- FullCalendar 6 Standard Bundle (Vendored locally for zero-latency & strict CSP compliance) -->
+<script src="{% static 'libs/fullcalendar/index.global.min.js' %}"></script>
+<!-- KCC ClassStamp Academic Calendar Controller -->
+<script src="{% static 'js/calendar/academic_calendar.js' %}?v=20261021"></script>
+<script>
+  /* Apply data-* color attributes as real inline styles (avoids IDE CSS false-positives) */
+  document.querySelectorAll('.upcoming-event-datebox[data-bg]').forEach(function(el) {
+    var bg    = el.getAttribute('data-bg');
+    var color = el.getAttribute('data-color');
+    el.style.background = bg;
+    el.style.color      = color;
+    el.style.border     = '1px solid ' + color;
+  });
+  document.querySelectorAll('.category-dot[data-dot-color]').forEach(function(el) {
+    var color = el.getAttribute('data-dot-color');
+    el.style.backgroundColor = color;
+    el.style.color           = color;
+  });
+</script>
+{% endblock %}

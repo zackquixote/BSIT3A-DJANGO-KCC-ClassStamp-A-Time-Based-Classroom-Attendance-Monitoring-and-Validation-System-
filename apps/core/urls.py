@@ -5,6 +5,7 @@ urlpatterns = [
     # // Auth routes
     path('', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('session/keepalive/', views.session_keepalive, name='session_keepalive'),
     path('register/', views.register_view, name='register'),
     path('register/check-availability/', views.check_registration_availability, name='check_registration_availability'),
 
@@ -24,6 +25,7 @@ urlpatterns = [
     path('validation/<str:student_number>/', views.validation_detail, name='validation_detail'),
     path('validation/approve/<str:student_number>/', views.approve_student, name='approve_student'),
     path('validation/reject/<str:student_number>/', views.reject_student, name='reject_student'),
+    path('validation/batch/', views.batch_validation_action, name='batch_validation_action'),
 
     # // Admin: Student Directory & Masterlist
     path('students/', views.student_directory, name='student_directory'),
@@ -60,6 +62,7 @@ urlpatterns = [
     path('teachers/get/<int:pk>/', views.teacher_get, name='teacher_get'),
     path('teachers/<int:pk>/assign-class/', views.teacher_assign_class_ajax, name='teacher_assign_class_ajax'),
     path('teachers/<int:pk>/unassign-class/<int:class_id>/', views.teacher_unassign_class_ajax, name='teacher_unassign_class_ajax'),
+    path('teachers/<int:pk>/analytics/', views.teacher_analytics_json, name='teacher_analytics_json'),
 
     # // Admin: Academic Year & Term Management
     path('academic-years/', views.academic_year_list, name='academic_year_list'),
@@ -67,6 +70,16 @@ urlpatterns = [
     path('academic-years/set-active/<int:pk>/', views.academic_year_set_active, name='academic_year_set_active'),
     path('academic-years/delete/<int:pk>/', views.academic_year_delete, name='academic_year_delete'),
     path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
+
+    # // Admin: Academic Calendar & Institutional Schedule
+    path('admin/calendar/', views.admin_calendar_view, name='admin_calendar'),
+    path('admin/calendar/events/', views.admin_calendar_events_json, name='admin_calendar_events_json'),
+    path('admin/calendar/events/save/', views.admin_calendar_event_save, name='admin_calendar_event_save'),
+    path('admin/calendar/events/<int:pk>/get/', views.admin_calendar_event_get, name='admin_calendar_event_get'),
+    path('admin/calendar/events/<int:pk>/reschedule/', views.admin_calendar_event_reschedule, name='admin_calendar_event_reschedule'),
+    path('admin/calendar/events/<int:pk>/cancel/', views.admin_calendar_event_cancel, name='admin_calendar_event_cancel'),
+    path('admin/calendar/events/<int:pk>/delete/', views.admin_calendar_event_delete, name='admin_calendar_event_delete'),
+    path('admin/calendar/sync-holidays/', views.admin_calendar_sync_holidays, name='admin_calendar_sync_holidays'),
 
     # // Admin: Class Sections, Schedules & Roster Enrollment
     path('classes/', views.class_list, name='class_list'),
@@ -77,12 +90,18 @@ urlpatterns = [
     path('classes/<int:class_id>/roster/', views.class_roster_get, name='class_roster_get'),
     path('classes/<int:class_id>/roster/enroll/', views.class_roster_enroll, name='class_roster_enroll'),
     path('classes/roster/remove/<int:enrollment_id>/', views.class_roster_remove, name='class_roster_remove'),
+    path('classes/<int:class_id>/matrix/', views.class_attendance_matrix, name='class_attendance_matrix'),
 
     # // Admin: Security Intelligence & Anomaly Adjudication
     path('admin/anomalies/', views.anomaly_list, name='anomaly_list'),
     path('admin/anomalies/<int:pk>/adjudicate/', views.anomaly_adjudicate, name='anomaly_adjudicate'),
+    path('admin/anomalies/bulk/', views.anomaly_bulk_action, name='anomaly_bulk_action'),
+
+    # // Admin: User Account Management
+    path('admin/users/<int:user_id>/reset-password/', views.admin_reset_user_password, name='admin_reset_user_password'),
 
     # // Admin: Audit Log & AJAX API Endpoints
+    path('admin/live-stream/', views.admin_live_stream, name='admin_live_stream'),
     path('admin/audit-log/', views.admin_audit_log, name='admin_audit_log'),
     path('admin/audit-log/export-csv/', views.admin_audit_log_export_csv, name='admin_audit_log_export_csv'),
     path('api/admin/activity-feed/', views.admin_activity_feed_json, name='admin_activity_feed_json'),

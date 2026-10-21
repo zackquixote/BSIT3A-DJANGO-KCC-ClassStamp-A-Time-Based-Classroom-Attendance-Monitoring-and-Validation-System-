@@ -4,6 +4,11 @@
 {% block content %}
 <div class="page-header" style="margin-bottom: 20px;">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Security Intelligence</span>
+    </div>
     <div class="flex items-center gap-2 mb-1">
       <span class="badge badge--danger" style="font-size: 0.72rem; padding: 2px 10px;">
         <i class="fas fa-triangle-exclamation"></i> Security Intelligence
@@ -116,9 +121,12 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Rule & Risk</th>
+          <th class="batch-check-col" style="width: 44px; text-align: center;">
+            <input type="checkbox" id="anomalySelectAll" class="batch-check" title="Select all open flags">
+          </th>
+          <th>Rule &amp; Risk</th>
           <th>Student Details</th>
-          <th>Class & Session</th>
+          <th>Class &amp; Session</th>
           <th>Forensic Detection Reason</th>
           <th>Status</th>
           <th style="text-align: right;">Action</th>
@@ -126,7 +134,12 @@
       </thead>
       <tbody>
         {% for flag in flags %}
-        <tr>
+        <tr data-flag-id="{{ flag.id }}" data-status="{{ flag.status }}">
+          <td class="batch-check-col" style="text-align: center;">
+            {% if flag.status == 'OPEN' %}
+              <input type="checkbox" class="batch-check anomaly-select-checkbox" data-id="{{ flag.id }}">
+            {% endif %}
+          </td>
           <td>
             <div class="font-bold text-sm text-primary">{{ flag.rule_code }}</div>
             <div class="text-xs text-muted mt-0.5">
@@ -260,42 +273,27 @@
     </form>
   </div>
 </div>
+
+<!-- ── Floating Batch Action Bar (#11) ────────────────────────────────── -->
+<div id="anomalyBatchBar" class="batch-action-bar" data-batch-url="{% url 'anomaly_bulk_action' %}">
+  <div class="flex items-center gap-2">
+    <i class="fas fa-shield-halved" style="color: var(--accent-gold);"></i>
+    <span class="batch-count"><span id="anomalySelectedCount">0</span> selected</span>
+  </div>
+  <button type="button" class="btn btn-success btn-sm" id="bulkDismissBtn">
+    <i class="fas fa-circle-check"></i> Bulk Dismiss (<span class="anomaly-selected-num">0</span>)
+  </button>
+  <button type="button" class="btn btn-danger btn-sm" id="bulkConfirmBtn">
+    <i class="fas fa-ban"></i> Bulk Confirm Proxy (<span class="anomaly-selected-num">0</span>)
+  </button>
+  <button type="button" class="btn btn-outline btn-sm" id="anomalyClearBtn" style="padding: 4px 8px; font-size: 0.75rem;">
+    Clear
+  </button>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const modal = document.getElementById('adjudicateModal');
-  const closeBtn = document.getElementById('closeAdjudicateBtn');
-  const cancelBtn = document.getElementById('cancelAdjudicateBtn');
-  const form = document.getElementById('adjudicateForm');
-  const modalStudentName = document.getElementById('modalStudentName');
-  const modalRuleCode = document.getElementById('modalRuleCode');
-
-  document.querySelectorAll('.adjudicate-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const flagId = this.dataset.flagId;
-      modalStudentName.textContent = this.dataset.student;
-      modalRuleCode.textContent = this.dataset.rule;
-      form.action = '/admin/anomalies/' + flagId + '/adjudicate/';
-      modal.classList.add('is-open');
-    });
-  });
-
-  function closeModal() {
-    modal.classList.remove('is-open');
-  }
-
-  if (closeBtn) closeBtn.addEventListener('click', closeModal);
-  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-  if (modal) {
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) closeModal();
-    });
-  }
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
-  });
-});
-</script>
+{% load static %}
+<script src="{% static 'js/anomalies/adjudicate_modal.js' %}?v=20261020_v1"></script>
 {% endblock %}
+

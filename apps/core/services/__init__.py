@@ -48,6 +48,12 @@ from .teacher_service import (
     delete_or_deactivate_teacher,
 )
 
+from .holiday_service import (
+    calculate_easter_sunday,
+    get_philippine_holidays,
+    seed_philippine_holidays,
+)
+
 __all__ = [
     # Academic CRUD
     'create_or_update_department',
@@ -78,4 +84,8 @@ __all__ = [
     'export_program_students_csv',
     'export_student_directory_csv',
     'export_student_import_sample_csv',
+    # Holiday Calendar
+    'calculate_easter_sunday',
+    'get_philippine_holidays',
+    'seed_philippine_holidays',
 ]

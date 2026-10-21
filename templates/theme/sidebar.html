@@ -70,6 +70,10 @@
         <i class="fas fa-calendar-days sidebar-link-icon"></i>
         <span>Academic Years</span>
       </a>
+      <a href="{% url 'admin_calendar' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'admin_calendar' %}active{% endif %}" title="Institutional Calendar & Milestones">
+        <i class="fas fa-calendar-alt sidebar-link-icon"></i>
+        <span>Academic Calendar</span>
+      </a>
 
       <span class="sidebar-section-label">Security</span>
       <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}">

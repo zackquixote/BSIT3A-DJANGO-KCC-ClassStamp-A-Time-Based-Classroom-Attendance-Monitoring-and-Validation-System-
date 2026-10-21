@@ -5,6 +5,11 @@
 {% block content %}
 <div class="page-header">
   <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Account Validation Center</span>
+    </div>
     <h1 class="page-title">Account Validation Center</h1>
     <p class="page-subtitle">Administrative student identity verification queue and official approval ledger</p>
   </div>

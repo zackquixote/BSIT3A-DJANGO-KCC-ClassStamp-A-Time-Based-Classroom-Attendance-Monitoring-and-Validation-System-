@@ -75,7 +75,7 @@ class AccountValidationTests(TestCase):
         )
 
     def _queue_url(self):
-        return reverse('validation_queue')
+        return reverse('validation_pending_queue')
 
     def test_admin_can_view_queue(self):
         self.client.force_login(self.admin_user)

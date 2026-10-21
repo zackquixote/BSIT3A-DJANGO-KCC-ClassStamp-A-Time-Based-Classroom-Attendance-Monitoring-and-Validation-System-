@@ -6,7 +6,14 @@
 <!-- Program Header -->
 <div class="page-header">
   <div>
-    <h1 class="page-title">Students -- {{ program.code }} -- {{ program.name }}</h1>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <a href="{% url 'program_list' %}">Degree Programs</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">{{ program.code }} Students</span>
+    </div>
+    <h1 class="page-title">Students &mdash; {{ program.code }} &mdash; {{ program.name }}</h1>
     <p class="page-subtitle">Approved students enrolled in this degree program, grouped by year level and department</p>
   </div>
   <div class="page-header-actions flex items-end space-x-2">

@@ -54,6 +54,8 @@ class RegistrationViewTests(TestCase):
             'username': 'jdelacruz',
             'first_name': 'Juan',
             'last_name': 'Dela Cruz',
+            'gender': 'M',
+            'phone_number': '09171234567',
             'email': 'juan@example.com',
             'password': 'S3cure!Passphrase',
             'confirm_password': 'S3cure!Passphrase',

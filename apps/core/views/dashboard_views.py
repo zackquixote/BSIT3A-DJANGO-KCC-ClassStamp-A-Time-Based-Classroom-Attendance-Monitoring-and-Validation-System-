@@ -12,7 +12,10 @@
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+import json
+import time
+
+from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 
 from apps.core.decorators import approved_required, role_required
@@ -21,7 +24,9 @@ from apps.core.views.helpers import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
     _teacher_dashboard_stats,
+    get_activity_feed,
     get_attendance_chart_data,
+    get_pending_count,
 )
 
 
@@ -104,7 +109,42 @@ def admin_attendance_chart_json(request):
 
 
 # // ==============================================================================
+# // VIEW: Admin Dashboard Real-Time SSE Stream (/admin/live-stream/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def admin_live_stream(request):
+    """
+    // [SSE Stream Controller] Server-Sent Events stream for Admin Command Center.
+    // Pushes real-time live attendance feed events and pending validation counter updates.
+    """
+    def event_stream():
+        # Emit initial synchronization payload
+        feed = get_activity_feed(limit=10)
+        pending = get_pending_count()
+        yield f"event: stamp\ndata: {json.dumps({'feed': feed})}\n\n"
+        yield f"event: pending\ndata: {json.dumps({'pending_count': pending})}\n\n"
+
+        # Stream continuous pulses for 20 seconds before graceful disconnect/reconnect
+        start_time = time.time()
+        last_pending = pending
+        while time.time() - start_time < 20:
+            time.sleep(3)
+            current_pending = get_pending_count()
+            if current_pending != last_pending:
+                last_pending = current_pending
+                yield f"event: pending\ndata: {json.dumps({'pending_count': current_pending})}\n\n"
+            yield ": ping\n\n"
+
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache, no-transform'
+    response['X-Accel-Buffering'] = 'no'
+    return response
+
+
+# // ==============================================================================
 # // VIEW: Teacher Dashboard Portal (/teacher/dashboard/)
+
 # // ==============================================================================
 @login_required(login_url='login')
 @role_required(Profile.ROLE_TEACHER)

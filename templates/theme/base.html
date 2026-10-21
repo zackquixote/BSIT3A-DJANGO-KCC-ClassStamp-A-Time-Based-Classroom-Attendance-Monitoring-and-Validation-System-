@@ -61,7 +61,18 @@
 
   </div>
 
-  <script src="{% static 'js/app.js' %}?v=20261013b"></script>
+  <!-- KCC ClassStamp — Core Modules (load order matters) -->
+  <script src="{% static 'js/core/app_toasts.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_buttons.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_modals.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_confirm.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_audio.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_table_search.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_session_guard.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_navigation.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_shortcuts.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_password_reset.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_lightbox.js' %}?v=20261020"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>
