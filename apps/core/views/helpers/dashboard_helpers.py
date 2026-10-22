@@ -72,7 +72,7 @@ def _admin_dashboard_stats():
         role=Profile.ROLE_STUDENT, approval_status=Profile.APPROVAL_APPROVED,
     ).count()
     teacher_count = Profile.objects.filter(
-        role=Profile.ROLE_TEACHER, approval_status=Profile.APPROVAL_APPROVED,
+        role=Profile.ROLE_TEACHER, user__is_active=True,
     ).count()
     open_session_count = ClassSession.objects.filter(status=ClassSession.STATUS_OPEN).count()
 

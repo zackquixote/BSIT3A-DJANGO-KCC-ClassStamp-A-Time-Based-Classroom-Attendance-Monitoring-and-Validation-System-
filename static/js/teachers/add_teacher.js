@@ -6,13 +6,16 @@
   function getEl(id) { return document.getElementById(id); }
 
   function initAddTeacher() {
-    // Guard: only run if the add button exists on this page
     var addBtn = getEl('addTeacherBtn');
     if (!addBtn) return;
 
     addBtn.addEventListener('click', function () {
       var titleEl = getEl('teacherModalTitle');       if (titleEl) titleEl.textContent = 'Add Faculty Member';
-      var saveLbl = getEl('teacherModalSaveLabel');    if (saveLbl) saveLbl.textContent = 'Create Teacher';
+      var saveBtn = getEl('teacherModalSave');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span>';
+      }
       var idEl    = getEl('teacherId');                if (idEl)    idEl.value = '';
       var fnEl    = getEl('teacherFirstName');         if (fnEl)    fnEl.value = '';
       var lnEl    = getEl('teacherLastName');          if (lnEl)    lnEl.value = '';
@@ -25,8 +28,17 @@
       var gpwEl   = getEl('teacherGeneratedPw');       if (gpwEl)   gpwEl.style.display = 'none';
 
       var App = getApp();
-      if (App) App.showModal('teacherModal');
-      else { var m = getEl('teacherModal'); if (m) { m.classList.add('is-active'); document.body.style.overflow = 'hidden'; } }
+      if (typeof window.openModal === 'function') {
+        window.openModal('teacherModal', addBtn);
+      } else if (App && App.showModal) {
+        App.showModal('teacherModal');
+      } else {
+        var m = getEl('teacherModal');
+        if (m) {
+          m.classList.add('is-active', 'is-open');
+          document.body.style.overflow = 'hidden';
+        }
+      }
     });
   }
 

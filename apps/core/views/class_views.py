@@ -110,7 +110,7 @@ def class_list(request):
     academic_years = AcademicYear.objects.order_by('-starts_on')
     subjects = Subject.objects.filter(is_active=True).order_by('code')
     teachers = (
-        Profile.objects.filter(role=Profile.ROLE_TEACHER, approval_status=Profile.APPROVAL_APPROVED)
+        Profile.objects.filter(role=Profile.ROLE_TEACHER, user__is_active=True)
         .select_related('user', 'department')
         .order_by('user__last_name', 'user__first_name')
     )

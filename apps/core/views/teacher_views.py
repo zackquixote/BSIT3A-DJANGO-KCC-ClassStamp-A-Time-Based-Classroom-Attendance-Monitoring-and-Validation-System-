@@ -144,12 +144,32 @@ def teacher_create(request):
         except ObjectDoesNotExist:
             return JsonResponse({'ok': False, 'error': 'Selected department does not exist.'}, status=400)
 
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+
+        if not username:
+            return JsonResponse({'ok': False, 'error': 'Username is required.'}, status=400)
+        if not email:
+            return JsonResponse({'ok': False, 'error': 'Email address is required.'}, status=400)
+        if not first_name:
+            return JsonResponse({'ok': False, 'error': 'First name is required.'}, status=400)
+        if not last_name:
+            return JsonResponse({'ok': False, 'error': 'Last name is required.'}, status=400)
+
+        from django.core.validators import validate_email
+        try:
+            validate_email(email)
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'}, status=400)
+
         result = provision_teacher_account(
             actor=request.user,
-            username=request.POST.get('username', ''),
-            email=request.POST.get('email', ''),
-            first_name=request.POST.get('first_name', ''),
-            last_name=request.POST.get('last_name', ''),
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
             dept_id=dept_id,
             password=request.POST.get('password') or None,
             is_active=request.POST.get('is_active') == '1',

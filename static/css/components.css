@@ -1240,6 +1240,7 @@ kbd {
   backdrop-filter: blur(8px);
   opacity: 0;
   transition: opacity 0.25s ease;
+  overflow-y: auto;
 }
 
 .modal.is-active,
@@ -1277,6 +1278,7 @@ kbd {
   transform: translateY(15px) scale(0.98);
   transition: transform 0.25s ease;
   overflow: hidden;
+  margin: auto;
 }
 
 .modal.is-active .modal-dialog,

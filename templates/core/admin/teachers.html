@@ -13,7 +13,7 @@
     <p class="page-subtitle">Manage faculty accounts, department assignments, and teaching class loads</p>
   </div>
   <div>
-    <button type="button" class="btn btn-primary" id="addTeacherBtn">
+    <button type="button" class="btn btn-primary" id="addTeacherBtn" data-modal-target="teacherModal">
       <i class="fas fa-user-plus"></i> Add Teacher
     </button>
   </div>
@@ -64,7 +64,7 @@
   <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
     <div class="input-wrap" style="flex: 1; min-width: 240px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, or email...">
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, or email..." autocomplete="off">
     </div>
     <select name="department" class="form-control" style="width: 200px;">
       <option value="">All Departments</option>
@@ -221,25 +221,25 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="form-group">
             <label class="form-label" for="teacherFirstName">First Name <span class="text-danger">*</span></label>
-            <input type="text" id="teacherFirstName" name="first_name" class="form-control" placeholder="e.g. Maria" required>
+            <input type="text" id="teacherFirstName" name="first_name" class="form-control" placeholder="e.g. Maria" autocomplete="given-name" required>
           </div>
           <div class="form-group">
             <label class="form-label" for="teacherLastName">Last Name <span class="text-danger">*</span></label>
-            <input type="text" id="teacherLastName" name="last_name" class="form-control" placeholder="e.g. Santos" required>
+            <input type="text" id="teacherLastName" name="last_name" class="form-control" placeholder="e.g. Santos" autocomplete="family-name" required>
           </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherUsername">Username <span class="text-danger">*</span></label>
-          <input type="text" id="teacherUsername" name="username" class="form-control" placeholder="e.g. msantos" autocomplete="off" required>
+          <input type="text" id="teacherUsername" name="username" class="form-control" placeholder="e.g. msantos" autocomplete="username" required>
           <span class="form-hint" id="teacherUsernameHint" style="display:none;"></span>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherEmail">Email Address <span class="text-danger">*</span></label>
-          <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" required>
+          <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" autocomplete="email" required>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherDept">Department <span class="text-danger">*</span></label>
-          <select id="teacherDept" name="dept_id" class="form-control" required>
+          <select id="teacherDept" name="dept_id" class="form-control" autocomplete="organization" required>
             <option value="">— select department —</option>
             {% for d in departments %}
             <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
@@ -365,7 +365,7 @@
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px;">
             <div class="form-group">
               <label class="form-label" for="assignClassCode">Class / Section Code <span class="text-danger">*</span></label>
-              <input type="text" id="assignClassCode" name="class_code" class="form-control font-mono" placeholder="e.g. BSIT-1A-IT111 or BSIT-2A-IT211" required>
+              <input type="text" id="assignClassCode" name="class_code" class="form-control font-mono" placeholder="e.g. BSIT-1A-IT111 or BSIT-2A-IT211" autocomplete="off" required>
               <span class="text-muted text-xs mt-1" style="display:block;">Unique section identifier for student enrollment.</span>
             </div>
             <div class="form-group">
@@ -466,13 +466,13 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/teachers/teachers_common.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/add_teacher.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/save_teacher.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/view_teacher.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/delete_teacher.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/toggle_teacher.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/teachers/teachers_common.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/save_teacher.js' %}?v=20261022_v4"></script>
+<script src="{% static 'js/teachers/view_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/delete_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/toggle_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261022_v3"></script>
 {% endblock %}

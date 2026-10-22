@@ -39,7 +39,11 @@
         var App = getApp();
 
         var titleEl = getEl('teacherModalTitle');       if (titleEl) titleEl.textContent = 'Edit Faculty Member';
-        var saveLbl = getEl('teacherModalSaveLabel');    if (saveLbl) saveLbl.textContent = 'Update Teacher';
+        var saveBtn = getEl('teacherModalSave');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> <span id="teacherModalSaveLabel">Update Teacher</span>';
+        }
         var idEl    = getEl('teacherId');                if (idEl)    idEl.value = t.id;
         var fnEl    = getEl('teacherFirstName');         if (fnEl)    fnEl.value = t.first_name;
         var lnEl    = getEl('teacherLastName');          if (lnEl)    lnEl.value = t.last_name;

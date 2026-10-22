@@ -89,9 +89,9 @@ def provision_teacher_account(
             program=None,
             year_level=None,
             student_number=None,
-            approval_status=Profile.APPROVAL_APPROVED,
-            approved_by=actor,
-            approved_at=timezone.now(),
+            approval_status=None,
+            approved_by=None,
+            approved_at=None,
         )
 
     AuditEvent.objects.create(
