@@ -130,15 +130,29 @@ def teacher_create(request):
     // POST params: username, email, first_name, last_name, dept_id, password (optional)
     """
     try:
+        dept_id_raw = request.POST.get('dept_id', '').strip()
+        if not dept_id_raw:
+            return JsonResponse({'ok': False, 'error': 'Please select a collegiate department.'}, status=400)
+        try:
+            dept_id = int(dept_id_raw)
+        except (ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'Invalid department selected.'}, status=400)
+
+        from django.core.exceptions import ObjectDoesNotExist
+        try:
+            dept = Department.objects.get(pk=dept_id)
+        except ObjectDoesNotExist:
+            return JsonResponse({'ok': False, 'error': 'Selected department does not exist.'}, status=400)
+
         result = provision_teacher_account(
             actor=request.user,
             username=request.POST.get('username', ''),
             email=request.POST.get('email', ''),
             first_name=request.POST.get('first_name', ''),
             last_name=request.POST.get('last_name', ''),
-            dept_id=int(request.POST.get('dept_id', 0)),
+            dept_id=dept_id,
             password=request.POST.get('password') or None,
-            is_active=True,
+            is_active=request.POST.get('is_active') == '1',
         )
         resp = {
             'ok': True,
@@ -151,6 +165,8 @@ def teacher_create(request):
     except ValueError as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
 
 
@@ -166,13 +182,21 @@ def teacher_update(request, pk: int):
     // POST params: first_name, last_name, email, dept_id, is_active, password (optional)
     """
     try:
+        dept_id_raw = request.POST.get('dept_id', '').strip()
+        if not dept_id_raw:
+            return JsonResponse({'ok': False, 'error': 'Please select a collegiate department.'}, status=400)
+        try:
+            dept_id = int(dept_id_raw)
+        except (ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'Invalid department selected.'}, status=400)
+
         result = update_teacher_profile(
             actor=request.user,
             profile_id=pk,
             first_name=request.POST.get('first_name', ''),
             last_name=request.POST.get('last_name', ''),
             email=request.POST.get('email', ''),
-            dept_id=int(request.POST.get('dept_id', 0)),
+            dept_id=dept_id,
             is_active=request.POST.get('is_active') == '1',
             password=request.POST.get('password') or None,
         )
