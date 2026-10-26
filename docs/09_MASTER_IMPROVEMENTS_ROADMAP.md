@@ -261,7 +261,7 @@
 - **Solution:** Point `LOGIN_URL` at the project's actual login route (`login`)
 
 #### B-10 — Django 4.2 → 5.2 LTS Upgrade
-- **Status:** ❌ Not Built
+- **Status:** ❌ Not Built — **BLOCKED (2026-10-27):** Django 5.2 requires MariaDB 10.5+, but the XAMPP environment ships MariaDB 10.4.32 (`NotSupportedError: MariaDB 10.5 or later is required`). Requires a database upgrade (XAMPP upgrade or standalone MariaDB 10.5+/MySQL 8) before the framework upgrade can proceed. Downgrading to 5.1/5.0 is not viable — all pre-5.2 lines are already past extended support.
 - **Problem:** Django 4.2.30 reached end-of-life in April 2026; no more security patches
 - **Solution:** Upgrade to Django 5.2 LTS, re-run the full test suite, and verify mysqlclient compatibility
 
