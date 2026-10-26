@@ -15,6 +15,7 @@
 
 from datetime import datetime, time, timedelta
 import csv
+import logging
 import re
 from urllib.parse import urlencode
 
@@ -41,8 +42,19 @@ from apps.core.models import (
     Profile,
     StampAttempt,
 )
+from apps.core.services.anomaly_service import (
+    detect_duplicate_stamp,
+    detect_off_window,
+    detect_post_close_override,
+    detect_rapid_scan,
+    detect_schedule_conflict,
+    detect_token_bruteforce,
+    detect_token_replay,
+)
 from apps.core.services.attendance_service import build_attendance_matrix
-from apps.core.services.qr_service import verify_token
+from apps.core.services.qr_service import token_details, verify_token
+
+logger = logging.getLogger(__name__)
 
 
 def _teacher_can_manage(request, class_obj):
@@ -105,14 +117,45 @@ def _scan_is_rate_limited(request):
     return user_hits > SCAN_RATE_LIMIT_PER_USER or ip_hits > SCAN_RATE_LIMIT_PER_IP
 
 
-def _consume_scan_token(student_profile, token):
+def _consume_scan_token(student_profile, token, session_id=None):
     """
     // Global anti-replay registry: a given (student, token) pair may be
     // consumed exactly once across ALL sessions. cache.add is atomic, so
-    // concurrent replay attempts only succeed once.
+    // concurrent replay attempts only succeed once. The stored value is a
+    // 's:<session_id>' tag identifying the original consumption for replay
+    // forensics (legacy entries stored a bare '1').
     """
     key = f'classstamp:scan:token:{student_profile.pk}:{token}'
-    return cache.add(key, 1, SCAN_TOKEN_TTL_SECONDS)
+    return cache.add(key, f's:{session_id}' if session_id else 1, SCAN_TOKEN_TTL_SECONDS)
+
+
+def _token_origin_session(student_profile, token):
+    """
+    // Best-effort lookup of the session that originally consumed a token.
+    // Returns a ClassSession or None (legacy cache entries stored a bare '1').
+    """
+    key = f'classstamp:scan:token:{student_profile.pk}:{token}'
+    value = cache.get(key)
+    if not value:
+        return None
+    if not (isinstance(value, str) and value.startswith('s:')):
+        return None
+    try:
+        return ClassSession.objects.filter(pk=int(value[2:])).first()
+    except (ValueError, TypeError):
+        return None
+
+
+def _safe_detect(detector):
+    """
+    // Fail-open wrapper: anomaly detection must never break the attendance
+    // flow. Detector exceptions are logged and swallowed.
+    """
+    try:
+        return detector()
+    except Exception:
+        logger.exception('Anomaly detector failed (fail-open)')
+        return None
 
 
 # // ==============================================================================
@@ -457,14 +500,22 @@ def attendance_scan_api(request):
     if not raw_secret:
         return JsonResponse({'error': 'Student has not activated their QR credential.'}, status=400)
 
+    # Forensic enrichment: TOTP step bucket + token age. Acceptance is governed
+    # by verify_token below; these fields are evidence for anomaly investigators.
+    forensic = token_details(student_profile, token)
+    token_bucket, token_age_s = forensic if forensic else (None, None)
+
     if not verify_token(student_profile, token, valid_window=1):
         StampAttempt.objects.create(
             session=session,
             student_profile=student_profile,
             scanned_by=request.user,
             method=StampAttempt.METHOD_QR,
-            outcome=StampAttempt.OUTCOME_EXPIRED
+            outcome=StampAttempt.OUTCOME_EXPIRED,
+            token_bucket=token_bucket,
+            token_age_s=token_age_s,
         )
+        _safe_detect(lambda: detect_token_bruteforce(session=session, student_profile=student_profile))
         return JsonResponse({
             'error': 'QR Code has expired or failed cryptographic verification. Please ask the student to refresh.',
             'outcome': StampAttempt.OUTCOME_EXPIRED
@@ -482,8 +533,11 @@ def attendance_scan_api(request):
             student_profile=student_profile,
             scanned_by=request.user,
             method=StampAttempt.METHOD_QR,
-            outcome=StampAttempt.OUTCOME_DUPLICATE
+            outcome=StampAttempt.OUTCOME_DUPLICATE,
+            token_bucket=token_bucket,
+            token_age_s=token_age_s,
         )
+        _safe_detect(lambda: detect_duplicate_stamp(existing_record))
         stamped_time_str = existing_record.stamped_at.strftime('%I:%M %p') if existing_record.stamped_at else 'earlier'
         return JsonResponse({
             'error': f"{student_profile.user.get_full_name() or student_number} was ALREADY stamped as {existing_record.status} at {stamped_time_str}.",
@@ -496,14 +550,22 @@ def attendance_scan_api(request):
     # 6b. Global anti-replay: consume the (student, token) pair exactly once
     # across every session so a captured code cannot be reused in another class
     # meeting inside its validity window.
-    if not _consume_scan_token(student_profile, token):
+    if not _consume_scan_token(student_profile, token, session_id=session.id):
         StampAttempt.objects.create(
             session=session,
             student_profile=student_profile,
             scanned_by=request.user,
             method=StampAttempt.METHOD_QR,
-            outcome=StampAttempt.OUTCOME_DUPLICATE
+            outcome=StampAttempt.OUTCOME_DUPLICATE,
+            token_bucket=token_bucket,
+            token_age_s=token_age_s,
         )
+        origin_session = _token_origin_session(student_profile, token)
+        _safe_detect(lambda: detect_token_replay(
+            original_session=origin_session,
+            student_profile=student_profile,
+            replay_session=session,
+        ))
         return JsonResponse({
             'error': 'This QR code was already used for another attendance check-in. '
                      'Please ask the student to refresh their badge.',
@@ -528,7 +590,7 @@ def attendance_scan_api(request):
 
     # 8. Atomic Record Persistence
     with transaction.atomic():
-        AttendanceRecord.objects.create(
+        record = AttendanceRecord.objects.create(
             session=session,
             student_profile=student_profile,
             status=final_status,
@@ -543,7 +605,14 @@ def attendance_scan_api(request):
             scanned_by=request.user,
             method=StampAttempt.METHOD_QR,
             outcome=StampAttempt.OUTCOME_ACCEPTED,
+            token_bucket=token_bucket,
+            token_age_s=token_age_s,
         )
+
+    # 9. Anomaly detection sweep (fail-open; never blocks the scan response)
+    _safe_detect(lambda: detect_off_window(record, session))
+    _safe_detect(lambda: detect_schedule_conflict(record, student_profile, session))
+    _safe_detect(lambda: detect_rapid_scan(session, request.user))
 
     # Calculate updated attendance counts
     counts = AttendanceRecord.objects.filter(session=session).aggregate(
@@ -651,6 +720,9 @@ def teacher_manual_override_ajax(request, session_id):
         object_id=str(record.id),
         new_value=f"Manual override to {new_status} for {student_profile.user.get_full_name() or student_profile.student_number}: {reason}",
     )
+
+    # Anomaly sweep: flag post-close edits (fail-open)
+    _safe_detect(lambda: detect_post_close_override(record, session))
 
     # Recalculate counts
     counts = AttendanceRecord.objects.filter(session=session).aggregate(

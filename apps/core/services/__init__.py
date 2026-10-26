@@ -58,6 +58,25 @@ from .holiday_service import (
     seed_philippine_holidays,
 )
 
+from .anomaly_service import (
+    RULE_TOKEN_REPLAY_ACROSS_SESSION,
+    RULE_DUPLICATE_STAMP_ATTEMPT,
+    RULE_RAPID_SCAN_PROXY,
+    RULE_STAMP_AFTER_CLASS_END,
+    RULE_STAMP_BEFORE_CLASS_START,
+    RULE_SCHEDULE_CONFLICT,
+    RULE_TOKEN_BRUTE_FORCE,
+    RULE_POST_CLOSE_OVERRIDE,
+    raise_flag,
+    detect_token_replay,
+    detect_duplicate_stamp,
+    detect_rapid_scan,
+    detect_off_window,
+    detect_schedule_conflict,
+    detect_token_bruteforce,
+    detect_post_close_override,
+)
+
 __all__ = [
     # Academic CRUD
     'create_or_update_department',
@@ -99,4 +118,21 @@ __all__ = [
     'calculate_easter_sunday',
     'get_philippine_holidays',
     'seed_philippine_holidays',
+    # Anomaly / Fraud Detection
+    'RULE_TOKEN_REPLAY_ACROSS_SESSION',
+    'RULE_DUPLICATE_STAMP_ATTEMPT',
+    'RULE_RAPID_SCAN_PROXY',
+    'RULE_STAMP_AFTER_CLASS_END',
+    'RULE_STAMP_BEFORE_CLASS_START',
+    'RULE_SCHEDULE_CONFLICT',
+    'RULE_TOKEN_BRUTE_FORCE',
+    'RULE_POST_CLOSE_OVERRIDE',
+    'raise_flag',
+    'detect_token_replay',
+    'detect_duplicate_stamp',
+    'detect_rapid_scan',
+    'detect_off_window',
+    'detect_schedule_conflict',
+    'detect_token_bruteforce',
+    'detect_post_close_override',
 ]

@@ -14,7 +14,9 @@
 """
 
 import base64
+from datetime import datetime
 from io import BytesIO
+import time
 
 import pyotp
 import qrcode
@@ -61,6 +63,34 @@ def verify_token(profile, token, valid_window=1):
         return bool(totp.verify(str(token).strip(), valid_window=valid_window))
     except Exception:
         return False
+
+
+# Forensic detail window: wider than the acceptance window so expired-but-once-valid
+# tokens still get a counter/age recorded in StampAttempt forensics.
+FORENSIC_WINDOW = 3
+
+
+def token_details(profile, token):
+    """
+    // Return (totp_counter, age_seconds) for a token, or None when unmatched.
+    // The counter is the 30-second step bucket (StampAttempt.token_bucket) and
+    // age_seconds is how long ago that bucket started. Used purely for forensic
+    // evidence enrichment; acceptance is governed by verify_token().
+    """
+    totp = get_totp(profile)
+    if not totp:
+        return None
+    token = str(token).strip()
+    try:
+        now = time.time()
+        current_counter = totp.timecode(datetime.fromtimestamp(now))
+        for offset in range(-FORENSIC_WINDOW, FORENSIC_WINDOW + 1):
+            counter = current_counter + offset
+            if totp.at(counter) == token:
+                return counter, max(0, int(now - counter * TOTP_INTERVAL))
+    except Exception:
+        return None
+    return None
 
 
 def build_payload(profile, token):

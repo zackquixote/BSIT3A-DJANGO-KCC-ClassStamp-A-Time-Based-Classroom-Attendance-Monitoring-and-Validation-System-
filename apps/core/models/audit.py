@@ -18,7 +18,8 @@
 from django.conf import settings
 from django.db import models
 
-from .attendance import AttendanceRecord
+from .attendance import AttendanceRecord, ClassSession
+from .profile import Profile
 
 
 class AnomalyFlag(models.Model):
@@ -41,7 +42,23 @@ class AnomalyFlag(models.Model):
     attendance_record = models.ForeignKey(
         AttendanceRecord,
         on_delete=models.RESTRICT,
-        related_name='anomaly_flags'
+        related_name='anomaly_flags',
+        null=True, blank=True,
+        help_text="// Attendance record under review (null for session-level rules)"
+    )
+    session = models.ForeignKey(
+        ClassSession,
+        on_delete=models.SET_NULL,
+        related_name='anomaly_flags',
+        null=True, blank=True,
+        help_text="// Session in which the suspicious activity occurred"
+    )
+    student_profile = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        related_name='anomaly_flags',
+        null=True, blank=True,
+        help_text="// Student implicated by the detector"
     )
     rule_code = models.CharField(
         max_length=50,
@@ -62,6 +79,9 @@ class AnomalyFlag(models.Model):
         app_label = 'core'
         db_table = 'tblcs_anomaly_flag'
         unique_together = [('attendance_record', 'rule_code')]
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='anom_status_created_idx'),
+        ]
 
     def __str__(self):
         return f'{self.rule_code} - {self.status}'

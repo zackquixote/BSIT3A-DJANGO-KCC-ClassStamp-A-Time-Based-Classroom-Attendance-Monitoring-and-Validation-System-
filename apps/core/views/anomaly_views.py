@@ -13,13 +13,58 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
-from apps.core.models import AnomalyFlag, AuditEvent, Profile, ReviewAction
+from apps.core.models import AnomalyFlag, AttendanceRecord, AuditEvent, Profile, ReviewAction
+
+
+def _decision_to_status(decision):
+    """
+    // [Helper] Single source of truth mapping ReviewAction decisions to the
+    // resulting AnomalyFlag status. Shared by single and bulk adjudication so
+    // the two paths can never drift apart.
+    """
+    return {
+        ReviewAction.DECISION_DISMISS: AnomalyFlag.STATUS_DISMISSED,
+        ReviewAction.DECISION_CONFIRM_PROXY: AnomalyFlag.STATUS_CONFIRMED,
+        ReviewAction.DECISION_EXCUSE: AnomalyFlag.STATUS_EXCUSED,
+        ReviewAction.DECISION_OTHER: AnomalyFlag.STATUS_DISMISSED,
+    }.get(decision, AnomalyFlag.STATUS_DISMISSED)
+
+
+def _record_side_effect(record, decision, reason, actor):
+    """
+    // [Helper] Adjudication consequences on the underlying AttendanceRecord:
+    // CONFIRM_PROXY demotes the fraudulent check-in to ABSENT; EXCUSE converts
+    // the record to EXCUSED (mitigating circumstances). Emits an AuditEvent.
+    // Returns the previous record status, or None when no side effect applies.
+    """
+    if decision == ReviewAction.DECISION_CONFIRM_PROXY:
+        new_status = AttendanceRecord.STATUS_ABSENT
+    elif decision == ReviewAction.DECISION_EXCUSE:
+        new_status = AttendanceRecord.STATUS_EXCUSED
+    else:
+        return None
+
+    old_status = record.status
+    record.status = new_status
+    record.correction_reason = f'Anomaly adjudication ({decision}): {reason}'
+    record.save(update_fields=['status', 'correction_reason'])
+    AuditEvent.objects.create(
+        actor=actor,
+        action='ADJUDICATION_RECORD_UPDATE',
+        object_type='AttendanceRecord',
+        object_id=str(record.id),
+        old_value=old_status,
+        new_value=new_status,
+        reason=f'Anomaly adjudication {decision}: {reason}',
+    )
+    return old_status
 
 
 @login_required(login_url='login')
@@ -32,6 +77,10 @@ def anomaly_list(request):
     status_filter = request.GET.get('status', 'OPEN').strip()
     search_q = request.GET.get('q', '').strip()
     per_page_str = request.GET.get('per_page', '20').strip()
+
+    valid_statuses = {c[0] for c in AnomalyFlag.STATUS_CHOICES} | {'ALL'}
+    if status_filter not in valid_statuses:
+        status_filter = 'OPEN'
 
     try:
         per_page = int(per_page_str)
@@ -65,12 +114,17 @@ def anomaly_list(request):
             | Q(attendance_record__session__slot__class_obj__class_code__icontains=search_q)
         )
 
-    # Counter badges
-    count_open = AnomalyFlag.objects.filter(status=AnomalyFlag.STATUS_OPEN).count()
-    count_confirmed = AnomalyFlag.objects.filter(status=AnomalyFlag.STATUS_CONFIRMED).count()
-    count_dismissed = AnomalyFlag.objects.filter(status=AnomalyFlag.STATUS_DISMISSED).count()
-    count_excused = AnomalyFlag.objects.filter(status=AnomalyFlag.STATUS_EXCUSED).count()
-    count_all = AnomalyFlag.objects.count()
+    # Counter badges (single aggregate pass)
+    status_counts = dict(
+        AnomalyFlag.objects.values('status')
+        .annotate(total=Count('id'))
+        .values_list('status', 'total')
+    )
+    count_open = status_counts.get(AnomalyFlag.STATUS_OPEN, 0)
+    count_confirmed = status_counts.get(AnomalyFlag.STATUS_CONFIRMED, 0)
+    count_dismissed = status_counts.get(AnomalyFlag.STATUS_DISMISSED, 0)
+    count_excused = status_counts.get(AnomalyFlag.STATUS_EXCUSED, 0)
+    count_all = sum(status_counts.values())
 
     paginator = Paginator(flags_qs, per_page)
     page_number = request.GET.get('page', 1)
@@ -111,41 +165,41 @@ def anomaly_adjudicate(request, pk):
         messages.error(request, 'An investigation reason / justification is required.')
         return redirect('anomaly_list')
 
+    if flag.status != AnomalyFlag.STATUS_OPEN:
+        messages.error(request, f'Security Flag #{flag.id} has already been adjudicated.')
+        return redirect('anomaly_list')
+
     old_status = flag.status
-
-    # Map review decision to AnomalyFlag status
-    if decision == ReviewAction.DECISION_DISMISS:
-        new_status = AnomalyFlag.STATUS_DISMISSED
-    elif decision == ReviewAction.DECISION_CONFIRM_PROXY:
-        new_status = AnomalyFlag.STATUS_CONFIRMED
-    elif decision == ReviewAction.DECISION_EXCUSE:
-        new_status = AnomalyFlag.STATUS_EXCUSED
-    else:
-        new_status = AnomalyFlag.STATUS_DISMISSED
-
+    new_status = _decision_to_status(decision)
     now = timezone.now()
-    flag.status = new_status
-    flag.resolved_at = now
-    flag.save(update_fields=['status', 'resolved_at'])
 
-    # Append immutable ReviewAction
-    ReviewAction.objects.create(
-        anomaly_flag=flag,
-        reviewer=request.user,
-        decision=decision,
-        reason=reason,
-    )
+    with transaction.atomic():
+        flag.status = new_status
+        flag.resolved_at = now
+        flag.save(update_fields=['status', 'resolved_at'])
 
-    # Append global AuditEvent
-    AuditEvent.objects.create(
-        actor=request.user,
-        action='ADJUDICATE_ANOMALY',
-        object_type='AnomalyFlag',
-        object_id=str(flag.id),
-        old_value=old_status,
-        new_value=new_status,
-        reason=f"Decision: {decision} | Justification: {reason}",
-    )
+        # Append immutable ReviewAction
+        ReviewAction.objects.create(
+            anomaly_flag=flag,
+            reviewer=request.user,
+            decision=decision,
+            reason=reason,
+        )
+
+        # Apply consequences to the underlying attendance record
+        if flag.attendance_record_id:
+            _record_side_effect(flag.attendance_record, decision, reason, request.user)
+
+        # Append global AuditEvent
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='ADJUDICATE_ANOMALY',
+            object_type='AnomalyFlag',
+            object_id=str(flag.id),
+            old_value=old_status,
+            new_value=new_status,
+            reason=f"Decision: {decision} | Justification: {reason}",
+        )
 
     messages.success(request, f"Security Flag #{flag.id} successfully updated to {new_status}.")
     return redirect('anomaly_list')
@@ -182,19 +236,19 @@ def anomaly_bulk_action(request):
     if not pks:
         return _JR({'error': 'No flags selected.'}, status=400)
 
-    flags = AnomalyFlag.objects.filter(pk__in=pks, status=AnomalyFlag.STATUS_OPEN)
+    flags = (
+        AnomalyFlag.objects
+        .filter(pk__in=pks, status=AnomalyFlag.STATUS_OPEN)
+        .select_related('attendance_record')
+    )
 
-    if decision == ReviewAction.DECISION_DISMISS:
-        new_status = AnomalyFlag.STATUS_DISMISSED
-    elif decision == ReviewAction.DECISION_CONFIRM_PROXY:
-        new_status = AnomalyFlag.STATUS_CONFIRMED
-    else:
-        new_status = AnomalyFlag.STATUS_DISMISSED
+    new_status = _decision_to_status(decision)
 
     updated = 0
     now = timezone.now()
     review_actions = []
     audit_events = []
+    side_effect_records = []
 
     for flag in flags:
         flag.status = new_status
@@ -214,11 +268,16 @@ def anomaly_bulk_action(request):
             new_value=new_status,
             reason=f"Bulk: {decision} | {reason}",
         ))
+        if flag.attendance_record_id:
+            side_effect_records.append(flag.attendance_record)
         updated += 1
 
-    AnomalyFlag.objects.bulk_update(flags, ['status', 'resolved_at'])
-    ReviewAction.objects.bulk_create(review_actions)
-    AuditEvent.objects.bulk_create(audit_events)
+    with transaction.atomic():
+        AnomalyFlag.objects.bulk_update(flags, ['status', 'resolved_at'])
+        ReviewAction.objects.bulk_create(review_actions)
+        AuditEvent.objects.bulk_create(audit_events)
+        for record in side_effect_records:
+            _record_side_effect(record, decision, reason, request.user)
 
     return _JR({'updated': updated, 'new_status': new_status})
 
