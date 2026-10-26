@@ -251,22 +251,26 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: 18px 20px;
-  margin-bottom: 20px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.calendar-sidebar-card:last-child {
+  margin-bottom: 0;
 }
 
 .calendar-sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--glass-border);
 }
 
 .calendar-sidebar-title {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--text-primary);
   display: flex;
@@ -275,12 +279,38 @@
 }
 
 /* Upcoming Events Feed */
+.upcoming-events-list {
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.upcoming-events-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.upcoming-events-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 99px;
+}
+
+.upcoming-events-list::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.25);
+  border-radius: 99px;
+}
+
+.upcoming-events-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.55);
+}
+
 .upcoming-event-item {
   display: flex;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-md);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: all 0.2s ease;
@@ -295,9 +325,9 @@
 }
 
 .upcoming-event-datebox {
-  width: 42px;
-  min-width: 42px;
-  height: 44px;
+  width: 38px;
+  min-width: 38px;
+  height: 40px;
   border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
@@ -309,14 +339,14 @@
 }
 
 .upcoming-event-datebox .date-month {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   text-transform: uppercase;
   opacity: 0.85;
 }
 
 .upcoming-event-datebox .date-day {
-  font-size: 1.1rem;
-  margin-top: 2px;
+  font-size: 1rem;
+  margin-top: 1px;
 }
 
 .upcoming-event-info {
@@ -325,7 +355,7 @@
 }
 
 .upcoming-event-title {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
@@ -337,27 +367,48 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 /* Category Legend Pills */
 .category-legend-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
+  max-height: 215px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.category-legend-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.category-legend-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 99px;
+}
+
+.category-legend-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+}
+
+.category-legend-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .category-legend-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 12px;
+  padding: 6px 10px;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   transition: all 0.2s ease;
   cursor: pointer;
