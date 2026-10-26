@@ -47,8 +47,24 @@
     })
     .catch(function () {
       if (App.endLocalOp) App.endLocalOp();
-      if (App.playChime) App.playChime('ERROR');
-      if (App.showAlert) App.showAlert('Network transmission error while processing stamp.');
+      var buffer = window.ScannerApp.OfflineBuffer;
+      if (buffer && config.sessionId) {
+        buffer.enqueue({
+          session_id: config.sessionId,
+          qr_payload: payload
+        })
+        .then(function () {
+          if (App.playChime) App.playChime('ERROR');
+          if (App.showAlert) App.showAlert('Network unavailable — stamp queued and will auto-send when the connection returns.');
+        })
+        .catch(function () {
+          if (App.playChime) App.playChime('ERROR');
+          if (App.showAlert) App.showAlert('Network transmission error while processing stamp.');
+        });
+      } else {
+        if (App.playChime) App.playChime('ERROR');
+        if (App.showAlert) App.showAlert('Network transmission error while processing stamp.');
+      }
     });
   }
 

@@ -79,6 +79,108 @@
         heroLateNote.className = 'text-warning';
       }
     }
+
+    if (kiosk.active) updateKioskResult(data);
+  }
+
+  // ---------------------------------------------------------------------------
+  // KIOSK MODE (T-07): fullscreen projector overlay with masked identity data
+  // ---------------------------------------------------------------------------
+  var kiosk = { active: false, hideTimer: null };
+
+  function maskStudentNumber(number) {
+    if (!number) return '—';
+    var str = String(number);
+    if (str.length <= 4) return '•••' + str.slice(-2);
+    return '••••••' + str.slice(-4);
+  }
+
+  function resetKioskHideTimer() {
+    if (!kiosk.active) return;
+    if (kiosk.hideTimer) clearTimeout(kiosk.hideTimer);
+    kiosk.hideTimer = setTimeout(showKioskIdle, 2500);
+  }
+
+  function showKioskIdle() {
+    var idle = getEl('kioskIdle');
+    var result = getEl('kioskResult');
+    if (idle) idle.style.display = 'block';
+    if (result) result.style.display = 'none';
+  }
+
+  function updateKioskResult(data) {
+    var idle = getEl('kioskIdle');
+    var result = getEl('kioskResult');
+    if (idle) idle.style.display = 'none';
+    if (result) result.style.display = 'block';
+
+    var initials = getEl('kioskInitials');
+    var name = getEl('kioskName');
+    var number = getEl('kioskStudentNumber');
+    var program = getEl('kioskProgram');
+    var status = getEl('kioskStatus');
+    var note = getEl('kioskLateNote');
+
+    if (initials) initials.textContent = data.initials || '??';
+    if (name) name.textContent = data.student_name;
+    if (number) number.textContent = maskStudentNumber(data.student_number);
+    if (program) program.textContent = (data.program_code || '') + ' · Year ' + data.year_level;
+
+    if (data.record_status === 'PRESENT') {
+      if (status) {
+        status.className = 'badge badge--success';
+        status.innerHTML = '<i class="fas fa-circle-check"></i> PRESENT';
+      }
+      if (note) { note.textContent = 'Attendance recorded — on time'; note.className = 'text-success'; }
+    } else {
+      if (status) {
+        status.className = 'badge badge--warning';
+        status.innerHTML = '<i class="fas fa-clock"></i> LATE (+' + data.late_minutes + 'm)';
+      }
+      if (note) { note.textContent = 'Attendance recorded — ' + data.late_minutes + ' min(s) late'; note.className = 'text-warning'; }
+    }
+    resetKioskHideTimer();
+  }
+
+  function enterKiosk() {
+    var overlay = getEl('kioskOverlay');
+    if (!overlay) return;
+    kiosk.active = true;
+    if (kiosk.hideTimer) clearTimeout(kiosk.hideTimer);
+    overlay.style.display = 'flex';
+    showKioskIdle();
+
+    var docEl = document.documentElement;
+    if (docEl.requestFullscreen) {
+      docEl.requestFullscreen().catch(function () { /* user gesture denied — overlay mode only */ });
+    } else if (docEl.webkitRequestFullscreen) {
+      docEl.webkitRequestFullscreen();
+    }
+  }
+
+  function exitKiosk() {
+    kiosk.active = false;
+    if (kiosk.hideTimer) clearTimeout(kiosk.hideTimer);
+    var overlay = getEl('kioskOverlay');
+    if (overlay) overlay.style.display = 'none';
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  }
+
+  function initKioskMode() {
+    var kioskBtn = getEl('kioskModeBtn');
+    var exitBtn = getEl('kioskExitBtn');
+    if (kioskBtn) kioskBtn.addEventListener('click', enterKiosk);
+    if (exitBtn) exitBtn.addEventListener('click', exitKiosk);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && kiosk.active) exitKiosk();
+    });
+    document.addEventListener('fullscreenchange', function () {
+      if (kiosk.active && !document.fullscreenElement) exitKiosk();
+    });
   }
 
   var GRID_COLORS = {
@@ -358,6 +460,7 @@
     initManualDrawer();
     initOverrideModal(config.sessionId, config.csrfToken);
     initViewToggle();
+    initKioskMode();
     initLiveMatrixPolling(config.rosterUrl, config.isOpen);
   }
 
@@ -373,4 +476,6 @@
   window.ScannerApp.updateCounters = updateCounters;
   window.ScannerApp.beginLocalOp = beginLocalOp;
   window.ScannerApp.endLocalOp = endLocalOp;
+  window.ScannerApp.enterKiosk = enterKiosk;
+  window.ScannerApp.exitKiosk = exitKiosk;
 })(window);

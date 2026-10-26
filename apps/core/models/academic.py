@@ -94,8 +94,15 @@ class Subject(models.Model):
 class Curriculum(models.Model):
     """
     // [Model] Curriculum Matrix
-    // Maps which subjects a program offers across designated year levels.
+    // Maps which subjects a program offers across designated year levels and
+    // semesters (1st / 2nd / Summer), powering the program-centric Year x Semester grid.
     """
+    SEMESTER_CHOICES = [
+        (1, '1st Semester'),
+        (2, '2nd Semester'),
+        (3, 'Summer'),
+    ]
+
     program = models.ForeignKey(
         Program,
         on_delete=models.RESTRICT,
@@ -105,6 +112,11 @@ class Curriculum(models.Model):
     year_level = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)],
         help_text="// Standing year level (1 = 1st Year, etc.)"
+    )
+    semester = models.PositiveSmallIntegerField(
+        choices=SEMESTER_CHOICES,
+        default=1,
+        help_text="// Academic period within the year level"
     )
     subject = models.ForeignKey(
         Subject,
@@ -117,10 +129,10 @@ class Curriculum(models.Model):
     class Meta:
         app_label = 'core'
         db_table = 'tblcs_curriculum'
-        unique_together = [('program', 'year_level', 'subject')]
+        unique_together = [('program', 'year_level', 'semester', 'subject')]
 
     def __str__(self):
-        return f'{self.program.code} Y{self.year_level} - {self.subject.code}'
+        return f'{self.program.code} Y{self.year_level} S{self.semester} - {self.subject.code}'
 
 
 class AcademicYear(models.Model):

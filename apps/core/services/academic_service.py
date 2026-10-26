@@ -26,6 +26,7 @@ from apps.core.models import (
     Class,
     Curriculum,
     Department,
+    Profile,
     Program,
     Subject,
 )
@@ -378,11 +379,13 @@ def delete_or_deactivate_subject(actor, pk: int) -> dict:
 # // SECTION 4: CURRICULUM MATRIX OPERATIONS
 # // ==============================================================================
 
-def assign_curriculum_subject(actor, program_id: int, year_level: int, subject_id: int) -> dict:
+def assign_curriculum_subject(
+    actor, program_id: int, year_level: int, subject_id: int, semester: int = 1
+) -> dict:
     """
-    // [Service] Map Subject to Program Year Level in Curriculum Matrix
+    // [Service] Map Subject to Program Year Level + Semester in Curriculum Matrix
     //
-    // Raises: ValueError on out-of-bounds year level or duplicate mapping.
+    // Raises: ValueError on out-of-bounds year level/semester or duplicate mapping.
     """
     program = get_object_or_404(Program, pk=program_id)
     subject = get_object_or_404(Subject, pk=subject_id)
@@ -392,12 +395,21 @@ def assign_curriculum_subject(actor, program_id: int, year_level: int, subject_i
             f'Year level {year_level} is invalid for {program.code} (max duration: {program.years_total} years).'
         )
 
-    if Curriculum.objects.filter(program=program, year_level=year_level, subject=subject).exists():
-        raise ValueError(f'{subject.code} is already assigned to {program.code} Year {year_level}.')
+    if semester not in dict(Curriculum.SEMESTER_CHOICES):
+        raise ValueError(f'Semester {semester} is invalid. Use 1 (1st Sem), 2 (2nd Sem), or 3 (Summer).')
+
+    if Curriculum.objects.filter(
+        program=program, year_level=year_level, semester=semester, subject=subject,
+    ).exists():
+        sem_label = dict(Curriculum.SEMESTER_CHOICES).get(semester, f'Sem {semester}')
+        raise ValueError(
+            f'{subject.code} is already assigned to {program.code} Year {year_level} {sem_label}.'
+        )
 
     entry = Curriculum.objects.create(
         program=program,
         year_level=year_level,
+        semester=semester,
         subject=subject,
     )
 
@@ -406,13 +418,13 @@ def assign_curriculum_subject(actor, program_id: int, year_level: int, subject_i
         action='ASSIGN_CURRICULUM',
         object_type='Curriculum',
         object_id=str(entry.pk),
-        new_value=f'{program.code} Y{year_level} <- {subject.code}',
+        new_value=f'{program.code} Y{year_level} S{semester} <- {subject.code}',
     )
 
     return {
         'instance': entry,
         'action': 'ASSIGN_CURRICULUM',
-        'message': f'Subject "{subject.code}" assigned to {program.code} Year {year_level}.',
+        'message': f'Subject "{subject.code}" assigned to {program.code} Year {year_level} Sem {semester}.',
     }
 
 
@@ -421,7 +433,7 @@ def remove_curriculum_entry(actor, pk: int) -> dict:
     // [Service] Remove Subject from Program Curriculum Matrix
     """
     entry = get_object_or_404(Curriculum, pk=pk)
-    summary = f'{entry.program.code} Y{entry.year_level} - {entry.subject.code}'
+    summary = f'{entry.program.code} Y{entry.year_level} S{entry.semester} - {entry.subject.code}'
     entry_id = str(entry.pk)
     entry.delete()
 
@@ -530,6 +542,95 @@ def set_active_academic_year(actor, pk: int) -> dict:
     )
 
     return {'instance': ay, 'message': f'"{ay.name}" is now the active institutional academic term.'}
+
+
+def rollover_academic_year(
+    actor, name: str, starts_on, ends_on, promote: bool = False
+) -> dict:
+    """
+    // [Service] Academic Term Rollover (A-08)
+    //
+    // Single atomic operation:
+    //   1. Creates the new term (active).
+    //   2. Deactivates every previous active term (single-active invariant).
+    //   3. Optional promotion: bumps approved students' year_level by 1,
+    //      capped at their program's years_total.
+    //
+    // Raises: ValueError on missing name, duplicate name, or invalid date window.
+    """
+    name = name.strip()
+    if not name:
+        raise ValueError('New term name is required.')
+    if isinstance(starts_on, str):
+        starts_on = date.fromisoformat(starts_on.strip())
+    if isinstance(ends_on, str):
+        ends_on = date.fromisoformat(ends_on.strip())
+    if ends_on <= starts_on:
+        raise ValueError(f'Closing date ({ends_on}) must be after opening date ({starts_on}).')
+    if AcademicYear.objects.filter(name__iexact=name).exists():
+        raise ValueError(f'Academic Year term "{name}" already exists.')
+
+    previous_actives = list(
+        AcademicYear.objects.filter(is_active=True)
+        .order_by('-starts_on')
+        .values_list('name', flat=True)
+    )
+
+    with transaction.atomic():
+        ay = AcademicYear.objects.create(
+            name=name,
+            starts_on=starts_on,
+            ends_on=ends_on,
+            is_active=True,
+        )
+        AcademicYear.objects.exclude(pk=ay.pk).filter(is_active=True).update(is_active=False)
+
+        promoted_count = 0
+        if promote:
+            students = (
+                Profile.objects.filter(
+                    role=Profile.ROLE_STUDENT,
+                    approval_status=Profile.APPROVAL_APPROVED,
+                )
+                .select_related('program')
+            )
+            for student in students:
+                cap = student.program.years_total if student.program else 0
+                if cap and student.year_level < cap:
+                    student.year_level += 1
+                    student.save(update_fields=['year_level', 'updated_at'])
+                    promoted_count += 1
+
+    AuditEvent.objects.create(
+        actor=actor,
+        action='CREATE_ACADEMIC_YEAR',
+        object_type='AcademicYear',
+        object_id=str(ay.pk),
+        new_value=f'{ay.name} ({ay.starts_on} to {ay.ends_on}, active: True, rollover)',
+    )
+    AuditEvent.objects.create(
+        actor=actor,
+        action='TERM_ROLLOVER',
+        object_type='AcademicYear',
+        object_id=str(ay.pk),
+        old_value='Active before rollover: ' + (', '.join(previous_actives) or '(none)'),
+        new_value=f'New active term: {ay.name}; promote_students={promote}',
+    )
+    if promote:
+        AuditEvent.objects.create(
+            actor=actor,
+            action='PROMOTE_STUDENTS',
+            object_type='Student',
+            object_id='ALL',
+            new_value=f'{promoted_count} approved student(s) advanced one year level (capped at program duration)',
+        )
+
+    return {
+        'instance': ay,
+        'message': f'Term "{ay.name}" is now active.',
+        'promoted_count': promoted_count,
+        'previous_actives': previous_actives,
+    }
 
 
 def delete_or_deactivate_academic_year(actor, pk: int) -> dict:

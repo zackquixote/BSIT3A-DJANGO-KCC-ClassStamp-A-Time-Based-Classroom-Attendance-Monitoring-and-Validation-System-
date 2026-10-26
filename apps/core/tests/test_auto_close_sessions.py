@@ -83,7 +83,7 @@ class AutoCloseSessionsTests(TestCase):
         )
         return profile
 
-    def _make_session(self, ends_delta, starts_delta=None, weekday=None):
+    def _make_session(self, ends_delta, starts_delta=None, weekday=None, session_date=None):
         if starts_delta is None:
             starts_delta = ends_delta - timedelta(hours=1)
         slot = ClassSlot.objects.create(
@@ -95,7 +95,7 @@ class AutoCloseSessionsTests(TestCase):
         )
         return ClassSession.objects.create(
             slot=slot,
-            session_date=self.today,
+            session_date=self.today if session_date is None else session_date,
             status=ClassSession.STATUS_OPEN,
             opened_at=self.now - timedelta(hours=2),
             opened_by=self.teacher_user,
@@ -147,7 +147,12 @@ class AutoCloseSessionsTests(TestCase):
         self.assertIn('1 marked ABSENT', output)
 
     def test_session_ending_later_remains_open(self):
-        session = self._make_session(ends_delta=timedelta(hours=2))
+        # Tomorrow's date keeps this deterministic regardless of wall-clock time;
+        # a same-day "+2h" slot wraps past midnight when run after 22:00.
+        session = self._make_session(
+            ends_delta=timedelta(hours=2),
+            session_date=self.today + timedelta(days=1),
+        )
         output = self._run()
 
         session.refresh_from_db()

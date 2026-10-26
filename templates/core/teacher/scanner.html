@@ -41,6 +41,12 @@
       </div>
     </div>
 
+    {% if is_open %}
+      <button type="button" class="btn btn-outline" id="kioskModeBtn" title="Fullscreen self-scan mode for classroom projector">
+        <i class="fas fa-display"></i> Kiosk Mode
+      </button>
+    {% endif %}
+
     <!-- Conclude Session Button -->
     {% if is_open %}
       <button type="button" class="btn btn-danger" data-modal-target="closeSessionModal" id="openCloseModalBtn">
@@ -88,6 +94,9 @@
           <i class="fas fa-camera text-gold"></i> Live Camera Viewport
         </div>
         <div class="flex items-center gap-2">
+          <span id="offlinePendingBadge" class="badge badge--warning" style="display: none; font-size: 0.68rem;" title="Scans waiting to be sent">
+            <i class="fas fa-cloud-arrow-up"></i>
+          </span>
           <button type="button" class="btn btn-outline btn-xs" id="toggleAudioBtn" title="Sound feedback toggle" style="padding: 4px 8px;">
             <i class="fas fa-volume-high text-gold" id="audioIcon"></i> <span id="audioText" class="text-xs">Audio On</span>
           </button>
@@ -445,6 +454,44 @@
     </form>
   </div>
 </div>
+
+<!-- ============================================================================== -->
+<!-- KIOSK MODE: Fullscreen Projector Self-Scan Overlay                            -->
+<!-- ============================================================================== -->
+<div id="kioskOverlay" style="display: none; position: fixed; inset: 0; z-index: 9999; background: radial-gradient(ellipse at center, #0b1220 0%, #05080f 100%); flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px;">
+  <button type="button" id="kioskExitBtn" class="btn btn-outline" style="position: absolute; top: 20px; right: 20px;" title="Exit kiosk mode (Esc)">
+    <i class="fas fa-xmark"></i> Exit Kiosk
+  </button>
+  <div style="position: absolute; top: 26px; left: 24px;" class="text-muted text-xs font-mono">
+    <i class="fas fa-display text-gold"></i> Kiosk Mode — {{ class_obj.class_code }}
+  </div>
+
+  <!-- Idle state -->
+  <div id="kioskIdle">
+    <div class="scan-laser-box" style="margin: 0 auto 28px; width: 240px; height: 240px;">
+      <div class="scan-laser-line"></div>
+    </div>
+    <h2 style="font-size: 2.4rem; font-weight: 800; color: #f8fafc;">Scan Your QR Badge</h2>
+    <p class="text-muted" style="font-size: 1.05rem; margin-top: 12px;">
+      Place your ClassStamp badge QR in front of the camera to record your attendance.
+    </p>
+  </div>
+
+  <!-- Result state (auto-hides after 2.5s) -->
+  <div id="kioskResult" style="display: none;">
+    <span class="avatar-initial" id="kioskInitials" style="width: 96px; height: 96px; font-size: 2.4rem; margin: 0 auto 20px; display: flex;">??</span>
+    <h2 id="kioskName" style="font-size: 2.6rem; font-weight: 800; color: #f8fafc; word-break: break-word;">—</h2>
+    <div class="flex items-center justify-center gap-3" style="margin-top: 10px; flex-wrap: wrap;">
+      <span class="font-mono text-gold" id="kioskStudentNumber" style="font-size: 1.3rem; letter-spacing: 0.15em;">—</span>
+      <span class="text-muted">•</span>
+      <span class="text-muted" id="kioskProgram" style="font-size: 1rem;">—</span>
+    </div>
+    <div style="margin-top: 24px;">
+      <span id="kioskStatus" class="badge badge--success" style="padding: 10px 22px; font-size: 1.15rem; font-weight: 800;">PRESENT</span>
+    </div>
+    <div id="kioskLateNote" class="text-success" style="margin-top: 16px; font-size: 1rem;"></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -462,8 +509,9 @@
   };
 </script>
 <script src="{% static 'js/scanner/scanner_audio.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/scanner/scanner_ui.js' %}?v=20261026_v3"></script>
-<script src="{% static 'js/scanner/scanner_camera.js' %}?v=20261026_v2"></script>
+<script src="{% static 'js/scanner/scanner_ui.js' %}?v=20261026_v4"></script>
+<script src="{% static 'js/scanner/offline_buffer.js' %}?v=20261026_v1"></script>
+<script src="{% static 'js/scanner/scanner_camera.js' %}?v=20261026_v3"></script>
 
 
 <style>

@@ -198,6 +198,15 @@
                 <i class="fas fa-pen-to-square"></i>
               </button>
               <button type="button"
+                      class="btn btn-outline js-curriculum-matrix-btn"
+                      style="padding: 6px 10px;"
+                      data-program-id="{{ p.id }}"
+                      data-program-code="{{ p.code }}"
+                      data-curriculum-url="{% url 'program_curriculum_list' p.id %}"
+                      title="Curriculum Matrix (Year x Semester)">
+                <i class="fas fa-table-cells text-gold"></i>
+              </button>
+              <button type="button"
                       class="btn btn-danger"
                       style="padding: 6px 10px;"
                       data-modal-target="deleteProgModal"
@@ -350,6 +359,58 @@
     </form>
   </div>
 </div>
+
+<!-- Curriculum Matrix Modal -->
+<div class="modal" id="curriculumMatrixModal"
+     data-assign-url="{% url 'subject_curriculum_assign' %}"
+     data-remove-url-prefix="/subjects/curriculum/remove/">
+  <div class="modal-dialog" style="max-width: 860px; width: 94%;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="curriculumMatrixTitle">Curriculum Matrix</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="curriculumMatrixModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="curriculumMatrixError" class="auth-alert auth-alert--error mb-4" style="display: none;">
+        <i class="fas fa-circle-xmark"></i>
+        <span id="curriculumMatrixErrorMsg"></span>
+      </div>
+      <div id="curriculumGrid" style="overflow-x: auto;"></div>
+
+      <hr style="border-color: var(--glass-border); margin: 20px 0;">
+
+      <h4 class="text-sm text-secondary mb-3" style="letter-spacing: 0.04em; text-transform: uppercase;">
+        <i class="fas fa-plus-circle text-gold"></i> Assign Subject to Year Level
+      </h4>
+      <form id="curriculumAddForm" class="flex flex-wrap items-end gap-3">
+        <div class="form-group" style="flex: 1; min-width: 220px;">
+          <label class="form-label" for="curriculumSubjectSelect">Subject <span class="text-danger">*</span></label>
+          <select name="subject_id" id="curriculumSubjectSelect" class="form-control" required>
+            <option value="">— Select Subject —</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 140px;">
+          <label class="form-label" for="curriculumYearSelect">Year Level <span class="text-danger">*</span></label>
+          <select name="year_level" id="curriculumYearSelect" class="form-control" required>
+            <option value="">— Year —</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 160px;">
+          <label class="form-label" for="curriculumSemesterSelect">Semester <span class="text-danger">*</span></label>
+          <select name="semester" id="curriculumSemesterSelect" class="form-control" required>
+            <option value="">— Semester —</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex: 0 0 auto;">
+          <button type="submit" class="btn btn-primary" id="curriculumAddBtn">
+            <i class="fas fa-plus"></i> Assign
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -357,6 +418,7 @@
 <script src="{% static 'js/programs/programs_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 
 <style>
@@ -386,6 +448,75 @@
   background: rgba(59, 130, 246, 0.25);
   border-color: rgba(59, 130, 246, 0.6);
   color: #93c5fd;
+}
+.curriculum-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+.curriculum-table th,
+.curriculum-table td {
+  border: 1px solid var(--glass-border);
+  padding: 10px 12px;
+  vertical-align: top;
+  text-align: left;
+  font-size: 0.82rem;
+}
+.curriculum-table thead th {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+}
+.curriculum-table tbody th {
+  white-space: nowrap;
+  color: var(--accent-gold);
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.06);
+}
+.curriculum-cell-empty {
+  color: var(--text-muted);
+  opacity: 0.45;
+  text-align: center !important;
+}
+.curriculum-chip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.curriculum-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  font-size: 0.78rem;
+  max-width: 100%;
+}
+.curriculum-chip strong {
+  color: #bfdbfe;
+  font-weight: 700;
+}
+.curriculum-chip-remove {
+  background: transparent;
+  border: none;
+  color: #93c5fd;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 0.78rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.curriculum-chip-remove:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
 }
 </style>
 {% endblock %}

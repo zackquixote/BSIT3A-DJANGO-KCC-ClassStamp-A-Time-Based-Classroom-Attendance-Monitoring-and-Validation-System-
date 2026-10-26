@@ -18,7 +18,11 @@ urlpatterns = [
     path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
     path('student/qr/', views.student_qr_badge, name='student_qr_badge'),
     path('student/attendance/', views.student_attendance_log, name='student_attendance_log'),
+    path('student/excuse-slips/', views.student_excuse_slips, name='student_excuse_slips'),
+    path('teacher/excuse-slips/', views.teacher_excuse_slips, name='teacher_excuse_slips'),
+    path('teacher/excuse-slips/<int:slip_id>/review/', views.excuse_slip_review_ajax, name='excuse_slip_review_ajax'),
     path('api/student/qr-token/', views.student_qr_token_api, name='student_qr_token_api'),
+    path('api/student/offline-badge/issue/', views.student_offline_badge_issue, name='student_offline_badge_issue'),
 
     # // Admin: account validation hub & dedicated pending/reviewed pages
     path('validation/', views.validation_hub, name='validation_queue'),
@@ -28,6 +32,7 @@ urlpatterns = [
     # // Must precede validation/<str:student_number>/ or "batch" is swallowed
     # // by the detail pattern and the batch endpoint 404s.
     path('validation/batch/', views.batch_validation_action, name='batch_validation_action'),
+    path('validation/dossier/<int:profile_id>/', views.validation_dossier_json, name='validation_dossier_json'),
     path('validation/<str:student_number>/', views.validation_detail, name='validation_detail'),
     path('validation/approve/<str:student_number>/', views.approve_student, name='approve_student'),
     path('validation/reject/<str:student_number>/', views.reject_student, name='reject_student'),
@@ -47,6 +52,7 @@ urlpatterns = [
     path('programs/', views.program_list, name='program_list'),
     path('programs/save/', views.program_save, name='program_save'),
     path('programs/delete/<int:pk>/', views.program_delete, name='program_delete'),
+    path('programs/<int:program_id>/curriculum/', views.program_curriculum_list, name='program_curriculum_list'),
     path('programs/<int:program_id>/students/', views.program_students_per_year, name='program_students_per_year'),
     path('programs/export-csv/<int:program_id>/', views.program_students_csv_export, name='program_students_csv_export'),
 
@@ -78,6 +84,7 @@ urlpatterns = [
     path('academic-years/set-active/<int:pk>/', views.academic_year_set_active, name='academic_year_set_active'),
     path('academic-years/delete/<int:pk>/', views.academic_year_delete, name='academic_year_delete'),
     path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
+    path('academic-years/rollover/', views.academic_year_rollover, name='academic_year_rollover'),
 
     # // Admin: Academic Calendar & Institutional Schedule
     path('admin/calendar/', views.admin_calendar_view, name='admin_calendar'),

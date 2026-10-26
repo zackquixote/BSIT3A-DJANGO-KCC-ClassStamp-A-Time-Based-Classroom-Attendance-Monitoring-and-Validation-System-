@@ -122,6 +122,7 @@ def serialize_curriculum_entry(entry) -> dict:
         'program_code': entry.program.code if entry.program else None,
         'program_name': entry.program.name if entry.program else None,
         'year_level': entry.year_level,
+        'semester': entry.semester,
         'subject_id': entry.subject_id,
         'subject_code': entry.subject.code if entry.subject else None,
         'subject_name': entry.subject.name if entry.subject else None,

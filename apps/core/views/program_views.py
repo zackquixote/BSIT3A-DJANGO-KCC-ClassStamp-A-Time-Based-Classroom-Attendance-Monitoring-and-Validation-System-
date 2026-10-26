@@ -19,8 +19,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import Department, Profile, Program
-from apps.core.serializers import serialize_program
+from apps.core.models import Curriculum, Department, Profile, Program, Subject
+from apps.core.serializers import serialize_curriculum_entry, serialize_program
 from apps.core.services import (
     create_or_update_program,
     delete_or_deactivate_program,
@@ -256,3 +256,39 @@ def program_students_csv_export(request, program_id):
         id=program_id,
     )
     return export_program_students_csv(program)
+
+
+# // ==============================================================================
+# // AJAX: Program Curriculum Matrix JSON (/programs/<id>/curriculum/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def program_curriculum_list(request, program_id):
+    """
+    // [Admin AJAX Controller] A-07 Program-Centric Curriculum Matrix
+    // Returns the full Year x Semester curriculum grid for one program plus the
+    // pool of active subjects available for assignment.
+    """
+    program = get_object_or_404(Program.objects.select_related('department'), pk=program_id)
+
+    entries = (
+        Curriculum.objects.filter(program=program)
+        .select_related('subject', 'program')
+        .order_by('year_level', 'semester', 'subject__code')
+    )
+    subjects = (
+        Subject.objects.filter(is_active=True)
+        .order_by('code')
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'program': serialize_program(program),
+        'years_total': program.years_total,
+        'semesters': [{'value': v, 'label': l} for v, l in Curriculum.SEMESTER_CHOICES],
+        'entries': [serialize_curriculum_entry(e) for e in entries],
+        'subjects': [
+            {'id': s.id, 'code': s.code, 'name': s.name}
+            for s in subjects
+        ],
+    })

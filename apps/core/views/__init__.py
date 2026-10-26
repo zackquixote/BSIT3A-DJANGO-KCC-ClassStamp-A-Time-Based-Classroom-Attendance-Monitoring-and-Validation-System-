@@ -60,6 +60,7 @@ from .student_portal_views import (
     student_attendance_log,
     student_qr_badge,
     student_qr_token_api,
+    student_offline_badge_issue,
 )
 
 # // ------------------------------------------------------------------------------
@@ -71,6 +72,7 @@ from .validation_views import (
     recently_reviewed_list,
     reject_student,
     validation_detail,
+    validation_dossier_json,
     validation_hub,
     validation_pending_queue,
     validation_queue,
@@ -86,9 +88,19 @@ from .department_views import (
 )
 
 # // ------------------------------------------------------------------------------
+# // 5b. Excuse Slip Workflow Subsystem
+# // ------------------------------------------------------------------------------
+from .excuse_views import (
+    excuse_slip_review_ajax,
+    student_excuse_slips,
+    teacher_excuse_slips,
+)
+
+# // ------------------------------------------------------------------------------
 # // 5. Degree Program & Curriculum Subsystem
 # // ------------------------------------------------------------------------------
 from .program_views import (
+    program_curriculum_list,
     program_delete,
     program_list,
     program_save,
@@ -166,6 +178,7 @@ from .academic_year_views import (
     academic_year_set_active,
     academic_year_delete,
     academic_year_get,
+    academic_year_rollover,
 )
 
 # // ------------------------------------------------------------------------------
@@ -247,6 +260,7 @@ __all__ = [
     'student_dashboard',
     'student_qr_badge',
     'student_qr_token_api',
+    'student_offline_badge_issue',
     'student_attendance_log',
     '_admin_dashboard_stats',
     '_teacher_dashboard_stats',
@@ -257,6 +271,7 @@ __all__ = [
     'validation_hub',
     'validation_pending_queue',
     'validation_detail',
+    'validation_dossier_json',
     'approve_student',
     'reject_student',
     'recently_reviewed_list',
@@ -273,6 +288,10 @@ __all__ = [
     'program_save',
     'program_delete',
     'program_students_per_year',
+    'student_excuse_slips',
+    'teacher_excuse_slips',
+    'excuse_slip_review_ajax',
+    'program_curriculum_list',
 
     # Student Masterlist & Ingestion
     'student_directory',
@@ -313,6 +332,7 @@ __all__ = [
     'academic_year_set_active',
     'academic_year_delete',
     'academic_year_get',
+    'academic_year_rollover',
 
     # Class Sections & Schedules
     'class_list',

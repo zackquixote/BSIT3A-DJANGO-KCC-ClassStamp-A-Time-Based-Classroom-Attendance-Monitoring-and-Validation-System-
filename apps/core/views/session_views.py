@@ -15,6 +15,7 @@
 
 from datetime import datetime, time, timedelta
 import csv
+import hashlib
 from io import BytesIO
 import logging
 import re
@@ -43,6 +44,7 @@ from apps.core.models import (
     ClassSession,
     ClassSlot,
     Enrollment,
+    OfflineBadge,
     Profile,
     StampAttempt,
 )
@@ -519,6 +521,20 @@ def attendance_scan_api(request):
             'outcome': StampAttempt.OUTCOME_INVALID
         }, status=400)
 
+    # 1c. Offline badge payload branch (S-07):
+    #     "classstamp:offline:<student_number>:<64-hex-token>"
+    offline_match = re.match(
+        r'^classstamp:offline:([A-Za-z0-9\-]+):([0-9a-f]{64})$', qr_payload
+    )
+    if offline_match:
+        return _scan_offline_badge(
+            request,
+            session,
+            class_obj,
+            offline_match.group(1).strip(),
+            offline_match.group(2).strip(),
+        )
+
     # 2. Parse QR payload: Format "classstamp:<student_number>:<token>"
     match = re.match(r'^classstamp:([A-Za-z0-9\-]+):(\d{6})$', qr_payload)
     if not match:
@@ -657,20 +673,7 @@ def attendance_scan_api(request):
         }, status=400)
 
     # 7. Time Window & Grace Period Determination
-    now = timezone.now()
-    slot = session.slot
-    scheduled_start_dt = timezone.make_aware(
-        datetime.combine(session.session_date, slot.starts_at)
-    )
-    grace_cutoff_dt = scheduled_start_dt + timedelta(minutes=class_obj.grace_minutes)
-
-    if now <= grace_cutoff_dt:
-        final_status = AttendanceRecord.STATUS_PRESENT
-        late_minutes = 0
-    else:
-        final_status = AttendanceRecord.STATUS_LATE
-        diff = now - grace_cutoff_dt
-        late_minutes = max(1, int(diff.total_seconds() // 60))
+    now, final_status, late_minutes = _grace_status(session, class_obj)
 
     # 8. Atomic Record Persistence
     with transaction.atomic():
@@ -698,7 +701,35 @@ def attendance_scan_api(request):
     _safe_detect(lambda: detect_schedule_conflict(record, student_profile, session))
     _safe_detect(lambda: detect_rapid_scan(session, request.user))
 
-    # Calculate updated attendance counts
+    return _scan_success_response(
+        session, class_obj, student_profile, final_status, late_minutes, now
+    )
+
+
+def _grace_status(session, class_obj):
+    """
+    // Computes (now, final_status, late_minutes) for a stamp against the
+    // session's scheduled start plus the class grace window.
+    """
+    now = timezone.now()
+    slot = session.slot
+    scheduled_start_dt = timezone.make_aware(
+        datetime.combine(session.session_date, slot.starts_at)
+    )
+    grace_cutoff_dt = scheduled_start_dt + timedelta(minutes=class_obj.grace_minutes)
+
+    if now <= grace_cutoff_dt:
+        return now, AttendanceRecord.STATUS_PRESENT, 0
+
+    diff = now - grace_cutoff_dt
+    return now, AttendanceRecord.STATUS_LATE, max(1, int(diff.total_seconds() // 60))
+
+
+def _scan_success_response(session, class_obj, student_profile, final_status, late_minutes, now):
+    """
+    // Builds the canonical scan-success JSON payload (shared by the TOTP
+    // pipeline and the offline badge redemption path).
+    """
     counts = AttendanceRecord.objects.filter(session=session).aggregate(
         present=Count('id', filter=Q(status=AttendanceRecord.STATUS_PRESENT)),
         late=Count('id', filter=Q(status=AttendanceRecord.STATUS_LATE)),
@@ -731,6 +762,143 @@ def attendance_scan_api(request):
             'total': total_enrolled
         }
     })
+
+
+def _scan_offline_badge(request, session, class_obj, student_number, raw_token):
+    """
+    // [S-07] Validates a server-issued single-use offline badge and stamps the
+    // student as present/late without a live TOTP device. Mirrors the TOTP
+    // pipeline: enrollment check, duplicate check, atomic single-use redemption.
+    """
+    # 1. Resolve the student
+    student_profile = (
+        Profile.objects.filter(
+            Q(student_number=student_number) | Q(user__username=student_number),
+            role=Profile.ROLE_STUDENT,
+        )
+        .select_related('user', 'program')
+        .first()
+    )
+    if not student_profile:
+        StampAttempt.objects.create(
+            session=session,
+            scanned_by=request.user,
+            method=StampAttempt.METHOD_QR,
+            outcome=StampAttempt.OUTCOME_INVALID
+        )
+        return JsonResponse({
+            'error': f"Student ID '{student_number}' does not exist in the institutional directory.",
+            'outcome': StampAttempt.OUTCOME_INVALID
+        }, status=404)
+
+    # 2. Verify Enrollment
+    is_enrolled = Enrollment.objects.filter(
+        class_obj=class_obj,
+        student_profile=student_profile,
+        status=Enrollment.STATUS_ACTIVE
+    ).exists()
+    if not is_enrolled:
+        StampAttempt.objects.create(
+            session=session,
+            student_profile=student_profile,
+            scanned_by=request.user,
+            method=StampAttempt.METHOD_QR,
+            outcome=StampAttempt.OUTCOME_INELIGIBLE
+        )
+        student_display = student_profile.user.get_full_name() or student_number
+        return JsonResponse({
+            'error': f"{student_display} is NOT enrolled in this class section ({class_obj.class_code}).",
+            'outcome': StampAttempt.OUTCOME_INELIGIBLE
+        }, status=400)
+
+    # 3. Duplicate stamp check
+    existing_record = AttendanceRecord.objects.filter(
+        session=session,
+        student_profile=student_profile
+    ).first()
+    if existing_record:
+        StampAttempt.objects.create(
+            session=session,
+            student_profile=student_profile,
+            scanned_by=request.user,
+            method=StampAttempt.METHOD_QR,
+            outcome=StampAttempt.OUTCOME_DUPLICATE,
+        )
+        stamped_time_str = existing_record.stamped_at.strftime('%I:%M %p') if existing_record.stamped_at else 'earlier'
+        return JsonResponse({
+            'error': f"{student_profile.user.get_full_name() or student_number} was ALREADY stamped as {existing_record.status} at {stamped_time_str}.",
+            'outcome': StampAttempt.OUTCOME_DUPLICATE,
+            'existing_status': existing_record.status,
+            'stamped_at': stamped_time_str,
+            'student_name': student_profile.user.get_full_name() or student_number
+        }, status=400)
+
+    # 4. Resolve + atomically redeem the badge (single-use, unforgeable hash match)
+    token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+    now, final_status, late_minutes = _grace_status(session, class_obj)
+
+    with transaction.atomic():
+        badge = (
+            OfflineBadge.objects
+            .select_for_update()
+            .filter(
+                student_profile=student_profile,
+                token_hash=token_hash,
+                consumed_at__isnull=True,
+                expires_at__gt=now,
+            )
+            .first()
+        )
+        if not badge:
+            StampAttempt.objects.create(
+                session=session,
+                student_profile=student_profile,
+                scanned_by=request.user,
+                method=StampAttempt.METHOD_QR,
+                outcome=StampAttempt.OUTCOME_EXPIRED,
+            )
+            _safe_detect(lambda: detect_token_bruteforce(session=session, student_profile=student_profile))
+            return JsonResponse({
+                'error': 'Offline badge is invalid, already used, or has expired. '
+                         'Please ask the student to issue a fresh badge.',
+                'outcome': StampAttempt.OUTCOME_EXPIRED
+            }, status=400)
+
+        badge.consumed_at = now
+        badge.consumed_session = session
+        badge.save(update_fields=['consumed_at', 'consumed_session'])
+
+        record = AttendanceRecord.objects.create(
+            session=session,
+            student_profile=student_profile,
+            status=final_status,
+            method=AttendanceRecord.METHOD_QR,
+            stamped_at=now,
+            late_minutes=late_minutes,
+            marked_by=request.user,
+        )
+        StampAttempt.objects.create(
+            session=session,
+            student_profile=student_profile,
+            scanned_by=request.user,
+            method=StampAttempt.METHOD_QR,
+            outcome=StampAttempt.OUTCOME_ACCEPTED,
+        )
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='REDEEM_OFFLINE_BADGE',
+            object_type='OfflineBadge',
+            object_id=str(badge.pk),
+            new_value=f'{student_profile.student_number} stamped {final_status} via offline badge',
+        )
+
+    _safe_detect(lambda: detect_off_window(record, session))
+    _safe_detect(lambda: detect_schedule_conflict(record, student_profile, session))
+    _safe_detect(lambda: detect_rapid_scan(session, request.user))
+
+    return _scan_success_response(
+        session, class_obj, student_profile, final_status, late_minutes, now
+    )
 
 
 # // ==============================================================================

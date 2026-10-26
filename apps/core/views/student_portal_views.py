@@ -11,6 +11,8 @@
 // ==============================================================================
 """
 
+import hashlib
+import secrets
 import time
 
 from django.contrib.auth.decorators import login_required
@@ -18,9 +20,10 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from apps.core.decorators import approved_required, role_required
-from apps.core.models import AttendanceRecord, Enrollment, Profile
+from apps.core.models import AttendanceRecord, Enrollment, OfflineBadge, Profile
 from apps.core.services.qr_service import (
     TOTP_INTERVAL,
     build_payload,
@@ -82,6 +85,53 @@ def student_qr_token_api(request):
         'seconds_remaining': _seconds_remaining(),
         'interval': TOTP_INTERVAL,
         'server_time': timezone.localtime().strftime('%I:%M:%S %p'),
+    })
+
+
+# // ==============================================================================
+# // API: Issue Offline Badge (/api/student/offline-badge/issue/)  (S-07)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_STUDENT)
+@approved_required
+@require_POST
+def student_offline_badge_issue(request):
+    """
+    // [AJAX] Issues a single-use, 48-hour offline QR badge for connectivity-limited
+    // students. The raw bearer token is shown once and stored server-side only as
+    // a SHA-256 hash; redemption is enforced exactly once at any scanning terminal.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    if profile is None:
+        return JsonResponse({'error': 'Student profile not found.'}, status=400)
+
+    raw_token = secrets.token_hex(32)  # 64 hex chars
+    token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+    expires_at = timezone.now() + timezone.timedelta(hours=48)
+
+    # A student keeps at most one redeemable offline badge at a time.
+    OfflineBadge.objects.filter(
+        student_profile=profile,
+        consumed_at__isnull=True,
+    ).delete()
+
+    OfflineBadge.objects.create(
+        student_profile=profile,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+
+    student_number = profile.student_number or request.user.get_username()
+    payload = f'classstamp:offline:{student_number}:{raw_token}'
+
+    return JsonResponse({
+        'ok': True,
+        'payload': payload,
+        'qr_data_uri': qr_png_data_uri(payload),
+        'student_number': student_number,
+        'name': request.user.get_full_name() or request.user.get_username(),
+        'expires_at': expires_at.isoformat(),
+        'expires_in_seconds': int((expires_at - timezone.now()).total_seconds()),
     })
 
 

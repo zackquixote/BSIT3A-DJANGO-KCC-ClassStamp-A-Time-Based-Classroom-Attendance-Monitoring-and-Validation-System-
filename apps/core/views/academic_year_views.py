@@ -24,6 +24,7 @@ from apps.core.serializers.academic_serializers import serialize_academic_year
 from apps.core.services import (
     create_or_update_academic_year,
     delete_or_deactivate_academic_year,
+    rollover_academic_year,
     set_active_academic_year,
 )
 
@@ -166,3 +167,37 @@ def academic_year_get(request, pk: int):
         pk=pk
     )
     return JsonResponse({'ok': True, 'academic_year': serialize_academic_year(ay)})
+
+
+# // ==============================================================================
+# // AJAX: Term Rollover (/academic-years/rollover/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def academic_year_rollover(request):
+    """
+    // [AJAX] Term rollover wizard finalize (A-08).
+    // POST params: name, starts_on, ends_on, promote ('1' | '0')
+    // Atomically creates the new active term, deactivates predecessors,
+    // and optionally promotes approved students one year level.
+    """
+    try:
+        result = rollover_academic_year(
+            actor=request.user,
+            name=request.POST.get('name', ''),
+            starts_on=request.POST.get('starts_on', ''),
+            ends_on=request.POST.get('ends_on', ''),
+            promote=request.POST.get('promote') == '1',
+        )
+        return JsonResponse({
+            'ok': True,
+            'message': result['message'],
+            'academic_year': serialize_academic_year(result['instance']),
+            'promoted_count': result['promoted_count'],
+            'previous_actives': result['previous_actives'],
+        })
+    except ValueError as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)

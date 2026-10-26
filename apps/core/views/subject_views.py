@@ -251,8 +251,8 @@ def subject_curriculum_list(request, pk: int):
 @require_http_methods(['POST'])
 def subject_curriculum_assign(request):
     """
-    // [AJAX] Maps a subject to a program + year level in the curriculum matrix.
-    // POST params: subject_id, program_id, year_level
+    // [AJAX] Maps a subject to a program + year level + semester in the curriculum matrix.
+    // POST params: subject_id, program_id, year_level, semester (optional, default 1)
     """
     try:
         result = assign_curriculum_subject(
@@ -260,6 +260,7 @@ def subject_curriculum_assign(request):
             program_id=int(request.POST.get('program_id', 0)),
             year_level=int(request.POST.get('year_level', 0)),
             subject_id=int(request.POST.get('subject_id', 0)),
+            semester=int(request.POST.get('semester', 1)),
         )
         return JsonResponse({
             'ok': True,

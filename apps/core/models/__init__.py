@@ -43,8 +43,12 @@ from .classroom import (
 from .attendance import (
     AttendanceRecord,
     ClassSession,
+    OfflineBadge,
     StampAttempt,
 )
+
+# // Excuse Slip Workflow
+from .excuse import ExcuseSlip
 
 # // Fraud Detection & Audit Trail
 from .audit import (
@@ -73,7 +77,9 @@ __all__ = [
     # Attendance
     'AttendanceRecord',
     'ClassSession',
+    'OfflineBadge',
     'StampAttempt',
+    'ExcuseSlip',
     # Audit
     'AnomalyFlag',
     'AuditEvent',

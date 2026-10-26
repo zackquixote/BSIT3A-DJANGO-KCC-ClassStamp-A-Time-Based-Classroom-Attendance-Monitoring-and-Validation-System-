@@ -1,0 +1,96 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}Excuse Slips — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'student_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Excuse Slips</span>
+    </div>
+    <h1 class="page-title">Excuse Slips</h1>
+    <p class="page-subtitle">File a justification for absences and track instructor review outcomes</p>
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
+  <!-- File New Excuse -->
+  <div class="card" style="padding: 20px;">
+    <h2 class="font-semibold text-primary mb-4"><i class="fas fa-file-pen text-gold"></i> File an Excuse</h2>
+
+    {% if fileable_records %}
+      <p class="text-muted text-sm mb-4">
+        Select one of your absently-marked meetings and explain why you could not attend.
+        Your instructor will review and either mark you <strong class="text-success">EXCUSED</strong> or keep the absence.
+      </p>
+
+      {% for r in fileable_records %}
+      <form method="POST" enctype="multipart/form-data" class="mb-4" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 14px; background: rgba(255,255,255,0.02);">
+        {% csrf_token %}
+        <input type="hidden" name="session_id" value="{{ r.session.id }}">
+        <div class="flex items-center justify-between mb-2" style="flex-wrap: wrap; gap: 6px;">
+          <div>
+            <span class="font-semibold text-primary">{{ r.session.slot.class_obj.subject.name }}</span>
+            <span class="badge badge--primary badge--xs font-mono ml-1">{{ r.session.slot.class_obj.class_code }}</span>
+          </div>
+          <span class="text-muted text-xs">{{ r.session.session_date|date:"M d, Y" }} · {{ r.session.slot.starts_at|time:"h:i A" }}</span>
+        </div>
+        <div class="form-group mb-2">
+          <textarea name="reason" class="form-control text-sm" rows="2" required placeholder="Reason for absence (e.g. medical appointment, family emergency)…"></textarea>
+        </div>
+        <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
+          <input type="file" name="attachment" class="text-xs text-muted" accept=".pdf,.jpg,.jpeg,.png">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Submit Excuse</button>
+        </div>
+      </form>
+      {% endfor %}
+    {% else %}
+      <div style="text-align: center; padding: 28px 12px;">
+        <i class="fas fa-circle-check" style="font-size: 2rem; color: #4ade80; display: block; margin-bottom: 10px;"></i>
+        <p class="text-secondary mb-0">No absences are awaiting an excuse. Keep it up!</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Slip History -->
+  <div class="card" style="padding: 20px;">
+    <h2 class="font-semibold text-primary mb-4"><i class="fas fa-clock-rotate-left text-gold"></i> My Filed Slips</h2>
+
+    {% if slips %}
+      <div class="flex flex-col gap-3">
+        {% for slip in slips %}
+        <div style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px 14px;">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-semibold text-primary text-sm">{{ slip.session.slot.class_obj.subject.name }}</span>
+            {% if slip.status == 'PENDING' %}
+              <span class="badge badge--warning text-xs"><i class="fas fa-hourglass-start"></i> Pending</span>
+            {% elif slip.status == 'APPROVED' %}
+              <span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Approved</span>
+            {% else %}
+              <span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Rejected</span>
+            {% endif %}
+          </div>
+          <div class="text-muted text-xs mb-1">
+            {{ slip.session.session_date|date:"M d, Y" }} · {{ slip.session.slot.class_obj.class_code }} ·
+            filed {{ slip.created_at|date:"M d, Y" }}
+          </div>
+          <div class="text-secondary text-xs" style="line-height: 1.5;">“{{ slip.reason|truncatechars:120 }}”</div>
+          {% if slip.review_note %}
+          <div class="text-warning text-xs mt-1"><i class="fas fa-comment-dots"></i> Instructor: {{ slip.review_note|truncatechars:160 }}</div>
+          {% endif %}
+          {% if slip.attachment %}
+          <a href="{{ slip.attachment.url }}" target="_blank" rel="noopener" class="text-xs text-gold mt-1 d-inline-block">
+            <i class="fas fa-paperclip"></i> View attachment
+          </a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted text-sm mb-0">You have not filed any excuse slips yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

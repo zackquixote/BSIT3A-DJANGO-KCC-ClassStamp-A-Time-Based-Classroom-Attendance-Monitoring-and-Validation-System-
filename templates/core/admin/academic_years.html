@@ -12,7 +12,10 @@
     <h1 class="page-title">Academic Years</h1>
     <p class="page-subtitle">Manage semester and school-year validity windows for all class scheduling</p>
   </div>
-  <div>
+  <div style="display: flex; gap: 8px; align-items: center;">
+    <button type="button" class="btn btn-outline" id="rolloverWizardBtn" title="Guided Term Rollover">
+      <i class="fas fa-forward"></i> Term Rollover
+    </button>
     <button type="button" class="btn btn-primary" id="addAyBtn" data-mode="create">
       <i class="fas fa-plus-circle"></i> Add Academic Year
     </button>
@@ -215,6 +218,103 @@
     </div>
   </div>
 </div>
+
+<!-- Term Rollover Wizard Modal -->
+<div class="modal" id="ayRolloverModal"
+     data-rollover-url="{% url 'academic_year_rollover' %}"
+     data-active-name="{{ active_term.name|default:''|escapejs }}"
+     data-active-ends-on="{% if active_term %}{{ active_term.ends_on|date:'Y-m-d' }}{% endif %}">
+  <div class="modal-dialog" style="max-width: 620px;">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-forward text-gold"></i> Term Rollover Wizard</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="ayRolloverModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="rollover-steps" id="rolloverSteps">
+        <span class="rollover-step" data-step="1"><span class="rollover-step-dot">1</span> New Term</span>
+        <span class="rollover-step-arrow"><i class="fas fa-chevron-right"></i></span>
+        <span class="rollover-step" data-step="2"><span class="rollover-step-dot">2</span> Deactivate</span>
+        <span class="rollover-step-arrow"><i class="fas fa-chevron-right"></i></span>
+        <span class="rollover-step" data-step="3"><span class="rollover-step-dot">3</span> Promotion</span>
+        <span class="rollover-step-arrow"><i class="fas fa-chevron-right"></i></span>
+        <span class="rollover-step" data-step="4"><span class="rollover-step-dot">4</span> Confirm</span>
+      </div>
+
+      <!-- Step 1: Define new term -->
+      <div class="rollover-panel" data-panel="1">
+        <h3 class="text-primary mb-3">Define the New Term</h3>
+        <div class="form-group mb-3">
+          <label class="form-label" for="rolloverName">Term Name <span class="text-danger">*</span></label>
+          <input type="text" id="rolloverName" class="form-control" placeholder="e.g. A.Y. 2026-2027 1st Semester" autocomplete="off">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="rolloverStartsOn">Opening Date <span class="text-danger">*</span></label>
+            <input type="date" id="rolloverStartsOn" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="rolloverEndsOn">Closing Date <span class="text-danger">*</span></label>
+            <input type="date" id="rolloverEndsOn" class="form-control">
+          </div>
+        </div>
+        <div id="rolloverStep1Error" class="toast toast--error mt-3" style="display: none;"></div>
+      </div>
+
+      <!-- Step 2: Deactivate current -->
+      <div class="rollover-panel" data-panel="2" hidden>
+        <h3 class="text-primary mb-3">Deactivate the Current Term</h3>
+        <div class="auth-alert auth-alert--warning">
+          <i class="fas fa-triangle-exclamation"></i>
+          <span>The currently active term — <strong id="rolloverActiveName">—</strong> — will be deactivated
+          the moment the new term is activated. Historical attendance records and class sections remain untouched.</span>
+        </div>
+      </div>
+
+      <!-- Step 3: Optional promotion -->
+      <div class="rollover-panel" data-panel="3" hidden>
+        <h3 class="text-primary mb-3">Optional: Promote Students</h3>
+        <label class="form-check-label" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="rolloverPromote" style="width:16px;height:16px;accent-color:var(--accent-gold);margin-top:2px;">
+          <span>Advance all <strong>approved</strong> students by one year level.
+            <span class="text-muted text-sm d-block">Students already at their program's final year are skipped.
+            A <code>PROMOTE_STUDENTS</code> audit event records the count.</span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Step 4: Confirm & execute -->
+      <div class="rollover-panel" data-panel="4" hidden>
+        <h3 class="text-primary mb-3">Confirm &amp; Execute</h3>
+        <div class="card" style="padding: 14px 16px; margin-bottom: 14px;">
+          <div class="text-sm mb-1"><span class="text-muted">New term:</span> <strong id="rolloverSummaryName" class="text-primary"></strong></div>
+          <div class="text-sm mb-1"><span class="text-muted">Window:</span> <strong id="rolloverSummaryDates"></strong></div>
+          <div class="text-sm"><span class="text-muted">Deactivate:</span> <strong id="rolloverSummaryDeactivate"></strong></div>
+          <div class="text-sm"><span class="text-muted">Promote students:</span> <strong id="rolloverSummaryPromote">No</strong></div>
+        </div>
+        <div id="rolloverExecuteError" class="toast toast--error mt-3" style="display: none;"></div>
+        <div id="rolloverSuccess" class="auth-alert auth-alert--success mt-3" style="display: none;">
+          <i class="fas fa-circle-check"></i>
+          <span id="rolloverSuccessMsg"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="rolloverBackBtn" style="display: none;">
+        <i class="fas fa-chevron-left"></i> Back
+      </button>
+      <button type="button" class="btn btn-outline" id="rolloverCancelBtn" data-modal-dismiss="ayRolloverModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="rolloverNextBtn">
+        Next <i class="fas fa-chevron-right"></i>
+      </button>
+      <button type="button" class="btn btn-primary" id="rolloverExecuteBtn" style="display: none;">
+        <i class="fas fa-forward"></i> Execute Rollover
+      </button>
+      <button type="button" class="btn btn-primary" id="rolloverDoneBtn" style="display: none;" data-modal-dismiss="ayRolloverModal">
+        <i class="fas fa-check"></i> Done
+      </button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -223,5 +323,53 @@
 <script src="{% static 'js/academic_years/ay_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/academic_years/ay_set_active.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/academic_years/ay_delete.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/academic_years/ay_rollover.js' %}?v=20261026_v1"></script>
+
+<style>
+.rollover-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.rollover-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.rollover-step-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.rollover-step.is-active { color: var(--accent-gold); }
+.rollover-step.is-active .rollover-step-dot {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: var(--accent-gold);
+}
+.rollover-step.is-done { color: #4ade80; }
+.rollover-step.is-done .rollover-step-dot {
+  background: rgba(74, 222, 128, 0.15);
+  border-color: rgba(74, 222, 128, 0.5);
+  color: #4ade80;
+}
+.rollover-step-arrow { color: var(--text-muted); opacity: 0.4; font-size: 0.7rem; }
+.rollover-panel h3 { font-size: 1.02rem; font-weight: 700; }
+</style>
 {% endblock %}
 

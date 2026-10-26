@@ -15,6 +15,7 @@
 
 <div class="card" id="qrBadgeRoot"
      data-token-url="{% url 'student_qr_token_api' %}"
+     data-offline-url="{% url 'student_offline_badge_issue' %}"
      style="max-width: 560px; margin: 0 auto; padding: 28px; text-align: center;">
 
   <div class="mb-4">
@@ -64,6 +65,31 @@
       </button>
       <span class="text-muted text-xs ml-2" id="qrStatus"></span>
     </div>
+
+    <hr style="border-color: var(--glass-border); margin: 24px 0;">
+
+    <div style="text-align: left;">
+      <div class="text-xs text-muted uppercase" style="letter-spacing: 0.08em; margin-bottom: 10px;">
+        <i class="fas fa-wifi-slash text-gold"></i> No Signal? Offline Badge
+      </div>
+      <div class="text-xs" style="color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
+        If you cannot keep your dynamic badge refreshed (no mobile data), generate a
+        <strong>single-use offline badge</strong> valid for 48 hours. It can be scanned
+        at any open class session, but stops working after one successful scan.
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" id="offlineBadgeIssueBtn">
+        <i class="fas fa-qrcode"></i> Generate Offline Badge
+      </button>
+      <span id="offlineBadgeError" class="text-danger text-xs ml-2"></span>
+    </div>
+
+    <div id="offlineBadgeResult" style="display: none;" class="mt-4">
+      <div style="display: inline-block; padding: 14px; background: #ffffff; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.28);">
+        <img id="offlineQrImage" alt="Offline attendance QR badge" width="220" height="220" style="display: block;" />
+      </div>
+      <div class="mt-3 text-xs text-warning" id="offlineBadgeExpiry"></div>
+      <div class="mt-2 text-xs text-muted">Single-use · expires in 48 hours · redeemable at any open class session</div>
+    </div>
   {% else %}
     <div style="padding: 24px; border: 1px dashed var(--glass-border); border-radius: 10px;">
       <i class="fas fa-qrcode" style="font-size: 2.4rem; color: var(--text-muted);"></i>
@@ -102,5 +128,6 @@
   }
 </style>
 <script src="{% static 'js/student/qr_badge.js' %}?v=20261026_v1"></script>
+<script src="{% static 'js/student/offline_badge.js' %}?v=20261026_v1"></script>
 {% endif %}
 {% endblock %}

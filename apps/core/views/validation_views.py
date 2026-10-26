@@ -19,11 +19,13 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Department, Profile, Program
+from apps.core.serializers import serialize_student_detail
 from apps.core.services import (
     approve_student_registration,
     reject_student_registration,
@@ -313,6 +315,65 @@ def validation_detail(request, student_number):
         'total_pending': total_pending,
         'duplicates': duplicates,
     })
+
+
+# // ==============================================================================
+# // VIEW: Slide-Over Dossier JSON (A-02) (/validation/dossier/<profile_id>/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def validation_dossier_json(request, profile_id):
+    """
+    // [Admin AJAX Controller] Slide-Over Dossier Preview
+    // Returns full registration dossier data for the off-canvas drawer on the
+    // validation hub, plus prev/next pending queue navigation targets for
+    // keyboard-driven reviewing (J/K navigation, A approve, R reject, Esc close).
+    """
+    profile = get_object_or_404(
+        Profile.objects.select_related('user', 'program', 'program__department', 'approved_by'),
+        pk=profile_id,
+        role=Profile.ROLE_STUDENT,
+        approval_status=Profile.APPROVAL_PENDING,
+    )
+
+    pending_pks = list(
+        Profile.objects.filter(
+            role=Profile.ROLE_STUDENT,
+            approval_status=Profile.APPROVAL_PENDING,
+        ).order_by('created_at').values_list('pk', flat=True)
+    )
+
+    prev_id = None
+    next_id = None
+    current_index = None
+    if profile.pk in pending_pks:
+        idx = pending_pks.index(profile.pk)
+        current_index = idx + 1
+        if idx > 0:
+            prev_id = pending_pks[idx - 1]
+        if idx < len(pending_pks) - 1:
+            next_id = pending_pks[idx + 1]
+
+    dossier = serialize_student_detail(profile)
+    dossier.update({
+        'department_code': profile.program.department.code if profile.program and profile.program.department else None,
+        'department_name': profile.program.department.name if profile.program and profile.program.department else None,
+        'username': profile.user.username if profile.user else None,
+        'gender': profile.gender or None,
+        'student_type': profile.student_type or None,
+        'phone_number': profile.phone_number or None,
+        'privacy_consent_at': profile.privacy_consent_at.isoformat() if profile.privacy_consent_at else None,
+        'prev_id': prev_id,
+        'next_id': next_id,
+        'prev_url': reverse('validation_dossier_json', args=[prev_id]) if prev_id else None,
+        'next_url': reverse('validation_dossier_json', args=[next_id]) if next_id else None,
+        'current_index': current_index,
+        'total_pending': len(pending_pks),
+        'approve_url': reverse('approve_student', args=[profile.pk]),
+        'reject_url': reverse('reject_student', args=[profile.pk]),
+        'detail_url': reverse('validation_detail', args=[profile.pk]),
+    })
+    return JsonResponse({'ok': True, 'dossier': dossier})
 
 
 # // ==============================================================================

@@ -104,6 +104,10 @@
         <i class="fas fa-clipboard-list sidebar-link-icon"></i>
         <span>Session History</span>
       </a>
+      <a href="{% url 'teacher_excuse_slips' %}" class="sidebar-link {% if request.resolver_match.url_name in 'teacher_excuse_slips excuse_slip_review_ajax' %}active{% endif %}">
+        <i class="fas fa-file-medical sidebar-link-icon"></i>
+        <span>Excuse Slips</span>
+      </a>
 
     {% elif profile and profile.role == 'STUDENT' %}
       <span class="sidebar-section-label">Student</span>
@@ -118,6 +122,10 @@
       <a href="{% url 'student_attendance_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'student_attendance_log' %}active{% endif %}">
         <i class="fas fa-calendar-check sidebar-link-icon"></i>
         <span>Attendance Log</span>
+      </a>
+      <a href="{% url 'student_excuse_slips' %}" class="sidebar-link {% if request.resolver_match.url_name == 'student_excuse_slips' %}active{% endif %}">
+        <i class="fas fa-file-medical sidebar-link-icon"></i>
+        <span>Excuse Slips</span>
       </a>
 
     {% else %}

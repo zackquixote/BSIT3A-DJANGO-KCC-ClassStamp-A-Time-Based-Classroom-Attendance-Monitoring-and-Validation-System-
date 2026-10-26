@@ -1,0 +1,161 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}Excuse Slip Review — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'teacher_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Excuse Slip Review</span>
+    </div>
+    <h1 class="page-title">Excuse Slip Review</h1>
+    <p class="page-subtitle">Adjudicate student absence justifications for your class sections</p>
+  </div>
+</div>
+
+<div id="excuseReviewAlert" class="toast toast--error mb-4" style="display: none;"></div>
+
+<!-- Pending Queue -->
+<div class="card mb-6" style="padding: 0; overflow: hidden;" data-review-url-prefix="{% url 'excuse_slip_review_ajax' 0 %}">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary"><i class="fas fa-inbox text-gold"></i> Pending Review</div>
+    <span class="badge badge--warning">{{ pending_slips|length }} pending</span>
+  </div>
+
+  {% if pending_slips %}
+  <div class="table-responsive">
+    <table class="table" style="margin-bottom: 0;">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Session</th>
+          <th>Reason</th>
+          <th>Attachment</th>
+          <th>Filed</th>
+          <th style="text-align: right; width: 190px;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slip in pending_slips %}
+        <tr data-slip-id="{{ slip.id }}">
+          <td>
+            <div class="font-semibold text-primary text-sm">{{ slip.student_profile.user.get_full_name|default:slip.student_profile.user.get_username }}</div>
+            <div class="text-muted text-xs font-mono">{{ slip.student_profile.student_number }}</div>
+          </td>
+          <td>
+            <div class="text-sm text-primary">{{ slip.session.slot.class_obj.subject.name }}</div>
+            <div class="text-muted text-xs">{{ slip.session.slot.class_obj.class_code }} · {{ slip.session.session_date|date:"M d, Y" }}</div>
+          </td>
+          <td class="text-sm text-secondary" style="max-width: 260px;">{{ slip.reason }}</td>
+          <td>
+            {% if slip.attachment %}
+              <a href="{{ slip.attachment.url }}" target="_blank" rel="noopener" class="text-xs text-gold"><i class="fas fa-paperclip"></i> View</a>
+            {% else %}
+              <span class="text-muted text-xs">—</span>
+            {% endif %}
+          </td>
+          <td class="text-muted text-xs">{{ slip.created_at|date:"M d, Y h:i A" }}</td>
+          <td style="text-align: right;">
+            <button type="button" class="btn btn-success btn-sm js-approve-slip" data-slip-id="{{ slip.id }}">
+              <i class="fas fa-circle-check"></i> Approve
+            </button>
+            <button type="button" class="btn btn-danger btn-sm js-reject-slip" data-slip-id="{{ slip.id }}"
+                    data-student="{{ slip.student_profile.user.get_full_name|default:slip.student_profile.user.get_username|escapejs }}">
+              <i class="fas fa-circle-xmark"></i> Reject
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted text-sm" style="padding: 24px 20px; margin: 0;">
+    <i class="fas fa-circle-check text-success"></i> No pending excuse slips — queue is clear.
+  </p>
+  {% endif %}
+</div>
+
+<!-- Resolved History -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary"><i class="fas fa-clock-rotate-left text-gold"></i> Resolved</div>
+    <span class="text-muted text-xs">{{ resolved_slips|length }} resolved</span>
+  </div>
+
+  {% if resolved_slips %}
+  <div class="table-responsive">
+    <table class="table" style="margin-bottom: 0;">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Session</th>
+          <th>Outcome</th>
+          <th>Instructor Note</th>
+          <th>Reviewed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slip in resolved_slips %}
+        <tr>
+          <td>
+            <div class="font-semibold text-primary text-sm">{{ slip.student_profile.user.get_full_name|default:slip.student_profile.user.get_username }}</div>
+            <div class="text-muted text-xs font-mono">{{ slip.student_profile.student_number }}</div>
+          </td>
+          <td>
+            <div class="text-sm text-primary">{{ slip.session.slot.class_obj.subject.name }}</div>
+            <div class="text-muted text-xs">{{ slip.session.session_date|date:"M d, Y" }}</div>
+          </td>
+          <td>
+            {% if slip.status == 'APPROVED' %}
+              <span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Approved</span>
+            {% else %}
+              <span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Rejected</span>
+            {% endif %}
+          </td>
+          <td class="text-sm text-secondary" style="max-width: 260px;">{{ slip.review_note|default:"—" }}</td>
+          <td class="text-muted text-xs">
+            {{ slip.reviewed_at|date:"M d, Y h:i A" }}
+            {% if slip.reviewed_by %}<div class="text-xs">{{ slip.reviewed_by.get_full_name|default:slip.reviewed_by.get_username }}</div>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted text-sm" style="padding: 24px 20px; margin: 0;">No resolved excuse slips yet.</p>
+  {% endif %}
+</div>
+
+<!-- Reject Modal -->
+<div class="modal" id="rejectSlipModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-circle-xmark text-danger"></i> Reject Excuse Slip</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="rejectSlipModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="text-secondary text-sm mb-3">
+        Rejecting the excuse for <strong class="text-primary" id="rejectStudentName">—</strong> keeps the absence on their record.
+      </p>
+      <div class="form-group">
+        <label class="form-label" for="rejectNote">Review Note <span class="text-danger">*</span></label>
+        <textarea id="rejectNote" class="form-control text-sm" rows="3" placeholder="Explain why the excuse was not accepted…" required></textarea>
+      </div>
+      <div id="rejectSlipError" class="toast toast--error mt-3" style="display: none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-modal-dismiss="rejectSlipModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirmRejectBtn"><i class="fas fa-circle-xmark"></i> Reject Slip</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/teacher/excuse_review.js' %}?v=20261026_v1"></script>
+{% endblock %}

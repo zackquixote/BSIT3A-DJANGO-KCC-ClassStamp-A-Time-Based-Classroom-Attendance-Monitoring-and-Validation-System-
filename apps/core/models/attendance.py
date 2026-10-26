@@ -220,3 +220,55 @@ class StampAttempt(models.Model):
 
     def __str__(self):
         return f'{self.attempted_at} - {self.outcome}'
+
+
+class OfflineBadge(models.Model):
+    """
+    // [Model] Server-Issued Single-Use Offline Attendance Badge (S-07)
+    // A short-lived credential for students without network/data connectivity:
+    // the badge renders a static QR that the teacher terminal can validate
+    // without the student's live TOTP device. The raw token is never stored —
+    // only its SHA-256 hash — and each badge can be consumed exactly once.
+    """
+    student_profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name='offline_badges',
+        help_text="// Student account the badge belongs to"
+    )
+    token_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="// SHA-256 hex digest of the raw 64-hex bearer token"
+    )
+    issued_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(help_text="// Hard expiry (default +48h)")
+    consumed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="// Set when the badge is redeemed at a scanning terminal"
+    )
+    consumed_session = models.ForeignKey(
+        ClassSession,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='offline_badges',
+        help_text="// Session where the badge was redeemed"
+    )
+
+    class Meta:
+        app_label = 'core'
+        db_table = 'tblcs_offline_badge'
+        ordering = ['-issued_at']
+
+    def __str__(self):
+        return f'{self.student_profile.student_number} badge issued {self.issued_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def is_consumed(self) -> bool:
+        return self.consumed_at is not None
+
+    @property
+    def is_expired(self) -> bool:
+        from django.utils import timezone
+        return self.expires_at <= timezone.now()

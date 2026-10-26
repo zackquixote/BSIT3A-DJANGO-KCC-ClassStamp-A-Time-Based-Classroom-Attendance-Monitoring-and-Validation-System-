@@ -32,7 +32,7 @@
   - **Bulk Reject Selected:** Opens a modal to apply a standard rejection reason to all selected students
 
 #### A-02 — Slide-Over Dossier Preview Drawer
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (2026-10-26) — Quick View button per pending row opens a slide-over dossier (photo/proof, all registration fields, prev/next navigation) fed by the new `validation_dossier_json` endpoint; keyboard shortcuts (J/K navigate, A approve via existing endpoint, R opens the reject modal, Esc closes); no page redirect needed
 - **Problem:** Clicking a student redirects away to a detail page, breaking the review flow.
 - **Solution:**
   - Off-canvas slide-over drawer directly on the validation queue
@@ -62,14 +62,12 @@
 - **Solution:** 1-click batch promote all approved students (`year_level += 1`); 4th Year → Alumni status
 
 #### A-07 — Program-Centric Curriculum Matrix Builder
-- **Status:** ❌ Not Built
-- **Solution:** Visual Year × Semester grid inside each Program page to add/remove subjects
+- **Status:** ✅ Done (2026-10-26) — Year × Semester grid modal on the Programs page; `Curriculum.semester` dimension added with unique (program, year_level, semester, subject); assign/remove via existing AJAX endpoints; new `program_curriculum_list` JSON endpoint; keyboard-free chip-based UI in `curriculum_matrix.js`)
 
 ### 🟢 Medium Priority
 
 #### A-08 — Academic Term Rollover Wizard
-- **Status:** ❌ Not Built
-- **Solution:** Guided 4-step: pick new term → deactivate old → optional promotion → audit log
+- **Status:** ✅ Done (2026-10-26) — 4-step wizard modal on Academic Years page; atomic `rollover_academic_year` service creates the new active term, deactivates predecessors, optionally promotes approved students (+1 year, capped at program duration); audits CREATE_ACADEMIC_YEAR, TERM_ROLLOVER, PROMOTE_STUDENTS)
 
 #### A-09 — Advanced Audit Log Multi-Filtering
 - **Status:** ✅ Done (Actor filter added to the audit log page and CSV export alongside the existing category tabs, action dropdown, date filter, and search; dropdown lists distinct actor usernames with full names, filtering matches exact username, and the CSV export applies the same actor filter)
@@ -155,8 +153,7 @@
 ### 🟢 Medium Priority
 
 #### T-07 — Kiosk / Projector Mode for Self-Scanning
-- **Status:** ❌ Not Built
-- **Solution:** Full-screen self-scanning mode; shows first name + status; auto-hides after 2.5s; masks student number
+- **Status:** ✅ Done (2026-10-26) — Fullscreen kiosk overlay on the scanner page (Fullscreen API with overlay fallback); large projector-sized stamp feedback; student number masked (last 4 digits only); result auto-hides after 2.5s back to the idle scan frame; Escape or fullscreen exit closes kiosk mode)
 
 #### T-08 — Attendance Heatmap & Trends
 - **Status:** ❌ Not Built
@@ -177,8 +174,7 @@
 - **Solution:** Department Chair assigns temp scan permissions to substitute faculty for a specific date only
 
 #### T-12 — Offline Camera Buffer (IndexedDB)
-- **Status:** ❌ Not Built
-- **Solution:** Queue QR scans locally during Wi-Fi drops; flush to backend on reconnect with anti-replay protection
+- **Status:** ✅ Done (2026-10-26) — `offline_buffer.js` queues failed scans in IndexedDB (`classstamp-offline`), auto-flushes on the `online` event and page load, shows a "queued offline" badge, and permanently drops server-rejected scans (expired TOTP tokens can never become valid again; server-side anti-replay still guards each flush)
 
 ---
 
@@ -220,12 +216,10 @@
 ### 🟢 Medium Priority
 
 #### S-07 — Offline QR Badge (PWA / Local Storage)
-- **Status:** ❌ Not Built — ⚠️ **SECURITY REVIEW REQUIRED:** storing the TOTP *secret* client-side in localStorage lets anyone with device access mint unlimited valid tokens forever. Needs a security design (per-session derived keys, hardware-bound storage, or short-lived server-issued badges) before implementation.
-- **Solution:** Store encrypted TOTP secret in browser; generate rotating token in client-side JS; works 100% offline
+- **Status:** ✅ Done (2026-10-26) — SECURITY REDESIGN: TOTP secrets are never stored client-side. Instead the server issues a single-use `OfflineBadge` (48h expiry) whose raw 64-hex token is shown once and stored only as a SHA-256 hash. The scan pipeline accepts `classstamp:offline:<student_number>:<token>`, atomically redeems the badge (select_for_update), stamps PRESENT/LATE, and audits REDEEM_OFFLINE_BADGE. Students issue/replace badges from their QR badge page (`offline_badge.js`).)
 
 #### S-08 — Online Excuse Slip Submission Workflow
-- **Status:** ❌ Not Built
-- **Solution:** Student selects missed session, uploads Medical Certificate photo → Teacher reviews → EXCUSED
+- **Status:** ✅ Done (2026-10-26) — Students file slips against ABSENT records (reason + optional attachment); `ExcuseSlip` model (unique per student/session); instructor review queue page with approve (absence converts to EXCUSED via upserted record) or reject (note required); audits EXCUSE_SUBMITTED / EXCUSE_APPROVED / EXCUSE_REJECTED; sidebar links for both roles)
 
 ### ⚪ Polish
 
@@ -297,11 +291,11 @@
 
 | Portal | ✅ Done | 🟡 Partial | ❌ Not Built | Total |
 |---|---|---|---|---|
-| 🛡️ Admin | 6 | 1 | 11 | **18** |
-| 👨‍🏫 Teacher | 5 | 0 | 7 | **12** |
-| 🎓 Student | 4 | 1 | 4 | **9** |
+| 🛡️ Admin | 9 | 1 | 8 | **18** |
+| 👨‍🏫 Teacher | 7 | 0 | 5 | **12** |
+| 🎓 Student | 6 | 1 | 2 | **9** |
 | ⚙️ Backend | 4 | 1 | 7 | **12** |
-| **TOTAL** | **19** | **3** | **29** | **51** |
+| **TOTAL** | **26** | **3** | **22** | **51** |
 
 ---
 
@@ -328,7 +322,7 @@
 | A-09 | Actor filter for audit log |
 | T-05 | Consecutive 3-absence sentinel alert |
 
-#### Week 4+ — Advanced Features
+#### Week 4+ — Advanced Features ✅ Complete (2026-10-26)
 | ID | Feature |
 |---|---|
 | A-02 | Slide-over dossier drawer |
