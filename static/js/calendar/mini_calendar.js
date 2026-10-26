@@ -212,6 +212,35 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Tab switcher: Agenda vs Month Grid
+  const tabAgenda = document.getElementById('calTabAgendaBtn');
+  const tabMonth = document.getElementById('calTabMonthBtn');
+  const agendaView = document.getElementById('miniCalAgendaView');
+  const monthView = document.getElementById('miniCalMonthView');
+
+  if (tabAgenda && tabMonth && agendaView && monthView) {
+    tabAgenda.addEventListener('click', function (e) {
+      e.preventDefault();
+      tabAgenda.classList.add('is-active');
+      tabAgenda.setAttribute('aria-selected', 'true');
+      tabMonth.classList.remove('is-active');
+      tabMonth.setAttribute('aria-selected', 'false');
+      agendaView.style.display = 'block';
+      monthView.style.display = 'none';
+    });
+
+    tabMonth.addEventListener('click', function (e) {
+      e.preventDefault();
+      tabMonth.classList.add('is-active');
+      tabMonth.setAttribute('aria-selected', 'true');
+      tabAgenda.classList.remove('is-active');
+      tabAgenda.setAttribute('aria-selected', 'false');
+      agendaView.style.display = 'none';
+      monthView.style.display = 'flex';
+      renderCalendar();
+    });
+  }
+
   // Initial render
   renderCalendar();
 });

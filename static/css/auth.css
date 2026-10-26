@@ -102,27 +102,37 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 .kcc-brand-badge {
-  width: 54px;
-  height: 54px;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  width: 86px;
+  height: 86px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.kcc-brand-badge:hover {
+  transform: scale(1.06) rotate(-2deg);
 }
 
 .kcc-brand-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 8px;
+  width: 86px !important;
+  height: 86px !important;
+  max-width: 86px !important;
+  max-height: 86px !important;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  display: block !important;
+  filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.6)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.85));
 }
 
 .kcc-brand-text {
@@ -131,19 +141,20 @@
 }
 
 .kcc-inst-title {
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 700;
   color: #94a3b8;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  margin-bottom: 2px;
 }
 
 .kcc-sys-name {
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 800;
   color: #ffffff;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 /* ── Hero Center Content ─────────────────────────────────────── */
@@ -476,31 +487,163 @@
   }
 
   .kcc-hero-panel {
-    padding: 36px 24px;
+    padding: 32px 24px 28px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .kcc-hero-body {
-    margin: 24px 0;
+    margin: 20px 0;
   }
 
   .kcc-hero-headline {
-    font-size: 2.2rem;
+    font-size: 2.1rem;
   }
 
   .kcc-form-panel {
-    padding: 40px 20px;
+    padding: 36px 24px 44px;
     min-height: auto;
   }
 }
 
-@media (max-width: 640px) {
-  .kcc-hero-footer {
-    gap: 16px;
+@media (max-width: 768px) {
+  .kcc-hero-header {
+    gap: 14px;
   }
 
-  .kcc-feature-item {
-    font-size: 0.78rem;
+  .kcc-brand-badge {
+    width: 70px !important;
+    height: 70px !important;
+  }
+
+  .kcc-brand-logo {
+    width: 70px !important;
+    height: 70px !important;
+    max-width: 70px !important;
+    max-height: 70px !important;
+  }
+
+  .kcc-inst-title {
+    font-size: 0.68rem;
+  }
+
+  .kcc-sys-name {
+    font-size: 1.3rem;
+  }
+
+  .kcc-hero-panel {
+    padding: 24px 20px 20px;
+  }
+
+  .kcc-hero-body {
+    margin: 14px 0 10px;
+  }
+
+  .kcc-tag-pill {
+    font-size: 0.65rem;
+    padding: 4px 10px;
+    margin-bottom: 10px;
+  }
+
+  .kcc-hero-headline {
+    font-size: 1.6rem;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .kcc-hero-desc {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .kcc-hero-footer {
+    display: none; /* Hide bottom pills on mobile to avoid vertical cramping */
+  }
+
+  .kcc-form-panel {
+    padding: 28px 18px 48px;
+  }
+
+  .kcc-form-container {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .kcc-form-header {
+    margin-bottom: 22px;
+  }
+
+  .kcc-form-title {
+    font-size: 1.55rem;
+    line-height: 1.25;
+  }
+
+  .kcc-form-subtitle {
+    font-size: 0.86rem;
+    margin-top: 4px;
+  }
+
+  .kcc-form-group {
+    margin-bottom: 18px;
+  }
+
+  .kcc-input-wrap {
+    height: 48px;
+  }
+
+  .kcc-input {
+    height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .kcc-btn-submit {
+    height: 48px;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+
+  .kcc-auth-footer {
+    margin-top: 24px;
+    font-size: 0.88rem;
+  }
+
+  .kcc-help-btn {
+    bottom: 14px;
+    right: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .kcc-hero-panel {
+    padding: 20px 16px 16px;
+  }
+
+  .kcc-brand-badge {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  .kcc-brand-logo {
+    width: 60px !important;
+    height: 60px !important;
+    max-width: 60px !important;
+    max-height: 60px !important;
+  }
+
+  .kcc-hero-headline {
+    font-size: 1.35rem;
+  }
+
+  .kcc-hero-desc {
+    display: none; /* Clean presentation: keep title and tagline, skip long paragraph on small phones */
+  }
+
+  .kcc-form-panel {
+    padding: 24px 14px 40px;
+  }
+
+  .kcc-form-title {
+    font-size: 1.4rem;
   }
 }

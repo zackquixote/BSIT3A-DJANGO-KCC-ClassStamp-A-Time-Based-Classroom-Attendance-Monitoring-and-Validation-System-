@@ -7,7 +7,7 @@
 
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261021_v1">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261026_v6">
 {% endblock %}
 
 
@@ -361,39 +361,30 @@
 
 
   <!-- 5. Departments -->
-
   <a href="{% url 'department_list' %}" class="dash-kpi-card">
-
     <div class="dash-kpi-icon dash-kpi-icon--purple"><i class="fas fa-building-columns"></i></div>
-
     <div class="dash-kpi-body">
-
       <span class="dash-kpi-value">{{ department_count }}</span>
-
       <span class="dash-kpi-label">Departments</span>
-
+      <span class="dash-kpi-delta dash-kpi-delta--flat">
+        <i class="fas fa-circle-nodes"></i>
+        <span>active units</span>
+      </span>
     </div>
-
   </a>
-
-
 
   <!-- 6. Degree Programs -->
-
   <a href="{% url 'program_list' %}" class="dash-kpi-card">
-
     <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-graduation-cap"></i></div>
-
     <div class="dash-kpi-body">
-
       <span class="dash-kpi-value">{{ program_count }}</span>
-
       <span class="dash-kpi-label">Degree Programs</span>
-
+      <span class="dash-kpi-delta dash-kpi-delta--flat">
+        <i class="fas fa-book-open"></i>
+        <span>curriculums</span>
+      </span>
     </div>
-
   </a>
-
 </div>
 
 
@@ -791,80 +782,79 @@
 
 
 
-  <!-- 2. Academic Calendar (Mini Calendar) -->
-
+  <!-- 2. Academic Calendar (Compact Agenda & Month Toggle) -->
   <div class="dash-panel" id="dashMiniCalendar">
-
     <div class="dash-panel-head">
-
       <div>
-
         <h2 class="dash-panel-title"><i class="fas fa-calendar-days text-gold"></i> Academic Calendar</h2>
-
         <p class="dash-panel-subtitle">Official milestones & holidays</p>
-
       </div>
-
-      <a href="{% url 'admin_calendar' %}" class="dash-panel-action" title="Open Full Academic Calendar">
-
-        Full View <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem;"></i>
-
-      </a>
-
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div class="dash-tab-group" role="tablist">
+          <button type="button" class="dash-tab-btn is-active" id="calTabAgendaBtn" role="tab" aria-selected="true" title="Upcoming Milestones">Agenda</button>
+          <button type="button" class="dash-tab-btn" id="calTabMonthBtn" role="tab" aria-selected="false" title="Month Calendar">Month</button>
+        </div>
+        <a href="{% url 'admin_calendar' %}" class="dash-panel-action" title="Open Full Academic Calendar">
+          Full <i class="fas fa-arrow-up-right-from-square" style="font-size: 0.62rem;"></i>
+        </a>
+      </div>
     </div>
-
     <div class="dash-panel-body">
-
-      <div class="mini-cal-wrap">
-
-        <div class="mini-cal-nav">
-
-          <span class="mini-cal-title" id="miniCalMonthTitle">October 2026</span>
-
-          <div style="display: flex; gap: 4px;">
-
-            <button type="button" class="mini-cal-btn" id="miniCalPrevBtn" title="Previous Month" aria-label="Previous Month">
-
-              <i class="fas fa-chevron-left"></i>
-
-            </button>
-
-            <button type="button" class="mini-cal-btn" id="miniCalNextBtn" title="Next Month" aria-label="Next Month">
-
-              <i class="fas fa-chevron-right"></i>
-
-            </button>
-
-          </div>
-
+      <!-- 1. Agenda View (Default - compact, clean, matches height with adjacent panels) -->
+      <div class="dash-cal-agenda" id="miniCalAgendaView">
+        <div class="dash-cal-list">
+          {% for evt in upcoming_calendar_events %}
+            <div class="dash-cal-row" style="border-left: 3px solid {{ evt.category_meta.color|default:'#f59e0b' }};">
+              <div class="dash-cal-date-pill">
+                <span class="dash-cal-d">{{ evt.start_datetime|date:"d" }}</span>
+                <span class="dash-cal-m">{{ evt.start_datetime|date:"M"|upper }}</span>
+              </div>
+              <div class="dash-cal-details">
+                <div class="dash-cal-name" title="{{ evt.title }}">{{ evt.title }}</div>
+                <div class="dash-cal-sub">
+                  <span class="badge badge--xs" style="background: rgba(255,255,255,0.06); color: {{ evt.category_meta.color|default:'var(--accent-gold)' }}; padding: 1px 5px;">
+                    <i class="fas {{ evt.category_meta.icon|default:'fa-calendar' }}"></i> {{ evt.get_category_display }}
+                  </span>
+                  {% if evt.location %}
+                    <span class="text-muted text-xs" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><i class="fas fa-location-dot"></i> {{ evt.location }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="dash-cal-today-empty">
+              <div class="dash-cal-date-pill dash-cal-date-pill--today">
+                <span class="dash-cal-d">{{ today_date|date:"d" }}</span>
+                <span class="dash-cal-m">{{ today_date|date:"M"|upper }}</span>
+              </div>
+              <div class="dash-cal-details">
+                <div class="dash-cal-name">Today is {{ today_date|date:"l" }}</div>
+                <div class="dash-cal-sub text-muted">No scheduled academic milestones this week.</div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
-
-        <div class="mini-cal-weekdays">
-
-          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
-
-        </div>
-
-        <div class="mini-cal-grid" id="miniCalDaysGrid"></div>
-
-        <div class="mini-cal-inspect" id="miniCalDayInspect">
-
-          <div class="mini-cal-inspect-head">
-
-            <span id="miniCalInspectDate">Today</span>
-
-            <span class="text-xs text-muted"><i class="fas fa-hand-pointer"></i> Day Schedule</span>
-
-          </div>
-
-          <div id="miniCalInspectEvents"></div>
-
-        </div>
-
       </div>
 
+      <!-- 2. Mini Calendar Month Grid (Ultra-compact, max-height 145px) -->
+      <div class="mini-cal-wrap" id="miniCalMonthView" style="display: none;">
+        <div class="mini-cal-nav">
+          <span class="mini-cal-title" id="miniCalMonthTitle">October 2026</span>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" class="mini-cal-btn" id="miniCalPrevBtn" title="Previous Month" aria-label="Previous Month">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <button type="button" class="mini-cal-btn" id="miniCalNextBtn" title="Next Month" aria-label="Next Month">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mini-cal-weekdays">
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+        </div>
+        <div class="mini-cal-grid" id="miniCalDaysGrid"></div>
+      </div>
     </div>
-
   </div>
 
 
@@ -1222,6 +1212,6 @@
 <script src="{% static 'js/admin_dashboard.js' %}?v=20261026_v1"></script>
 
 {{ mini_calendar_events_json|json_script:"mini-calendar-events-data" }}
-<script src="{% static 'js/calendar/mini_calendar.js' %}?v=20261021_v1"></script>
+<script src="{% static 'js/calendar/mini_calendar.js' %}?v=20261026_v2"></script>
 {% endblock %}
 

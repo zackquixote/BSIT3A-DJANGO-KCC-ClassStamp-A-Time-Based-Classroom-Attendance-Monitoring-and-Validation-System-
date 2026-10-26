@@ -50,14 +50,14 @@
 }
 
 .sidebar-brand-badge {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  max-width: 36px;
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 2px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  background: transparent !important;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -66,13 +66,19 @@
 
 .sidebar-brand-logo,
 .sidebar-brand-img {
-  width: 32px !important;
-  height: 32px !important;
-  max-width: 32px !important;
-  max-height: 32px !important;
+  width: 36px !important;
+  height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
   object-fit: contain !important;
   display: block !important;
   flex-shrink: 0 !important;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  transition: transform 0.25s ease;
+}
+
+.sidebar-brand-left:hover .sidebar-brand-logo {
+  transform: scale(1.08) rotate(-2deg);
 }
 
 .sidebar-brand-text-wrap {
