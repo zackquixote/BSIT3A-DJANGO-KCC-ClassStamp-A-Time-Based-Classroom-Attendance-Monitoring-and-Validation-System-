@@ -60,6 +60,55 @@
         link.classList.add('active');
       }
     });
+
+    // In-page section navigation (teacher "Scan Attendance" / "My Classes")
+    function focusSection(hash, smooth, flash) {
+      var id = (hash || '').replace(/^#/, '');
+      var target = id ? document.getElementById(id) : null;
+      if (!target) return false;
+
+      target.scrollIntoView({
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'start'
+      });
+
+      if (flash) {
+        target.classList.remove('anchor-target-flash');
+        void target.offsetWidth;
+        target.classList.add('anchor-target-flash');
+        window.setTimeout(function () {
+          target.classList.remove('anchor-target-flash');
+        }, 1200);
+      }
+      return true;
+    }
+
+    document.querySelectorAll('.sidebar-link[href*="#"]').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        var href = link.getAttribute('href') || '';
+        var linkUrl;
+        try {
+          linkUrl = new URL(href, window.location.href);
+        } catch (err) {
+          return;
+        }
+        if (linkUrl.pathname !== window.location.pathname) return;
+        if (!linkUrl.hash || !document.getElementById(linkUrl.hash.slice(1))) return;
+
+        e.preventDefault();
+        focusSection(linkUrl.hash, true, true);
+        if (window.history && history.replaceState) {
+          history.replaceState(null, '', linkUrl.hash);
+        }
+        closeSidebar();
+      });
+    });
+
+    if (window.location.hash) {
+      window.setTimeout(function () {
+        focusSection(window.location.hash, false, false);
+      }, 60);
+    }
   }
 
   /* ── Back-Forward Cache (bfcache) Invalidation ───────────────── */

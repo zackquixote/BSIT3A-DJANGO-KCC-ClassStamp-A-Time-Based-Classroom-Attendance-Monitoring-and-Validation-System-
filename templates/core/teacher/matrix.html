@@ -1,0 +1,164 @@
+{% extends "theme/base.html" %}
+
+{% block title %}Attendance Matrix — {{ class_obj.class_code }} — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <a href="{% url 'teacher_session_history' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Session History">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
+      <span class="badge badge--muted">{{ class_obj.subject.code }}</span>
+      <span class="badge badge--outline">{{ class_obj.academic_year.name }}</span>
+    </div>
+    <h1 class="page-title text-xl">Attendance Matrix</h1>
+    <p class="page-subtitle text-xs">
+      <i class="fas fa-chalkboard-user text-gold"></i> {{ class_obj.subject.name }}
+      &nbsp;•&nbsp; Read-only grid of enrolled students across all class meetings.
+    </p>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?format=csv" class="btn btn-primary">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- Telemetry Stat Grid -->
+<div class="stat-grid mb-4">
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Enrolled Students</p>
+        <h3 class="stat-value font-mono text-primary mt-1">{{ total_students }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--gold-light); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-users" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Active roster</div>
+  </div>
+
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Class Meetings</p>
+        <h3 class="stat-value font-mono text-primary mt-1">{{ total_sessions }}</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-calendar-check" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Sessions recorded</div>
+  </div>
+
+  <div class="card stat-card--kpi">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Overall Compliance</p>
+        <h3 class="stat-value font-mono mt-1" style="color: #c084fc;">{{ overall_rate }}%</h3>
+      </div>
+      <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+        <i class="fas fa-chart-line" style="font-size: 1.2rem;"></i>
+      </div>
+    </div>
+    <div class="mt-2 text-xs text-muted">Present + Late across all sessions</div>
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 14px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-table-cells text-gold"></i> Student × Meeting Grid
+    </div>
+    <div class="flex items-center gap-2 text-xs">
+      <span class="badge badge--success font-mono">P</span> Present
+      <span class="badge badge--warning font-mono">L</span> Late
+      <span class="badge badge--danger font-mono">A</span> Absent
+      <span class="badge badge--purple font-mono">E</span> Excused
+      <span class="badge badge--muted font-mono">—</span> No record
+    </div>
+  </div>
+
+  <div class="table-responsive" style="overflow-x: auto;">
+    <table class="table" style="white-space: nowrap;">
+      <thead>
+        <tr>
+          <th style="position: sticky; left: 0; background: var(--bg-surface, #121827); z-index: 1;">Student</th>
+          <th>Program</th>
+          {% for s in session_list %}
+            <th style="text-align: center; min-width: 64px;" title="{{ s.status }} • {{ s.room }}">
+              <a href="{% url 'teacher_session_summary' s.id %}" class="text-primary" style="text-decoration: none;">
+                {{ s.display_date }}<br><span class="text-muted" style="font-size: 0.68rem;">{{ s.weekday }}</span>
+              </a>
+            </th>
+          {% endfor %}
+          <th style="text-align: center;">P</th>
+          <th style="text-align: center;">L</th>
+          <th style="text-align: center;">A</th>
+          <th style="text-align: center;">E</th>
+          <th style="text-align: center;">Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in student_rows %}
+        <tr>
+          <td style="position: sticky; left: 0; background: var(--bg-surface, #121827); z-index: 1;">
+            <div class="font-semibold text-primary text-xs">{{ row.name }}</div>
+            <div class="text-muted font-mono" style="font-size: 0.7rem;">{{ row.student_number }}</div>
+          </td>
+          <td>
+            <span class="badge badge--muted font-mono text-xs">{{ row.program }}</span>
+          </td>
+          {% for cell in row.cells %}
+            <td style="text-align: center;">
+              {% if cell.status == 'PRESENT' %}
+                <span class="badge badge--success font-mono" title="{{ cell.method }} • {{ cell.stamped_at }}">P</span>
+              {% elif cell.status == 'LATE' %}
+                <span class="badge badge--warning font-mono" title="{{ cell.method }} • {{ cell.stamped_at }}">L</span>
+              {% elif cell.status == 'ABSENT' %}
+                <span class="badge badge--danger font-mono" title="{{ cell.method }} • {{ cell.stamped_at }}">A</span>
+              {% elif cell.status == 'EXCUSED' %}
+                <span class="badge badge--purple font-mono" title="{{ cell.method }} • {{ cell.stamped_at }}">E</span>
+              {% else %}
+                <span class="text-muted font-mono" title="No attendance record">—</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+          <td style="text-align: center;"><span class="font-mono text-success text-xs">{{ row.present }}</span></td>
+          <td style="text-align: center;"><span class="font-mono text-warning text-xs">{{ row.late }}</span></td>
+          <td style="text-align: center;"><span class="font-mono text-danger text-xs">{{ row.absent }}</span></td>
+          <td style="text-align: center;"><span class="font-mono text-muted text-xs">{{ row.excused }}</span></td>
+          <td style="text-align: center;">
+            {% if row.rate >= 80 %}
+              <span class="badge badge--success font-mono text-xs">{{ row.rate }}%</span>
+            {% elif row.rate >= 60 %}
+              <span class="badge badge--warning font-mono text-xs">{{ row.rate }}%</span>
+            {% else %}
+              <span class="badge badge--danger font-mono text-xs">{{ row.rate }}%</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="{{ session_list|length|add:7 }}" style="text-align: center; padding: 42px 16px;" class="text-muted text-sm">
+            <i class="fas fa-user-graduate" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
+            No active students are enrolled in this class section yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not session_list %}
+  <div style="padding: 16px 20px; border-top: 1px solid var(--glass-border);" class="text-muted text-xs">
+    <i class="fas fa-circle-info text-gold"></i>
+    No class meetings have been recorded for this section yet. Open a session from the dashboard to begin.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

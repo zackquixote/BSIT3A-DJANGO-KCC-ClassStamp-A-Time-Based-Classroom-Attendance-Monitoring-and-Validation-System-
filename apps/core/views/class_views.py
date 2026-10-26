@@ -25,10 +25,8 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.core.decorators import role_required
 from apps.core.models import (
     AcademicYear,
-    AttendanceRecord,
     AuditEvent,
     Class,
-    ClassSession,
     ClassSlot,
     Curriculum,
     Department,
@@ -37,6 +35,8 @@ from apps.core.models import (
     Program,
     Subject,
 )
+from apps.core.services import ClassAssignmentError, assign_class
+from apps.core.services.attendance_service import build_attendance_matrix
 
 
 # // ==============================================================================
@@ -212,54 +212,32 @@ def class_save(request):
     teacher = get_object_or_404(Profile, pk=teacher_profile_id, role=Profile.ROLE_TEACHER)
     academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
 
-    # Check for duplicate class_code within the same academic year
-    conflict_qs = Class.objects.filter(academic_year=academic_year, class_code=class_code)
-    if class_id:
-        conflict_qs = conflict_qs.exclude(pk=class_id)
-    if conflict_qs.exists():
-        messages.error(request, f"A class with code '{class_code}' already exists for {academic_year.name}.")
-        return redirect('class_list')
+    class_obj = get_object_or_404(Class, pk=class_id) if class_id else None
 
-    if class_id:
-        class_obj = get_object_or_404(Class, pk=class_id)
-        old_val = f"{class_obj.class_code} ({class_obj.subject.code})"
-        class_obj.class_code = class_code
-        class_obj.subject = subject
-        class_obj.teacher_profile = teacher
-        class_obj.academic_year = academic_year
-        class_obj.capacity = capacity
-        class_obj.grace_minutes = grace_minutes
-        class_obj.save()
-
-        AuditEvent.objects.create(
+    try:
+        result = assign_class(
             actor=request.user,
-            action='UPDATE_CLASS',
-            object_type='Class',
-            object_id=str(class_obj.id),
-            old_value=old_val,
-            new_value=f"{class_code} ({subject.code})",
-            reason=f"Updated class section {class_code}",
-        )
-        messages.success(request, f"Class '{class_code}' updated successfully.")
-    else:
-        class_obj = Class.objects.create(
-            class_code=class_code,
-            subject=subject,
             teacher_profile=teacher,
             academic_year=academic_year,
-            capacity=capacity,
+            subject=subject,
+            class_code=class_code,
             grace_minutes=grace_minutes,
-            is_active=True,
+            capacity=capacity,
+            class_obj=class_obj,
         )
-        AuditEvent.objects.create(
-            actor=request.user,
-            action='CREATE_CLASS',
-            object_type='Class',
-            object_id=str(class_obj.id),
-            new_value=f"{class_code} ({subject.code})",
-            reason=f"Created class section {class_code}",
-        )
+    except ClassAssignmentError as exc:
+        messages.error(request, str(exc))
+        return redirect('class_list')
+
+    if result['created']:
         messages.success(request, f"Class '{class_code}' created successfully.")
+    elif result['reassigned_from']:
+        messages.success(
+            request,
+            f"Class '{class_code}' reassigned from {result['reassigned_from']} successfully.",
+        )
+    else:
+        messages.success(request, f"Class '{class_code}' updated successfully.")
 
     return redirect('class_list')
 
@@ -355,13 +333,31 @@ def class_slot_save(request, class_id):
 @require_POST
 def class_slot_delete(request, slot_id):
     """
-    // Removes a recurring weekly schedule slot from a class section.
+    // Removes or safely retires a recurring weekly schedule slot.
+    // Slots with historical sessions are deactivated instead of hard-deleted
+    // because ClassSession.slot is protected by a RESTRICT foreign key.
     """
     slot = get_object_or_404(ClassSlot, pk=slot_id)
     class_code = slot.class_obj.class_code
     slot_desc = f"{slot.get_weekday_display()} {slot.starts_at}-{slot.ends_at}"
-    slot.delete()
 
+    if slot.sessions.exists():
+        slot.is_active = False
+        slot.save(update_fields=['is_active'])
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='DEACTIVATE_CLASS_SLOT',
+            object_type='ClassSlot',
+            object_id=str(slot_id),
+            reason=f"Retired schedule slot {slot_desc} from {class_code} while preserving session history",
+        )
+        return JsonResponse({
+            'success': True,
+            'archived': True,
+            'message': 'This slot has session history, so it was retired instead of deleted.',
+        })
+
+    slot.delete()
     AuditEvent.objects.create(
         actor=request.user,
         action='DELETE_CLASS_SLOT',
@@ -536,108 +532,10 @@ def class_attendance_matrix(request, class_id):
         id=class_id,
     )
 
-    # All active enrollments sorted by student last name, first name
-    enrollments = (
-        Enrollment.objects
-        .filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
-        .select_related('student_profile__user', 'student_profile__program')
-        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
-    )
-
-    # All class sessions held for this class
-    sessions = (
-        ClassSession.objects
-        .filter(slot__class_obj=class_obj)
-        .select_related('slot')
-        .order_by('session_date', 'opened_at')
-    )
-
-    # All attendance records for these sessions
-    records = (
-        AttendanceRecord.objects
-        .filter(session__in=sessions)
-        .select_related('student_profile')
-    )
-
-    # Fast lookup dictionary: (student_profile_id, session_id) -> record
-    record_map = {}
-    for r in records:
-        record_map[(r.student_profile_id, r.session_id)] = r
-
-    session_list = []
-    for s in sessions:
-        session_list.append({
-            'id': s.id,
-            'date': s.session_date.strftime('%Y-%m-%d'),
-            'display_date': s.session_date.strftime('%b %d'),
-            'weekday': s.session_date.strftime('%a'),
-            'room': s.slot.room if s.slot and s.slot.room else '—',
-            'status': s.status,
-        })
-
-    student_rows = []
-    total_attended_overall = 0
-    total_possible_overall = 0
-
-    for en in enrollments:
-        profile = en.student_profile
-        user = profile.user
-        student_name = user.get_full_name() or user.username
-        student_num = profile.student_number or '—'
-        program_code = profile.program.code if profile.program else '—'
-
-        present_cnt = 0
-        late_cnt = 0
-        absent_cnt = 0
-        excused_cnt = 0
-        cells = []
-
-        for s in sessions:
-            rec = record_map.get((profile.id, s.id))
-            if rec:
-                st = rec.status
-                if st == AttendanceRecord.STATUS_PRESENT:
-                    present_cnt += 1
-                elif st == AttendanceRecord.STATUS_LATE:
-                    late_cnt += 1
-                elif st == AttendanceRecord.STATUS_ABSENT:
-                    absent_cnt += 1
-                elif st == AttendanceRecord.STATUS_EXCUSED:
-                    excused_cnt += 1
-                cells.append({
-                    'status': st,
-                    'method': rec.method,
-                    'stamped_at': timezone.localtime(rec.stamped_at).strftime('%I:%M %p') if rec.stamped_at else '—',
-                })
-            else:
-                cells.append({
-                    'status': '—',
-                    'method': None,
-                    'stamped_at': '—',
-                })
-
-        attended = present_cnt + late_cnt
-        total_sessions = len(sessions)
-        rate = round((attended / total_sessions) * 100, 1) if total_sessions > 0 else 0
-
-        total_attended_overall += attended
-        total_possible_overall += total_sessions
-
-        student_rows.append({
-            'student_id': profile.id,
-            'student_number': student_num,
-            'name': student_name,
-            'program': program_code,
-            'cells': cells,
-            'present': present_cnt,
-            'late': late_cnt,
-            'absent': absent_cnt,
-            'excused': excused_cnt,
-            'attended': attended,
-            'rate': rate,
-        })
-
-    overall_rate = round((total_attended_overall / total_possible_overall) * 100, 1) if total_possible_overall > 0 else 0
+    matrix = build_attendance_matrix(class_obj)
+    session_list = matrix['session_list']
+    student_rows = matrix['student_rows']
+    overall_rate = matrix['overall_rate']
 
     # CSV Export format
     if request.GET.get('format') == 'csv':

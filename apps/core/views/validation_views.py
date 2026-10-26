@@ -353,7 +353,7 @@ def approve_student(request, student_number):
     referer = request.META.get('HTTP_REFERER')
     if referer and '/validation/' in referer:
         return redirect(referer)
-    return redirect('validation_hub')
+    return redirect('validation_pending_queue')
 
 
 # // ==============================================================================
@@ -395,7 +395,7 @@ def reject_student(request, student_number):
         referer = request.META.get('HTTP_REFERER')
         if referer and '/validation/' in referer:
             return redirect(referer)
-        return redirect('validation_hub')
+        return redirect('validation_pending_queue')
 
     reject_student_registration(profile, request.user, reason)
 
@@ -405,7 +405,7 @@ def reject_student(request, student_number):
     referer = request.META.get('HTTP_REFERER')
     if referer and '/validation/' in referer:
         return redirect(referer)
-    return redirect('validation_hub')
+    return redirect('validation_pending_queue')
 
 
 # // ==============================================================================

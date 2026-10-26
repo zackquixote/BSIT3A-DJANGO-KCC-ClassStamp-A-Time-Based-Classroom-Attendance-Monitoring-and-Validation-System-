@@ -54,6 +54,15 @@ from .dashboard_views import (
 )
 
 # // ------------------------------------------------------------------------------
+# // 2b. Student Self-Service Portal (QR badge & personal attendance ledger)
+# // ------------------------------------------------------------------------------
+from .student_portal_views import (
+    student_attendance_log,
+    student_qr_badge,
+    student_qr_token_api,
+)
+
+# // ------------------------------------------------------------------------------
 # // 3. Account Validation & Registrar Dossier Subsystem
 # // ------------------------------------------------------------------------------
 from .validation_views import (
@@ -134,6 +143,8 @@ from .subject_views import (
 # // 9. Teacher & Faculty Management Subsystem
 # // ------------------------------------------------------------------------------
 from .teacher_views import (
+    admin_reset_teacher_password,
+    bulk_teacher_operation,
     teacher_analytics_json,
     teacher_assign_class_ajax,
     teacher_create,
@@ -176,8 +187,12 @@ from .class_views import (
 # // ------------------------------------------------------------------------------
 from .session_views import (
     attendance_scan_api,
+    teacher_attendance_matrix,
     teacher_manual_override_ajax,
     teacher_session_close,
+    teacher_session_export,
+    teacher_session_history,
+    teacher_session_history_export,
     teacher_session_open,
     teacher_session_scan,
     teacher_session_summary,
@@ -227,6 +242,9 @@ __all__ = [
     'admin_live_stream',
     'teacher_dashboard',
     'student_dashboard',
+    'student_qr_badge',
+    'student_qr_token_api',
+    'student_attendance_log',
     '_admin_dashboard_stats',
     '_teacher_dashboard_stats',
     '_student_dashboard_stats',
@@ -282,6 +300,8 @@ __all__ = [
     'teacher_delete',
     'teacher_get',
     'teacher_analytics_json',
+    'bulk_teacher_operation',
+    'admin_reset_teacher_password',
 
     # Academic Years
     'academic_year_list',
@@ -306,6 +326,10 @@ __all__ = [
     'teacher_session_scan',
     'teacher_session_close',
     'teacher_session_summary',
+    'teacher_session_export',
+    'teacher_session_history',
+    'teacher_session_history_export',
+    'teacher_attendance_matrix',
     'teacher_manual_override_ajax',
     'attendance_scan_api',
 ]

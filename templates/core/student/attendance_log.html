@@ -1,0 +1,142 @@
+{% extends "theme/base.html" %}
+{% block title %}Attendance Log — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h1 class="page-title">Attendance Log</h1>
+    <p class="page-subtitle">
+      Your personal attendance ledger &nbsp;•&nbsp;
+      <a href="{% url 'student_qr_badge' %}" class="text-gold"><i class="fas fa-qrcode"></i> Open my QR badge</a>
+    </p>
+  </div>
+</div>
+
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green"><i class="fas fa-user-check"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ totals.present_count|default:0 }}</span>
+      <span class="stat-label">Present</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold"><i class="fas fa-clock"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ totals.late_count|default:0 }}</span>
+      <span class="stat-label">Late</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--red"><i class="fas fa-user-xmark"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ totals.absent_count|default:0 }}</span>
+      <span class="stat-label">Absent</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple"><i class="fas fa-percent"></i></div>
+    <div class="stat-info">
+      <span class="stat-value">{{ totals.compliance_rate }}%</span>
+      <span class="stat-label">Compliance ({{ total_records }} stamps)</span>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-chart-simple text-gold"></i> Per-Class Breakdown
+    </div>
+    <span class="text-muted text-xs">Active Enrollments</span>
+  </div>
+  <div style="padding: 14px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+    {% for row in class_summaries %}
+      <div style="padding: 12px 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px;">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-primary">{{ row.class_obj.subject.code }} — {{ row.class_obj.class_code }}</span>
+          <span class="badge badge--primary badge--xs font-mono">{{ row.compliance_rate }}%</span>
+        </div>
+        <div class="text-muted text-xs mt-1" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          {{ row.class_obj.subject.name }}
+        </div>
+        <div class="flex items-center gap-2 flex-wrap mt-2 text-xs">
+          <span class="badge badge--success badge--xs">Present {{ row.present }}</span>
+          <span class="badge badge--warning badge--xs">Late {{ row.late }}</span>
+          <span class="badge badge--danger badge--xs">Absent {{ row.absent }}</span>
+          <span class="badge badge--purple badge--xs">Excused {{ row.excused }}</span>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-muted text-xs" style="padding: 8px 0;">No active class enrollments on record.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-clock-rotate-left text-gold"></i> Attendance Records
+    </div>
+    <span class="text-muted text-xs">Most recent first</span>
+  </div>
+  <div style="overflow-x: auto;">
+    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:10px 14px;">Date</th>
+          <th style="text-align:left; padding:10px 14px;">Class</th>
+          <th style="text-align:left; padding:10px 14px;">Instructor</th>
+          <th style="text-align:left; padding:10px 14px;">Status</th>
+          <th style="text-align:left; padding:10px 14px;">Method</th>
+          <th style="text-align:left; padding:10px 14px;">Stamped</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+          <tr>
+            <td style="padding:10px 14px;" class="font-mono text-xs">{{ r.session.session_date|date:"M d, Y" }}</td>
+            <td style="padding:10px 14px;">
+              <span class="font-bold text-primary text-sm">{{ r.session.slot.class_obj.subject.code }}</span>
+              <span class="text-muted text-xs"> • {{ r.session.slot.class_obj.class_code }}</span>
+            </td>
+            <td style="padding:10px 14px;" class="text-secondary text-xs">
+              {{ r.session.slot.class_obj.teacher_profile.user.get_full_name|default:"—" }}
+            </td>
+            <td style="padding:10px 14px;">
+              {% if r.status == 'PRESENT' %}
+                <span class="badge badge--success"><i class="fas fa-circle-check"></i> Present</span>
+              {% elif r.status == 'LATE' %}
+                <span class="badge badge--warning"><i class="fas fa-clock"></i> Late{% if r.late_minutes %} +{{ r.late_minutes }}m{% endif %}</span>
+              {% elif r.status == 'ABSENT' %}
+                <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Absent</span>
+              {% elif r.status == 'EXCUSED' %}
+                <span class="badge badge--purple"><i class="fas fa-file-medical"></i> Excused</span>
+              {% else %}
+                <span class="badge badge--muted">{{ r.status }}</span>
+              {% endif %}
+            </td>
+            <td style="padding:10px 14px;">
+              <span class="badge badge--muted text-xs">
+                {% if r.method == 'QR' %}<i class="fas fa-qrcode"></i> QR
+                {% elif r.method == 'MANUAL' %}<i class="fas fa-user-pen"></i> Manual
+                {% elif r.method == 'SYSTEM' %}<i class="fas fa-robot"></i> Auto
+                {% else %}{{ r.method }}{% endif %}
+              </span>
+            </td>
+            <td style="padding:10px 14px;" class="font-mono text-xs text-secondary">
+              {{ r.stamped_at|date:"h:i A"|default:"—" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" style="padding: 28px 14px; text-align: center;" class="text-muted text-sm">
+              No attendance records yet. Attend a class and have your instructor scan your QR badge.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

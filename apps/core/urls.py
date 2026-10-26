@@ -16,6 +16,9 @@ urlpatterns = [
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('teacher/dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
     path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
+    path('student/qr/', views.student_qr_badge, name='student_qr_badge'),
+    path('student/attendance/', views.student_attendance_log, name='student_attendance_log'),
+    path('api/student/qr-token/', views.student_qr_token_api, name='student_qr_token_api'),
 
     # // Admin: account validation hub & dedicated pending/reviewed pages
     path('validation/', views.validation_hub, name='validation_queue'),
@@ -58,6 +61,8 @@ urlpatterns = [
     path('teachers/create/', views.teacher_create, name='teacher_create'),
     path('teachers/update/<int:pk>/', views.teacher_update, name='teacher_update'),
     path('teachers/toggle/<int:pk>/', views.teacher_toggle, name='teacher_toggle'),
+    path('teachers/bulk-operation/', views.bulk_teacher_operation, name='bulk_teacher_operation'),
+    path('teachers/<int:pk>/reset-password/', views.admin_reset_teacher_password, name='admin_reset_teacher_password'),
     path('teachers/delete/<int:pk>/', views.teacher_delete, name='teacher_delete'),
     path('teachers/get/<int:pk>/', views.teacher_get, name='teacher_get'),
     path('teachers/<int:pk>/assign-class/', views.teacher_assign_class_ajax, name='teacher_assign_class_ajax'),
@@ -110,9 +115,13 @@ urlpatterns = [
     path('api/subjects/lookup/', views.subject_lookup_json, name='subject_lookup_json'),
     # // Teacher: Classroom Attendance Sessions & Live QR Scanner
     path('teacher/session/open/', views.teacher_session_open, name='teacher_session_open'),
+    path('teacher/sessions/', views.teacher_session_history, name='teacher_session_history'),
+    path('teacher/sessions/export/', views.teacher_session_history_export, name='teacher_session_history_export'),
     path('teacher/session/<int:session_id>/scan/', views.teacher_session_scan, name='teacher_session_scan'),
     path('teacher/session/<int:session_id>/close/', views.teacher_session_close, name='teacher_session_close'),
     path('teacher/session/<int:session_id>/summary/', views.teacher_session_summary, name='teacher_session_summary'),
+    path('teacher/session/<int:session_id>/export/', views.teacher_session_export, name='teacher_session_export'),
     path('teacher/session/<int:session_id>/override/', views.teacher_manual_override_ajax, name='teacher_manual_override_ajax'),
+    path('teacher/classes/<int:class_id>/matrix/', views.teacher_attendance_matrix, name='teacher_attendance_matrix'),
     path('api/attendance/scan/', views.attendance_scan_api, name='attendance_scan_api'),
 ]

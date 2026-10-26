@@ -146,11 +146,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (activeSessionsCard) activeSessionsCard.addEventListener('click', openSessionsModal);
   if (radarDrawerTriggerBtn) radarDrawerTriggerBtn.addEventListener('click', openSessionsModal);
-    if (closeSessionsModal) {
-      closeSessionsModal.addEventListener('click', function () {
-        activeSessionsModal.classList.remove('is-open');
-      });
-    }
+  if (closeSessionsModal) {
+    closeSessionsModal.addEventListener('click', function () {
+      if (activeSessionsModal) activeSessionsModal.classList.remove('is-open');
+    });
+  }
+  if (activeSessionsModal) {
     activeSessionsModal.addEventListener('click', function (e) {
       if (e.target === activeSessionsModal) {
         activeSessionsModal.classList.remove('is-open');

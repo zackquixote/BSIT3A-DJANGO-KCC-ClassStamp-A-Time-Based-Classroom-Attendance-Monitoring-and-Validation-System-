@@ -32,6 +32,8 @@ from .approval_service import (
     reject_student_registration,
 )
 from .auth_service import provision_student_account
+from .attendance_service import build_attendance_matrix
+from .class_service import ClassAssignmentError, assign_class
 from .export_service import (
     export_program_students_csv,
     export_student_directory_csv,
@@ -45,6 +47,8 @@ from .teacher_service import (
     provision_teacher_account,
     update_teacher_profile,
     toggle_teacher_active,
+    set_teacher_active,
+    reset_teacher_password,
     delete_or_deactivate_teacher,
 )
 
@@ -71,6 +75,8 @@ __all__ = [
     'provision_teacher_account',
     'update_teacher_profile',
     'toggle_teacher_active',
+    'set_teacher_active',
+    'reset_teacher_password',
     'delete_or_deactivate_teacher',
     # Approval workflow
     'approve_student_registration',
@@ -80,6 +86,11 @@ __all__ = [
     # Student directory & import
     'build_student_queryset',
     'import_students_from_csv',
+    # Attendance matrix
+    'build_attendance_matrix',
+    # Class assignment
+    'assign_class',
+    'ClassAssignmentError',
     # CSV Exports
     'export_program_students_csv',
     'export_student_directory_csv',

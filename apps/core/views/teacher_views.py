@@ -13,6 +13,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -22,6 +23,7 @@ from apps.core.decorators import role_required
 from apps.core.models import (
     AcademicYear,
     AttendanceRecord,
+    AuditEvent,
     Class,
     ClassSession,
     ClassSlot,
@@ -32,8 +34,12 @@ from apps.core.models import (
 )
 from apps.core.serializers.teacher_serializers import serialize_teacher, serialize_teacher_summary
 from apps.core.services import (
+    ClassAssignmentError,
+    assign_class,
     delete_or_deactivate_teacher,
     provision_teacher_account,
+    reset_teacher_password,
+    set_teacher_active,
     toggle_teacher_active,
     update_teacher_profile,
 )
@@ -55,6 +61,7 @@ def teacher_list(request):
     query = request.GET.get('q', '').strip()
     dept_filter = request.GET.get('department', '').strip()
     status_filter = request.GET.get('status', '').strip()
+    year_filter = request.GET.get('year_joined', '').strip()
 
     teachers_qs = (
         Profile.objects.filter(role=Profile.ROLE_TEACHER)
@@ -80,6 +87,9 @@ def teacher_list(request):
     elif status_filter == 'inactive':
         teachers_qs = teachers_qs.filter(user__is_active=False)
 
+    if year_filter.isdigit():
+        teachers_qs = teachers_qs.filter(user__date_joined__year=int(year_filter))
+
     paginator = Paginator(teachers_qs, 15)
     page_number = request.GET.get('page', 1)
     teachers = paginator.get_page(page_number)
@@ -102,11 +112,24 @@ def teacher_list(request):
     all_subjects = Subject.objects.filter(is_active=True).order_by('code')
     all_academic_years = AcademicYear.objects.all().order_by('-starts_on')
 
+    # Distinct join years across the whole faculty (unfiltered) for the filter dropdown
+    year_choices = sorted(
+        {
+            year for year in
+            Profile.objects.filter(role=Profile.ROLE_TEACHER)
+            .values_list('user__date_joined__year', flat=True)
+            if year
+        },
+        reverse=True,
+    )
+
     return render(request, 'core/admin/teachers.html', {
         'teachers': teachers,
         'query': query,
         'dept_filter': dept_filter,
         'status_filter': status_filter,
+        'year_filter': year_filter,
+        'year_choices': year_choices,
         'total_count': total_count,
         'active_count': active_count,
         'inactive_count': inactive_count,
@@ -164,6 +187,17 @@ def teacher_create(request):
         except Exception:
             return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'}, status=400)
 
+        # Additional check: ensure department exists and is valid
+        if dept_id <= 0:
+            return JsonResponse({'ok': False, 'error': 'Invalid department ID.'}, status=400)
+
+        # Ensure password handling: empty password will be auto-generated
+        password = request.POST.get('password')
+        if password:
+            password = password.strip()
+        else:
+            password = None
+
         result = provision_teacher_account(
             actor=request.user,
             username=username,
@@ -184,6 +218,129 @@ def teacher_create(request):
         return JsonResponse(resp)
     except ValueError as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
+
+
+# // ==============================================================================
+# // AJAX: Bulk Teacher Operation (/teachers/bulk-operation/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def bulk_teacher_operation(request):
+    """
+    // [AJAX] Perform bulk operations on teachers.
+    // POST params: action (activate|deactivate|reset-pw), teacher_ids[] (repeated)
+    //
+    // activate/deactivate are explicit and idempotent (they set the desired state,
+    // they do NOT flip it). reset-pw returns one temporary credential per teacher.
+    """
+    action = request.POST.get('action', '').strip()
+    ids = request.POST.getlist('teacher_ids[]') or request.POST.getlist('teacher_ids')
+
+    if not action or not ids:
+        return JsonResponse({'ok': False, 'error': 'Invalid action or teacher IDs.'}, status=400)
+    if action not in ('activate', 'deactivate', 'reset-pw'):
+        return JsonResponse({'ok': False, 'error': 'Unsupported bulk action.'}, status=400)
+
+    success_count = 0
+    error_ids = []
+    credentials = []
+
+    for raw_id in ids:
+        try:
+            teacher_id = int(raw_id)
+        except (ValueError, TypeError):
+            error_ids.append(raw_id)
+            continue
+
+        try:
+            if action == 'activate':
+                set_teacher_active(actor=request.user, profile_id=teacher_id, is_active=True)
+            elif action == 'deactivate':
+                set_teacher_active(actor=request.user, profile_id=teacher_id, is_active=False)
+            else:
+                result = reset_teacher_password(actor=request.user, profile_id=teacher_id)
+                credentials.append({
+                    'id': teacher_id,
+                    'username': result['username'],
+                    'display_name': result['display_name'],
+                    'temporary_password': result['temporary_password'],
+                })
+            success_count += 1
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            error_ids.append(teacher_id)
+
+    verb = {
+        'activate': 'activated',
+        'deactivate': 'deactivated',
+        'reset-pw': 'password-reset',
+    }[action]
+    message = f'Successfully {verb} {success_count} teacher(s).'
+    if error_ids:
+        message += f' {len(error_ids)} failed.'
+
+    return JsonResponse({
+        'ok': True,
+        'action': action,
+        'message': message,
+        'success_count': success_count,
+        'error_count': len(error_ids),
+        'error_ids': error_ids,
+        'credentials': credentials,
+    })
+
+
+# // ==============================================================================
+# // AJAX: Admin Reset Teacher Password (/teachers/<pk>/reset-password/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def admin_reset_teacher_password(request, pk: int):
+    """
+    // [AJAX] Admin resets a teacher's password.
+    // Generates a secure random password and email it to the teacher.
+    // POST params: none (uses teacher profile)
+    """
+    try:
+        from django.contrib.auth import get_user_model
+        from django.core.mail import send_mail
+        from django.conf import settings
+        import secrets
+
+        profile = get_object_or_404(
+            Profile.objects.select_related('user'),
+            pk=pk,
+            role=Profile.ROLE_TEACHER
+        )
+        user = profile.user
+
+        # Generate secure random password
+        new_password = secrets.token_urlsafe(12)
+        user.set_password(new_password)
+        user.save()
+
+        # Send password via email (optional - commented out for safety)
+        # send_mail(
+        #     'KCC ClassStamp - Password Reset',
+        #     f'Your temporary password for ClassStamp is: {new_password}',
+        #     settings.DEFAULT_FROM_EMAIL,
+        #     [user.email],
+        #     fail_silently=False,
+        # )
+
+        return JsonResponse({
+            'ok': True,
+            'message': f'Password reset successfully for {user.get_full_name() or user.username}.',
+            'new_password': new_password,  # Return to JS for display
+        })
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -326,33 +483,32 @@ def teacher_assign_class_ajax(request, pk: int):
     except (ValueError, TypeError):
         capacity = 45
 
-    # Check if this class code already exists in this academic year
-    existing_class = Class.objects.filter(academic_year=academic_year, class_code=class_code).first()
     teacher_name = teacher_profile.user.get_full_name() or teacher_profile.user.username
 
-    if existing_class:
-        if existing_class.teacher_profile == teacher_profile:
-            return JsonResponse({'ok': False, 'error': f'Class {class_code} is already assigned to {teacher_name}.'}, status=400)
-        old_teacher = existing_class.teacher_profile.user.get_full_name() or existing_class.teacher_profile.user.username
-        existing_class.teacher_profile = teacher_profile
-        existing_class.subject = subject
-        existing_class.grace_minutes = grace_minutes
-        existing_class.capacity = capacity
-        existing_class.is_active = True
-        existing_class.save()
-        msg = f"Class {class_code} ({subject.code}) reassigned from {old_teacher} to {teacher_name}."
-        target_class = existing_class
-    else:
-        target_class = Class.objects.create(
+    try:
+        result = assign_class(
+            actor=request.user,
+            teacher_profile=teacher_profile,
             academic_year=academic_year,
             subject=subject,
-            teacher_profile=teacher_profile,
             class_code=class_code,
             grace_minutes=grace_minutes,
             capacity=capacity,
-            is_active=True
+            reassign_existing=True,
         )
+    except ClassAssignmentError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+
+    target_class = result['class']
+    if result['created']:
         msg = f"Class {class_code} ({subject.code}) successfully assigned to {teacher_name}."
+    elif result['reassigned_from']:
+        msg = (
+            f"Class {class_code} ({subject.code}) reassigned from "
+            f"{result['reassigned_from']} to {teacher_name}."
+        )
+    else:
+        msg = f"Class {class_code} ({subject.code}) updated for {teacher_name}."
 
     return JsonResponse({
         'ok': True,
@@ -387,13 +543,32 @@ def teacher_unassign_class_ajax(request, pk: int, class_id: int):
     if has_sessions or has_enrollments:
         class_obj.is_active = False
         class_obj.save(update_fields=['is_active'])
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='ARCHIVE_CLASS',
+            object_type='Class',
+            object_id=str(class_obj.id),
+            new_value='is_active=False',
+            reason=f'Archived {class_obj.class_code} during teaching-load unassignment',
+        )
         return JsonResponse({
             'ok': True,
             'message': f"Class section {class_obj.class_code} was archived/deactivated because it already has attendance or enrollment records."
         })
     else:
         code = class_obj.class_code
-        class_obj.delete()
+        class_id = class_obj.id
+        with transaction.atomic():
+            class_obj.slots.all().delete()
+            class_obj.delete()
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='UNASSIGN_CLASS',
+            object_type='Class',
+            object_id=str(class_id),
+            old_value=code,
+            reason=f'Removed {code} from teaching load before any attendance or enrollment records existed',
+        )
         return JsonResponse({
             'ok': True,
             'message': f"Class {code} removed from faculty teaching load."
@@ -472,7 +647,6 @@ def teacher_analytics_json(request, pk: int):
             'id': teacher.id,
             'name': teacher.user.get_full_name() or teacher.user.username,
             'email': teacher.user.email or '—',
-            'employee_id': teacher.employee_id or '—',
             'department': teacher.department.code if teacher.department else '—',
             'is_active': teacher.user.is_active,
         },

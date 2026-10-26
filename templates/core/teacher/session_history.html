@@ -1,0 +1,198 @@
+{% extends "theme/base.html" %}
+
+{% block title %}Session History &amp; Attendance Reports — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h1 class="page-title">Session History &amp; Reports</h1>
+    <p class="page-subtitle">Every class meeting you have conducted, with attendance aggregates and CSV export.</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <a href="{% url 'teacher_session_history_export' %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-primary">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+  <form method="GET" action="{% url 'teacher_session_history' %}">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; align-items: end;">
+      <div class="form-group mb-0">
+        <label class="form-label" for="filter_class_code">Class Section</label>
+        <select id="filter_class_code" name="class_code" class="form-control">
+          <option value="">All classes</option>
+          {% for code in class_choices %}
+            <option value="{{ code }}" {% if filters.class_code == code %}selected{% endif %}>{{ code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label" for="filter_status">Session Status</label>
+        <select id="filter_status" name="status" class="form-control">
+          <option value="">All statuses</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label" for="filter_date_from">From</label>
+        <input type="date" id="filter_date_from" name="date_from" class="form-control" value="{{ filters.date_from }}">
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label" for="filter_date_to">To</label>
+        <input type="date" id="filter_date_to" name="date_to" class="form-control" value="{{ filters.date_to }}">
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-filter"></i> Apply
+        </button>
+        <a href="{% url 'teacher_session_history' %}" class="btn btn-outline">
+          <i class="fas fa-rotate-left"></i> Reset
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Results -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-clipboard-list text-gold"></i> Attendance Meetings
+    </div>
+    <span class="text-muted text-xs">
+      {{ total_matching }} matching session{{ total_matching|pluralize }}
+      {% if page_obj.paginator.num_pages > 1 %}• page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}{% endif %}
+    </span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Meeting Date &amp; Time</th>
+          <th>Class Section</th>
+          <th>Subject</th>
+          <th>Attendance Breakdown</th>
+          <th>Compliance</th>
+          <th>Status</th>
+          <th style="text-align: right; width: 190px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td>
+            <div class="font-semibold text-primary font-mono text-xs">
+              <i class="fas fa-calendar-day text-gold mr-1"></i> {{ s.session_date|date:"M d, Y" }}
+            </div>
+            <div class="text-muted text-xs font-mono">
+              {{ s.slot.starts_at|time:"h:i A" }} – {{ s.slot.ends_at|time:"h:i A" }}
+            </div>
+          </td>
+          <td>
+            <span class="badge badge--primary font-mono">{{ s.slot.class_obj.class_code }}</span>
+          </td>
+          <td>
+            <div class="font-semibold text-primary text-xs">{{ s.slot.class_obj.subject.code }}</div>
+            <div class="text-muted text-xs" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ s.slot.class_obj.subject.name }}
+            </div>
+          </td>
+          <td>
+            <div class="flex items-center gap-1">
+              <span class="badge badge--success text-xs font-mono" title="Present on time">
+                <i class="fas fa-check"></i> {{ s.present_count }}
+              </span>
+              <span class="badge badge--warning text-xs font-mono" title="Late stamp">
+                <i class="fas fa-clock"></i> {{ s.late_count }}
+              </span>
+              <span class="badge badge--danger text-xs font-mono" title="Absent / Unstamped">
+                <i class="fas fa-xmark"></i> {{ s.absent_count }}
+              </span>
+              {% if s.excused_count %}
+                <span class="badge badge--muted text-xs font-mono" title="Excused">
+                  {{ s.excused_count }} Ex
+                </span>
+              {% endif %}
+            </div>
+          </td>
+          <td>
+            {% if s.attendance_rate >= 80 %}
+              <span class="badge badge--success font-mono text-xs">{{ s.attendance_rate }}%</span>
+            {% elif s.attendance_rate >= 60 %}
+              <span class="badge badge--warning font-mono text-xs">{{ s.attendance_rate }}%</span>
+            {% else %}
+              <span class="badge badge--danger font-mono text-xs">{{ s.attendance_rate }}%</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.status == 'OPEN' %}
+              <span class="badge badge--success text-xs font-mono"><i class="fas fa-satellite-dish"></i> OPEN</span>
+            {% elif s.status == 'CLOSED' %}
+              <span class="badge badge--muted text-xs font-mono"><i class="fas fa-lock"></i> CLOSED</span>
+            {% elif s.status == 'CANCELED' %}
+              <span class="badge badge--danger text-xs font-mono"><i class="fas fa-ban"></i> CANCELED</span>
+            {% else %}
+              <span class="badge badge--primary text-xs font-mono"><i class="fas fa-calendar"></i> SCHEDULED</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            <div class="flex items-center justify-end gap-1">
+              <a href="{% url 'teacher_session_summary' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="View official roll">
+                <i class="fas fa-file-invoice text-gold"></i> View
+              </a>
+              <a href="{% url 'teacher_session_export' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="Export roll as CSV">
+                <i class="fas fa-file-csv"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 42px 16px;" class="text-muted text-sm">
+            <i class="fas fa-folder-open" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
+            No attendance sessions match the selected filters.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <span class="text-muted text-xs">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_matching }}</span>
+    <div class="flex items-center gap-1">
+      {% if page_obj.has_previous %}
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}" class="btn btn-outline btn-sm">
+          <i class="fas fa-chevron-left"></i> Prev
+        </a>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+          <span class="btn btn-primary btn-sm" style="pointer-events: none;">{{ num }}</span>
+        {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+          <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ num }}" class="btn btn-outline btn-sm">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <a href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}" class="btn btn-outline btn-sm">
+          Next <i class="fas fa-chevron-right"></i>
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

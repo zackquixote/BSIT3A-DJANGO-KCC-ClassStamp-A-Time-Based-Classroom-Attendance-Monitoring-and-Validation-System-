@@ -142,10 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           if (metaEl) {
-            metaEl.textContent =
-              (data.teacher.email || '—') +
-              ' · ID: ' +
-              (data.teacher.employee_id || '—');
+            metaEl.textContent = data.teacher.email || '-';
           }
           if (deptEl) deptEl.textContent = data.teacher.department || 'General';
 

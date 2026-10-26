@@ -199,6 +199,67 @@ def toggle_teacher_active(actor, profile_id: int) -> dict:
     }
 
 
+def set_teacher_active(actor, profile_id: int, is_active: bool) -> dict:
+    """
+    // [Service] Explicitly set a faculty account's active status.
+    // Unlike toggle_teacher_active, this is idempotent and safe for bulk actions.
+    """
+    profile = get_object_or_404(
+        Profile.objects.select_related('user'), pk=profile_id, role=Profile.ROLE_TEACHER
+    )
+    user = profile.user
+    changed = user.is_active != is_active
+
+    if changed:
+        user.is_active = is_active
+        user.save(update_fields=['is_active'])
+        AuditEvent.objects.create(
+            actor=actor,
+            action='SET_TEACHER_STATUS',
+            object_type='Profile',
+            object_id=str(profile.pk),
+            new_value=f'is_active={is_active}',
+        )
+
+    state_str = 'activated' if user.is_active else 'deactivated'
+    return {
+        'profile': profile,
+        'is_active': user.is_active,
+        'changed': changed,
+        'message': f'Faculty member "{user.get_full_name() or user.username}" was {state_str}.',
+    }
+
+
+def reset_teacher_password(actor, profile_id: int, custom_password: str = None) -> dict:
+    """
+    // [Service] Reset a faculty account password and return the temporary credential.
+    // Emits an immutable audit event. Caller is responsible for secure delivery.
+    """
+    profile = get_object_or_404(
+        Profile.objects.select_related('user'), pk=profile_id, role=Profile.ROLE_TEACHER
+    )
+    user = profile.user
+
+    password = (custom_password or '').strip() or secrets.token_urlsafe(12)
+    user.set_password(password)
+    user.save(update_fields=['password'])
+
+    AuditEvent.objects.create(
+        actor=actor,
+        action='RESET_TEACHER_PASSWORD',
+        object_type='Profile',
+        object_id=str(profile.pk),
+        new_value=f'Administrative password reset for {user.get_full_name() or user.username} ({user.username})',
+    )
+
+    return {
+        'profile': profile,
+        'username': user.username,
+        'display_name': user.get_full_name() or user.username,
+        'temporary_password': password,
+    }
+
+
 def delete_or_deactivate_teacher(actor, profile_id: int) -> dict:
     """
     // [Service] Delete or Soft-Deactivate Faculty Account

@@ -29,3 +29,29 @@
 
 /* ── 9. Admin Command Center Dashboard ───────────────────────── */
 @import url('dashboard.css');
+
+/* ── 10. In-Page Anchor Targets (Teacher Dashboard) ──────────── */
+#today-schedule,
+#my-classes {
+  scroll-margin-top: 20px;
+}
+
+@keyframes anchorTargetPulse {
+  0% {
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.85);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+.anchor-target-flash {
+  animation: anchorTargetPulse 1.15s ease-out;
+}
+
+@media (max-width: 768px) {
+  #today-schedule,
+  #my-classes {
+    scroll-margin-top: 76px;
+  }
+}

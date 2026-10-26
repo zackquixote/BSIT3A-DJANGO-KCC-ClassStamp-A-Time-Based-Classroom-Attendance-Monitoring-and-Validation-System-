@@ -231,9 +231,15 @@ def _teacher_dashboard_stats(profile):
     """
     today = timezone.localdate()
     today_weekday = today.weekday()
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+
+    class_scope = {'academic_year': active_year} if active_year else {}
+    slot_scope = {'class_obj__academic_year': active_year} if active_year else {}
+    session_scope = {'slot__class_obj__academic_year': active_year} if active_year else {}
+    record_scope = {'session__slot__class_obj__academic_year': active_year} if active_year else {}
 
     classes = (
-        Class.objects.filter(teacher_profile=profile, is_active=True)
+        Class.objects.filter(teacher_profile=profile, is_active=True, **class_scope)
         .select_related('subject', 'academic_year')
         .annotate(
             roster_count=Count('enrollments', filter=Q(enrollments__status=Enrollment.STATUS_ACTIVE), distinct=True),
@@ -248,7 +254,8 @@ def _teacher_dashboard_stats(profile):
             class_obj__teacher_profile=profile,
             class_obj__is_active=True,
             weekday=today_weekday,
-            is_active=True
+            is_active=True,
+            **slot_scope
         )
         .select_related('class_obj', 'class_obj__subject')
         .order_by('starts_at')
@@ -258,7 +265,8 @@ def _teacher_dashboard_stats(profile):
     open_sessions = (
         ClassSession.objects.filter(
             slot__class_obj__teacher_profile=profile,
-            status=ClassSession.STATUS_OPEN
+            status=ClassSession.STATUS_OPEN,
+            **session_scope
         )
         .select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
         .order_by('-opened_at')
@@ -266,13 +274,15 @@ def _teacher_dashboard_stats(profile):
 
     total_students_roster = sum(c.roster_count for c in classes)
     total_sessions_count = ClassSession.objects.filter(
-        slot__class_obj__teacher_profile=profile
+        slot__class_obj__teacher_profile=profile,
+        **session_scope
     ).count()
 
     # Recent concluded/historical sessions for this teacher (up to 8)
     recent_sessions = list(
         ClassSession.objects.filter(
-            slot__class_obj__teacher_profile=profile
+            slot__class_obj__teacher_profile=profile,
+            **session_scope
         )
         .exclude(status=ClassSession.STATUS_OPEN)
         .select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
@@ -290,7 +300,10 @@ def _teacher_dashboard_stats(profile):
         attended = s.present_count + s.late_count
         s.attendance_rate = round((attended / s.total_records * 100), 1) if s.total_records > 0 else 0
 
-    all_records = AttendanceRecord.objects.filter(session__slot__class_obj__teacher_profile=profile)
+    all_records = AttendanceRecord.objects.filter(
+        session__slot__class_obj__teacher_profile=profile,
+        **record_scope,
+    )
     total_records_count = all_records.count()
     if total_records_count > 0:
         attended_total = all_records.filter(

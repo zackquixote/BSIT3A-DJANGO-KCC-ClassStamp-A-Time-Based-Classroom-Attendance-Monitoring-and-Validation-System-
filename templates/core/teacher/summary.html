@@ -24,6 +24,9 @@
     <button type="button" class="btn btn-outline" onclick="window.print()" title="Print official roll">
       <i class="fas fa-print"></i> Print Sheet
     </button>
+    <a href="{% url 'teacher_session_export' session.id %}" class="btn btn-outline" title="Download this roll as CSV">
+      <i class="fas fa-file-csv text-gold"></i> Export CSV
+    </a>
     <a href="{% url 'teacher_session_scan' session.id %}" class="btn btn-primary" title="Reopen scanning chamber if needed">
       <i class="fas fa-qrcode"></i> Reopen Scanner
     </a>

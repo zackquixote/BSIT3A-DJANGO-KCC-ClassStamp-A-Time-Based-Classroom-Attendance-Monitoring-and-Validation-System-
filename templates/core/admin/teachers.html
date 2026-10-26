@@ -59,6 +59,36 @@
   </div>
 </div>
 
+<!-- Teacher Stats Quick Filters -->
+<div class="card mb-4" style="padding: 12px 18px; background: var(--bg-subtle);">
+  <div class="flex flex-wrap gap-3">
+    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
+      <div class="stat-info">
+        <span class="stat-value text-primary">{{ total_count }}</span>
+        <span class="stat-label text-xs text-muted">Total Teachers</span>
+      </div>
+    </div>
+    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
+      <div class="stat-info">
+        <span class="stat-value text-green">{{ active_count }}</span>
+        <span class="stat-label text-xs text-muted">Active</span>
+      </div>
+    </div>
+    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
+      <div class="stat-info">
+        <span class="stat-value text-red">{{ inactive_count }}</span>
+        <span class="stat-label text-xs text-muted">Inactive</span>
+      </div>
+    </div>
+    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
+      <div class="stat-info">
+        <span class="stat-value text-blue">{{ dept_count }}</span>
+        <span class="stat-label text-xs text-muted">Departments</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Filter Bar -->
 <div class="card mb-4" style="padding: 14px 18px;">
   <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
@@ -77,15 +107,52 @@
       <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
       <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
     </select>
-    {% if query or dept_filter or status_filter %}
+    <select name="year_joined" class="form-control" style="width: 160px;">
+      <option value="">All Join Dates</option>
+      {% for y in year_choices %}
+      <option value="{{ y }}" {% if year_filter == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+    {% if query or dept_filter or status_filter or year_filter %}
     <a href="{% url 'teacher_list' %}" class="btn btn-outline">Clear</a>
     {% endif %}
     <button type="submit" class="btn btn-primary">Filter</button>
   </form>
 </div>
 
+<div id="bulkActionsBar" class="card mb-4" data-bulk-url="{% url 'bulk_teacher_operation' %}" style="padding: 12px 18px; background: var(--bg-subtle); display: none;">
+  <div class="flex flex-wrap gap-2">
+    <select id="bulkAction" class="form-select form-select-sm" style="min-width: 180px;">
+      <option value="">Select Action</option>
+      <option value="activate">Activate Selected</option>
+      <option value="deactivate">Deactivate Selected</option>
+      <option value="reset-pw">Reset Password Selected</option>
+    </select>
+    <button id="btnExecuteBulk" class="btn btn-sm btn-primary">Execute</button>
+    <button id="btnCancelBulk" class="btn btn-sm btn-outline">Cancel</button>
+    <span id="bulkCount" class="text-muted text-sm"></span>
+  </div>
+</div>
+
 <div id="teacherAlert" class="toast toast--error mb-4" style="display: none;"></div>
 <div id="teacherSuccess" class="toast toast--success mb-4" style="display: none;"></div>
+
+<!-- Bulk Confirmation Modal -->
+<div id="bulkConfirmation" class="modal" style="display: none;">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-header">
+      <h5 class="modal-title">Confirm Bulk Action</h5>
+      <button type="button" class="btn-close" data-modal-dismiss="bulkConfirmation"></button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to <strong id="bulkActionDesc"></strong> <strong id="bulkCountDesc"></strong> selected teacher(s)?</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-modal-dismiss="bulkConfirmation">Cancel</button>
+      <button type="button" id="btnConfirmBulk" class="btn btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <!-- Faculty Table -->
 <div class="card" style="padding: 0; overflow: hidden;">
@@ -100,6 +167,9 @@
     <table class="table" id="teacherTable">
       <thead>
         <tr>
+          <th style="width: 40px; text-align: center;">
+            <input type="checkbox" id="selectAllTeachers" title="Select all faculty" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
+          </th>
           <th style="width: 44px;">#</th>
           <th>Faculty Member</th>
           <th>Username</th>
@@ -113,6 +183,9 @@
       <tbody>
         {% for t in teachers %}
         <tr data-teacher-id="{{ t.id }}">
+          <td style="text-align: center;">
+            <input type="checkbox" class="teacher-checkbox" value="{{ t.id }}" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
+          </td>
           <td class="text-muted">{{ t.id }}</td>
           <td>
             <div style="display:flex;align-items:center;gap:10px;">
@@ -183,7 +256,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
+          <td colspan="9" class="text-center text-muted" style="padding: 48px 0;">
             <i class="fas fa-chalkboard-user" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
             No faculty members found{% if query %} matching "{{ query }}"{% endif %}.
           </td>
@@ -196,11 +269,11 @@
   {% if teachers.has_other_pages %}
   <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
     {% if teachers.has_previous %}
-    <a href="?page={{ teachers.previous_page_number }}&q={{ query }}&department={{ dept_filter }}&status={{ status_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
+    <a href="?page={{ teachers.previous_page_number }}&q={{ query }}&department={{ dept_filter }}&status={{ status_filter }}&year_joined={{ year_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
     {% endif %}
     <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ teachers.number }} of {{ teachers.paginator.num_pages }}</span>
     {% if teachers.has_next %}
-    <a href="?page={{ teachers.next_page_number }}&q={{ query }}&department={{ dept_filter }}&status={{ status_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
+    <a href="?page={{ teachers.next_page_number }}&q={{ query }}&department={{ dept_filter }}&status={{ status_filter }}&year_joined={{ year_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
     {% endif %}
   </div>
   {% endif %}
@@ -466,8 +539,9 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/teachers/teachers_common.js' %}?v=20261022_v3"></script>
-<script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/teachers_common.js' %}?v=20261022_v4"></script>
+<script src="{% static 'js/teachers/bulk_teacher_actions.js' %}?v=20261022_v1"></script>
+<script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v4"></script>
 <script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/save_teacher.js' %}?v=20261022_v4"></script>
 <script src="{% static 'js/teachers/view_teacher.js' %}?v=20261022_v3"></script>

@@ -13,24 +13,25 @@
 // ==============================================================================
 """
 
-import base64
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
+import csv
 import re
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-import pyotp
 
 from apps.core.decorators import role_required
 from apps.core.models import (
     AcademicEvent,
-    AcademicYear,
     AttendanceRecord,
     AuditEvent,
     Class,
@@ -40,6 +41,78 @@ from apps.core.models import (
     Profile,
     StampAttempt,
 )
+from apps.core.services.attendance_service import build_attendance_matrix
+from apps.core.services.qr_service import verify_token
+
+
+def _teacher_can_manage(request, class_obj):
+    """
+    // Object-level authorization: only the assigned teacher, an ADMIN, or a
+    // superuser may manage attendance for a given class section.
+    """
+    if request.user.is_superuser:
+        return True
+    profile = getattr(request.user, 'classstamp_profile', None)
+    if profile is None:
+        return False
+    if profile.role == Profile.ROLE_ADMIN:
+        return True
+    return (
+        profile.role == Profile.ROLE_TEACHER
+        and class_obj.teacher_profile_id == profile.id
+    )
+
+
+# // ------------------------------------------------------------------------------
+# // Anti-replay & scan abuse-prevention tuning
+# // ------------------------------------------------------------------------------
+SCAN_RATE_WINDOW_SECONDS = 60
+SCAN_RATE_LIMIT_PER_USER = 60
+SCAN_RATE_LIMIT_PER_IP = 120
+# A consumed token stays unavailable long enough to cover the 30s TOTP interval
+# plus the +/-1 window tolerance used by verification.
+SCAN_TOKEN_TTL_SECONDS = 120
+
+
+def _client_ip(request):
+    """Best-effort client IP, honoring a single proxy hop."""
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+
+def _bump_counter(key, window):
+    """Atomically increment a fixed-window counter, creating it with a TTL."""
+    try:
+        return cache.incr(key)
+    except ValueError:
+        cache.add(key, 1, window)
+        return 1
+
+
+def _scan_is_rate_limited(request):
+    """
+    // Fixed-window throttle keyed by both the acting user and client IP.
+    // Returns True once either bucket exceeds its configured allowance.
+    """
+    user_hits = _bump_counter(
+        f'classstamp:scan:rl:user:{request.user.pk}', SCAN_RATE_WINDOW_SECONDS
+    )
+    ip_hits = _bump_counter(
+        f'classstamp:scan:rl:ip:{_client_ip(request)}', SCAN_RATE_WINDOW_SECONDS
+    )
+    return user_hits > SCAN_RATE_LIMIT_PER_USER or ip_hits > SCAN_RATE_LIMIT_PER_IP
+
+
+def _consume_scan_token(student_profile, token):
+    """
+    // Global anti-replay registry: a given (student, token) pair may be
+    // consumed exactly once across ALL sessions. cache.add is atomic, so
+    // concurrent replay attempts only succeed once.
+    """
+    key = f'classstamp:scan:token:{student_profile.pk}:{token}'
+    return cache.add(key, 1, SCAN_TOKEN_TTL_SECONDS)
 
 
 # // ==============================================================================
@@ -71,23 +144,22 @@ def teacher_session_open(request):
     if slot_id:
         slot = get_object_or_404(ClassSlot, pk=slot_id, class_obj=class_obj)
     else:
-        # Check if there is a scheduled slot for today
+        # Use only today's scheduled slot; otherwise create an ad-hoc slot for today.
+        # Falling back to another weekday slot would violate the session-date trigger.
         weekday = today.weekday()
         slot = class_obj.slots.filter(weekday=weekday, is_active=True).first()
         if not slot:
-            # Fall back to any active slot, or dynamically generate a default slot for this section
-            slot = class_obj.slots.filter(is_active=True).first()
-            if not slot:
-                # Create a default slot matching current time window
-                now_time = timezone.localtime().time()
-                end_time = (timezone.localtime() + timedelta(hours=1, minutes=30)).time()
-                slot = ClassSlot.objects.create(
-                    class_obj=class_obj,
-                    weekday=weekday,
-                    starts_at=now_time.replace(microsecond=0),
-                    ends_at=end_time.replace(microsecond=0),
-                    room='Assigned Room'
-                )
+            now_time = timezone.localtime().time().replace(microsecond=0)
+            end_time = (timezone.localtime() + timedelta(hours=1, minutes=30)).time().replace(microsecond=0)
+            if end_time <= now_time:
+                end_time = time(23, 59, 59)
+            slot = ClassSlot.objects.create(
+                class_obj=class_obj,
+                weekday=weekday,
+                starts_at=now_time,
+                ends_at=end_time,
+                room='Assigned Room'
+            )
 
     # Check for existing session today for this slot
     session = ClassSession.objects.filter(slot=slot, session_date=today).first()
@@ -287,6 +359,19 @@ def attendance_scan_api(request):
     )
     class_obj = session.slot.class_obj
 
+    # 0. Object-level authorization
+    if not _teacher_can_manage(request, class_obj):
+        return JsonResponse({
+            'error': 'You are not authorized to manage attendance for this class section.'
+        }, status=403)
+
+    # 0b. Abuse throttle (per-operator and per-IP). Applied before any DB writes.
+    if _scan_is_rate_limited(request):
+        return JsonResponse({
+            'error': 'Too many scan attempts. Please wait a moment and try again.',
+            'outcome': 'RATE_LIMITED'
+        }, status=429)
+
     # 1. Verify session is currently OPEN
     if session.status != ClassSession.STATUS_OPEN:
         StampAttempt.objects.create(
@@ -298,6 +383,13 @@ def attendance_scan_api(request):
         return JsonResponse({
             'error': 'This classroom attendance session is closed.',
             'outcome': StampAttempt.OUTCOME_SESSION_CLOSED
+        }, status=400)
+
+    # 1b. Reject scans against a session that is not for today
+    if session.session_date != timezone.localdate():
+        return JsonResponse({
+            'error': 'This session is not scheduled for today. Only today\'s open session can accept stamps.',
+            'outcome': StampAttempt.OUTCOME_INVALID
         }, status=400)
 
     # 2. Parse QR payload: Format "classstamp:<student_number>:<token>"
@@ -365,16 +457,7 @@ def attendance_scan_api(request):
     if not raw_secret:
         return JsonResponse({'error': 'Student has not activated their QR credential.'}, status=400)
 
-    try:
-        raw_bytes = bytes.fromhex(raw_secret)
-        b32_secret = base64.b32encode(raw_bytes).decode('utf-8').rstrip('=')
-    except Exception:
-        b32_secret = base64.b32encode(raw_secret.encode()).decode('utf-8').rstrip('=')
-
-    totp = pyotp.TOTP(b32_secret, interval=30)
-    is_valid_token = totp.verify(token, valid_window=1)
-
-    if not is_valid_token:
+    if not verify_token(student_profile, token, valid_window=1):
         StampAttempt.objects.create(
             session=session,
             student_profile=student_profile,
@@ -408,6 +491,23 @@ def attendance_scan_api(request):
             'existing_status': existing_record.status,
             'stamped_at': stamped_time_str,
             'student_name': student_profile.user.get_full_name() or student_number
+        }, status=400)
+
+    # 6b. Global anti-replay: consume the (student, token) pair exactly once
+    # across every session so a captured code cannot be reused in another class
+    # meeting inside its validity window.
+    if not _consume_scan_token(student_profile, token):
+        StampAttempt.objects.create(
+            session=session,
+            student_profile=student_profile,
+            scanned_by=request.user,
+            method=StampAttempt.METHOD_QR,
+            outcome=StampAttempt.OUTCOME_DUPLICATE
+        )
+        return JsonResponse({
+            'error': 'This QR code was already used for another attendance check-in. '
+                     'Please ask the student to refresh their badge.',
+            'outcome': StampAttempt.OUTCOME_DUPLICATE
         }, status=400)
 
     # 7. Time Window & Grace Period Determination
@@ -491,7 +591,14 @@ def teacher_manual_override_ajax(request, session_id):
     // [AJAX Mutation] Manual instructor override for student attendance status.
     // Handles excused absences, medical excuses, or offline manual entry.
     """
-    session = get_object_or_404(ClassSession, pk=session_id)
+    session = get_object_or_404(ClassSession.objects.select_related('slot__class_obj'), pk=session_id)
+    class_obj = session.slot.class_obj
+
+    if not _teacher_can_manage(request, class_obj):
+        return JsonResponse({
+            'error': 'You are not authorized to manage attendance for this class section.'
+        }, status=403)
+
     student_id = request.POST.get('student_id')
     new_status = request.POST.get('status', '').strip().upper()
     reason = request.POST.get('reason', '').strip()
@@ -505,7 +612,17 @@ def teacher_manual_override_ajax(request, session_id):
     if new_status not in valid_statuses:
         return JsonResponse({'error': 'Invalid status choice.'}, status=400)
 
-    student_profile = get_object_or_404(Profile, pk=student_id)
+    student_profile = get_object_or_404(Profile, pk=student_id, role=Profile.ROLE_STUDENT)
+
+    is_enrolled = Enrollment.objects.filter(
+        class_obj=class_obj,
+        student_profile=student_profile,
+        status=Enrollment.STATUS_ACTIVE,
+    ).exists()
+    if not is_enrolled:
+        return JsonResponse({
+            'error': 'Student is not actively enrolled in this class section.'
+        }, status=400)
 
     record, created = AttendanceRecord.objects.get_or_create(
         session=session,
@@ -571,8 +688,12 @@ def teacher_session_close(request, session_id):
     // [Teacher Controller] Finalizes an active session.
     // Automatically marks all unscanned active enrolled students as ABSENT.
     """
-    session = get_object_or_404(ClassSession, pk=session_id)
+    session = get_object_or_404(ClassSession.objects.select_related('slot__class_obj'), pk=session_id)
     class_obj = session.slot.class_obj
+
+    if not _teacher_can_manage(request, class_obj):
+        messages.error(request, "You are not authorized to manage attendance for this class section.")
+        return redirect('teacher_dashboard')
 
     with transaction.atomic():
         session.status = ClassSession.STATUS_CLOSED
@@ -637,6 +758,10 @@ def teacher_session_summary(request, session_id):
     )
     class_obj = session.slot.class_obj
 
+    if not _teacher_can_manage(request, class_obj):
+        messages.error(request, "You are not authorized to view attendance for this class section.")
+        return redirect('teacher_dashboard')
+
     records = (
         AttendanceRecord.objects.filter(session=session)
         .select_related('student_profile', 'student_profile__user', 'student_profile__program')
@@ -662,4 +787,249 @@ def teacher_session_summary(request, session_id):
         'absent_count': absent_count,
         'excused_count': excused_count,
         'compliance_rate': compliance_rate,
+    })
+
+
+# // ==============================================================================
+# // HELPER: Session History Filtering & Aggregation
+# // ==============================================================================
+def _parse_iso_date(value):
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return None
+
+
+def _teacher_session_history_queryset(profile, params):
+    """
+    // Builds the teacher-scoped session history queryset and normalizes the
+    // accepted filter values so the view and CSV export stay consistent.
+    """
+    qs = (
+        ClassSession.objects.filter(slot__class_obj__teacher_profile=profile)
+        .select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
+        .annotate(
+            present_count=Count('attendance_records', filter=Q(attendance_records__status=AttendanceRecord.STATUS_PRESENT)),
+            late_count=Count('attendance_records', filter=Q(attendance_records__status=AttendanceRecord.STATUS_LATE)),
+            absent_count=Count('attendance_records', filter=Q(attendance_records__status=AttendanceRecord.STATUS_ABSENT)),
+            excused_count=Count('attendance_records', filter=Q(attendance_records__status=AttendanceRecord.STATUS_EXCUSED)),
+            total_records=Count('attendance_records'),
+        )
+    )
+
+    class_code = (params.get('class_code') or '').strip()
+    status = (params.get('status') or '').strip().upper()
+    date_from = _parse_iso_date(params.get('date_from'))
+    date_to = _parse_iso_date(params.get('date_to'))
+
+    if class_code:
+        qs = qs.filter(slot__class_obj__class_code=class_code)
+    if status in dict(ClassSession.STATUS_CHOICES):
+        qs = qs.filter(status=status)
+    if date_from:
+        qs = qs.filter(session_date__gte=date_from)
+    if date_to:
+        qs = qs.filter(session_date__lte=date_to)
+
+    return qs.order_by('-session_date', '-slot__starts_at'), {
+        'class_code': class_code,
+        'status': status,
+        'date_from': date_from.isoformat() if date_from else '',
+        'date_to': date_to.isoformat() if date_to else '',
+    }
+
+
+def _apply_attendance_rate(sessions):
+    for session in sessions:
+        attended = session.present_count + session.late_count
+        session.attendance_rate = (
+            round(attended / session.total_records * 100, 1)
+            if session.total_records else 0
+        )
+    return sessions
+
+
+# // ==============================================================================
+# // VIEW: Teacher Session History & Reports
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER)
+def teacher_session_history(request):
+    """
+    // [Teacher Report View] Paginated, filterable history of every class meeting
+    // the teacher has conducted, with per-session attendance aggregates and CSV export.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    queryset, filters = _teacher_session_history_queryset(profile, request.GET)
+
+    paginator = Paginator(queryset, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    sessions = _apply_attendance_rate(list(page_obj.object_list))
+
+    class_choices = (
+        Class.objects.filter(teacher_profile=profile)
+        .order_by('class_code')
+        .values_list('class_code', flat=True)
+    )
+
+    query_string = urlencode({key: value for key, value in filters.items() if value})
+
+    return render(request, 'core/teacher/session_history.html', {
+        'page_obj': page_obj,
+        'sessions': sessions,
+        'filters': filters,
+        'status_choices': ClassSession.STATUS_CHOICES,
+        'class_choices': class_choices,
+        'total_matching': paginator.count,
+        'query_string': query_string,
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER)
+def teacher_session_history_export(request):
+    """
+    // [Teacher Report View] Streams the filtered session history as CSV.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    queryset, _filters = _teacher_session_history_queryset(profile, request.GET)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="attendance_session_history.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Meeting Date', 'Start Time', 'End Time', 'Class Code', 'Subject Code',
+        'Subject Name', 'Room', 'Status', 'Present', 'Late', 'Absent', 'Excused',
+        'Total Records', 'Attendance Rate (%)', 'Opened At', 'Closed At',
+    ])
+
+    for session in _apply_attendance_rate(list(queryset.iterator())):
+        class_obj = session.slot.class_obj
+        writer.writerow([
+            session.session_date.isoformat(),
+            session.slot.starts_at.strftime('%H:%M'),
+            session.slot.ends_at.strftime('%H:%M'),
+            class_obj.class_code,
+            class_obj.subject.code,
+            class_obj.subject.name,
+            session.slot.room or '',
+            session.status,
+            session.present_count,
+            session.late_count,
+            session.absent_count,
+            session.excused_count,
+            session.total_records,
+            session.attendance_rate,
+            session.opened_at.isoformat() if session.opened_at else '',
+            session.closed_at.isoformat() if session.closed_at else '',
+        ])
+
+    return response
+
+
+# // ==============================================================================
+# // VIEW: Single Session Official Roll CSV Export
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+def teacher_session_export(request, session_id):
+    """
+    // [Teacher Report View] Exports the official per-student attendance roll
+    // for one concluded meeting as CSV.
+    """
+    session = get_object_or_404(
+        ClassSession.objects.select_related(
+            'slot', 'slot__class_obj', 'slot__class_obj__subject'
+        ),
+        pk=session_id
+    )
+    class_obj = session.slot.class_obj
+
+    if not _teacher_can_manage(request, class_obj):
+        messages.error(request, "You are not authorized to export attendance for this class section.")
+        return redirect('teacher_dashboard')
+
+    records = (
+        AttendanceRecord.objects.filter(session=session)
+        .select_related('student_profile', 'student_profile__user', 'student_profile__program')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
+    )
+
+    filename = f'attendance_{class_obj.class_code}_{session.session_date.isoformat()}.csv'
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Student Number', 'Last Name', 'First Name', 'Program', 'Year Level',
+        'Status', 'Method', 'Late Minutes', 'Stamped At', 'Correction Reason',
+    ])
+
+    for record in records.iterator():
+        student = record.student_profile
+        writer.writerow([
+            student.student_number or '',
+            student.user.last_name,
+            student.user.first_name,
+            student.program.code if student.program_id else '',
+            student.year_level,
+            record.status,
+            record.method,
+            record.late_minutes,
+            record.stamped_at.isoformat() if record.stamped_at else '',
+            record.correction_reason or '',
+        ])
+
+    return response
+
+
+# // ==============================================================================
+# // VIEW: Teacher Read-Only Attendance Matrix
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+def teacher_attendance_matrix(request, class_id):
+    """
+    // [Teacher Report View] Read-only 2D attendance grid (students x sessions)
+    // for a class section the requesting teacher is assigned to.
+    // Supports CSV export via ?format=csv.
+    """
+    class_obj = get_object_or_404(
+        Class.objects.select_related('subject', 'academic_year', 'teacher_profile__user'),
+        pk=class_id,
+    )
+
+    if not _teacher_can_manage(request, class_obj):
+        messages.error(request, "You are not authorized to view attendance for this class section.")
+        return redirect('teacher_dashboard')
+
+    matrix = build_attendance_matrix(class_obj)
+
+    if request.GET.get('format') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        filename = f"attendance_matrix_{class_obj.class_code}_{timezone.localdate().strftime('%Y%m%d')}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        headers = ['Student ID', 'Student Name', 'Program']
+        for session in matrix['session_list']:
+            headers.append(f"{session['display_date']} ({session['weekday']})")
+        headers.extend(['Present', 'Late', 'Absent', 'Excused', 'Attendance Rate %'])
+        writer.writerow(headers)
+
+        for row in matrix['student_rows']:
+            csv_row = [row['student_number'], row['name'], row['program']]
+            for cell in row['cells']:
+                csv_row.append(cell['status'])
+            csv_row.extend([
+                row['present'], row['late'], row['absent'], row['excused'], f"{row['rate']}%",
+            ])
+            writer.writerow(csv_row)
+
+        return response
+
+    return render(request, 'core/teacher/matrix.html', {
+        'class_obj': class_obj,
+        **matrix,
     })

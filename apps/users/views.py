@@ -27,6 +27,20 @@ from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Department, Profile, Program
 
 
+def _superuser_target_guard(request, target_user):
+    """
+    // [Privilege Escalation Guard] A non-superuser administrator must never be
+    // able to mutate (password reset, deactivate, delete, edit) a superuser
+    // account. Returns a 403 JsonResponse when forbidden, otherwise None.
+    """
+    if target_user.is_superuser and not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Only a superuser can modify another superuser account."},
+            status=403,
+        )
+    return None
+
+
 # // ==============================================================================
 # // VIEW: User Management Page (Renders administrative user directory)
 # // ==============================================================================
@@ -245,6 +259,9 @@ def user_save_ajax(request):
 
     if user_id:
         user = get_object_or_404(User, pk=user_id)
+        denied = _superuser_target_guard(request, user)
+        if denied:
+            return denied
     else:
         user = User()
 
@@ -405,6 +422,9 @@ def user_delete_ajax(request, pk):
     // Self-deletion guard prevents administrators from locking themselves out of the system.
     """
     user = get_object_or_404(User, pk=pk)
+    denied = _superuser_target_guard(request, user)
+    if denied:
+        return denied
     if request.user == user:
         return JsonResponse({"error": "You cannot delete yourself."}, status=400)
 
@@ -436,6 +456,9 @@ def user_toggle_status_ajax(request, pk):
     // Self-deactivation guard prevents active administrators from locking themselves out.
     """
     target_user = get_object_or_404(User, pk=pk)
+    denied = _superuser_target_guard(request, target_user)
+    if denied:
+        return denied
     if target_user == request.user:
         return JsonResponse({"error": "You cannot deactivate your own active session."}, status=400)
 
@@ -472,6 +495,9 @@ def user_reset_password_ajax(request, pk):
     // or an auto-generated high-entropy temporary credential.
     """
     target_user = get_object_or_404(User, pk=pk)
+    denied = _superuser_target_guard(request, target_user)
+    if denied:
+        return denied
     custom_pwd = request.POST.get('password', '').strip()
 
     if custom_pwd:

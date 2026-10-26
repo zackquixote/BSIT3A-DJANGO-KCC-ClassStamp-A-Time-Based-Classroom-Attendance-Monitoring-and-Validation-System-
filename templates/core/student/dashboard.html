@@ -11,6 +11,14 @@
       <span class="text-gold font-mono">{{ today_date|date:"l, F j, Y" }}</span>
     </p>
   </div>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'student_qr_badge' %}" class="btn btn-primary">
+      <i class="fas fa-qrcode"></i> Show My QR
+    </a>
+    <a href="{% url 'student_attendance_log' %}" class="btn btn-outline">
+      <i class="fas fa-calendar-check"></i> Attendance Log
+    </a>
+  </div>
 </div>
 
 {% if today_holiday %}
