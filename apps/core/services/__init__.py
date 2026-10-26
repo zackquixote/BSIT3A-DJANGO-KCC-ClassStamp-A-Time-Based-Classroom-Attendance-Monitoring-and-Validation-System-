@@ -27,6 +27,7 @@ from .academic_service import (
     set_active_academic_year,
     delete_or_deactivate_academic_year,
     rollover_academic_year,
+    promote_students,
 )
 from .approval_service import (
     approve_student_registration,
@@ -92,6 +93,7 @@ __all__ = [
     'set_active_academic_year',
     'delete_or_deactivate_academic_year',
     'rollover_academic_year',
+    'promote_students',
     # Teacher Management
     'provision_teacher_account',
     'update_teacher_profile',

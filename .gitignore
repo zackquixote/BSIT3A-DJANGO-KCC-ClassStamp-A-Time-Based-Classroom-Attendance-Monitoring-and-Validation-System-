@@ -17,3 +17,7 @@ local_settings.py
 # Local IDE Brains & Model Context (kept local, not shared with the repo)
 .ai/
 
+
+# Coverage artifacts (B-03)
+.coverage
+coverage_report.txt

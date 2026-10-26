@@ -117,6 +117,8 @@ from .student_views import (
     student_directory_import_csv,
     student_import_sample_csv,
     student_profile_update_ajax,
+    student_promote_all,
+    student_qr_reset_ajax,
 )
 
 # // ------------------------------------------------------------------------------
@@ -299,6 +301,8 @@ __all__ = [
     'student_directory_import_csv',
     'student_import_sample_csv',
     'student_profile_update_ajax',
+    'student_promote_all',
+    'student_qr_reset_ajax',
 
     # Audit Log & AJAX Feeds
     'admin_audit_log',

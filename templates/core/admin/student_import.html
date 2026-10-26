@@ -195,6 +195,81 @@
 </div>
 {% endif %}
 
+<!-- Step 2: Import Preview (A-10) -->
+{% if preview %}
+<div class="card mb-6 import-summary-card" style="border-color: rgba(59, 130, 246, 0.4);">
+  <div class="flex items-center justify-between pb-3 mb-3" style="border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; gap: 12px;">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-magnifying-glass-chart" style="font-size: 1.5rem; color: #60a5fa;"></i>
+      <div>
+        <h3 class="font-bold text-primary" style="margin: 0; font-size: 1.1rem;">Import Preview &amp; Validation</h3>
+        <span class="text-secondary text-xs">
+          <strong style="color: #22c55e;">{{ preview.valid_count }}</strong> valid row(s) ready to import
+          &middot; <strong style="color: #ef4444;">{{ preview.invalid_count }}</strong> row(s) flagged
+        </span>
+      </div>
+    </div>
+    <form method="POST" class="flex items-center gap-2 flex-wrap">
+      {% csrf_token %}
+      <input type="hidden" name="confirm" value="1">
+      <input type="hidden" name="csv_text" value="{{ preview.csv_text|escape }}">
+      <input type="hidden" name="default_password" value="{{ preview.default_password|escape }}">
+      {% if preview.auto_approve %}<input type="hidden" name="auto_approve" value="on">{% endif %}
+      <input type="hidden" name="target_class_id" value="{{ preview.target_class_id|escape }}">
+      <a href="{% url 'student_directory_import_csv' %}" class="btn btn-outline btn-sm">
+        <i class="fas fa-rotate-left"></i> Cancel
+      </a>
+      <button type="submit" class="btn btn-primary btn-sm" {% if not preview.valid_count %}disabled{% endif %}>
+        <i class="fas fa-bolt"></i> Step 3: Confirm &amp; Import {{ preview.valid_count }} Student(s)
+      </button>
+    </form>
+  </div>
+
+  <div class="table-responsive" style="max-height: 380px; overflow-y: auto; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+    <table class="table" style="font-size: 0.8rem; margin: 0;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Student No</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Program</th>
+          <th>Year</th>
+          <th>Section</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in preview.rows %}
+        <tr>
+          <td class="font-mono text-muted">{{ row.row_number }}</td>
+          <td class="font-mono">{{ row.student_no }}</td>
+          <td>{{ row.first_name }} {{ row.last_name }}</td>
+          <td class="text-secondary">{{ row.email }}</td>
+          <td><span class="badge badge--muted badge--xs font-mono">{{ row.program }}</span></td>
+          <td class="font-mono">{{ row.year_level }}</td>
+          <td class="font-mono text-secondary">{{ row.section }}</td>
+          <td>
+            {% if row.ok %}
+              <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Valid</span>
+            {% else %}
+              <span class="badge badge--danger badge--xs" title="{{ row.error|escape }}"><i class="fas fa-circle-xmark"></i> {{ row.error|truncatechars:60 }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 20px;" class="text-muted">
+            No data rows found in the uploaded CSV.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <div class="import-grid">
 
   <!-- Left: Upload Box -->
@@ -287,8 +362,8 @@
         <div class="text-muted text-xs mt-1.5" id="progressSubText">Validating rows and generating 64-char QR secrets...</div>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
-        <i class="fas fa-bolt"></i> Upload &amp; Provision Section Roster
+      <button type="submit" class="btn btn-primary btn-full" id="submitBtn" name="preview" value="1">
+        <i class="fas fa-magnifying-glass-chart"></i> Step 2: Preview &amp; Validate Roster
       </button>
     </form>
   </div>

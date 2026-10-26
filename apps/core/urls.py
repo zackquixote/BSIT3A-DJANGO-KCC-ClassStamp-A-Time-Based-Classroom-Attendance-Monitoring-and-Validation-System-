@@ -40,6 +40,8 @@ urlpatterns = [
     # // Admin: Student Directory & Masterlist
     path('students/', views.student_directory, name='student_directory'),
     path('students/update/', views.student_profile_update_ajax, name='student_profile_update_ajax'),
+    path('students/promote-all/', views.student_promote_all, name='student_promote_all'),
+    path('students/qr-reset/', views.student_qr_reset_ajax, name='student_qr_reset_ajax'),
     path('students/export-csv/', views.student_directory_export_csv, name='student_directory_export_csv'),
     path('students/import/', views.student_directory_import_csv, name='student_directory_import_csv'),
     path('students/import/sample-template/', views.student_import_sample_csv, name='student_import_sample_csv'),

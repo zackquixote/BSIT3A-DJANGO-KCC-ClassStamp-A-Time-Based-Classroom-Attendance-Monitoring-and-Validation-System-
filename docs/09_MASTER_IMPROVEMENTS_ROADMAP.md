@@ -1,6 +1,6 @@
 # 📋 KCC ClassStamp — Master Improvement Roadmap
 **System:** KCC ClassStamp: A Time-Based Classroom Attendance Monitoring & Validation System
-**Last Updated:** October 26, 2026
+**Last Updated:** October 27, 2026
 **Total Improvements:** 51 items across 4 areas
 
 > **Status Legend:**
@@ -58,8 +58,7 @@
 - **Solution:** Extend the existing poller to also update the sidebar badge without page reload
 
 #### A-06 — End-of-Year Student Promotion Utility
-- **Status:** ❌ Not Built
-- **Solution:** 1-click batch promote all approved students (`year_level += 1`); 4th Year → Alumni status
+- **Status:** ✅ Done (2026-10-27) — `promote_students` service advances all approved students one year level inside `transaction.atomic()` (capped at program duration), audits `PROMOTE_STUDENTS`, and is exposed as a 1-click confirm button on the student directory via `student_promote_all`; the academic-term rollover wizard now reuses the same promotion helper)
 
 #### A-07 — Program-Centric Curriculum Matrix Builder
 - **Status:** ✅ Done (2026-10-26) — Year × Semester grid modal on the Programs page; `Curriculum.semester` dimension added with unique (program, year_level, semester, subject); assign/remove via existing AJAX endpoints; new `program_curriculum_list` JSON endpoint; keyboard-free chip-based UI in `curriculum_matrix.js`)
@@ -73,8 +72,7 @@
 - **Status:** ✅ Done (Actor filter added to the audit log page and CSV export alongside the existing category tabs, action dropdown, date filter, and search; dropdown lists distinct actor usernames with full names, filtering matches exact username, and the CSV export applies the same actor filter)
 
 #### A-10 — CSV Import Validation Preview (3-Step)
-- **Status:** 🟡 Partial (direct import exists — preview step missing)
-- **Solution:** Upload → Preview & flag invalid rows → Confirm import
+- **Status:** ✅ Done (2026-10-27) — Upload → Preview & Validate → Confirm. `import_students_from_csv(..., dry_run=True)` returns a per-row verdict list (valid/invalid + reason) without writing anything; the preview page renders a scrollable verdict table with valid/invalid counts and a disabled-confirm state when 0 rows are valid; the CSV text round-trips through a hidden field so no session storage is needed; legacy direct-upload path preserved)
 
 #### A-11 — Subject Prerequisite Mapping
 - **Status:** ❌ Not Built
@@ -85,8 +83,7 @@
 - **Solution:** Quick modal to transfer a teacher between academic departments with load overview
 
 #### A-13 — Student TOTP QR Secret Reset Button
-- **Status:** ❌ Not Built
-- **Solution:** Admin button to rotate a student's 64-char TOTP seed if compromised; logged in audit trail
+- **Status:** ✅ Done (2026-10-27) — Shield button on each student directory row calls `student_qr_reset_ajax`, which rotates the 64-char TOTP seed, invalidates all unconsumed offline badges, and audits `STUDENT_QR_RESET` with a security-reset reason)
 
 ### ⚪ Polish
 
@@ -147,8 +144,7 @@
 - **Status:** ✅ Done (teacher dashboard scans each class's newest records per student and flags students whose leading run of unexcused ABSENT statuses is 3 or more; purple pill chips on the class card show name, student number, and streak length; helper also exposes an `absent_streak_students` aggregate)
 
 #### T-06 — Midterm / Final Term Attendance Split Export
-- **Status:** ❌ Not Built
-- **Solution:** Separate export buttons for Midterm (Weeks 1-9) and Finals (Weeks 1-18)
+- **Status:** ✅ Done (2026-10-27) — `?range=midterm|finals|all` on `teacher_class_term_export` slices to the first 9 / 18 meetings; worksheet title and xlsx filename reflect the range; the matrix page now offers Term, Midterm, and Finals Excel buttons)
 
 ### 🟢 Medium Priority
 
@@ -210,8 +206,7 @@
 - **Status:** ✅ Done (student dashboard "Examination Windows & Timetable" card now renders a Mon-Sat color-coded weekly grid from the enrolled classes' active slots — six day columns, today's column highlighted gold with a TODAY badge, and per-slot blocks with time, subject·class, room, and a rotating palette accent; Sunday and inactive slots are excluded)
 
 #### S-06 — Detailed Meeting-by-Meeting Attendance Log
-- **Status:** 🟡 Partial (`attendance_log.html` exists — detail level may be insufficient)
-- **Solution:** Per session: Date, Time, Status, Method (QR Scan vs Manual Teacher Override); filterable
+- **Status:** ✅ Done (2026-10-27) — attendance log upgraded with a GET filter bar (status dropdown and class selector scoped to enrolled classes) and a Time column showing the scheduled slot window; view validates and passes the filters through, with a filtered-empty state)
 
 ### 🟢 Medium Priority
 
@@ -224,24 +219,21 @@
 ### ⚪ Polish
 
 #### S-09 — Excuse Slip Status Tracker
-- **Status:** ❌ Not Built
-- **Solution:** Dashboard section showing all submitted excuse slips with Pending/Approved/Rejected status
+- **Status:** ✅ Done (2026-10-27) — "My Excuse Slips" card on the student dashboard lists the 10 most recent slips with Pending/Approved/Rejected count badges, per-slip subject·class, session date, status badge, truncated reason, reviewer note on rejection, and submitted timestamp, linking to the full slip list)
 
 ---
 
 ## ⚙️ Backend & Technical — 6 Improvements
 
 #### B-01 — Pin All Dependency Versions
-- **Status:** 🟡 Partial (`pyotp>=2.9.0`, `qrcode>=7.4`, `Pillow>=10.0` use loose ranges)
-- **Solution:** Pin all packages to exact versions in `requirements.txt` for reproducible deployments
+- **Status:** ✅ Done (2026-10-27) — `requirements.txt` pins exact versions: Django==4.2.30, mysqlclient==2.2.8, openpyxl==3.1.5, python-dotenv==1.1.1, pyotp==2.10.0, qrcode==8.2, Pillow==12.1.1)
 
 #### B-02 — Split `session_views.py` (43KB)
 - **Status:** ❌ Not Done
 - **Solution:** Extract into `session_lifecycle.py`, `session_scan.py`, `session_export.py`, `session_override.py`
 
 #### B-03 — Run Test Coverage Report
-- **Status:** ❌ Not Measured
-- **Solution:** Run `pytest --cov=apps --cov-report=html`; target ≥60% coverage on all views and services
+- **Status:** ✅ Measured (2026-10-27) — `python -m coverage run --source=apps.core manage.py test apps.core --noinput` then `coverage report`: **79%** line coverage across apps.core (8,164 statements, 1,729 missed), well above the ≥60% target
 
 #### B-04 — N+1 Query Audit on Remaining Views
 - **Status:** ❌ Not Done
@@ -291,11 +283,11 @@
 
 | Portal | ✅ Done | 🟡 Partial | ❌ Not Built | Total |
 |---|---|---|---|---|
-| 🛡️ Admin | 9 | 1 | 8 | **18** |
-| 👨‍🏫 Teacher | 7 | 0 | 5 | **12** |
-| 🎓 Student | 6 | 1 | 2 | **9** |
-| ⚙️ Backend | 4 | 1 | 7 | **12** |
-| **TOTAL** | **26** | **3** | **22** | **51** |
+| 🛡️ Admin | 12 | 0 | 6 | **18** |
+| 👨‍🏫 Teacher | 8 | 0 | 4 | **12** |
+| 🎓 Student | 8 | 0 | 1 | **9** |
+| ⚙️ Backend | 6 | 1 | 5 | **12** |
+| **TOTAL** | **34** | **1** | **16** | **51** |
 
 ---
 

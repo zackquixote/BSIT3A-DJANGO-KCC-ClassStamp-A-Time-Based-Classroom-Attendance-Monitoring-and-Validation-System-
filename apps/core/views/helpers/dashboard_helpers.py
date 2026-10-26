@@ -32,6 +32,7 @@ from apps.core.models import (
     ClassSlot,
     Department,
     Enrollment,
+    ExcuseSlip,
     Profile,
     Program,
 )
@@ -523,6 +524,22 @@ def _student_dashboard_stats(profile):
             'meetings': log_by_class.get(class_obj.id, []),
         })
     stats['class_breakdowns'] = breakdowns
+
+    # S-09: Excuse slip status tracker (Pending/Approved/Rejected)
+    stats['excuse_slips'] = list(
+        ExcuseSlip.objects.filter(student_profile=profile)
+        .select_related(
+            'session', 'session__slot', 'session__slot__class_obj',
+            'session__slot__class_obj__subject', 'reviewed_by',
+        )
+        .order_by('-created_at')[:10]
+    )
+    slip_counts = ExcuseSlip.objects.filter(student_profile=profile).aggregate(
+        pending=Count('id', filter=Q(status=ExcuseSlip.STATUS_PENDING)),
+        approved=Count('id', filter=Q(status=ExcuseSlip.STATUS_APPROVED)),
+        rejected=Count('id', filter=Q(status=ExcuseSlip.STATUS_REJECTED)),
+    )
+    stats['excuse_slip_counts'] = slip_counts
 
     now = timezone.now()
     start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))

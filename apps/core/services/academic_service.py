@@ -544,6 +544,50 @@ def set_active_academic_year(actor, pk: int) -> dict:
     return {'instance': ay, 'message': f'"{ay.name}" is now the active institutional academic term.'}
 
 
+def _advance_approved_students() -> int:
+    """Advances approved students one year level, capped at program duration."""
+    promoted_count = 0
+    students = (
+        Profile.objects.filter(
+            role=Profile.ROLE_STUDENT,
+            approval_status=Profile.APPROVAL_APPROVED,
+        )
+        .select_related('program')
+    )
+    for student in students:
+        cap = student.program.years_total if student.program else 0
+        if cap and student.year_level < cap:
+            student.year_level += 1
+            student.save(update_fields=['year_level', 'updated_at'])
+            promoted_count += 1
+    return promoted_count
+
+
+def promote_students(actor) -> dict:
+    """
+    // [Service] End-of-Year Batch Student Promotion (A-06)
+    //
+    // 1-click advance of every APPROVED student to the next year level,
+    // capped at their program's years_total (final-year students stay put).
+    """
+    with transaction.atomic():
+        promoted_count = _advance_approved_students()
+
+    AuditEvent.objects.create(
+        actor=actor,
+        action='PROMOTE_STUDENTS',
+        object_type='Student',
+        object_id='ALL',
+        new_value=f'{promoted_count} approved student(s) advanced one year level (capped at program duration)',
+        reason='End-of-year batch promotion (A-06)',
+    )
+
+    return {
+        'promoted_count': promoted_count,
+        'message': f'Promoted {promoted_count} approved student(s) to the next year level.',
+    }
+
+
 def rollover_academic_year(
     actor, name: str, starts_on, ends_on, promote: bool = False
 ) -> dict:
@@ -587,19 +631,7 @@ def rollover_academic_year(
 
         promoted_count = 0
         if promote:
-            students = (
-                Profile.objects.filter(
-                    role=Profile.ROLE_STUDENT,
-                    approval_status=Profile.APPROVAL_APPROVED,
-                )
-                .select_related('program')
-            )
-            for student in students:
-                cap = student.program.years_total if student.program else 0
-                if cap and student.year_level < cap:
-                    student.year_level += 1
-                    student.save(update_fields=['year_level', 'updated_at'])
-                    promoted_count += 1
+            promoted_count = _advance_approved_students()
 
     AuditEvent.objects.create(
         actor=actor,

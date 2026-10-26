@@ -112,6 +112,7 @@ def import_students_from_csv(
     default_password: str = 'KccStudent2026!',
     auto_approve: bool = False,
     target_class=None,
+    dry_run: bool = False,
 ) -> dict:
     """
     // [Service] Atomic Bulk CSV Student Ingestion
@@ -125,12 +126,15 @@ def import_students_from_csv(
     //   default_password (str):            Fallback password if not in CSV.
     //   auto_approve     (bool):           If True, sets APPROVED + approved_by/at immediately.
     //   target_class     (Class|None):     Optional class section to enroll all imports into.
+    //   dry_run          (bool):           A-10 preview mode — validates and reports
+    //                                      per-row verdicts WITHOUT writing anything.
     //
     // Returns:
     //   dict with keys:
     //     'created_count' (int)  — number of successfully provisioned profiles
     //     'skipped_count' (int)  — number of skipped rows
     //     'errors'        (list) — row-level error descriptions (capped at 50)
+    //     'rows'          (list) — per-row preview verdicts (row_number, fields, ok, error)
     """
     programs_by_code = {p.code.upper(): p for p in Program.objects.all()}
     classes_by_code = {c.class_code.upper(): c for c in Class.objects.filter(is_active=True)}
@@ -138,6 +142,7 @@ def import_students_from_csv(
     created_count = 0
     skipped_count = 0
     errors = []
+    rows = []
     row_index = 1
 
     for row in reader:
@@ -163,42 +168,54 @@ def import_students_from_csv(
         if not any([student_no, first_name, last_name, email]):
             continue
 
+        preview_row = {
+            'row_number': row_index,
+            'student_no': student_no or '—',
+            'first_name': first_name or '—',
+            'last_name': last_name or '—',
+            'email': email or '—',
+            'program': (prog_code or '—').upper(),
+            'year_level': year_lvl_raw or '—',
+            'section': section_code or '—',
+            'ok': True,
+            'error': '',
+        }
+
+        def fail(msg):
+            nonlocal skipped_count
+            errors.append(msg)
+            skipped_count += 1
+            rows.append({**preview_row, 'ok': False, 'error': msg})
+
         # // Row-level validation
         if not student_no:
-            errors.append(f'Row {row_index}: Student ID Number is missing.')
-            skipped_count += 1
+            fail(f'Row {row_index}: Student ID Number is missing.')
             continue
 
         if not first_name or not last_name:
-            errors.append(f'Row {row_index} ({student_no}): First Name and Last Name are required.')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): First Name and Last Name are required.')
             continue
 
         if not email:
-            errors.append(f'Row {row_index} ({student_no}): Email address is missing.')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Email address is missing.')
             continue
 
         if not prog_code or prog_code.upper() not in programs_by_code:
-            errors.append(f'Row {row_index} ({student_no}): Program code "{prog_code}" does not exist.')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Program code "{prog_code}" does not exist.')
             continue
         program = programs_by_code[prog_code.upper()]
 
         try:
             year_level = int(year_lvl_raw) if year_lvl_raw else 1
             if year_level < 1 or year_level > program.years_total:
-                errors.append(f'Row {row_index} ({student_no}): Year level {year_level} invalid for {program.code}.')
-                skipped_count += 1
+                fail(f'Row {row_index} ({student_no}): Year level {year_level} invalid for {program.code}.')
                 continue
         except ValueError:
-            errors.append(f'Row {row_index} ({student_no}): Invalid year level "{year_lvl_raw}".')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Invalid year level "{year_lvl_raw}".')
             continue
 
         if Profile.objects.filter(student_number__iexact=student_no).exists():
-            errors.append(f'Row {row_index} ({student_no}): Student ID already registered.')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Student ID already registered.')
             continue
 
         # // Username auto-generation (firstname.lastname + numeric suffix)
@@ -210,13 +227,17 @@ def import_students_from_csv(
                 username = f'{base_user}{suffix}'
                 suffix += 1
         elif User.objects.filter(username__iexact=username).exists():
-            errors.append(f'Row {row_index} ({student_no}): Username "{username}" already taken.')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Username "{username}" already taken.')
             continue
 
         if User.objects.filter(email__iexact=email).exists():
-            errors.append(f'Row {row_index} ({student_no}): Email "{email}" already in use.')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Email "{email}" already in use.')
+            continue
+
+        # // A-10: preview/dry-run stops here — nothing is written
+        if dry_run:
+            rows.append({**preview_row, 'ok': True})
+            created_count += 1
             continue
 
         # // Atomic per-row creation
@@ -263,13 +284,14 @@ def import_students_from_csv(
                     reason='CSV Batch Import roster ingestion',
                 )
                 created_count += 1
+                rows.append({**preview_row, 'ok': True})
 
         except Exception as ex:
-            errors.append(f'Row {row_index} ({student_no}): Database error: {str(ex)}')
-            skipped_count += 1
+            fail(f'Row {row_index} ({student_no}): Database error: {str(ex)}')
 
     return {
         'created_count': created_count,
         'skipped_count': skipped_count,
         'errors': errors[:50],
+        'rows': rows,
     }

@@ -514,7 +514,12 @@
 
   <!-- Action Buttons -->
   <div class="flex items-center gap-2">
-    <a href="{% url 'student_directory_import_csv' %}" class="btn btn-primary btn-sm" title="Upload CSV Roster for a Section or Cohort">
+    <button type="button" class="btn btn-primary btn-sm" id="promoteAllBtn"
+            data-url="{% url 'student_promote_all' %}"
+            title="Advance every approved student to the next year level (capped at program duration)">
+      <i class="fas fa-arrow-trend-up"></i> Promote All
+    </button>
+    <a href="{% url 'student_directory_import_csv' %}" class="btn btn-outline btn-sm" title="Upload CSV Roster for a Section or Cohort">
       <i class="fas fa-file-arrow-up"></i> Bulk Import
     </a>
     <a href="{% url 'student_directory_export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-outline btn-sm" title="Export Filtered List to CSV">
@@ -780,6 +785,12 @@
                       title="Edit Student Profile">
                 <i class="fas fa-user-pen text-gold"></i> Edit
               </button>
+              <button type="button" class="btn btn-outline btn-sm js-qr-reset"
+                      data-student-id="{{ student.id }}"
+                      data-student-number="{{ student.student_number|default:''|escapejs }}"
+                      title="Rotate TOTP QR secret (invalidates current badge)">
+                <i class="fas fa-shield-halved text-danger"></i>
+              </button>
               <button type="button" class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password">
                 <i class="fas fa-key text-warning"></i>
               </button>
@@ -920,9 +931,11 @@
 {% load static %}
 <script>
   window.ProfileEditorConfig = {
-    updateUrl: '{% url "student_profile_update_ajax" %}'
+    updateUrl: '{% url "student_profile_update_ajax" %}',
+    qrResetUrl: '{% url "student_qr_reset_ajax" %}'
   };
 </script>
 <script src="{% static 'js/student_directory/student_directory.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/student_directory/profile_editor.js' %}?v=20261026_v1"></script>
+<script src="{% static 'js/student_directory/directory_bulk_actions.js' %}?v=20261027_v1"></script>
 {% endblock %}

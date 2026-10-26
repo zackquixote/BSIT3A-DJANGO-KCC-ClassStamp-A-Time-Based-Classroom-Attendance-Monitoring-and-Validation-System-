@@ -24,6 +24,12 @@
     <a href="{% url 'teacher_class_term_export' class_obj.id %}" class="btn btn-primary">
       <i class="fas fa-file-excel"></i> Term Excel
     </a>
+    <a href="{% url 'teacher_class_term_export' class_obj.id %}?range=midterm" class="btn btn-outline" title="First 9 meetings (Weeks 1-9)">
+      <i class="fas fa-file-excel"></i> Midterm
+    </a>
+    <a href="{% url 'teacher_class_term_export' class_obj.id %}?range=finals" class="btn btn-outline" title="First 18 meetings (Weeks 1-18)">
+      <i class="fas fa-file-excel"></i> Finals
+    </a>
     <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?format=csv" class="btn btn-outline">
       <i class="fas fa-file-csv"></i> Export CSV
     </a>

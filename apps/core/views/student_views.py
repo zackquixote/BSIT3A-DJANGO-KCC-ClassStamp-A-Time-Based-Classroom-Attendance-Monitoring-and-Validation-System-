@@ -31,6 +31,7 @@ from apps.core.services import (
     export_student_directory_csv,
     export_student_import_sample_csv,
     import_students_from_csv,
+    promote_students,
 )
 
 User = get_user_model()
@@ -278,6 +279,62 @@ def student_profile_update_ajax(request):
 
 
 # // ==============================================================================
+# // AJAX: End-of-Year Batch Student Promotion (A-06)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def student_promote_all(request):
+    """
+    // [AJAX] 1-click batch advance of all approved students to the next year
+    // level, capped at each program's duration. Fully audited.
+    """
+    result = promote_students(request.user)
+    return JsonResponse({
+        'status': 'success',
+        'promoted_count': result['promoted_count'],
+        'message': result['message'],
+    })
+
+
+# // ==============================================================================
+# // AJAX: Student TOTP QR Secret Reset (A-13)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def student_qr_reset_ajax(request):
+    """
+    // [AJAX] Rotates a single student's TOTP QR seed. Invalidates any issued
+    // offline badges and the student's current QR badge immediately.
+    """
+    try:
+        profile = Profile.objects.select_related('user').get(
+            pk=request.POST.get('student_id'), role=Profile.ROLE_STUDENT,
+        )
+    except (Profile.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'status': 'error', 'error': 'Student not found.'}, status=404)
+
+    profile.qr_secret = secrets.token_hex(32)
+    profile.save(update_fields=['qr_secret', 'updated_at'])
+    profile.offline_badges.filter(consumed_at__isnull=True).delete()
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='STUDENT_QR_RESET',
+        object_type='Profile',
+        object_id=str(profile.pk),
+        new_value=f'TOTP QR secret rotated for {profile.student_number}',
+        reason='Security reset requested by administrator (A-13)',
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'QR secret rotated for {profile.student_number}. The old badge is now invalid.',
+    })
+
+
+# // ==============================================================================
 # // VIEW: Student Directory CSV Export (/students/export-csv/)
 # // ==============================================================================
 @login_required(login_url='login')
@@ -296,29 +353,19 @@ def student_directory_export_csv(request):
 @role_required(Profile.ROLE_ADMIN)
 def student_directory_import_csv(request):
     """
-    // [Admin Controller] Bulk CSV Student Ingestion
+    // [Admin Controller] Bulk CSV Student Ingestion (A-10 3-step: upload → preview → confirm)
     // Allows importing entire cohort/section rosters (e.g. 40 students per section)
     // in an atomic database transaction. Generates user accounts, creates student
     // profiles with 64-char QR secrets, auto-approves accounts, and links class sections.
     """
+    base_context = {
+        'departments': Department.objects.filter(is_active=True).order_by('name'),
+        'programs': Program.objects.filter(is_active=True).select_related('department').order_by('code'),
+        'classes': Class.objects.filter(is_active=True).order_by('class_code'),
+    }
+
     if request.method == 'GET':
-        departments = Department.objects.filter(is_active=True).order_by('name')
-        programs = Program.objects.filter(is_active=True).select_related('department').order_by('code')
-        classes = Class.objects.filter(is_active=True).order_by('class_code')
-        return render(request, 'core/admin/student_import.html', {
-            'departments': departments,
-            'programs': programs,
-            'classes': classes,
-        })
-
-    csv_file = request.FILES.get('csv_file')
-    if not csv_file:
-        messages.error(request, 'Please select a CSV file to upload.')
-        return redirect('student_directory_import_csv')
-
-    if not csv_file.name.lower().endswith('.csv'):
-        messages.error(request, 'Uploaded file must have a .csv extension.')
-        return redirect('student_directory_import_csv')
+        return render(request, 'core/admin/student_import.html', base_context)
 
     default_password = request.POST.get('default_password', 'KccStudent2026!').strip() or 'KccStudent2026!'
     auto_approve = request.POST.get('auto_approve') == 'on'
@@ -328,16 +375,64 @@ def student_directory_import_csv(request):
     if target_class_id:
         target_class = Class.objects.filter(pk=target_class_id, is_active=True).first()
 
+    is_confirm = request.POST.get('confirm') == '1'
+    is_preview = request.POST.get('preview') == '1'
+
+    # // Step 3: confirm executes the import on the previewed CSV text
+    if is_confirm:
+        csv_text = request.POST.get('csv_text', '')
+        if not csv_text.strip():
+            messages.error(request, 'Import preview expired. Please re-upload the CSV file.')
+            return redirect('student_directory_import_csv')
+        decoded_file = csv_text.splitlines()
+    else:
+        csv_file = request.FILES.get('csv_file')
+        if not csv_file:
+            messages.error(request, 'Please select a CSV file to upload.')
+            return redirect('student_directory_import_csv')
+        if not csv_file.name.lower().endswith('.csv'):
+            messages.error(request, 'Uploaded file must have a .csv extension.')
+            return redirect('student_directory_import_csv')
+        try:
+            csv_text = csv_file.read().decode('utf-8-sig')
+        except Exception as e:
+            messages.error(request, f'Failed to parse CSV file: {str(e)}')
+            return redirect('student_directory_import_csv')
+        decoded_file = csv_text.splitlines()
+
     try:
-        decoded_file = csv_file.read().decode('utf-8-sig').splitlines()
         reader = csv.DictReader(decoded_file)
+        fieldnames = reader.fieldnames
     except Exception as e:
         messages.error(request, f'Failed to parse CSV file: {str(e)}')
         return redirect('student_directory_import_csv')
 
-    if not reader.fieldnames:
+    if not fieldnames:
         messages.error(request, 'CSV file contains no columns or header row.')
         return redirect('student_directory_import_csv')
+
+    # // Step 2: dry-run preview — validate every row, write nothing
+    if is_preview:
+        result = import_students_from_csv(
+            reader=reader,
+            actor=request.user,
+            default_password=default_password,
+            auto_approve=auto_approve,
+            target_class=target_class,
+            dry_run=True,
+        )
+        return render(request, 'core/admin/student_import.html', {
+            **base_context,
+            'preview': {
+                'rows': result['rows'],
+                'csv_text': csv_text,
+                'default_password': default_password,
+                'auto_approve': auto_approve,
+                'target_class_id': target_class_id,
+                'valid_count': result['created_count'],
+                'invalid_count': result['skipped_count'],
+            },
+        })
 
     result = import_students_from_csv(
         reader=reader,
@@ -362,9 +457,7 @@ def student_directory_import_csv(request):
         )
 
     return render(request, 'core/admin/student_import.html', {
-        'departments': Department.objects.filter(is_active=True).order_by('name'),
-        'programs': Program.objects.filter(is_active=True).select_related('department').order_by('code'),
-        'classes': Class.objects.filter(is_active=True).order_by('class_code'),
+        **base_context,
         'summary': {
             'created_count': created_count,
             'skipped_count': skipped_count,

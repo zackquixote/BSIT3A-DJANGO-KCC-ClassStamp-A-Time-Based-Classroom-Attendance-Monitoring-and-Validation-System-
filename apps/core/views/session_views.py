@@ -1309,7 +1309,7 @@ def teacher_session_export(request, session_id):
 
 
 # // ==============================================================================
-# // VIEW: Registrar-Format Term-Wide Excel Export (T-04)
+# // VIEW: Registrar-Format Term-Wide Excel Export (T-04 + T-06 range split)
 # // ==============================================================================
 @login_required(login_url='login')
 @role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
@@ -1319,6 +1319,9 @@ def teacher_class_term_export(request, class_id):
     // every meeting of one class section: one column per session (Week 1..N with
     // date), per-student totals, and % attendance. Rows whose unexcused absence
     // rate reaches the CHED 20% threshold are filled red.
+    //
+    // T-06: ?range=midterm limits to the first 9 meetings, ?range=finals to the
+    // first 18 (the whole term when fewer sessions exist).
     """
     class_obj = get_object_or_404(
         Class.objects.select_related('subject', 'academic_year', 'teacher_profile__user'),
@@ -1329,11 +1332,20 @@ def teacher_class_term_export(request, class_id):
         messages.error(request, "You are not authorized to export attendance for this class section.")
         return redirect('teacher_dashboard')
 
+    export_range = request.GET.get('range', 'all').strip().lower()
+    range_limits = {'midterm': 9, 'finals': 18}
+    range_cap = range_limits.get(export_range)
+    if export_range not in range_limits:
+        export_range = 'all'
+        range_cap = None
+
     sessions = list(
         ClassSession.objects.filter(slot__class_obj=class_obj)
         .exclude(status=ClassSession.STATUS_CANCELED)
         .order_by('session_date')
     )
+    if range_cap is not None:
+        sessions = sessions[:range_cap]
 
     students = list(
         Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
@@ -1351,7 +1363,12 @@ def teacher_class_term_export(request, class_id):
 
     wb = Workbook()
     ws = wb.active
-    ws.title = 'Term Attendance'
+    range_labels = {
+        'midterm': 'Midterm Attendance',
+        'finals': 'Finals Attendance',
+        'all': 'Term Attendance',
+    }
+    ws.title = range_labels[export_range]
 
     header_fill = PatternFill('solid', fgColor='1F2937')
     header_font = Font(bold=True, color='FFFFFF')
@@ -1423,7 +1440,7 @@ def teacher_class_term_export(request, class_id):
     wb.save(output)
     output.seek(0)
 
-    filename = f"term_attendance_{class_obj.class_code}.xlsx"
+    filename = f"{export_range}_attendance_{class_obj.class_code}.xlsx"
     response = HttpResponse(
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -86,6 +86,49 @@
   </div>
 </div>
 
+<!-- S-09: Excuse Slip Status Tracker -->
+{% if excuse_slips %}
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-file-medical text-gold"></i> My Excuse Slips
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="badge badge--warning badge--xs">{{ excuse_slip_counts.pending|default:0 }} Pending</span>
+      <span class="badge badge--success badge--xs">{{ excuse_slip_counts.approved|default:0 }} Approved</span>
+      <span class="badge badge--danger badge--xs">{{ excuse_slip_counts.rejected|default:0 }} Rejected</span>
+    </div>
+  </div>
+  <div style="padding: 12px 16px;">
+    {% for slip in excuse_slips %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {% if slip.status == 'APPROVED' %}#22c55e{% elif slip.status == 'REJECTED' %}#ef4444{% else %}#f59e0b{% endif %}; border-radius: 6px; margin-bottom: 8px;">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <span class="font-bold text-primary text-sm">{{ slip.session.slot.class_obj.subject.code }} — {{ slip.session.slot.class_obj.class_code }}</span>
+            <span class="text-muted text-xs font-mono"> • {{ slip.session.session_date|date:"M d, Y" }}</span>
+          </div>
+          {% if slip.status == 'PENDING' %}
+            <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Pending Review</span>
+          {% elif slip.status == 'APPROVED' %}
+            <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Approved</span>
+          {% else %}
+            <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> Rejected</span>
+          {% endif %}
+        </div>
+        <div class="text-secondary text-xs mt-1" style="line-height: 1.45;">{{ slip.reason|truncatechars:120 }}</div>
+        {% if slip.status == 'REJECTED' and slip.review_note %}
+          <div class="text-xs mt-1" style="color: #fca5a5;"><i class="fas fa-comment"></i> Instructor: {{ slip.review_note|truncatechars:120 }}</div>
+        {% endif %}
+        <div class="text-muted text-xs mt-1 font-mono">Submitted {{ slip.created_at|date:"M d, Y h:i A" }}</div>
+      </div>
+    {% endfor %}
+    <div class="text-xs mt-1">
+      <a href="{% url 'student_excuse_slips' %}" class="text-gold"><i class="fas fa-arrow-right"></i> Manage excuse slips</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Calendar Milestones & Enrolled Timetable -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
   <!-- Upcoming Term Milestones & Published Calendar -->

@@ -142,7 +142,7 @@ def student_offline_badge_issue(request):
 @role_required(Profile.ROLE_STUDENT)
 @approved_required
 def student_attendance_log(request):
-    """Personal attendance ledger with per-class compliance breakdown."""
+    """Personal attendance ledger with per-class compliance breakdown (S-06 filters)."""
     profile = getattr(request.user, 'classstamp_profile', None)
 
     records = (
@@ -156,6 +156,28 @@ def student_attendance_log(request):
         )
         .order_by('-session__session_date', '-stamped_at')
     )
+
+    # S-06: filterable ledger — status and class filters, applied server-side
+    selected_status = request.GET.get('status', '').strip().upper()
+    if selected_status in dict(AttendanceRecord.STATUS_CHOICES):
+        records = records.filter(status=selected_status)
+    else:
+        selected_status = ''
+
+    selected_class_id = request.GET.get('class_id', '').strip()
+    filter_classes = list(
+        Enrollment.objects.filter(
+            student_profile=profile, status=Enrollment.STATUS_ACTIVE,
+        )
+        .select_related('class_obj', 'class_obj__subject')
+        .order_by('class_obj__subject__code')
+    )
+    if selected_class_id:
+        try:
+            selected_class_id = int(selected_class_id)
+            records = records.filter(session__slot__class_obj_id=selected_class_id)
+        except (ValueError, TypeError):
+            selected_class_id = ''
 
     summary_map = {}
     for enr in Enrollment.objects.filter(
@@ -210,4 +232,7 @@ def student_attendance_log(request):
         'class_summaries': class_summaries,
         'totals': totals,
         'total_records': total_records,
+        'selected_status': selected_status,
+        'selected_class_id': selected_class_id,
+        'filter_classes': filter_classes,
     })

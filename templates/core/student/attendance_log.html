@@ -74,17 +74,42 @@
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
-  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
     <div class="font-semibold text-primary flex items-center gap-2">
       <i class="fas fa-clock-rotate-left text-gold"></i> Attendance Records
     </div>
-    <span class="text-muted text-xs">Most recent first</span>
+    <form method="GET" action="{% url 'student_attendance_log' %}" class="flex items-center gap-2 flex-wrap">
+      <select name="status" class="form-control" style="width: auto; padding: 6px 28px 6px 10px; font-size: 0.8rem;">
+        <option value="">All Statuses</option>
+        <option value="PRESENT" {% if selected_status == 'PRESENT' %}selected{% endif %}>Present</option>
+        <option value="LATE" {% if selected_status == 'LATE' %}selected{% endif %}>Late</option>
+        <option value="ABSENT" {% if selected_status == 'ABSENT' %}selected{% endif %}>Absent</option>
+        <option value="EXCUSED" {% if selected_status == 'EXCUSED' %}selected{% endif %}>Excused</option>
+      </select>
+      <select name="class_id" class="form-control" style="width: auto; max-width: 220px; padding: 6px 28px 6px 10px; font-size: 0.8rem;">
+        <option value="">All Classes</option>
+        {% for fc in filter_classes %}
+          <option value="{{ fc.class_obj.id }}" {% if selected_class_id == fc.class_obj.id %}selected{% endif %}>
+            {{ fc.class_obj.subject.code }} — {{ fc.class_obj.class_code }}
+          </option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary btn-xs" style="padding: 6px 10px; font-size: 0.78rem;">
+        <i class="fas fa-filter"></i> Filter
+      </button>
+      {% if selected_status or selected_class_id %}
+        <a href="{% url 'student_attendance_log' %}" class="btn btn-outline btn-xs" style="padding: 6px 10px; font-size: 0.78rem;">
+          <i class="fas fa-rotate-left"></i> Reset
+        </a>
+      {% endif %}
+    </form>
   </div>
   <div style="overflow-x: auto;">
     <table class="data-table" style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr>
           <th style="text-align:left; padding:10px 14px;">Date</th>
+          <th style="text-align:left; padding:10px 14px;">Time</th>
           <th style="text-align:left; padding:10px 14px;">Class</th>
           <th style="text-align:left; padding:10px 14px;">Instructor</th>
           <th style="text-align:left; padding:10px 14px;">Status</th>
@@ -96,6 +121,9 @@
         {% for r in records %}
           <tr>
             <td style="padding:10px 14px;" class="font-mono text-xs">{{ r.session.session_date|date:"M d, Y" }}</td>
+            <td style="padding:10px 14px;" class="font-mono text-xs text-secondary">
+              {{ r.session.slot.starts_at|time:"h:i A" }}–{{ r.session.slot.ends_at|time:"h:i A" }}
+            </td>
             <td style="padding:10px 14px;">
               <span class="font-bold text-primary text-sm">{{ r.session.slot.class_obj.subject.code }}</span>
               <span class="text-muted text-xs"> • {{ r.session.slot.class_obj.class_code }}</span>
@@ -130,8 +158,12 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="6" style="padding: 28px 14px; text-align: center;" class="text-muted text-sm">
-              No attendance records yet. Attend a class and have your instructor scan your QR badge.
+            <td colspan="7" style="padding: 28px 14px; text-align: center;" class="text-muted text-sm">
+              {% if selected_status or selected_class_id %}
+                No records match the selected filters.
+              {% else %}
+                No attendance records yet. Attend a class and have your instructor scan your QR badge.
+              {% endif %}
             </td>
           </tr>
         {% endfor %}
