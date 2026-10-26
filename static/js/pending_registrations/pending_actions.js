@@ -224,6 +224,9 @@
         var rCountEl = document.getElementById('batchRejectCount');
         if (rCountEl) rCountEl.textContent = selected.length;
         if (batchReasonInput) batchReasonInput.value = '';
+        document.querySelectorAll('#batchModalChips .modal-chip').forEach(function (c) {
+          c.classList.remove('is-selected');
+        });
 
         if (window.openModal) {
           window.openModal('batchRejectModal');
@@ -232,6 +235,16 @@
         }
       });
     }
+
+    document.querySelectorAll('#batchModalChips .modal-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        if (batchReasonInput) batchReasonInput.value = this.getAttribute('data-reason');
+        document.querySelectorAll('#batchModalChips .modal-chip').forEach(function (c) {
+          c.classList.remove('is-selected');
+        });
+        this.classList.add('is-selected');
+      });
+    });
 
     if (confirmRejectBtn) {
       confirmRejectBtn.addEventListener('click', async function () {

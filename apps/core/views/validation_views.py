@@ -15,7 +15,9 @@ import secrets
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -483,7 +485,7 @@ def batch_validation_action(request):
     import json as _json
     action = request.POST.get('action', '').strip()
     raw_ids = request.POST.getlist('ids[]') or request.POST.getlist('ids')
-    reason = request.POST.get('reason', 'Batch administrative decision').strip()
+    reason = request.POST.get('reason', '').strip()
 
     if action not in ('approve', 'reject'):
         return JsonResponse({'error': 'Invalid action.'}, status=400)
@@ -501,28 +503,44 @@ def batch_validation_action(request):
         except (ValueError, TypeError):
             pass
 
-    profiles = Profile.objects.filter(
+    profiles = list(Profile.objects.filter(
         pk__in=pks,
         role=Profile.ROLE_STUDENT,
         approval_status=Profile.APPROVAL_PENDING,
-    )
+    ).select_related('user'))
 
     approved_count = 0
     rejected_count = 0
     skipped_count = 0
     errors = []
 
-    for profile in profiles:
-        try:
-            if action == 'approve':
-                approve_student_registration(profile, request.user)
-                approved_count += 1
-            else:
-                reject_student_registration(profile, request.user, reason)
-                rejected_count += 1
-        except Exception as exc:
-            errors.append({'id': profile.pk, 'name': profile.user.get_full_name(), 'error': str(exc)})
-            skipped_count += 1
+    # // [Atomicity] All approvals/rejections + the batch audit entry commit or
+    # // roll back together, preventing partial queues on mid-batch failure.
+    with transaction.atomic():
+        for profile in profiles:
+            try:
+                if action == 'approve':
+                    approve_student_registration(profile, request.user)
+                    approved_count += 1
+                else:
+                    reject_student_registration(profile, request.user, reason)
+                    rejected_count += 1
+            except Exception as exc:
+                errors.append({'id': profile.pk, 'name': profile.user.get_full_name(), 'error': str(exc)})
+                skipped_count += 1
+
+        if approved_count or rejected_count:
+            AuditEvent.objects.create(
+                actor=request.user,
+                action='BATCH_VALIDATION',
+                object_type='Profile',
+                object_id='batch',
+                new_value=(
+                    f'Batch {action} on {approved_count + rejected_count} profile(s): '
+                    f'{approved_count} approved, {rejected_count} rejected, {skipped_count} skipped'
+                ),
+                reason=reason if action == 'reject' else 'Batch administrative approval',
+            )
 
     return JsonResponse({
         'approved': approved_count,

@@ -25,10 +25,12 @@ urlpatterns = [
     path('validation/hub/', views.validation_hub, name='validation_hub'),
     path('validation/pending/', views.validation_pending_queue, name='validation_pending_queue'),
     path('validation/reviewed/', views.recently_reviewed_list, name='recently_reviewed_list'),
+    # // Must precede validation/<str:student_number>/ or "batch" is swallowed
+    # // by the detail pattern and the batch endpoint 404s.
+    path('validation/batch/', views.batch_validation_action, name='batch_validation_action'),
     path('validation/<str:student_number>/', views.validation_detail, name='validation_detail'),
     path('validation/approve/<str:student_number>/', views.approve_student, name='approve_student'),
     path('validation/reject/<str:student_number>/', views.reject_student, name='reject_student'),
-    path('validation/batch/', views.batch_validation_action, name='batch_validation_action'),
 
     # // Admin: Student Directory & Masterlist
     path('students/', views.student_directory, name='student_directory'),

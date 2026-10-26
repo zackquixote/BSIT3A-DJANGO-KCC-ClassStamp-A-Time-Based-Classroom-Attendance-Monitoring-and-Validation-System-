@@ -304,3 +304,118 @@ class AccountValidationTests(TestCase):
         self.assertEqual(resp.context['total_pending'], 2)
         # Should detect profile2 as duplicate due to matching name
         self.assertIn(profile2, resp.context['duplicates'])
+
+    # ── Batch Validation Endpoint (#3) ──────────────────────────────────────
+
+    def _make_pending_student(self, username, student_number):
+        user = User.objects.create_user(username=username, password='Pass1234!x')
+        return Profile.objects.create(
+            user=user,
+            role=Profile.ROLE_STUDENT,
+            student_number=student_number,
+            program=self.program,
+            year_level=1,
+            approval_status=Profile.APPROVAL_PENDING,
+            qr_secret='9' * 64,
+        )
+
+    def test_batch_approve_provisions_qr_and_emits_batch_audit(self):
+        p1 = self._make_pending_student('batchstu1', '2024-1001')
+        p2 = self._make_pending_student('batchstu2', '2024-1002')
+
+        self.client.force_login(self.admin_user)
+        resp = self.client.post(reverse('batch_validation_action'), {
+            'action': 'approve',
+            'ids[]': [str(p1.pk), str(p2.pk)],
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['approved'], 2)
+        self.assertEqual(data['rejected'], 0)
+        self.assertEqual(data['skipped'], 0)
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.approval_status, Profile.APPROVAL_APPROVED)
+        self.assertEqual(p2.approval_status, Profile.APPROVAL_APPROVED)
+        self.assertEqual(len(p1.qr_secret), 64)
+        self.assertEqual(len(p2.qr_secret), 64)
+        self.assertIsNotNone(p1.approved_by)
+        self.assertIsNotNone(p2.approved_by)
+
+        batch_events = AuditEvent.objects.filter(action='BATCH_VALIDATION')
+        self.assertEqual(batch_events.count(), 1)
+        self.assertIn('2 approved', batch_events.first().new_value)
+
+    def test_batch_reject_requires_reason(self):
+        p1 = self._make_pending_student('batchstu3', '2024-1003')
+
+        self.client.force_login(self.admin_user)
+        resp = self.client.post(reverse('batch_validation_action'), {
+            'action': 'reject',
+            'ids[]': [str(p1.pk)],
+        })
+
+        self.assertEqual(resp.status_code, 400)
+        p1.refresh_from_db()
+        self.assertEqual(p1.approval_status, Profile.APPROVAL_PENDING)
+
+    def test_batch_reject_applies_reason_to_all_and_emits_audit(self):
+        p1 = self._make_pending_student('batchstu4', '2024-1004')
+        p2 = self._make_pending_student('batchstu5', '2024-1005')
+
+        self.client.force_login(self.admin_user)
+        resp = self.client.post(reverse('batch_validation_action'), {
+            'action': 'reject',
+            'ids[]': [str(p1.pk), str(p2.pk)],
+            'reason': 'COR Unreadable',
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['rejected'], 2)
+        self.assertEqual(data['approved'], 0)
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.approval_status, Profile.APPROVAL_REJECTED)
+        self.assertEqual(p2.approval_status, Profile.APPROVAL_REJECTED)
+        self.assertEqual(p1.approval_note, 'COR Unreadable')
+        self.assertEqual(p2.approval_note, 'COR Unreadable')
+
+        batch_events = AuditEvent.objects.filter(action='BATCH_VALIDATION')
+        self.assertEqual(batch_events.count(), 1)
+        self.assertEqual(batch_events.first().reason, 'COR Unreadable')
+
+    def test_batch_action_skips_non_pending_profiles(self):
+        p1 = self._make_pending_student('batchstu6', '2024-1006')
+        p1.approval_status = Profile.APPROVAL_APPROVED
+        p1.save(update_fields=['approval_status'])
+
+        p2 = self._make_pending_student('batchstu7', '2024-1007')
+
+        self.client.force_login(self.admin_user)
+        resp = self.client.post(reverse('batch_validation_action'), {
+            'action': 'approve',
+            'ids[]': [str(p1.pk), str(p2.pk)],
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['approved'], 1)
+        self.assertEqual(data['skipped'], 0)  # non-pending IDs are filtered out, not counted as errors
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.approval_status, Profile.APPROVAL_APPROVED)
+        self.assertEqual(p2.approval_status, Profile.APPROVAL_APPROVED)
+        self.assertEqual(len(p2.qr_secret), 64)
+
+    def test_batch_action_rejects_invalid_action(self):
+        self.client.force_login(self.admin_user)
+        resp = self.client.post(reverse('batch_validation_action'), {
+            'action': 'destroy',
+            'ids[]': ['1'],
+        })
+        self.assertEqual(resp.status_code, 400)

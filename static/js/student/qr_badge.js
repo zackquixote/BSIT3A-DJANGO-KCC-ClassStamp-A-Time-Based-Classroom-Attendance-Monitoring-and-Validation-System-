@@ -15,7 +15,8 @@
   var img = document.getElementById('qrImage');
   var loading = document.getElementById('qrLoading');
   var countdownEl = document.getElementById('qrCountdown');
-  var progressEl = document.getElementById('qrProgress');
+  var ringWrap = document.getElementById('qrRingWrap');
+  var ringProgress = document.getElementById('qrRingProgress');
   var statusEl = document.getElementById('qrStatus');
   var refreshBtn = document.getElementById('qrRefreshBtn');
 
@@ -24,14 +25,26 @@
   var fetching = false;
   var lastPayload = null;
 
+  var RING_RADIUS = 52;
+  var RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
   function render() {
     if (countdownEl) {
-      countdownEl.textContent = remaining > 0 ? remaining + 's' : '—';
+      countdownEl.textContent = remaining > 0 ? remaining : '—';
     }
-    if (progressEl) {
-      var pct = interval > 0 ? Math.max(0, Math.min(100, (remaining / interval) * 100)) : 0;
-      progressEl.style.width = pct + '%';
+    if (ringProgress) {
+      var pct = interval > 0 ? Math.max(0, Math.min(1, remaining / interval)) : 0;
+      ringProgress.style.strokeDasharray = RING_CIRCUMFERENCE.toFixed(2);
+      ringProgress.style.strokeDashoffset = (RING_CIRCUMFERENCE * (1 - pct)).toFixed(2);
     }
+  }
+
+  // Pulse the ring when a fresh 30-second token cycle begins
+  function pulseRing() {
+    if (!ringWrap) return;
+    ringWrap.classList.remove('is-pulsing');
+    void ringWrap.offsetWidth; // reflow to restart the animation
+    ringWrap.classList.add('is-pulsing');
   }
 
   function showError(message) {
@@ -67,8 +80,10 @@
         var data = result.data;
         if (data.qr_data_uri && (force || data.payload !== lastPayload)) {
           img.src = data.qr_data_uri;
+          var rotated = lastPayload !== null && data.payload !== lastPayload;
           lastPayload = data.payload;
           if (loading) loading.style.display = 'none';
+          if (rotated) pulseRing();
         }
         interval = data.interval || 30;
         remaining = (data.seconds_remaining != null) ? data.seconds_remaining : interval;

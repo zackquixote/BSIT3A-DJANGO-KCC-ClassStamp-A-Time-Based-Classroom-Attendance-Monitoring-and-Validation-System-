@@ -175,7 +175,7 @@
 
           {% if open_anomaly_count %}
             <p class="notif-group-label">Anomaly Alerts</p>
-            <a href="{% url 'admin_anomalies' %}" class="notif-item notif-item--anomaly is-unread" data-notif-id="anomaly-main">
+            <a href="{% url 'anomaly_list' %}" class="notif-item notif-item--anomaly is-unread" data-notif-id="anomaly-main">
               <div class="notif-item-avatar"><i class="fas fa-triangle-exclamation"></i></div>
               <div class="notif-item-info">
                 <span class="notif-item-name">{{ open_anomaly_count }} Open Anomal{{ open_anomaly_count|pluralize:"y,ies" }}</span>
@@ -1219,7 +1219,7 @@
      data-feed-url="{% url 'admin_activity_feed_json' %}"
      data-live-stream-url="{% url 'admin_live_stream' %}"></div>
 
-<script src="{% static 'js/admin_dashboard.js' %}?v=20261022_v2"></script>
+<script src="{% static 'js/admin_dashboard.js' %}?v=20261026_v1"></script>
 
 {{ mini_calendar_events_json|json_script:"mini-calendar-events-data" }}
 <script src="{% static 'js/calendar/mini_calendar.js' %}?v=20261021_v1"></script>

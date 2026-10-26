@@ -284,11 +284,10 @@
       <div style="margin-bottom: 14px;">
         <div class="text-muted text-xs font-semibold mb-2" style="text-transform: uppercase;">QUICK REASONS</div>
         <div style="display: flex; flex-wrap: wrap; gap: 6px;" id="modalChips">
-          <button type="button" class="modal-chip" data-reason="Invalid Student ID Number">Invalid ID</button>
-          <button type="button" class="modal-chip" data-reason="Incorrect Program or Year Level">Wrong Program</button>
-          <button type="button" class="modal-chip" data-reason="Duplicate registration account detected">Duplicate</button>
-          <button type="button" class="modal-chip" data-reason="Not found in Official KCC Registrar records">Unverified</button>
-          <button type="button" class="modal-chip" data-reason="Incomplete or invalid submitted documents">Incomplete Docs</button>
+          <button type="button" class="modal-chip" data-reason="COR Unreadable">COR Unreadable</button>
+          <button type="button" class="modal-chip" data-reason="ID Mismatch">ID Mismatch</button>
+          <button type="button" class="modal-chip" data-reason="Wrong Program">Wrong Program</button>
+          <button type="button" class="modal-chip" data-reason="Duplicate Registration">Duplicate Registration</button>
         </div>
       </div>
 
@@ -349,6 +348,16 @@
       <button type="button" class="modal-close" data-modal-dismiss="batchRejectModal"><i class="fas fa-xmark"></i></button>
     </div>
     <div class="modal-body">
+      <!-- Quick reason chips -->
+      <div style="margin-bottom: 14px;">
+        <div class="text-muted text-xs font-semibold mb-2" style="text-transform: uppercase;">QUICK REASONS</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;" id="batchModalChips">
+          <button type="button" class="modal-chip" data-reason="COR Unreadable">COR Unreadable</button>
+          <button type="button" class="modal-chip" data-reason="ID Mismatch">ID Mismatch</button>
+          <button type="button" class="modal-chip" data-reason="Wrong Program">Wrong Program</button>
+          <button type="button" class="modal-chip" data-reason="Duplicate Registration">Duplicate Registration</button>
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom: 0;">
         <label class="form-label text-sm" for="batchRejectReason">
           Rejection Reason <span class="text-danger">*</span>
@@ -375,6 +384,6 @@
 {% block extra_js %}
 {% load static %}
 <script src="{% static 'js/pending_registrations/pending_filters.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/pending_registrations/pending_actions.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/pending_registrations/pending_actions.js' %}?v=20261026_v1"></script>
 {% endblock %}
 

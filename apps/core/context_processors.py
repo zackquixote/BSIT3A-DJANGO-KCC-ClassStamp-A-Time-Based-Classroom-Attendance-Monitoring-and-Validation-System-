@@ -6,7 +6,7 @@
 # // Provides live indicators such as the pending validation queue counter for admins.
 # // ==============================================================================
 """
-from .models import Profile
+from .models import AnomalyFlag, Profile
 
 
 # // ==============================================================================
@@ -19,6 +19,8 @@ def pending_approval_count(request):
     // Security / Performance Note:
     // Only executed for users possessing the ADMIN role or superuser status to avoid
     // unnecessary database overhead during standard student or teacher interactions.
+    // Also injects the open anomaly count so the sidebar Security Alerts badge can be
+    // live-updated by sidebar_pending.js on every admin page.
     """
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
@@ -31,5 +33,8 @@ def pending_approval_count(request):
                     role=Profile.ROLE_STUDENT,
                     approval_status=Profile.APPROVAL_PENDING,
                 ).count(),
+                'open_anomaly_count': AnomalyFlag.objects.filter(
+                    status=AnomalyFlag.STATUS_OPEN,
+                ).count(),
             }
-    return {'pending_approval_count': 0}
+    return {'pending_approval_count': 0, 'open_anomaly_count': 0}

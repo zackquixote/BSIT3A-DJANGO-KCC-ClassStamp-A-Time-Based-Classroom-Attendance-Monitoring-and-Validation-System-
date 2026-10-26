@@ -33,7 +33,7 @@
       <a href="{% url 'validation_queue' %}" class="sidebar-link {% if current_view in 'validation_queue validation_hub validation_pending_queue recently_reviewed_list validation_detail approve_student reject_student' %}active{% endif %}">
         <i class="fas fa-user-clock sidebar-link-icon"></i>
         <span>Account Validation</span>
-        {% if pending_approval_count %}<span class="sidebar-badge">{{ pending_approval_count }}</span>{% endif %}
+        <span class="sidebar-badge" id="sidebarPendingBadge" data-pending-count-url="{% url 'admin_pending_count_json' %}"{% if not pending_approval_count %} style="display: none;"{% endif %}>{{ pending_approval_count }}</span>
       </a>
       <a href="{% url 'student_directory' %}" class="sidebar-link {% if current_view in 'student_directory student_list student_directory_import_csv program_students_per_year' %}active{% endif %}" title="Student List & Masterlist">
         <i class="fas fa-user-graduate sidebar-link-icon"></i>
@@ -79,9 +79,7 @@
       <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}">
         <i class="fas fa-triangle-exclamation sidebar-link-icon"></i>
         <span>Security Alerts</span>
-        {% if open_anomaly_count %}
-          <span class="sidebar-badge" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);">{{ open_anomaly_count }}</span>
-        {% endif %}
+        <span class="sidebar-badge" id="sidebarAnomalyBadge" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);{% if not open_anomaly_count %} display: none;{% endif %}">{{ open_anomaly_count }}</span>
       </a>
       <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}">
         <i class="fas fa-shield-halved sidebar-link-icon"></i>
@@ -155,4 +153,7 @@
   </div>
 
 </aside>
+{% if request.user.is_superuser or profile and profile.role == 'ADMIN' %}
+<script src="{% static 'js/sidebar_pending.js' %}?v=20261026_v1"></script>
+{% endif %}
 {% endwith %}

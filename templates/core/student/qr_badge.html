@@ -37,10 +37,16 @@
     </div>
 
     <div class="mt-4">
-      <div class="text-xs text-muted uppercase" style="letter-spacing: 0.08em;">Token refreshes in</div>
-      <div class="font-mono" style="font-size: 1.6rem; font-weight: 800; color: var(--accent-gold);" id="qrCountdown">--</div>
-      <div style="height: 6px; width: 100%; max-width: 280px; margin: 8px auto 0; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
-        <div id="qrProgress" style="height: 100%; width: 100%; background: var(--accent-gold); transition: width 1s linear;"></div>
+      <div class="text-xs text-muted uppercase" style="letter-spacing: 0.08em; margin-bottom: 10px;">Token refreshes in</div>
+      <div id="qrRingWrap" class="qr-ring-wrap">
+        <svg id="qrRing" viewBox="0 0 120 120" width="132" height="132" aria-hidden="true">
+          <circle class="qr-ring-track" cx="60" cy="60" r="52"></circle>
+          <circle class="qr-ring-progress" id="qrRingProgress" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="qr-ring-center">
+          <div class="font-mono" id="qrCountdown" style="font-size: 1.9rem; font-weight: 800; color: var(--accent-gold); line-height: 1;">--</div>
+          <div class="text-muted" style="font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px;">seconds</div>
+        </div>
       </div>
     </div>
 
@@ -72,6 +78,29 @@
 
 {% block extra_js %}
 {% if has_qr_secret %}
-<script src="{% static 'js/student/qr_badge.js' %}?v=20261022_v1"></script>
+<style>
+  .qr-ring-wrap { position: relative; width: 132px; height: 132px; margin: 0 auto; }
+  .qr-ring-track,
+  .qr-ring-progress { fill: none; stroke-width: 8; }
+  .qr-ring-track { stroke: rgba(255, 255, 255, 0.08); }
+  .qr-ring-progress {
+    stroke: var(--accent-gold);
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    transition: stroke-dashoffset 1s linear;
+  }
+  .qr-ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .qr-ring-wrap.is-pulsing svg { animation: qrRingPulse 0.9s ease-out; }
+  @keyframes qrRingPulse {
+    0%   { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(245, 158, 11, 0)); }
+    40%  { transform: scale(1.08); filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.65)); }
+    100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(245, 158, 11, 0)); }
+  }
+</style>
+<script src="{% static 'js/student/qr_badge.js' %}?v=20261026_v1"></script>
 {% endif %}
 {% endblock %}

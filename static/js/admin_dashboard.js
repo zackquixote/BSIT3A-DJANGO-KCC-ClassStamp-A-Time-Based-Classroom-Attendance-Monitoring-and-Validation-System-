@@ -165,6 +165,27 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ── 5. Auto-Refresh Pending Count Polling ───────────────────────────────────
+  function updateSidebarBadges(pendingCount, anomalyCount) {
+    const pendingBadge = document.getElementById('sidebarPendingBadge');
+    if (pendingBadge) {
+      if (typeof pendingCount === 'number' && pendingCount > 0) {
+        pendingBadge.textContent = pendingCount > 99 ? '99+' : String(pendingCount);
+        pendingBadge.style.display = '';
+      } else {
+        pendingBadge.style.display = 'none';
+      }
+    }
+    const anomalyBadge = document.getElementById('sidebarAnomalyBadge');
+    if (anomalyBadge) {
+      if (typeof anomalyCount === 'number' && anomalyCount > 0) {
+        anomalyBadge.textContent = anomalyCount > 99 ? '99+' : String(anomalyCount);
+        anomalyBadge.style.display = '';
+      } else {
+        anomalyBadge.style.display = 'none';
+      }
+    }
+  }
+
   if (boot && boot.dataset.pendingCountUrl) {
     let currentPendingCount = Number(boot.dataset.pendingCount || 0);
     const pendingCountUrl = boot.dataset.pendingCountUrl;
@@ -178,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const kpiVal = document.getElementById('pendingKpiValue');
             if (kpiVal) kpiVal.textContent = currentPendingCount;
           }
+          updateSidebarBadges(data.pending_count, data.open_anomaly_count);
         })
         .catch(function (err) { console.debug('Pending count poll failed:', err); });
     }
@@ -693,6 +715,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const newCount = payload.pending_count;
 
             if (kpiVal) kpiVal.textContent = newCount;
+
+            updateSidebarBadges(newCount, payload.open_anomaly_count);
 
             // Badge on bell
             const bellBadge = document.getElementById('bellBadgeCount');

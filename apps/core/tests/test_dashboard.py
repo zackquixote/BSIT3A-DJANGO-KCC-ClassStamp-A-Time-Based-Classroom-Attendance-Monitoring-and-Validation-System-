@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.core.models import Department, Profile, Program
+from apps.core.models import AnomalyFlag, Department, Profile, Program
 
 User = get_user_model()
 
@@ -40,6 +40,20 @@ class DashboardDispatchTests(TestCase):
         response = self.client.get(reverse('dashboard'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'core/admin/dashboard.html')
+
+    def test_admin_dashboard_renders_with_open_anomaly_flag(self):
+        # Regression: the bell dropdown links to the anomaly queue; a wrong URL
+        # name there only surfaces once an OPEN flag exists.
+        AnomalyFlag.objects.create(
+            rule_code='TOKEN_REPLAY_ACROSS_SESSION',
+            risk_score=0.85,
+            reason='Test flag',
+        )
+        user = self._make('boss2', Profile.ROLE_ADMIN)
+        self.client.force_login(user)
+        response = self.client.get(reverse('dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Open Anomaly')
 
     def test_teacher_lands_on_teacher_dashboard(self):
         user = self._make('teach', Profile.ROLE_TEACHER, department=self.department)

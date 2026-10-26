@@ -144,7 +144,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-LOGIN_REDIRECT_URL = '/home/'
+# // Auth redirects: the project's login route lives at the site root ('login').
+# // LOGIN_URL must be a path (not a name) because SessionInactivityTimeoutMiddleware
+# // interpolates it into a query string ("<LOGIN_URL>?next=...").
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@classstamp.local')

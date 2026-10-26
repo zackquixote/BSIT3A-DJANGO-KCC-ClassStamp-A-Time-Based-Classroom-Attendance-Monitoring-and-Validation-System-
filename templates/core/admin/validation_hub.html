@@ -394,6 +394,12 @@
       </p>
       <div class="form-group mb-4">
         <label class="form-label text-xs mb-1" for="rejectionReasonInput">Reason for rejection (will be sent to student):</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;" id="hubRejectChips">
+          <button type="button" class="modal-chip" data-reason="COR Unreadable">COR Unreadable</button>
+          <button type="button" class="modal-chip" data-reason="ID Mismatch">ID Mismatch</button>
+          <button type="button" class="modal-chip" data-reason="Wrong Program">Wrong Program</button>
+          <button type="button" class="modal-chip" data-reason="Duplicate Registration">Duplicate Registration</button>
+        </div>
         <textarea
           name="rejection_reason"
           id="rejectionReasonInput"
@@ -457,6 +463,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const rejectModal = document.getElementById('rejectModalBackdrop');
   const rejectForm = document.getElementById('rejectForm');
   const rejectName = document.getElementById('rejectStudentName');
+  const rejectReasonInput = document.getElementById('rejectionReasonInput');
   const closeRejectBtn = document.getElementById('closeRejectModalBtn');
   const cancelRejectBtn = document.getElementById('cancelRejectBtn');
 
@@ -466,7 +473,21 @@ document.addEventListener('DOMContentLoaded', function () {
       const url = this.dataset.rejectUrl || '';
       if (rejectName) rejectName.textContent = name;
       if (rejectForm && url) rejectForm.action = url;
+      if (rejectReasonInput) rejectReasonInput.value = '';
+      document.querySelectorAll('#hubRejectChips .modal-chip').forEach(function (c) {
+        c.classList.remove('is-selected');
+      });
       if (rejectModal) rejectModal.style.display = 'flex';
+    });
+  });
+
+  document.querySelectorAll('#hubRejectChips .modal-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      if (rejectReasonInput) rejectReasonInput.value = this.dataset.reason || '';
+      document.querySelectorAll('#hubRejectChips .modal-chip').forEach(function (c) {
+        c.classList.remove('is-selected');
+      });
+      this.classList.add('is-selected');
     });
   });
 

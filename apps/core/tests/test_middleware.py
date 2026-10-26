@@ -14,6 +14,7 @@
 
 import json
 from datetime import timedelta
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
@@ -136,7 +137,10 @@ class SessionInactivityTimeoutMiddlewareTests(TestCase):
 
         res = self.client.get(reverse('admin_dashboard'))
         self.assertEqual(res.status_code, 302)
-        self.assertIn(reverse('login'), res.url)
+        self.assertTrue(
+            res.url.startswith(settings.LOGIN_URL + '?next='),
+            f'Expected redirect to {settings.LOGIN_URL}, got {res.url}',
+        )
 
     def test_inactive_session_returns_401_json_for_ajax(self):
         self.client.force_login(self.user)
@@ -152,7 +156,17 @@ class SessionInactivityTimeoutMiddlewareTests(TestCase):
         self.assertEqual(res.status_code, 401)
         data = res.json()
         self.assertEqual(data.get('error'), 'session_expired')
-        self.assertIn(reverse('login'), data.get('login_url'))
+        self.assertTrue(
+            data.get('login_url', '').startswith(settings.LOGIN_URL + '?next='),
+            f"Expected login_url on {settings.LOGIN_URL}, got {data.get('login_url')}",
+        )
+
+    def test_timeout_redirect_url_resolves_to_login_page(self):
+        # Regression (B-09): the default /accounts/login/ 404s — the configured
+        # LOGIN_URL must point at the project's real login route.
+        self.assertEqual(settings.LOGIN_URL, '/')
+        res = self.client.get(settings.LOGIN_URL)
+        self.assertEqual(res.status_code, 200)
 
     def test_polling_endpoints_do_not_refresh_last_activity(self):
         self.client.force_login(self.user)
