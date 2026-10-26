@@ -38,7 +38,6 @@
       } else {
         toggleBtn.disabled = true;
       }
-      var App = getApp();
 
       try {
         var res = await fetch('/teachers/toggle/' + toggleBtn.dataset.id + '/', {
@@ -47,12 +46,10 @@
         });
         var data = await res.json();
         if (data.ok) {
+          var successEl = getEl('teacherSuccess');
           if (window.App && window.App.toast) {
             window.App.toast('success', data.message);
-          }
-          var successEl = getEl('teacherSuccess');
-          if (App && App.showAlert) App.showAlert(successEl, data.message, 'success');
-          else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
+          } else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
           setTimeout(function () { location.reload(); }, 600);
         } else {
           if (window.App && window.App.toast) {

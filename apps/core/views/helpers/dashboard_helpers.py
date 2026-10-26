@@ -35,6 +35,14 @@ from apps.core.models import (
     Profile,
     Program,
 )
+from apps.core.views.helpers.absence_radar import (
+    BAND_CRITICAL,
+    BAND_WATCH,
+    absence_radar_for_class,
+)
+
+# S-05: rotating palette for timetable grid blocks
+TIMETABLE_PALETTE = ('#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6', '#22d3ee')
 
 
 # // ==============================================================================
@@ -248,6 +256,49 @@ def _teacher_dashboard_stats(profile):
         .order_by('class_code')
     )
 
+    # T-05: per-class consecutive unexcused-absence streaks (>= 3 newest sessions)
+    streaks_by_class = {c.id: [] for c in classes}
+    class_ids = [c.id for c in classes]
+    if class_ids:
+        statuses_by_key = {}
+        for row in (
+            AttendanceRecord.objects.filter(
+                session__slot__class_obj_id__in=class_ids,
+                student_profile__role=Profile.ROLE_STUDENT,
+            )
+            .order_by('student_profile_id', 'session__slot__class_obj_id', '-session__session_date')
+            .values_list(
+                'session__slot__class_obj_id', 'student_profile_id',
+                'student_profile__user__first_name', 'student_profile__user__last_name',
+                'student_profile__student_number', 'status',
+            )
+        ):
+            key = (row[0], row[1])
+            entry = statuses_by_key.setdefault(key, {'meta': row[2:5], 'statuses': []})
+            entry['statuses'].append(row[5])
+
+        for (class_id, _student_id), entry in statuses_by_key.items():
+            streak = 0
+            for status in entry['statuses']:
+                if status == AttendanceRecord.STATUS_ABSENT:
+                    streak += 1
+                else:
+                    break
+            if streak >= 3:
+                streaks_by_class[class_id].append({
+                    'first_name': entry['meta'][0],
+                    'last_name': entry['meta'][1],
+                    'student_number': entry['meta'][2] or '—',
+                    'streak': streak,
+                })
+
+    # CHED 20% absence radar per class (T-01) + consecutive-absence sentinel (T-05)
+    for c in classes:
+        radar = absence_radar_for_class(c)
+        c.radar_watch = radar[BAND_WATCH]
+        c.radar_critical = radar[BAND_CRITICAL]
+        c.absent_streaks = streaks_by_class.get(c.id, [])
+
     # Today's scheduled class slots for this teacher
     today_slots = (
         ClassSlot.objects.filter(
@@ -348,6 +399,7 @@ def _teacher_dashboard_stats(profile):
         'total_sessions_count': total_sessions_count,
         'recent_sessions': recent_sessions,
         'overall_attendance_rate': overall_attendance_rate,
+        'absent_streak_students': sum(len(v) for v in streaks_by_class.values()),
         'today_date': today,
         'upcoming_calendar_events': upcoming_calendar_events,
         'today_events': today_events,
@@ -384,6 +436,93 @@ def _student_dashboard_stats(profile):
         .select_related('class_obj', 'class_obj__subject', 'class_obj__teacher_profile__user', 'class_obj__academic_year')
         .prefetch_related('class_obj__slots')
     )
+
+    # S-05: Visual weekly timetable grid entries (Mon-Sat)
+    timetable_slots = []
+    for enr in stats['active_enrollments']:
+        class_obj = enr.class_obj
+        teacher = class_obj.teacher_profile
+        teacher_name = (
+            teacher.user.get_full_name() or teacher.user.username
+        ) if teacher else 'Unassigned'
+        for slot in class_obj.slots.all():
+            if not slot.is_active or slot.weekday > 5:
+                continue
+            timetable_slots.append({
+                'weekday': slot.weekday,
+                'weekday_label': slot.get_weekday_display(),
+                'starts_at': slot.starts_at,
+                'ends_at': slot.ends_at,
+                'room': slot.room or '—',
+                'class_code': class_obj.class_code,
+                'subject_code': class_obj.subject.code,
+                'teacher': teacher_name,
+                'color': TIMETABLE_PALETTE[class_obj.id % len(TIMETABLE_PALETTE)],
+            })
+    timetable_slots.sort(key=lambda s: (s['weekday'], s['starts_at']))
+    stats['timetable_slots'] = timetable_slots
+    stats['today_weekday'] = today.weekday()
+
+    # S-03: Per-subject attendance breakdown cards
+    record_agg = (
+        AttendanceRecord.objects.filter(student_profile=profile)
+        .values('session__slot__class_obj_id')
+        .annotate(
+            present=Count('id', filter=Q(status=AttendanceRecord.STATUS_PRESENT)),
+            late=Count('id', filter=Q(status=AttendanceRecord.STATUS_LATE)),
+            absent=Count('id', filter=Q(status=AttendanceRecord.STATUS_ABSENT)),
+            excused=Count('id', filter=Q(status=AttendanceRecord.STATUS_EXCUSED)),
+            total=Count('id'),
+        )
+    )
+    agg_by_class = {row['session__slot__class_obj_id']: row for row in record_agg}
+
+    log_by_class = {}
+    for rec in (
+        AttendanceRecord.objects.filter(student_profile=profile)
+        .select_related('session', 'session__slot__class_obj')
+        .order_by('-session__session_date')
+    ):
+        log_by_class.setdefault(rec.session.slot.class_obj_id, []).append({
+            'session_date': rec.session.session_date,
+            'status': rec.status,
+            'stamped_at': rec.stamped_at,
+            'late_minutes': rec.late_minutes,
+        })
+
+    breakdowns = []
+    for enr in stats['active_enrollments']:
+        class_obj = enr.class_obj
+        agg = agg_by_class.get(class_obj.id, {'present': 0, 'late': 0, 'absent': 0, 'excused': 0, 'total': 0})
+        attended = agg['present'] + agg['late']
+        compliance = round((attended / agg['total'] * 100), 1) if agg['total'] else None
+
+        # S-04: CHED 20% early-warning sentinel (4-stage, unexcused absences only)
+        absence_rate = round((agg['absent'] / agg['total'] * 100), 1) if agg['total'] else None
+        if absence_rate is None:
+            sentinel = {'stage': 'none', 'label': 'No meetings yet'}
+        elif absence_rate < 10:
+            sentinel = {'stage': 'green', 'label': 'Excellent Attendance'}
+        elif absence_rate < 16:
+            sentinel = {'stage': 'amber', 'label': 'Caution'}
+        elif absence_rate < 20:
+            sentinel = {'stage': 'orange', 'label': 'Warning'}
+        else:
+            sentinel = {'stage': 'red', 'label': 'Exceeded threshold — Contact Instructor/Dean'}
+
+        breakdowns.append({
+            'class_obj': class_obj,
+            'present': agg['present'],
+            'late': agg['late'],
+            'absent': agg['absent'],
+            'excused': agg['excused'],
+            'total': agg['total'],
+            'compliance': compliance,
+            'absence_rate': absence_rate,
+            'sentinel': sentinel,
+            'meetings': log_by_class.get(class_obj.id, []),
+        })
+    stats['class_breakdowns'] = breakdowns
 
     now = timezone.now()
     start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))

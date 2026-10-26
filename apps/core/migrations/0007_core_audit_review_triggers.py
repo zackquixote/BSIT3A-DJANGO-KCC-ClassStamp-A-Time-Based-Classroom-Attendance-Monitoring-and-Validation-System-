@@ -48,6 +48,9 @@ def remove_triggers(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # // MySQL forbids DDL inside transactions (TransactionManagementError);
+    # // trigger DDL must run outside the executor's atomic wrapper.
+    atomic = False
 
     dependencies = [
         ('core', '0006_anomalyflag_session_anomalyflag_student_profile_and_more'),

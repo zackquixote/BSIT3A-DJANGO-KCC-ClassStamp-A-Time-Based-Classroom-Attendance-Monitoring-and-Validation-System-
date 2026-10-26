@@ -676,9 +676,9 @@
       </thead>
       <tbody>
         {% for student in students %}
-        <tr>
+        <tr id="student-row-{{ student.id }}">
           <!-- Name & Avatar -->
-          <td>
+          <td class="cell-name">
             <div class="student-cell-profile">
               <a href="{% url 'validation_detail' student.student_number %}" style="text-decoration: none;" title="{{ student.user.get_full_name|default:student.user.username }}">
                 <div class="student-avatar-initial">
@@ -699,12 +699,12 @@
           </td>
 
           <!-- Student Number -->
-          <td style="white-space: nowrap;">
+          <td class="cell-id" style="white-space: nowrap;">
             <span class="student-id-tag">{{ student.student_number|default:"—" }}</span>
           </td>
 
           <!-- Department -->
-          <td>
+          <td class="cell-dept">
             {% if student.program and student.program.department %}
               <span class="font-semibold text-primary" title="{{ student.program.department.name }}">
                 {{ student.program.department.code }}
@@ -715,7 +715,7 @@
           </td>
 
           <!-- Program / Course -->
-          <td>
+          <td class="cell-prog">
             {% if student.program %}
               <span class="font-semibold text-gold">{{ student.program.code }}</span>
               <span class="text-muted text-xs block" style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ student.program.name }}">
@@ -727,7 +727,7 @@
           </td>
 
           <!-- Year Level -->
-          <td>
+          <td class="cell-year">
             {% if student.year_level %}
               <span class="badge badge--purple font-semibold">Yr {{ student.year_level }}</span>
             {% else %}
@@ -769,6 +769,17 @@
               <a href="{% url 'validation_detail' student.student_number %}" class="btn btn-outline btn-sm" title="View Student Profile & Review Form">
                 <i class="fas fa-id-card"></i> View Profile
               </a>
+              <button type="button" class="btn btn-outline btn-sm js-edit-student"
+                      data-student-id="{{ student.id }}"
+                      data-first-name="{{ student.user.first_name|escapejs }}"
+                      data-last-name="{{ student.user.last_name|escapejs }}"
+                      data-student-number="{{ student.student_number|default:''|escapejs }}"
+                      data-dept-id="{% if student.program and student.program.department %}{{ student.program.department.id }}{% endif %}"
+                      data-prog-id="{% if student.program %}{{ student.program.id }}{% endif %}"
+                      data-year-level="{{ student.year_level|default:1 }}"
+                      title="Edit Student Profile">
+                <i class="fas fa-user-pen text-gold"></i> Edit
+              </button>
               <button type="button" class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password">
                 <i class="fas fa-key text-warning"></i>
               </button>
@@ -834,9 +845,84 @@
     {% endif %}
   </div>
 </div>
+
+<!-- In-Place Student Profile Editor Modal (A-03) -->
+<div class="modal" id="studentEditModal">
+  <div class="modal-dialog" style="max-width: 560px;">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Student Profile</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="studentEditModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="studentEditAlert" class="toast toast--error mb-4" style="display: none;"></div>
+      <form id="studentEditForm" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" id="studentEditId" name="student_id">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label class="form-label" for="studentEditFirstName">First Name <span class="text-danger">*</span></label>
+            <input type="text" id="studentEditFirstName" name="first_name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="studentEditLastName">Last Name <span class="text-danger">*</span></label>
+            <input type="text" id="studentEditLastName" name="last_name" class="form-control" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="studentEditNumber">Student Number <span class="text-danger">*</span></label>
+          <input type="text" id="studentEditNumber" name="student_number" class="form-control font-mono" required>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label class="form-label" for="studentEditDept">Department</label>
+            <select id="studentEditDept" name="department" class="form-control">
+              <option value="">— none —</option>
+              {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="studentEditYear">Year Level <span class="text-danger">*</span></label>
+            <select id="studentEditYear" name="year_level" class="form-control">
+              {% for y in year_levels %}
+              <option value="{{ y }}">Year {{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="studentEditProg">Program / Course</label>
+          <select id="studentEditProg" name="program" class="form-control">
+            <option value="">— none —</option>
+            {% for p in programs %}
+            <option value="{{ p.id }}" data-dept="{{ p.department_id }}">{{ p.code }} — {{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="studentEditResetQr" name="reset_qr" value="1" style="width:16px;height:16px;accent-color:var(--accent-gold, #f59e0b);">
+            <span><i class="fas fa-shield-halved text-warning"></i> Reset TOTP QR secret (invalidates the current QR badge — student must fetch a new one)</span>
+          </label>
+        </div>
+        <div class="modal-footer" style="padding: 12px 0 0 0; border-top: 1px solid var(--glass-border);">
+          <button type="button" class="btn btn-outline" data-modal-dismiss="studentEditModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="studentEditSaveBtn"><i class="fas fa-floppy-disk"></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 {% load static %}
+<script>
+  window.ProfileEditorConfig = {
+    updateUrl: '{% url "student_profile_update_ajax" %}'
+  };
+</script>
 <script src="{% static 'js/student_directory/student_directory.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/student_directory/profile_editor.js' %}?v=20261026_v1"></script>
 {% endblock %}

@@ -40,7 +40,7 @@
   - Keyboard shortcuts: `A` = Approve, `R` = Reject, `J`/`K` = navigate, `Esc` = close
 
 #### A-03 — In-Place Student Profile Editor Modal
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (student directory rows have an Edit button opening a modal for Student ID, First/Last Name, Department, Program, Year Level, plus an optional "Reset QR secret" checkbox; saves via POST to `students/update/` AJAX endpoint with unique-student-number, department↔program, and year-vs-years_total validation; profile edits and QR resets are audited)
 - **Problem:** No way for admin to fix typos in student number, name, or program without CLI access.
 - **Solution:**
   - "Edit Profile" modal in Student Directory
@@ -72,8 +72,7 @@
 - **Solution:** Guided 4-step: pick new term → deactivate old → optional promotion → audit log
 
 #### A-09 — Advanced Audit Log Multi-Filtering
-- **Status:** 🟡 Partial (category tabs, action dropdown, date filter, and search already exist — only an **Actor** filter is missing)
-- **Solution:** Add Actor filter alongside the existing category/action/date/search controls
+- **Status:** ✅ Done (Actor filter added to the audit log page and CSV export alongside the existing category tabs, action dropdown, date filter, and search; dropdown lists distinct actor usernames with full names, filtering matches exact username, and the CSV export applies the same actor filter)
 
 #### A-10 — CSV Import Validation Preview (3-Step)
 - **Status:** 🟡 Partial (direct import exists — preview step missing)
@@ -110,7 +109,7 @@
 - **Solution:** Purge rejected registration attachments older than 60 days for data privacy compliance
 
 #### A-18 — Non-Blocking Toast Notifications System-Wide
-- **Status:** 🟡 Partial (done in some views)
+- **Status:** ✅ Done (all eight legacy module `showAlert` implementations — teachers, subjects, users, departments, programs, academic years, info delete, scanner — now delegate to the unified `window.App.toast` in `app_toasts.js`, with their inline banners kept as fallbacks; removed dual-call sites that would double-toast in subjects add/delete, academic-year activation, teaching-load, and teacher toggle; fixed `academic_calendar.js`, which called a never-defined `window.showToast`, via a delegating shim)
 - **Solution:** Replace all remaining `alert()`/`confirm()` popups with smooth async toast notifications
 
 ---
@@ -120,7 +119,7 @@
 ### 🔴 Urgent
 
 #### T-01 — CHED 20% Absence Radar Badges
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (`absence_radar.py` helper classifies per-student unexcused absence rates via one aggregated query; teacher dashboard class cards show 🔴 FDA-risk / 🟡 watchlist chips; live scanner roster rows show colored band dots with rate tooltips; EXCUSED excluded, zero records = Safe)
 - **Institutional Rule:** Students exceeding 20% unexcused absences → Failure Due to Absences (FDA)
 - **Solution:**
   - Compute absence % per student per class
@@ -128,7 +127,7 @@
   - Visible on teacher dashboard and live scanner roster
 
 #### T-02 — Live Interactive Attendance Matrix During Session
-- **Status:** 🟡 Partial (`matrix.html` exists for post-session — live in-session grid not built)
+- **Status:** ✅ Done (scanner has a List/Grid view toggle; grid mode renders each student as a color-coded cell 🟢 Present | 🟡 Late | 🔴 Absent | 🔵 Excused | ⚪ Pending; live counter line `Present: 28 | Late: 4 | Absent: 3 | Excused: 1 | Total: 36 (88.9%)` updates on scan, override, and a 10s poll of the new `teacher/session/<id>/roster/` JSON endpoint, which also syncs changes from other terminals)
 - **Solution:**
   - Real-time color-coded grid: 🟢 Present | 🟡 Late | 🔴 Absent | 🔵 Excused
   - Live header counter: `Present: 28 | Late: 4 | Absent: 3 | Total: 35 (91.4%)`
@@ -140,15 +139,14 @@
 ### 🟡 High Priority
 
 #### T-04 — Registrar-Format Excel Export (Term-Wide)
-- **Status:** 🟡 Partial (single-session export exists — full term sheet missing)
+- **Status:** ✅ Done (`teacher_class_term_export` streams an .xlsx per class section via openpyxl: one column per meeting (Week N with date), per-student P/L/A/E letters, Total Present/Late/Absent and Attendance % columns, frozen header, and red fill + bold red % on rows whose unexcused absence rate reaches the CHED 20% threshold; button on the attendance matrix page)
 - **Solution:**
   - Columns: Student ID | Name | Week 1-18 Dates | Total Present | Total Late | Total Absent | % Attendance
   - Export options: Single Session, Midterm (Weeks 1-9), Finals (Weeks 1-18)
   - Red conditional formatting for high-absence students
 
 #### T-05 — Consecutive 3-Absence Sentinel
-- **Status:** ❌ Not Built
-- **Solution:** Alert teacher when student misses 3 consecutive meetings; "Generate Absence Notice" button
+- **Status:** ✅ Done (teacher dashboard scans each class's newest records per student and flags students whose leading run of unexcused ABSENT statuses is 3 or more; purple pill chips on the class card show name, student number, and streak length; helper also exposes an `absent_streak_students` aggregate)
 
 #### T-06 — Midterm / Final Term Attendance Split Export
 - **Status:** ❌ Not Built
@@ -197,7 +195,7 @@
 - **Solution:** Overlay student photo + student ID on QR badge card to deter proxy sharing
 
 #### S-03 — Per-Subject Attendance Breakdown Cards
-- **Status:** ❌ Not Built (dashboard only shows total aggregate counts)
+- **Status:** ✅ Done (student dashboard "Attendance Breakdown by Subject" card renders one panel per enrolled class: subject + class code, instructor, compliance % badge (green ≥90, amber ≥80, red <80), Present/Late/Absent/Excused count tiles, and an expandable meeting-by-meeting log with per-session status and late minutes)
 - **Solution:**
   - One card per enrolled class: Subject Code, Instructor, Present/Late/Absent/Excused counts, compliance %
   - Expandable meeting-by-meeting session log
@@ -205,7 +203,7 @@
 ### 🟡 High Priority
 
 #### S-04 — CHED 20% Early-Warning Sentinel
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (each per-subject breakdown card on the student dashboard now shows a 4-stage unexcused-absence sentinel banner computed from ABSENT ÷ total records: 🟢 <10% "Excellent Attendance", 🟡 10-15.9% "Caution", 🟠 16-19.9% "Warning", 🔴 ≥20% "Exceeded threshold — Contact Instructor/Dean"; classes with no meetings show "No meetings yet")
 - **Solution:** 4-stage color progression per subject:
   - 🟢 <10% — "Excellent Attendance"
   - 🟡 10-15% — "Caution" amber alert
@@ -213,8 +211,7 @@
   - 🔴 ≥20% — Red critical: "Exceeded threshold — Contact Instructor/Dean"
 
 #### S-05 — Visual Weekly Timetable Grid
-- **Status:** 🟡 Partial (enrolled classes listed as text — visual grid not built)
-- **Solution:** Mon-Sat color-coded schedule blocks; today highlighted in gold; "Today's Badge" quick-jump
+- **Status:** ✅ Done (student dashboard "Examination Windows & Timetable" card now renders a Mon-Sat color-coded weekly grid from the enrolled classes' active slots — six day columns, today's column highlighted gold with a TODAY badge, and per-slot blocks with time, subject·class, room, and a rotating palette accent; Sunday and inactive slots are excluded)
 
 #### S-06 — Detailed Meeting-by-Meeting Attendance Log
 - **Status:** 🟡 Partial (`attendance_log.html` exists — detail level may be insufficient)
@@ -300,11 +297,11 @@
 
 | Portal | ✅ Done | 🟡 Partial | ❌ Not Built | Total |
 |---|---|---|---|---|
-| 🛡️ Admin | 3 | 2 | 13 | **18** |
-| 👨‍🏫 Teacher | 1 | 2 | 9 | **12** |
-| 🎓 Student | 1 | 2 | 6 | **9** |
+| 🛡️ Admin | 6 | 1 | 11 | **18** |
+| 👨‍🏫 Teacher | 5 | 0 | 7 | **12** |
+| 🎓 Student | 4 | 1 | 4 | **9** |
 | ⚙️ Backend | 4 | 1 | 7 | **12** |
-| **TOTAL** | **9** | **7** | **35** | **51** |
+| **TOTAL** | **19** | **3** | **29** | **51** |
 
 ---
 
@@ -315,16 +312,14 @@
 |---|---|---|
 | T-03 | Override drawer in scanner | API already exists |
 
-#### Week 2 — Core UX
+#### Week 2 — Core UX ✅ Complete (2026-10-26)
 | ID | Feature |
 |---|---|
 | A-03 | In-place student profile editor modal |
 | S-03 | Per-subject attendance breakdown cards |
-| T-01 | CHED 20% absence radar badges |
-| T-02 | Live in-session attendance matrix grid |
 | A-18 | System-wide toast notification cleanup |
 
-#### Week 3 — Reports & Analytics
+#### Week 3 — Reports & Analytics ✅ Complete (2026-10-26)
 | ID | Feature |
 |---|---|
 | T-04 | Registrar term-wide Excel export |

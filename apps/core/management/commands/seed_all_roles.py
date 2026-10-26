@@ -56,15 +56,16 @@ class Command(BaseCommand):
             }
         )
 
-        # 2. Academic Year
-        ay, _ = AcademicYear.objects.get_or_create(
-            name="2025-2026 1st Sem",
-            defaults={
-                "starts_on": "2025-08-01",
-                "ends_on": "2025-12-20",
-                "is_active": True
-            }
-        )
+        # 2. Academic Year — reuse the existing active term; only create one when none is active
+        # (the DB enforces a single active academic year: uq_cs_academic_year_one_active)
+        ay = AcademicYear.objects.filter(is_active=True).first()
+        if ay is None:
+            ay = AcademicYear.objects.create(
+                name="2025-2026 1st Sem",
+                starts_on="2025-08-01",
+                ends_on="2025-12-20",
+                is_active=True,
+            )
 
         # 3. Subject
         subject, _ = Subject.objects.get_or_create(
@@ -97,11 +98,14 @@ class Command(BaseCommand):
             user=admin_user,
             defaults={"role": Profile.ROLE_ADMIN}
         )
+        # chk_cs_profile_shape: ADMIN rows must keep all persona fields NULL
         admin_prof.role = Profile.ROLE_ADMIN
         admin_prof.department = None
         admin_prof.program = None
+        admin_prof.year_level = None
         admin_prof.student_number = None
         admin_prof.approval_status = None
+        admin_prof.qr_secret = None
         admin_prof.save()
 
         # Also support glenn superuser if exists
@@ -134,15 +138,18 @@ class Command(BaseCommand):
             defaults={
                 "role": Profile.ROLE_TEACHER,
                 "department": dept_cmat,
-                "approval_status": Profile.APPROVAL_APPROVED,
-                "approved_by": admin_user,
-                "approved_at": timezone.now()
             }
         )
+        # chk_cs_profile_shape: TEACHER rows must keep student/approval fields NULL
+        teacher_prof.role = Profile.ROLE_TEACHER
         teacher_prof.department = dept_cmat
-        teacher_prof.approval_status = Profile.APPROVAL_APPROVED
-        teacher_prof.approved_by = admin_user
-        teacher_prof.approved_at = timezone.now()
+        teacher_prof.program = None
+        teacher_prof.year_level = None
+        teacher_prof.student_number = None
+        teacher_prof.approval_status = None
+        teacher_prof.approved_by = None
+        teacher_prof.approved_at = None
+        teacher_prof.qr_secret = None
         teacher_prof.save()
 
         # Assign a sample class to Teacher
@@ -192,9 +199,12 @@ class Command(BaseCommand):
         student_prof.program = prog_bsit
         student_prof.year_level = 3
         student_prof.student_number = "2024-0001"
+        student_prof.department = None
         student_prof.approval_status = Profile.APPROVAL_APPROVED
         student_prof.approved_by = admin_user
         student_prof.approved_at = timezone.now()
+        if not student_prof.qr_secret or len(student_prof.qr_secret) != 64:
+            student_prof.qr_secret = secrets.token_hex(32)
         student_prof.save()
 
         self.stdout.write(self.style.SUCCESS("""

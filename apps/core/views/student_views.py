@@ -12,18 +12,20 @@
 """
 
 import csv
+import secrets
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
-from apps.core.models import Class, Department, Profile, Program
+from apps.core.models import AuditEvent, Class, Department, Profile, Program
 from apps.core.services import (
     build_student_queryset,
     export_student_directory_csv,
@@ -146,6 +148,133 @@ def student_directory(request):
         'count_y4': count_y4,
     }
     return render(request, 'core/admin/student_directory.html', context)
+
+
+# // ==============================================================================
+# // AJAX: In-Place Student Profile Editor (A-03)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def student_profile_update_ajax(request):
+    """
+    // [AJAX] Edit student masterlist fields without CLI access (A-03).
+    // Editable: student number, full name, department, program, year level.
+    // Optional: reset the student's TOTP QR secret seed (security rotation).
+    """
+    try:
+        profile = Profile.objects.select_related('user', 'program__department').get(
+            pk=request.POST.get('student_id'), role=Profile.ROLE_STUDENT,
+        )
+    except (Profile.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'status': 'error', 'errors': {'student_id': 'Student not found.'}}, status=404)
+
+    student_number = request.POST.get('student_number', '').strip()
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    dept_id = request.POST.get('department', '').strip()
+    prog_id = request.POST.get('program', '').strip()
+    year_level = request.POST.get('year_level', '').strip()
+    reset_qr = request.POST.get('reset_qr') == '1'
+
+    errors = {}
+
+    if not student_number:
+        errors['student_number'] = 'Student number is required.'
+    elif Profile.objects.filter(
+        role=Profile.ROLE_STUDENT, student_number=student_number
+    ).exclude(pk=profile.pk).exists():
+        errors['student_number'] = 'Student number is already in use by another student.'
+
+    if not first_name or not last_name:
+        errors['full_name'] = 'First name and last name are both required.'
+
+    try:
+        year = int(year_level)
+        if year < 1 or year > 4:
+            raise ValueError
+    except (ValueError, TypeError):
+        errors['year_level'] = 'Year level must be between 1 and 4.'
+        year = None
+
+    program = None
+    if prog_id:
+        try:
+            program = Program.objects.get(pk=prog_id, is_active=True)
+        except (Program.DoesNotExist, ValueError, TypeError):
+            errors['program'] = 'Selected program does not exist.'
+
+    department = None
+    if dept_id:
+        try:
+            department = Department.objects.get(pk=dept_id, is_active=True)
+        except (Department.DoesNotExist, ValueError, TypeError):
+            errors['department'] = 'Selected department does not exist.'
+
+    if program and department and program.department_id != department.pk:
+        errors['program'] = 'Selected program does not belong to the selected department.'
+    if program and year is not None and year > program.years_total:
+        errors['year_level'] = f'Year level cannot exceed {program.years_total} for {program.code}.'
+
+    if errors:
+        return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+
+    user = profile.user
+    old_snapshot = (
+        f'student_number={profile.student_number}, name={user.get_full_name()}, '
+        f'program={profile.program.code if profile.program else "-"}, year={profile.year_level}'
+    )
+
+    user.first_name = first_name
+    user.last_name = last_name
+    user.save(update_fields=['first_name', 'last_name'])
+
+    profile.student_number = student_number
+    if department is not None:
+        profile.department = department
+    if program is not None:
+        profile.program = program
+    if year is not None:
+        profile.year_level = year
+
+    qr_reset = False
+    if reset_qr:
+        profile.qr_secret = secrets.token_hex(32)
+        qr_reset = True
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='STUDENT_QR_RESET',
+            object_type='Profile',
+            object_id=str(profile.pk),
+            new_value=f'TOTP QR secret rotated for {student_number}',
+            reason='Security reset requested by administrator via student directory',
+        )
+
+    profile.save(update_fields=['student_number', 'department', 'program', 'year_level', 'qr_secret'])
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='STUDENT_PROFILE_UPDATE',
+        object_type='Profile',
+        object_id=str(profile.pk),
+        old_value=old_snapshot,
+        new_value=(
+            f'student_number={profile.student_number}, name={user.get_full_name()}, '
+            f'program={profile.program.code if profile.program else "-"}, year={profile.year_level}'
+        ),
+        reason='In-place edit via student directory (A-03)',
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'student_number': profile.student_number,
+        'full_name': user.get_full_name() or profile.student_number,
+        'department_code': profile.program.department.code if profile.program and profile.program.department else None,
+        'program_code': profile.program.code if profile.program else None,
+        'program_name': profile.program.name if profile.program else None,
+        'year_level': profile.year_level,
+        'qr_reset': qr_reset,
+    })
 
 
 # // ==============================================================================

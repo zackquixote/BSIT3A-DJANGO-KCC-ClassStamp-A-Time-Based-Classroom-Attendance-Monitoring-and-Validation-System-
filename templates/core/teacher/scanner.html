@@ -195,8 +195,8 @@
           <span class="text-xs text-muted font-mono"><span id="metricTotalEnrolled">{{ total_enrolled }}</span> Total Enrolled</span>
         </div>
 
-        <!-- 4 Mini Metric Pills -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+        <!-- 5 Mini Metric Pills -->
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
           <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
             <div class="text-xs text-muted" style="font-size: 0.65rem;">PRESENT</div>
             <div class="font-mono font-bold text-success text-base" id="counterPresent">{{ present_count }}</div>
@@ -209,10 +209,22 @@
             <div class="text-xs text-muted" style="font-size: 0.65rem;">ABSENT</div>
             <div class="font-mono font-bold text-danger text-base" id="counterAbsent">{{ absent_count }}</div>
           </div>
+          <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
+            <div class="text-xs text-muted" style="font-size: 0.65rem;">EXCUSED</div>
+            <div class="font-mono font-bold text-base" style="color: #a78bfa;" id="counterExcused">{{ excused_count }}</div>
+          </div>
           <div style="background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; padding: 6px; text-align: center;">
             <div class="text-xs text-muted" style="font-size: 0.65rem;">PENDING</div>
             <div class="font-mono font-bold text-primary text-base" id="counterPending">{{ pending_count }}</div>
           </div>
+        </div>
+
+        <!-- Live Matrix Counter Line (T-02) -->
+        <div class="flex items-center justify-between" style="margin-top: 8px;">
+          <span class="text-xs text-muted font-mono" id="liveCounterLine">
+            Present: {{ present_count }} | Late: {{ late_count }} | Absent: {{ absent_count }} | Excused: {{ excused_count }} | Total: {{ total_enrolled }} ({{ attendance_rate }}%)
+          </span>
+          <span class="text-xs font-mono font-bold" style="color: #4ade80;" id="counterRate">{{ attendance_rate }}%</span>
         </div>
       </div>
 
@@ -230,10 +242,18 @@
           <option value="ABSENT">Absent</option>
           <option value="EXCUSED">Excused</option>
         </select>
+        <div style="display: flex; border: 1px solid var(--glass-border); border-radius: 6px; overflow: hidden;" title="Roster view mode">
+          <button type="button" id="viewListBtn" class="btn btn-outline" style="border: none; padding: 4px 10px; height: 32px; font-size: 0.75rem; background: rgba(245, 158, 11, 0.15);">
+            <i class="fas fa-list"></i>
+          </button>
+          <button type="button" id="viewGridBtn" class="btn btn-outline" style="border: none; padding: 4px 10px; height: 32px; font-size: 0.75rem;">
+            <i class="fas fa-table-cells"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Scrollable Roster Table -->
-      <div style="flex: 1; overflow-y: auto; padding: 0;" class="table-responsive">
+      <div id="rosterTableView" style="flex: 1; overflow-y: auto; padding: 0;" class="table-responsive">
         <table class="table" style="margin-bottom: 0;">
           <thead>
             <tr>
@@ -253,7 +273,15 @@
                 <div class="flex items-center gap-2">
                   <span class="avatar-initial" style="width: 30px; height: 30px; font-size: 0.75rem;">{{ s.initials }}</span>
                   <div>
-                    <div class="font-semibold text-xs text-primary" id="roster-name-{{ s.student_id }}">{{ s.full_name }}</div>
+                    <div class="font-semibold text-xs text-primary" id="roster-name-{{ s.student_id }}">{{ s.full_name }}
+                      {% if s.absence_band == 'CRITICAL' %}
+                      <span class="absence-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.8); margin-left: 6px; vertical-align: middle;"
+                            title="CHED FDA risk: {{ s.absence_rate }}% absences ({{ s.absence_absences }}/{{ s.absence_records }} meetings)"></span>
+                      {% elif s.absence_band == 'WATCH' %}
+                      <span class="absence-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.8); margin-left: 6px; vertical-align: middle;"
+                            title="Watchlist: {{ s.absence_rate }}% absences ({{ s.absence_absences }}/{{ s.absence_records }} meetings)"></span>
+                      {% endif %}
+                    </div>
                     <div class="text-muted text-xs font-mono" style="font-size: 0.65rem;">{{ s.student_number }}</div>
                   </div>
                 </div>
@@ -297,6 +325,40 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+
+      <!-- Live Matrix Grid View (T-02) -->
+      <div id="rosterGridView" style="display: none; flex: 1; overflow-y: auto; padding: 12px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; align-content: start;">
+        {% for s in roster_list %}
+        <div class="roster-grid-card" id="roster-grid-{{ s.student_id }}"
+             data-name="{{ s.full_name|lower }}"
+             data-ident="{{ s.student_number|lower }}"
+             data-status="{{ s.status }}"
+             style="background: {% if s.status == 'PRESENT' %}rgba(34, 197, 94, 0.12){% elif s.status == 'LATE' %}rgba(245, 158, 11, 0.12){% elif s.status == 'ABSENT' %}rgba(239, 68, 68, 0.12){% elif s.status == 'EXCUSED' %}rgba(139, 92, 246, 0.12){% else %}rgba(148, 163, 184, 0.10){% endif %}; border-width: 1px; border-style: solid; border-color: {% if s.status == 'PRESENT' %}rgba(34, 197, 94, 0.45){% elif s.status == 'LATE' %}rgba(245, 158, 11, 0.45){% elif s.status == 'ABSENT' %}rgba(239, 68, 68, 0.45){% elif s.status == 'EXCUSED' %}rgba(139, 92, 246, 0.45){% else %}rgba(148, 163, 184, 0.30){% endif %}; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+          <span class="avatar-initial" style="width: 34px; height: 34px; font-size: 0.8rem; flex-shrink: 0;">{{ s.initials }}</span>
+          <div style="flex: 1; min-width: 0;">
+            <div class="font-semibold text-xs text-primary" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.full_name }}</div>
+            <div class="text-muted text-xs font-mono" style="font-size: 0.62rem;">{{ s.student_number }}</div>
+          </div>
+          <div id="roster-grid-status-{{ s.student_id }}" style="flex-shrink: 0;">
+            {% if s.status == 'PRESENT' %}
+              <span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i></span>
+            {% elif s.status == 'LATE' %}
+              <span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> +{{ s.late_minutes }}m</span>
+            {% elif s.status == 'ABSENT' %}
+              <span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i></span>
+            {% elif s.status == 'EXCUSED' %}
+              <span class="badge badge--purple text-xs"><i class="fas fa-file-medical"></i></span>
+            {% else %}
+              <span class="badge badge--muted text-xs"><i class="fas fa-hourglass-start"></i></span>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div style="text-align: center; padding: 32px 16px; grid-column: 1 / -1;" class="text-muted text-xs">
+          No active students currently enrolled in this section.
+        </div>
+        {% endfor %}
       </div>
 
     </div>
@@ -395,12 +457,13 @@
     isOpen: '{{ is_open }}' === 'True',
     graceCutoffTime: new Date('{{ grace_cutoff_iso }}').getTime(),
     csrfToken: document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '',
-    scanApiUrl: '{% url "attendance_scan_api" %}'
+    scanApiUrl: '{% url "attendance_scan_api" %}',
+    rosterUrl: '{% url "teacher_session_roster_json" session.id %}'
   };
 </script>
 <script src="{% static 'js/scanner/scanner_audio.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/scanner/scanner_ui.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/scanner/scanner_camera.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/scanner/scanner_ui.js' %}?v=20261026_v3"></script>
+<script src="{% static 'js/scanner/scanner_camera.js' %}?v=20261026_v2"></script>
 
 
 <style>

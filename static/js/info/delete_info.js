@@ -10,6 +10,7 @@
   }
 
   function showAlert(msg) {
+    if (window.App && window.App.toast) { window.App.toast('error', msg); return; }
     var alertBox = document.getElementById('infoAlert');
     if (!alertBox) return;
     alertBox.textContent = msg;

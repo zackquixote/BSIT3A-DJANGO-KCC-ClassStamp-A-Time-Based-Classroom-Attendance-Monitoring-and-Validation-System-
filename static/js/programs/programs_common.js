@@ -22,6 +22,7 @@
 
   function showAlert(msg, isError) {
     if (isError === undefined) isError = true;
+    if (window.App && window.App.toast) { window.App.toast(isError ? 'error' : 'success', msg); return; }
     var alertBox = getEl('progAlert');
     if (!alertBox) return;
     alertBox.textContent = msg;

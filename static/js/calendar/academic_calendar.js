@@ -6,6 +6,11 @@
  * ==============================================================================
  */
 
+// Routes legacy (msg, type) showToast calls into the unified toast system.
+window.showToast = function (msg, type) {
+  if (window.toast) window.toast(type || 'info', msg);
+};
+
 document.addEventListener('DOMContentLoaded', function () {
   const calendarEl = document.getElementById('academicCalendar');
   if (!calendarEl) return;

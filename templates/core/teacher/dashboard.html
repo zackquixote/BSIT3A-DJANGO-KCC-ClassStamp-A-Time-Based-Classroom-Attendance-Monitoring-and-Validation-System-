@@ -354,6 +354,32 @@
           <td>
             <div class="font-semibold text-primary">{{ c.subject.code }} — {{ c.subject.name }}</div>
             <div class="text-muted text-xs">{{ c.slot_count }} weekly meeting slot{{ c.slot_count|pluralize }}</div>
+            {% if c.radar_critical or c.radar_watch %}
+            <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
+              {% if c.radar_critical %}
+              <span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 999px; padding: 1px 8px; font-size: 0.62rem; font-weight: 700;"
+                    title="CHED 20% unexcused absence threshold exceeded — Failure Due to Absences risk">
+                <i class="fas fa-triangle-exclamation"></i> {{ c.radar_critical }} FDA risk
+              </span>
+              {% endif %}
+              {% if c.radar_watch %}
+              <span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 999px; padding: 1px 8px; font-size: 0.62rem; font-weight: 700;"
+                    title="10–19% unexcused absences — monitor closely">
+                <i class="fas fa-eye"></i> {{ c.radar_watch }} watchlist
+              </span>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if c.absent_streaks %}
+            <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
+              {% for s in c.absent_streaks %}
+              <span style="background: rgba(168, 85, 247, 0.15); color: #c4b5fd; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 999px; padding: 1px 8px; font-size: 0.62rem; font-weight: 700;"
+                    title="Skipped the last {{ s.streak }} consecutive meetings without excuse">
+                <i class="fas fa-user-slash"></i> {{ s.first_name }} {{ s.last_name }} ({{ s.student_number }}) — {{ s.streak }} straight absences
+              </span>
+              {% endfor %}
+            </div>
+            {% endif %}
           </td>
           <td>
             <span class="text-muted text-xs">{{ c.academic_year.name }}</span>

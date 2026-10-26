@@ -9,6 +9,7 @@
   }
 
   function showAlert(msg) {
+    if (window.App && window.App.toast) { window.App.toast('error', msg); return; }
     var alertBox = getEl('scannerAlert');
     var alertText = getEl('scannerAlertText');
     if (!alertBox || !alertText) return;
@@ -80,25 +81,55 @@
     }
   }
 
+  var GRID_COLORS = {
+    PRESENT: { bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.45)' },
+    LATE:    { bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.45)' },
+    ABSENT:  { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.45)' },
+    EXCUSED: { bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.45)' },
+    PENDING: { bg: 'rgba(148, 163, 184, 0.10)', border: 'rgba(148, 163, 184, 0.30)' }
+  };
+
+  function statusBadgeHtml(status, stampedAt, lateMinutes) {
+    var stamp = stampedAt
+      ? '<span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">' + stampedAt + '</span>'
+      : '';
+    if (status === 'PRESENT') {
+      return '<span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Present</span>' + stamp;
+    }
+    if (status === 'LATE') {
+      return '<span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> Late (+' + (lateMinutes || 0) + 'm)</span>' + stamp;
+    }
+    if (status === 'ABSENT') {
+      return '<span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Absent</span>';
+    }
+    if (status === 'EXCUSED') {
+      return '<span class="badge badge--purple text-xs"><i class="fas fa-file-medical"></i> Excused</span>';
+    }
+    return '<span class="badge badge--muted text-xs"><i class="fas fa-hourglass-start"></i> Pending</span>';
+  }
+
+  function updateGridCard(studentId, status, stampedAt, lateMinutes) {
+    var card = document.getElementById('roster-grid-' + studentId);
+    if (!card) return;
+    card.setAttribute('data-status', status);
+    var colors = GRID_COLORS[status] || GRID_COLORS.PENDING;
+    card.style.background = colors.bg;
+    card.style.borderColor = colors.border;
+    var statusEl = document.getElementById('roster-grid-status-' + studentId);
+    if (statusEl) statusEl.innerHTML = statusBadgeHtml(status, stampedAt, lateMinutes);
+  }
+
   function updateRosterRow(data) {
     var row = document.getElementById('roster-row-' + data.student_id);
     var statusWrap = document.getElementById('roster-status-wrap-' + data.student_id);
     if (row && statusWrap) {
       row.setAttribute('data-status', data.record_status);
-
-      if (data.record_status === 'PRESENT') {
-        statusWrap.innerHTML =
-          '<span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Present</span>' +
-          '<span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">' + data.stamped_at + '</span>';
-      } else {
-        statusWrap.innerHTML =
-          '<span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> Late (+' + data.late_minutes + 'm)</span>' +
-          '<span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">' + data.stamped_at + '</span>';
-      }
+      statusWrap.innerHTML = statusBadgeHtml(data.record_status, data.stamped_at, data.late_minutes);
 
       row.style.background = 'rgba(34, 197, 94, 0.15)';
       setTimeout(function () { row.style.background = ''; }, 1800);
     }
+    updateGridCard(data.student_id, data.record_status, data.stamped_at, data.late_minutes);
   }
 
   function updateCounters(counts) {
@@ -106,14 +137,25 @@
     var p = getEl('counterPresent');
     var l = getEl('counterLate');
     var a = getEl('counterAbsent');
+    var e = getEl('counterExcused');
     var pen = getEl('counterPending');
     var modalPen = getEl('modalPendingCount');
+    var rate = getEl('counterRate');
+    var line = getEl('liveCounterLine');
 
     if (p) p.textContent = counts.present;
     if (l) l.textContent = counts.late;
     if (a) a.textContent = counts.absent;
+    if (e && counts.excused != null) e.textContent = counts.excused;
     if (pen) pen.textContent = counts.pending;
     if (modalPen) modalPen.textContent = counts.pending;
+    if (rate && counts.attendance_rate != null) rate.textContent = counts.attendance_rate + '%';
+    if (line && counts.total != null) {
+      line.textContent =
+        'Present: ' + counts.present + ' | Late: ' + counts.late +
+        ' | Absent: ' + counts.absent + ' | Excused: ' + (counts.excused || 0) +
+        ' | Total: ' + counts.total + ' (' + counts.attendance_rate + '%)';
+    }
   }
 
   function initRosterFilters() {
@@ -124,15 +166,21 @@
       var q = (rosterSearch && rosterSearch.value ? rosterSearch.value : '').toLowerCase().trim();
       var st = (statusFilter && statusFilter.value ? statusFilter.value : 'ALL').toUpperCase();
 
-      document.querySelectorAll('#rosterTbody tr').forEach(function (row) {
+      function matches(row) {
         var name = (row.getAttribute('data-name') || '').toLowerCase();
         var ident = (row.getAttribute('data-ident') || '').toLowerCase();
         var status = (row.getAttribute('data-status') || '').toUpperCase();
 
         var matchesQuery = !q || name.indexOf(q) !== -1 || ident.indexOf(q) !== -1;
         var matchesStatus = st === 'ALL' || status === st;
+        return matchesQuery && matchesStatus;
+      }
 
-        row.style.display = (matchesQuery && matchesStatus) ? '' : 'none';
+      document.querySelectorAll('#rosterTbody tr').forEach(function (row) {
+        row.style.display = matches(row) ? '' : 'none';
+      });
+      document.querySelectorAll('#rosterGridView .roster-grid-card').forEach(function (card) {
+        card.style.display = matches(card) ? '' : 'none';
       });
     }
 
@@ -222,16 +270,9 @@
             var statusWrap = document.getElementById('roster-status-wrap-' + sId);
             if (row && statusWrap) {
               row.setAttribute('data-status', data.new_status);
-              if (data.new_status === 'PRESENT') {
-                statusWrap.innerHTML = '<span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Present</span> <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">' + data.stamped_at + '</span>';
-              } else if (data.new_status === 'LATE') {
-                statusWrap.innerHTML = '<span class="badge badge--warning text-xs"><i class="fas fa-clock"></i> Late</span> <span class="text-muted text-xs font-mono ml-1" style="font-size: 0.62rem;">' + data.stamped_at + '</span>';
-              } else if (data.new_status === 'EXCUSED') {
-                statusWrap.innerHTML = '<span class="badge badge--purple text-xs"><i class="fas fa-file-medical"></i> Excused</span>';
-              } else {
-                statusWrap.innerHTML = '<span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Absent</span>';
-              }
+              statusWrap.innerHTML = statusBadgeHtml(data.new_status, data.stamped_at, data.late_minutes);
             }
+            updateGridCard(sId, data.new_status, data.stamped_at, data.late_minutes);
             updateCounters(data.counts);
             if (window.closeModal) window.closeModal('overrideModal');
             else {
@@ -258,12 +299,66 @@
     }
   }
 
+  var localOps = 0;
+  function beginLocalOp() { localOps += 1; }
+  function endLocalOp() { localOps = Math.max(0, localOps - 1); }
+
+  function initViewToggle() {
+    var listBtn = getEl('viewListBtn');
+    var gridBtn = getEl('viewGridBtn');
+    var tableView = getEl('rosterTableView');
+    var gridView = getEl('rosterGridView');
+    if (!listBtn || !gridBtn || !tableView || !gridView) return;
+
+    function setView(isGrid) {
+      tableView.style.display = isGrid ? 'none' : '';
+      gridView.style.display = isGrid ? 'grid' : 'none';
+      listBtn.style.background = isGrid ? '' : 'rgba(245, 158, 11, 0.15)';
+      gridBtn.style.background = isGrid ? 'rgba(245, 158, 11, 0.15)' : '';
+    }
+
+    listBtn.addEventListener('click', function () { setView(false); });
+    gridBtn.addEventListener('click', function () { setView(true); });
+  }
+
+  function initLiveMatrixPolling(rosterUrl, isOpen) {
+    if (!rosterUrl || !isOpen) return;
+
+    var timer = setInterval(function () {
+      if (localOps > 0) return; // a local scan/override is in flight; skip stale reconciliation
+      fetch(rosterUrl, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data || data.is_open === false) {
+            clearInterval(timer);
+            return;
+          }
+          updateCounters(data.counts);
+          (data.students || []).forEach(function (st) {
+            var row = document.getElementById('roster-row-' + st.student_id);
+            if (row && row.getAttribute('data-status') !== st.status) {
+              row.setAttribute('data-status', st.status);
+              var statusWrap = document.getElementById('roster-status-wrap-' + st.student_id);
+              if (statusWrap) statusWrap.innerHTML = statusBadgeHtml(st.status, st.stamped_at, st.late_minutes);
+            }
+            var card = document.getElementById('roster-grid-' + st.student_id);
+            if (card && card.getAttribute('data-status') !== st.status) {
+              updateGridCard(st.student_id, st.status, st.stamped_at, st.late_minutes);
+            }
+          });
+        })
+        .catch(function () { /* transient network failure — retry on next tick */ });
+    }, 10000);
+  }
+
   function initUI() {
     var config = window.ScannerConfig || {};
     initGraceTimer(config.graceCutoffTime);
     initRosterFilters();
     initManualDrawer();
     initOverrideModal(config.sessionId, config.csrfToken);
+    initViewToggle();
+    initLiveMatrixPolling(config.rosterUrl, config.isOpen);
   }
 
   if (document.readyState === 'loading') {
@@ -276,4 +371,6 @@
   window.ScannerApp.updateHeroCard = updateHeroCard;
   window.ScannerApp.updateRosterRow = updateRosterRow;
   window.ScannerApp.updateCounters = updateCounters;
+  window.ScannerApp.beginLocalOp = beginLocalOp;
+  window.ScannerApp.endLocalOp = endLocalOp;
 })(window);

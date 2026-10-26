@@ -116,6 +116,100 @@
     </div>
   </div>
 
+  <!-- Per-Subject Attendance Breakdown Cards (S-03) -->
+  <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 16px;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+      <div class="font-semibold text-primary flex items-center gap-2">
+        <i class="fas fa-chart-simple text-gold"></i> Attendance Breakdown by Subject
+      </div>
+      <span class="text-muted text-xs">Present + Late ÷ Meetings</span>
+    </div>
+    <div style="padding: 12px 16px;">
+      {% for b in class_breakdowns %}
+        <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 8px;">
+          {% if b.sentinel.stage == 'green' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
+              <i class="fas fa-circle-check"></i> {{ b.sentinel.label }}
+            </div>
+          {% elif b.sentinel.stage == 'amber' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24;">
+              <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
+            </div>
+          {% elif b.sentinel.stage == 'orange' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.5); color: #fb923c;">
+              <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
+            </div>
+          {% elif b.sentinel.stage == 'red' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.55); color: #f87171;">
+              <i class="fas fa-circle-exclamation"></i> {{ b.sentinel.label }}
+            </div>
+          {% endif %}
+          <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span class="font-bold text-primary text-sm">{{ b.class_obj.subject.code }} — {{ b.class_obj.class_code }}</span>
+              <div class="text-muted text-xs mt-0.5">
+                <i class="fas fa-chalkboard-user"></i>
+                {% if b.class_obj.teacher_profile %}
+                  {{ b.class_obj.teacher_profile.user.get_full_name|default:b.class_obj.teacher_profile.user.username }}
+                {% else %}
+                  Unassigned
+                {% endif %}
+              </div>
+            </div>
+            <span class="badge font-mono text-xs {% if b.compliance is not None %}{% if b.compliance >= 90 %}badge--success{% elif b.compliance >= 80 %}badge--warning{% else %}badge--danger{% endif %}{% else %}badge--muted{% endif %}">
+              {% if b.compliance is not None %}{{ b.compliance }}% compliance{% else %}No meetings yet{% endif %}
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;">
+            <div style="text-align: center; background: rgba(34, 197, 94, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-success text-sm">{{ b.present }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">PRESENT</div>
+            </div>
+            <div style="text-align: center; background: rgba(245, 158, 11, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-warning text-sm">{{ b.late }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">LATE</div>
+            </div>
+            <div style="text-align: center; background: rgba(239, 68, 68, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-danger text-sm">{{ b.absent }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">ABSENT</div>
+            </div>
+            <div style="text-align: center; background: rgba(139, 92, 246, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-sm" style="color: #a78bfa;">{{ b.excused }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">EXCUSED</div>
+            </div>
+          </div>
+          {% if b.meetings %}
+          <details style="margin-top: 8px;">
+            <summary class="text-muted text-xs" style="cursor: pointer;">
+              <i class="fas fa-list-ul"></i> Meeting log ({{ b.meetings|length }})
+            </summary>
+            <div style="margin-top: 6px; max-height: 200px; overflow-y: auto;">
+              {% for m in b.meetings %}
+                <div class="flex items-center justify-between text-xs" style="padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                  <span class="font-mono text-muted">{{ m.session_date|date:"M d, Y" }}</span>
+                  {% if m.status == 'PRESENT' %}
+                    <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Present</span>
+                  {% elif m.status == 'LATE' %}
+                    <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Late{% if m.late_minutes %} +{{ m.late_minutes }}m{% endif %}</span>
+                  {% elif m.status == 'ABSENT' %}
+                    <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> Absent</span>
+                  {% elif m.status == 'EXCUSED' %}
+                    <span class="badge badge--purple badge--xs"><i class="fas fa-file-medical"></i> Excused</span>
+                  {% else %}
+                    <span class="badge badge--muted badge--xs">{{ m.status }}</span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          </details>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-muted text-xs" style="text-align: center; padding: 12px 0;">No active class enrollments on record.</p>
+      {% endfor %}
+    </div>
+  </div>
+
   <!-- Examination Schedules & Active Course Timetable -->
   <div class="card" style="padding: 0; overflow: hidden;">
     <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
@@ -125,6 +219,33 @@
       <span class="text-muted text-xs">Institutional Schedule</span>
     </div>
     <div style="padding: 12px 16px;">
+      <!-- S-05: Visual Weekly Timetable Grid -->
+      {% if timetable_slots %}
+        <div class="mb-3">
+          <div class="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
+            <i class="fas fa-table-cells text-gold"></i> Weekly Class Grid
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+            {% regroup timetable_slots by weekday as slot_days %}
+            {% for day in slot_days %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid {% if day.grouper == today_weekday %}rgba(245, 158, 11, 0.6){% else %}var(--glass-border){% endif %}; border-radius: 8px; padding: 8px; min-height: 90px;">
+                <div class="text-xs font-bold mb-1 {% if day.grouper == today_weekday %}text-gold{% else %}text-muted{% endif %}">
+                  {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% endif %}
+                  {% if day.grouper == today_weekday %}<span class="badge badge--warning badge--xs" style="margin-left: 4px;">TODAY</span>{% endif %}
+                </div>
+                {% for s in day.list %}
+                  <div class="mb-1" style="border-left: 3px solid {{ s.color }}; background: rgba(255, 255, 255, 0.03); border-radius: 4px; padding: 4px 6px;">
+                    <div class="font-bold text-xs text-primary font-mono">{{ s.starts_at|time:"h:i A" }}–{{ s.ends_at|time:"h:i A" }}</div>
+                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }} · {{ s.class_code }}</div>
+                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.room }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
       {% if upcoming_exams %}
         <div class="mb-3">
           <div class="text-xs font-bold text-warning uppercase mb-2">Upcoming Exam Windows</div>

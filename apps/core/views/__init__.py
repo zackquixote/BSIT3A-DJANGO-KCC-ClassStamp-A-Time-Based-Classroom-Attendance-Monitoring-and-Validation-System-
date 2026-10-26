@@ -104,6 +104,7 @@ from .student_views import (
     student_directory_export_csv,
     student_directory_import_csv,
     student_import_sample_csv,
+    student_profile_update_ajax,
 )
 
 # // ------------------------------------------------------------------------------
@@ -188,12 +189,14 @@ from .class_views import (
 from .session_views import (
     attendance_scan_api,
     teacher_attendance_matrix,
+    teacher_class_term_export,
     teacher_manual_override_ajax,
     teacher_session_close,
     teacher_session_export,
     teacher_session_history,
     teacher_session_history_export,
     teacher_session_open,
+    teacher_session_roster_json,
     teacher_session_scan,
     teacher_session_summary,
 )
@@ -276,6 +279,7 @@ __all__ = [
     'student_directory_export_csv',
     'student_directory_import_csv',
     'student_import_sample_csv',
+    'student_profile_update_ajax',
 
     # Audit Log & AJAX Feeds
     'admin_audit_log',
@@ -324,12 +328,14 @@ __all__ = [
     # Sessions & Live Scanner
     'teacher_session_open',
     'teacher_session_scan',
+    'teacher_session_roster_json',
     'teacher_session_close',
     'teacher_session_summary',
     'teacher_session_export',
     'teacher_session_history',
     'teacher_session_history_export',
     'teacher_attendance_matrix',
+    'teacher_class_term_export',
     'teacher_manual_override_ajax',
     'attendance_scan_api',
 ]

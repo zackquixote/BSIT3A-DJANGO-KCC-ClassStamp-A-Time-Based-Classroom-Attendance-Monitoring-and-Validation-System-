@@ -25,6 +25,7 @@
     postData.append('qr_payload', payload);
 
     var App = window.ScannerApp;
+    if (App.beginLocalOp) App.beginLocalOp();
 
     fetch(config.scanApiUrl || '/teacher/session/scan/', {
       method: 'POST',
@@ -33,6 +34,7 @@
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
+      if (App.endLocalOp) App.endLocalOp();
       if (data.status === 'success') {
         if (App.playChime) App.playChime(data.record_status);
         if (App.updateHeroCard) App.updateHeroCard(data);
@@ -44,6 +46,7 @@
       }
     })
     .catch(function () {
+      if (App.endLocalOp) App.endLocalOp();
       if (App.playChime) App.playChime('ERROR');
       if (App.showAlert) App.showAlert('Network transmission error while processing stamp.');
     });

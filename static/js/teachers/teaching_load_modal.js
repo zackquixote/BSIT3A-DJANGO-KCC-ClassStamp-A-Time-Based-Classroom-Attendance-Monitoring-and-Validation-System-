@@ -18,8 +18,6 @@
     if (!container) return;
     container.innerHTML = '<div class="text-center text-muted py-3 text-xs"><i class="fas fa-spinner fa-spin mr-1"></i> Refreshing load...</div>';
 
-    var App = getApp();
-
     try {
       var res = await fetch('/teachers/get/' + teacherId + '/');
       var data = await res.json();
@@ -88,12 +86,10 @@
             var resData = await r.json();
             if (resData.ok) {
               refreshTeacherLoadList(teacherId);
+              var successEl = getEl('teacherSuccess');
               if (window.App && window.App.toast) {
                 window.App.toast('success', resData.message || 'Class removed from load.');
-              }
-              var successEl = getEl('teacherSuccess');
-              if (App && App.showAlert) App.showAlert(successEl, resData.message, 'success');
-              else if (successEl) { successEl.style.display = 'block'; successEl.textContent = resData.message; }
+              } else if (successEl) { successEl.style.display = 'block'; successEl.textContent = resData.message; }
             } else {
               if (window.App && window.App.toast) {
                 window.App.toast('error', resData.error || 'Failed to unassign class.');

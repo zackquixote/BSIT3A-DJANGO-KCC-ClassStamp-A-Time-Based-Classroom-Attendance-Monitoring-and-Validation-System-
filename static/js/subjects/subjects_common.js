@@ -37,6 +37,7 @@
   let ALL_PROGRAMS = getProgramsList();
 
   function showAlert(el, msg, type = 'error') {
+    if (window.App && window.App.toast) { window.App.toast(type, msg); return; }
     if (!el) return;
     el.style.display = 'block';
     el.className = `toast toast--${type} mb-4`;

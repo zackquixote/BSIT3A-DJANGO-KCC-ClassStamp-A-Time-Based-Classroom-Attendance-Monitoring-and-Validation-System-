@@ -22,6 +22,7 @@
 
   function showAlert(msg, isError) {
     if (isError === undefined) isError = false;
+    if (window.App && window.App.toast) { window.App.toast(isError ? 'error' : 'success', msg); return; }
     var alertBox  = getEl('userAlert');
     var alertText = getEl('userAlertText');
     if (!alertBox || !alertText) return;

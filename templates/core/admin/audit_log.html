@@ -94,6 +94,19 @@
       </select>
     </div>
 
+    <!-- Actor Filter Dropdown -->
+    <div class="input-wrap" style="min-width: 180px;">
+      <i class="fas fa-user-shield input-icon"></i>
+      <select name="actor" class="form-control" onchange="this.form.submit()">
+        <option value="">All Actors</option>
+        {% for a in actor_choices %}
+          <option value="{{ a.actor__username }}" {% if a.actor__username == actor_filter %}selected{% endif %}>
+            {{ a.actor__username }}{% if a.actor__first_name or a.actor__last_name %} ({{ a.actor__first_name }} {{ a.actor__last_name }}){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
     <!-- Date Picker -->
     <div class="input-wrap" style="min-width: 150px;">
       <i class="fas fa-calendar-day input-icon"></i>
@@ -120,7 +133,7 @@
       <i class="fas fa-search"></i> Filter
     </button>
 
-    {% if action_filter or search_q or date_filter or per_page != '25' or category != 'all' %}
+    {% if action_filter or actor_filter or search_q or date_filter or per_page != '25' or category != 'all' %}
       <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm" style="padding: 9px 14px;" title="Reset all filters">
         <i class="fas fa-rotate-left"></i> Reset
       </a>

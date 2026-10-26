@@ -36,8 +36,6 @@
       } else {
         btn.disabled = true;
       }
-      var App = getApp();
-      var successEl = getEl('aySuccess');
 
       try {
         var res = await fetch('/academic-years/set-active/' + id + '/', {
@@ -49,7 +47,6 @@
           if (window.App && window.App.toast) {
             window.App.toast('success', data.message);
           }
-          if (App && App.showAlert) App.showAlert(successEl, data.message, 'success');
           setTimeout(function () { location.reload(); }, 600);
         } else {
           if (window.App && window.App.toast) {

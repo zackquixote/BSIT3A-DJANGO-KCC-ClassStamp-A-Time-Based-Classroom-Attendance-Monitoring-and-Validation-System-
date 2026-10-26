@@ -15,6 +15,7 @@
 
 from datetime import datetime, time, timedelta
 import csv
+from io import BytesIO
 import logging
 import re
 from urllib.parse import urlencode
@@ -29,6 +30,9 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
 from apps.core.decorators import role_required
 from apps.core.models import (
@@ -53,6 +57,10 @@ from apps.core.services.anomaly_service import (
 )
 from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.services.qr_service import token_details, verify_token
+from apps.core.views.helpers.absence_radar import (
+    BAND_SAFE,
+    absence_radar_for_students,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +269,90 @@ def teacher_session_open(request):
 # // ==============================================================================
 # // VIEW: Live Attendance Scanner Chamber (/teacher/session/<id>/scan/)
 # // ==============================================================================
+def _build_session_roster(session):
+    """
+    // [Shared Roster Builder] Computes the live per-student roster and aggregate
+    // counters for a session. Used by the scanner page render and the T-02 live
+    // matrix JSON polling endpoint.
+    """
+    class_obj = session.slot.class_obj
+
+    enrollments = (
+        Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
+        .select_related('student_profile', 'student_profile__user', 'student_profile__program')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
+    )
+
+    attendance_records = {
+        rec.student_profile_id: rec
+        for rec in AttendanceRecord.objects.filter(session=session).select_related('student_profile__user', 'student_profile__program')
+    }
+
+    # CHED 20% absence radar for this section (T-01)
+    absence_radar = absence_radar_for_students(
+        class_obj, [enr.student_profile_id for enr in enrollments]
+    )
+
+    roster_list = []
+    present_count = 0
+    late_count = 0
+    absent_count = 0
+    excused_count = 0
+
+    for enr in enrollments:
+        sp = enr.student_profile
+        rec = attendance_records.get(sp.id)
+        status = rec.status if rec else 'PENDING'
+
+        if status == AttendanceRecord.STATUS_PRESENT:
+            present_count += 1
+        elif status == AttendanceRecord.STATUS_LATE:
+            late_count += 1
+        elif status == AttendanceRecord.STATUS_ABSENT:
+            absent_count += 1
+        elif status == AttendanceRecord.STATUS_EXCUSED:
+            excused_count += 1
+
+        radar_entry = absence_radar.get(sp.id, {
+            'absent': 0, 'total': 0, 'rate': 0.0, 'band': BAND_SAFE,
+        })
+
+        roster_list.append({
+            'enrollment_id': enr.id,
+            'student_id': sp.id,
+            'student_number': sp.student_number or sp.user.username,
+            'full_name': sp.user.get_full_name() or sp.student_number or sp.user.username,
+            'initials': sp.initials,
+            'program_code': sp.program.code if sp.program else '—',
+            'year_level': sp.year_level or 1,
+            'student_type': sp.get_student_type_display() if hasattr(sp, 'get_student_type_display') else 'Regular',
+            'status': status,
+            'stamped_at': rec.stamped_at.strftime('%I:%M %p') if (rec and rec.stamped_at) else None,
+            'late_minutes': rec.late_minutes if rec else 0,
+            'method': rec.method if rec else None,
+            'absence_rate': radar_entry['rate'],
+            'absence_band': radar_entry['band'],
+            'absence_absences': radar_entry['absent'],
+            'absence_records': radar_entry['total'],
+        })
+
+    total_enrolled = len(enrollments)
+    pending_count = total_enrolled - (present_count + late_count + excused_count + absent_count)
+    attended = present_count + late_count
+    attendance_rate = round((attended / total_enrolled * 100), 1) if total_enrolled else 0.0
+
+    counts = {
+        'present': present_count,
+        'late': late_count,
+        'absent': absent_count,
+        'excused': excused_count,
+        'pending': max(0, pending_count),
+        'total': total_enrolled,
+        'attendance_rate': attendance_rate,
+    }
+    return roster_list, counts
+
+
 @login_required(login_url='login')
 @role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
 def teacher_session_scan(request, session_id):
@@ -289,57 +381,7 @@ def teacher_session_scan(request, session_id):
             messages.error(request, "You are not authorized to manage attendance for this class section.")
             return redirect('teacher_dashboard')
 
-    # Enrolled students roster
-    enrollments = (
-        Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
-        .select_related('student_profile', 'student_profile__user', 'student_profile__program')
-        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
-    )
-
-    # Existing attendance records for this session
-    attendance_records = {
-        rec.student_profile_id: rec
-        for rec in AttendanceRecord.objects.filter(session=session).select_related('student_profile__user', 'student_profile__program')
-    }
-
-    # Build student roster status items
-    roster_list = []
-    present_count = 0
-    late_count = 0
-    absent_count = 0
-    excused_count = 0
-
-    for enr in enrollments:
-        sp = enr.student_profile
-        rec = attendance_records.get(sp.id)
-        status = rec.status if rec else 'PENDING'
-
-        if status == AttendanceRecord.STATUS_PRESENT:
-            present_count += 1
-        elif status == AttendanceRecord.STATUS_LATE:
-            late_count += 1
-        elif status == AttendanceRecord.STATUS_ABSENT:
-            absent_count += 1
-        elif status == AttendanceRecord.STATUS_EXCUSED:
-            excused_count += 1
-
-        roster_list.append({
-            'enrollment_id': enr.id,
-            'student_id': sp.id,
-            'student_number': sp.student_number or sp.user.username,
-            'full_name': sp.user.get_full_name() or sp.student_number or sp.user.username,
-            'initials': sp.initials,
-            'program_code': sp.program.code if sp.program else '—',
-            'year_level': sp.year_level or 1,
-            'student_type': sp.get_student_type_display() if hasattr(sp, 'get_student_type_display') else 'Regular',
-            'status': status,
-            'stamped_at': rec.stamped_at.strftime('%I:%M %p') if (rec and rec.stamped_at) else None,
-            'late_minutes': rec.late_minutes if rec else 0,
-            'method': rec.method if rec else None,
-        })
-
-    total_enrolled = len(enrollments)
-    pending_count = total_enrolled - (present_count + late_count + excused_count + absent_count)
+    roster_list, counts = _build_session_roster(session)
 
     # Compute scheduled start and grace period cutoff in ISO format for client countdown
     slot = session.slot
@@ -363,12 +405,13 @@ def teacher_session_scan(request, session_id):
         'session': session,
         'class_obj': class_obj,
         'slot': slot,
-        'total_enrolled': total_enrolled,
-        'present_count': present_count,
-        'late_count': late_count,
-        'absent_count': absent_count,
-        'excused_count': excused_count,
-        'pending_count': max(0, pending_count),
+        'total_enrolled': counts['total'],
+        'present_count': counts['present'],
+        'late_count': counts['late'],
+        'absent_count': counts['absent'],
+        'excused_count': counts['excused'],
+        'pending_count': counts['pending'],
+        'attendance_rate': counts['attendance_rate'],
         'roster_list': roster_list,
         'grace_cutoff_iso': grace_cutoff_dt.isoformat(),
         'grace_minutes': class_obj.grace_minutes,
@@ -376,6 +419,47 @@ def teacher_session_scan(request, session_id):
         'calendar_conflict': calendar_conflict,
     }
     return render(request, 'core/teacher/scanner.html', context)
+
+
+# // ==============================================================================
+# // API / AJAX: Live Roster Snapshot for In-Session Matrix Polling (T-02)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+def teacher_session_roster_json(request, session_id):
+    """
+    // [AJAX Live Matrix] Snapshot of per-student statuses and aggregate counters.
+    // Polled by the scanner UI every 10s to reconcile rows changed by other
+    // terminals or manual overrides (T-02).
+    """
+    session = get_object_or_404(
+        ClassSession.objects.select_related('slot__class_obj__teacher_profile'),
+        pk=session_id
+    )
+    class_obj = session.slot.class_obj
+
+    if not _teacher_can_manage(request, class_obj):
+        return JsonResponse({'error': 'forbidden'}, status=403)
+
+    roster_list, counts = _build_session_roster(session)
+
+    return JsonResponse({
+        'session_id': session.pk,
+        'is_open': session.status == ClassSession.STATUS_OPEN,
+        'counts': counts,
+        'students': [
+            {
+                'student_id': s['student_id'],
+                'student_number': s['student_number'],
+                'full_name': s['full_name'],
+                'initials': s['initials'],
+                'status': s['status'],
+                'stamped_at': s['stamped_at'],
+                'late_minutes': s['late_minutes'],
+            }
+            for s in roster_list
+        ],
+    })
 
 
 # // ==============================================================================
@@ -1053,6 +1137,130 @@ def teacher_session_export(request, session_id):
             record.correction_reason or '',
         ])
 
+    return response
+
+
+# // ==============================================================================
+# // VIEW: Registrar-Format Term-Wide Excel Export (T-04)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+def teacher_class_term_export(request, class_id):
+    """
+    // [Teacher Report View] Streams a registrar-format .xlsx attendance sheet for
+    // every meeting of one class section: one column per session (Week 1..N with
+    // date), per-student totals, and % attendance. Rows whose unexcused absence
+    // rate reaches the CHED 20% threshold are filled red.
+    """
+    class_obj = get_object_or_404(
+        Class.objects.select_related('subject', 'academic_year', 'teacher_profile__user'),
+        pk=class_id,
+    )
+
+    if not _teacher_can_manage(request, class_obj):
+        messages.error(request, "You are not authorized to export attendance for this class section.")
+        return redirect('teacher_dashboard')
+
+    sessions = list(
+        ClassSession.objects.filter(slot__class_obj=class_obj)
+        .exclude(status=ClassSession.STATUS_CANCELED)
+        .order_by('session_date')
+    )
+
+    students = list(
+        Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
+        .select_related('student_profile', 'student_profile__user', 'student_profile__program')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
+    )
+
+    session_ids = [s.pk for s in sessions]
+    record_map = {}
+    for rec in (
+        AttendanceRecord.objects.filter(session_id__in=session_ids)
+        .values('session_id', 'student_profile_id', 'status')
+    ):
+        record_map[(rec['student_profile_id'], rec['session_id'])] = rec['status']
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Term Attendance'
+
+    header_fill = PatternFill('solid', fgColor='1F2937')
+    header_font = Font(bold=True, color='FFFFFF')
+    red_fill = PatternFill('solid', fgColor='FECACA')
+    red_font = Font(bold=True, color='991B1B')
+    status_letter = {
+        AttendanceRecord.STATUS_PRESENT: 'P',
+        AttendanceRecord.STATUS_LATE: 'L',
+        AttendanceRecord.STATUS_ABSENT: 'A',
+        AttendanceRecord.STATUS_EXCUSED: 'E',
+    }
+
+    headers = ['Student ID', 'Last Name', 'First Name', 'Program', 'Year']
+    week_labels = []
+    for i, s in enumerate(sessions, start=1):
+        label = f"Week {i} ({s.session_date.strftime('%m/%d')})"
+        week_labels.append(label)
+        headers.append(label)
+    headers += ['Total Present', 'Total Late', 'Total Absent', 'Attendance %']
+
+    for col, value in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=value)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    for r, enr in enumerate(students, start=2):
+        student = enr.student_profile
+        present = late = absent = 0
+        row_values = [
+            student.student_number or '',
+            student.user.last_name,
+            student.user.first_name,
+            student.program.code if student.program_id else '',
+            student.year_level or '',
+        ]
+        for s in sessions:
+            status = record_map.get((student.pk, s.pk))
+            letter = status_letter.get(status, '')
+            if status == AttendanceRecord.STATUS_PRESENT:
+                present += 1
+            elif status == AttendanceRecord.STATUS_LATE:
+                late += 1
+            elif status == AttendanceRecord.STATUS_ABSENT:
+                absent += 1
+            row_values.append(letter)
+
+        total_records = present + late + absent + sum(
+            1 for s in sessions
+            if record_map.get((student.pk, s.pk)) == AttendanceRecord.STATUS_EXCUSED
+        )
+        attended = present + late
+        attendance_pct = round((attended / total_records * 100), 1) if total_records else None
+        absence_pct = round((absent / total_records * 100), 1) if total_records else 0.0
+        row_values += [present, late, absent, attendance_pct if attendance_pct is not None else '']
+
+        for col, value in enumerate(row_values, start=1):
+            ws.cell(row=r, column=col, value=value)
+
+        # CHED 20% rule: red conditional formatting for high-absence students
+        if total_records and absence_pct >= 20:
+            for col in range(1, len(headers) + 1):
+                cell = ws.cell(row=r, column=col)
+                cell.fill = red_fill
+            ws.cell(row=r, column=len(headers)).font = red_font
+
+    ws.freeze_panes = 'F2'
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"term_attendance_{class_obj.class_code}.xlsx"
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 

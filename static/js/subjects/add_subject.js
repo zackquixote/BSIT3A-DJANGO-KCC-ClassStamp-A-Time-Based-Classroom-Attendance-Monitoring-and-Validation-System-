@@ -110,9 +110,7 @@
             const errEl = getEl('subjectFormError');
             if (window.App && window.App.toast) {
               window.App.toast('error', data.error || 'Failed to save subject.');
-            }
-            if (App && App.showAlert) App.showAlert(errEl, data.error);
-            else if (errEl) { errEl.style.display = 'block'; errEl.textContent = data.error; }
+            } else if (errEl) { errEl.style.display = 'block'; errEl.textContent = data.error; }
             return;
           }
 
@@ -142,20 +140,16 @@
             if (m) { m.classList.remove('is-active', 'is-open'); document.body.style.overflow = ''; }
           }
 
+          const successEl = getEl('subjectSuccess');
           if (window.App && window.App.toast) {
             window.App.toast('success', data.message);
-          }
-          const successEl = getEl('subjectSuccess');
-          if (App && App.showAlert) App.showAlert(successEl, data.message, 'success');
-          else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
+          } else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
           setTimeout(function () { location.reload(); }, 600);
         } catch (err) {
           const errEl = getEl('subjectFormError');
           if (window.App && window.App.toast) {
             window.App.toast('error', 'Server or network error');
-          }
-          if (App && App.showAlert) App.showAlert(errEl, 'Server or network error');
-          else if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Server or network error'; }
+          } else if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Server or network error'; }
         } finally {
           if (window.App && window.App.setButtonLoading) {
             window.App.setButtonLoading(saveBtn, false);

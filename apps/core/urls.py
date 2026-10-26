@@ -34,6 +34,7 @@ urlpatterns = [
 
     # // Admin: Student Directory & Masterlist
     path('students/', views.student_directory, name='student_directory'),
+    path('students/update/', views.student_profile_update_ajax, name='student_profile_update_ajax'),
     path('students/export-csv/', views.student_directory_export_csv, name='student_directory_export_csv'),
     path('students/import/', views.student_directory_import_csv, name='student_directory_import_csv'),
     path('students/import/sample-template/', views.student_import_sample_csv, name='student_import_sample_csv'),
@@ -120,10 +121,12 @@ urlpatterns = [
     path('teacher/sessions/', views.teacher_session_history, name='teacher_session_history'),
     path('teacher/sessions/export/', views.teacher_session_history_export, name='teacher_session_history_export'),
     path('teacher/session/<int:session_id>/scan/', views.teacher_session_scan, name='teacher_session_scan'),
+    path('teacher/session/<int:session_id>/roster/', views.teacher_session_roster_json, name='teacher_session_roster_json'),
     path('teacher/session/<int:session_id>/close/', views.teacher_session_close, name='teacher_session_close'),
     path('teacher/session/<int:session_id>/summary/', views.teacher_session_summary, name='teacher_session_summary'),
     path('teacher/session/<int:session_id>/export/', views.teacher_session_export, name='teacher_session_export'),
     path('teacher/session/<int:session_id>/override/', views.teacher_manual_override_ajax, name='teacher_manual_override_ajax'),
     path('teacher/classes/<int:class_id>/matrix/', views.teacher_attendance_matrix, name='teacher_attendance_matrix'),
+    path('teacher/classes/<int:class_id>/term-export/', views.teacher_class_term_export, name='teacher_class_term_export'),
     path('api/attendance/scan/', views.attendance_scan_api, name='attendance_scan_api'),
 ]

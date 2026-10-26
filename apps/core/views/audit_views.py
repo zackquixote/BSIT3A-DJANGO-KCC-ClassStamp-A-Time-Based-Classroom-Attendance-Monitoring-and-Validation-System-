@@ -37,6 +37,7 @@ def admin_audit_log(request):
     action_filter = request.GET.get('action', '').strip()
     search_q = request.GET.get('q', '').strip()
     date_filter = request.GET.get('date', '').strip()
+    actor_filter = request.GET.get('actor', '').strip()
     per_page_str = request.GET.get('per_page', '25').strip()
 
     # Determine per_page limit
@@ -63,6 +64,10 @@ def admin_audit_log(request):
     # Action type filter
     if action_filter:
         events_qs = events_qs.filter(action=action_filter)
+
+    # Actor filter (exact username match)
+    if actor_filter:
+        events_qs = events_qs.filter(actor__username=actor_filter)
 
     # Date filter
     if date_filter:
@@ -100,6 +105,13 @@ def admin_audit_log(request):
         .order_by('action')
     )
 
+    actor_choices = (
+        AuditEvent.objects.exclude(actor__isnull=True)
+        .values('actor__username', 'actor__first_name', 'actor__last_name')
+        .distinct()
+        .order_by('actor__username')
+    )
+
     # Preserve GET parameters excluding 'page' for pagination links
     query_params = request.GET.copy()
     if 'page' in query_params:
@@ -112,8 +124,10 @@ def admin_audit_log(request):
         'action_filter': action_filter,
         'search_q': search_q,
         'date_filter': date_filter,
+        'actor_filter': actor_filter,
         'per_page': per_page_str,
         'action_choices': action_choices,
+        'actor_choices': actor_choices,
         'total_count': paginator.count,
         'count_all': count_all,
         'count_admin': count_admin,
@@ -148,6 +162,7 @@ def admin_audit_log_export_csv(request):
     action_filter = request.GET.get('action', '').strip()
     search_q = request.GET.get('q', '').strip()
     date_filter = request.GET.get('date', '').strip()
+    actor_filter = request.GET.get('actor', '').strip()
 
     events_qs = AuditEvent.objects.select_related('actor').order_by('-created_at')
 
@@ -158,6 +173,9 @@ def admin_audit_log_export_csv(request):
 
     if action_filter:
         events_qs = events_qs.filter(action=action_filter)
+
+    if actor_filter:
+        events_qs = events_qs.filter(actor__username=actor_filter)
 
     if date_filter:
         try:
