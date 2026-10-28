@@ -35,7 +35,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const endDatetimeInput = document.getElementById('endDatetimeInput');
   const overlapWarningBox = document.getElementById('overlapWarningBox');
   const overlapWarningText = document.getElementById('overlapWarningText');
-  const editEventBtn = document.getElementById('editEventBtn');
   const cancelEventBtn = document.getElementById('cancelEventBtn');
   const deleteEventBtn = document.getElementById('deleteEventBtn');
 
@@ -428,50 +427,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     openCalendarModal(eventDetailModal);
-  }
-
-  // ── Edit Event Handler ───────────────────────────────────────────────────────
-  if (editEventBtn) {
-    editEventBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      if (!currentDetailEvent) return;
-
-      closeCalendarModal(eventDetailModal);
-
-      const event = currentDetailEvent;
-      const props = event.extendedProps || {};
-
-      document.getElementById('modalEventId').value = event.id;
-      document.getElementById('eventModalTitle').innerHTML = '<i class="fas fa-pen-to-square text-gold"></i> Edit Academic Event';
-      document.getElementById('eventSubmitBtnText').textContent = 'Update Event';
-      document.getElementById('eventTitleInput').value = event.title;
-      document.getElementById('eventDescriptionInput').value = props.description || '';
-      document.getElementById('eventCategory').value = props.category || 'OTHER';
-      document.getElementById('eventStatus').value = props.status || 'SCHEDULED';
-      document.getElementById('eventVisibility').value = props.visibility || 'ALL';
-      document.getElementById('eventLocationInput').value = props.location || '';
-      document.getElementById('eventAcademicYear').value = props.academic_year_id || '';
-      document.getElementById('eventSemester').value = props.semester || 'ALL';
-
-      const isAllDay = event.allDay === true;
-      if (isAllDayCheckbox) isAllDayCheckbox.checked = isAllDay;
-      updateAllDayFields(isAllDay);
-
-      const start = ensureDate(event.start);
-      const end = event.end ? ensureDate(event.end) : start;
-
-      if (isAllDay) {
-        if (startDatetimeInput) startDatetimeInput.value = toDateOnlyString(start);
-        const endDt = event.end ? new Date(end.getTime() - 1000) : start;
-        if (endDatetimeInput) endDatetimeInput.value = toDateOnlyString(endDt >= start ? endDt : start);
-      } else {
-        if (startDatetimeInput) startDatetimeInput.value = toLocalISOString(start);
-        if (endDatetimeInput) endDatetimeInput.value = event.end ? toLocalISOString(end) : toLocalISOString(start);
-      }
-
-      if (overlapWarningBox) overlapWarningBox.style.display = 'none';
-      openCalendarModal(eventModal);
-    });
   }
 
   // ── Cancel / Restore Event Handler ──────────────────────────────────────────

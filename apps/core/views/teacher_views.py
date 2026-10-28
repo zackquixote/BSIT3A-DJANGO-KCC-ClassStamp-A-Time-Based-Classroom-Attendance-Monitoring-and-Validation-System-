@@ -39,10 +39,7 @@ from apps.core.services import (
     delete_or_deactivate_teacher,
     provision_teacher_account,
     reassign_teacher_department,
-    reset_teacher_password,
-    set_teacher_active,
     toggle_teacher_active,
-    update_teacher_profile,
 )
 
 User = get_user_model()
@@ -226,78 +223,6 @@ def teacher_create(request):
 
 
 # // ==============================================================================
-# // AJAX: Bulk Teacher Operation (/teachers/bulk-operation/)
-# // ==============================================================================
-@login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
-@require_http_methods(['POST'])
-def bulk_teacher_operation(request):
-    """
-    // [AJAX] Perform bulk operations on teachers.
-    // POST params: action (activate|deactivate|reset-pw), teacher_ids[] (repeated)
-    //
-    // activate/deactivate are explicit and idempotent (they set the desired state,
-    // they do NOT flip it). reset-pw returns one temporary credential per teacher.
-    """
-    action = request.POST.get('action', '').strip()
-    ids = request.POST.getlist('teacher_ids[]') or request.POST.getlist('teacher_ids')
-
-    if not action or not ids:
-        return JsonResponse({'ok': False, 'error': 'Invalid action or teacher IDs.'}, status=400)
-    if action not in ('activate', 'deactivate', 'reset-pw'):
-        return JsonResponse({'ok': False, 'error': 'Unsupported bulk action.'}, status=400)
-
-    success_count = 0
-    error_ids = []
-    credentials = []
-
-    for raw_id in ids:
-        try:
-            teacher_id = int(raw_id)
-        except (ValueError, TypeError):
-            error_ids.append(raw_id)
-            continue
-
-        try:
-            if action == 'activate':
-                set_teacher_active(actor=request.user, profile_id=teacher_id, is_active=True)
-            elif action == 'deactivate':
-                set_teacher_active(actor=request.user, profile_id=teacher_id, is_active=False)
-            else:
-                result = reset_teacher_password(actor=request.user, profile_id=teacher_id)
-                credentials.append({
-                    'id': teacher_id,
-                    'username': result['username'],
-                    'display_name': result['display_name'],
-                    'temporary_password': result['temporary_password'],
-                })
-            success_count += 1
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            error_ids.append(teacher_id)
-
-    verb = {
-        'activate': 'activated',
-        'deactivate': 'deactivated',
-        'reset-pw': 'password-reset',
-    }[action]
-    message = f'Successfully {verb} {success_count} teacher(s).'
-    if error_ids:
-        message += f' {len(error_ids)} failed.'
-
-    return JsonResponse({
-        'ok': True,
-        'action': action,
-        'message': message,
-        'success_count': success_count,
-        'error_count': len(error_ids),
-        'error_ids': error_ids,
-        'credentials': credentials,
-    })
-
-
-# // ==============================================================================
 # // AJAX: Admin Reset Teacher Password (/teachers/<pk>/reset-password/)
 # // ==============================================================================
 @login_required(login_url='login')
@@ -345,46 +270,6 @@ def admin_reset_teacher_password(request, pk: int):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
-
-
-# // ==============================================================================
-# // AJAX: Update Teacher Profile (/teachers/update/<pk>/)
-# // ==============================================================================
-@login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
-@require_http_methods(['POST'])
-def teacher_update(request, pk: int):
-    """
-    // [AJAX] Update faculty name, email, department, active status, and optional password.
-    // POST params: first_name, last_name, email, dept_id, is_active, password (optional)
-    """
-    try:
-        dept_id_raw = request.POST.get('dept_id', '').strip()
-        if not dept_id_raw:
-            return JsonResponse({'ok': False, 'error': 'Please select a collegiate department.'}, status=400)
-        try:
-            dept_id = int(dept_id_raw)
-        except (ValueError, TypeError):
-            return JsonResponse({'ok': False, 'error': 'Invalid department selected.'}, status=400)
-
-        result = update_teacher_profile(
-            actor=request.user,
-            profile_id=pk,
-            first_name=request.POST.get('first_name', ''),
-            last_name=request.POST.get('last_name', ''),
-            email=request.POST.get('email', ''),
-            dept_id=dept_id,
-            is_active=request.POST.get('is_active') == '1',
-            password=request.POST.get('password') or None,
-        )
-        return JsonResponse({
-            'ok': True,
-            'message': result['message'],
-        })
-    except ValueError as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
-    except Exception as e:
         return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
 
 

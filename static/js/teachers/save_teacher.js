@@ -1,4 +1,4 @@
-﻿/* KCC ClassStamp - Teachers: Save (Create / Update) Controller v4 */
+/* KCC ClassStamp - Teachers: Save (Create) Controller v5 */
 (function (window) {
   'use strict';
 
@@ -14,10 +14,14 @@
     return '';
   }
 
+  function restoreButton(btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span>';
+  }
+
   /* Core save handler */
   async function handleSave(e) {
     if (e) e.preventDefault();
-    console.log('[ClassStamp] Save Teacher triggered.');
 
     var formEl = getEl('teacherForm');
     if (!formEl) { console.error('[ClassStamp] teacherForm not found!'); return; }
@@ -28,8 +32,6 @@
       return;
     }
 
-    var profileId = (getEl('teacherId') && getEl('teacherId').value) || '';
-    var isEdit    = !!profileId;
     var btn       = getEl('teacherModalSave');
     var errEl     = getEl('teacherFormError');
     var App       = getApp();
@@ -40,17 +42,12 @@
     var activeEl = getEl('teacherIsActive');
     fd.set('is_active', (activeEl && activeEl.checked) ? '1' : '0');
 
-    var debugSnap = {};
-    fd.forEach(function (v, k) { debugSnap[k] = v; });
-    console.log('[ClassStamp] FormData being sent:', debugSnap);
-
-    var url  = isEdit ? '/teachers/update/' + profileId + '/' : '/teachers/create/';
+    var url  = '/teachers/create/';
     var csrf = getCSRF();
-    console.log('[ClassStamp] POST to:', url, '| CSRF present:', !!csrf);
 
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (isEdit ? 'Updating...' : 'Creating...');
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
     }
 
     try {
@@ -59,7 +56,6 @@
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf },
         body   : fd,
       });
-      console.log('[ClassStamp] HTTP status:', res.status);
 
       var data;
       try {
@@ -67,15 +63,9 @@
       } catch (jsonErr) {
         console.error('[ClassStamp] Non-JSON response. Session may have expired. Status:', res.status);
         if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Server error (' + res.status + '). Please reload and try again.'; }
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = isEdit ? '<i class="fas fa-floppy-disk"></i> Update Teacher'
-            : '<i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span>';
-        }
+        if (btn) restoreButton(btn);
         return;
       }
-
-      console.log('[ClassStamp] Server response:', data);
 
       if (data.ok) {
         if (data.generated_password) {
@@ -102,39 +92,26 @@
         if (App && App.showAlert) { App.showAlert(errEl, errorMsg); }
         else if (errEl) { errEl.style.display = 'block'; errEl.textContent = errorMsg; }
         if (errEl && errEl.scrollIntoView) { errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = isEdit ? '<i class="fas fa-floppy-disk"></i> Update Teacher'
-            : '<i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span>';
-        }
+        if (btn) restoreButton(btn);
       }
     } catch (err) {
       console.error('[ClassStamp] Fetch error:', err);
       if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Network error. Please try again.'; }
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = isEdit ? '<i class="fas fa-floppy-disk"></i> Update Teacher'
-          : '<i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span>';
-      }
+      if (btn) restoreButton(btn);
     }
   }
 
   /* Init: direct bind + delegation fallback */
   function initSaveTeacher() {
-    console.log('[ClassStamp] Save Teacher module v4 loaded.');
     var saveBtn = getEl('teacherModalSave');
     var form    = getEl('teacherForm');
 
     if (saveBtn) {
       saveBtn.addEventListener('click', handleSave);
       saveBtn._saveHandlerBound = true;
-      console.log('[ClassStamp] Direct click listener attached to teacherModalSave.');
-    } else {
-      console.warn('[ClassStamp] teacherModalSave not found at DOMContentLoaded.');
     }
     if (form) {
       form.addEventListener('submit', handleSave);
-      console.log('[ClassStamp] Submit listener attached to teacherForm.');
     }
 
     /* Delegation fallback */

@@ -16,7 +16,6 @@
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span id="teacherModalSaveLabel">Create Teacher</span>';
       }
-      var idEl    = getEl('teacherId');                if (idEl)    idEl.value = '';
       var fnEl    = getEl('teacherFirstName');         if (fnEl)    fnEl.value = '';
       var lnEl    = getEl('teacherLastName');          if (lnEl)    lnEl.value = '';
       var unEl    = getEl('teacherUsername');           if (unEl)    { unEl.value = ''; unEl.disabled = false; }

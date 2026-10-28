@@ -20,33 +20,19 @@
 
     if (!form) return;
 
-    // Handle Edit / Create button clicks (event delegation)
+    // Handle Create button clicks (event delegation)
     document.addEventListener('click', function (e) {
       var editBtn = e.target.closest('[data-modal-target="editDeptModal"]');
       if (!editBtn) return;
 
       if (errorBox) errorBox.style.display = 'none';
-      var mode = editBtn.getAttribute('data-mode');
 
-      if (mode === 'edit') {
-        if (modalTitle) modalTitle.textContent = 'Edit Department';
-        var idEl = getEl('dept_id');
-        var codeEl = getEl('dept_code');
-        var nameEl = getEl('dept_name');
-        var actEl = getEl('dept_is_active');
-
-        if (idEl)   idEl.value   = editBtn.getAttribute('data-id') || '';
-        if (codeEl) codeEl.value = editBtn.getAttribute('data-code') || '';
-        if (nameEl) nameEl.value = editBtn.getAttribute('data-name') || '';
-        if (actEl)  actEl.checked = editBtn.getAttribute('data-active') === 'true';
-      } else {
-        if (modalTitle) modalTitle.textContent = 'Add Department';
-        form.reset();
-        var idEl2 = getEl('dept_id');
-        var actEl2 = getEl('dept_is_active');
-        if (idEl2)  idEl2.value = '';
-        if (actEl2) actEl2.checked = true;
-      }
+      if (modalTitle) modalTitle.textContent = 'Add Department';
+      form.reset();
+      var idEl2 = getEl('dept_id');
+      var actEl2 = getEl('dept_is_active');
+      if (idEl2)  idEl2.value = '';
+      if (actEl2) actEl2.checked = true;
 
       var App = getApp();
       if (typeof window.openModal === 'function') {

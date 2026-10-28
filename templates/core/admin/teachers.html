@@ -120,39 +120,8 @@
   </form>
 </div>
 
-<div id="bulkActionsBar" class="card mb-4" data-bulk-url="{% url 'bulk_teacher_operation' %}" style="padding: 12px 18px; background: var(--bg-subtle); display: none;">
-  <div class="flex flex-wrap gap-2">
-    <select id="bulkAction" class="form-select form-select-sm" style="min-width: 180px;">
-      <option value="">Select Action</option>
-      <option value="activate">Activate Selected</option>
-      <option value="deactivate">Deactivate Selected</option>
-      <option value="reset-pw">Reset Password Selected</option>
-    </select>
-    <button id="btnExecuteBulk" class="btn btn-sm btn-primary">Execute</button>
-    <button id="btnCancelBulk" class="btn btn-sm btn-outline">Cancel</button>
-    <span id="bulkCount" class="text-muted text-sm"></span>
-  </div>
-</div>
-
 <div id="teacherAlert" class="toast toast--error mb-4" style="display: none;"></div>
 <div id="teacherSuccess" class="toast toast--success mb-4" style="display: none;"></div>
-
-<!-- Bulk Confirmation Modal -->
-<div id="bulkConfirmation" class="modal" style="display: none;">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-header">
-      <h5 class="modal-title">Confirm Bulk Action</h5>
-      <button type="button" class="btn-close" data-modal-dismiss="bulkConfirmation"></button>
-    </div>
-    <div class="modal-body">
-      <p>Are you sure you want to <strong id="bulkActionDesc"></strong> <strong id="bulkCountDesc"></strong> selected teacher(s)?</p>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" data-modal-dismiss="bulkConfirmation">Cancel</button>
-      <button type="button" id="btnConfirmBulk" class="btn btn-primary">Confirm</button>
-    </div>
-  </div>
-</div>
 
 <!-- Faculty Table -->
 <div class="card" style="padding: 0; overflow: hidden;">
@@ -167,9 +136,6 @@
     <table class="table" id="teacherTable">
       <thead>
         <tr>
-          <th style="width: 40px; text-align: center;">
-            <input type="checkbox" id="selectAllTeachers" title="Select all faculty" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
-          </th>
           <th style="width: 44px;">#</th>
           <th>Faculty Member</th>
           <th>Username</th>
@@ -183,9 +149,6 @@
       <tbody>
         {% for t in teachers %}
         <tr data-teacher-id="{{ t.id }}">
-          <td style="text-align: center;">
-            <input type="checkbox" class="teacher-checkbox" value="{{ t.id }}" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
-          </td>
           <td class="text-muted">{{ t.id }}</td>
           <td>
             <div style="display:flex;align-items:center;gap:10px;">
@@ -239,9 +202,6 @@
               <button class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Details">
                 <i class="fas fa-eye"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit">
-                <i class="fas fa-pen"></i>
-              </button>
               <button class="btn btn-outline btn-sm js-reassign-teacher"
                       data-id="{{ t.id }}"
                       data-name="{{ t.user.get_full_name|default:t.user.username }}"
@@ -265,7 +225,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="9" class="text-center text-muted" style="padding: 48px 0;">
+          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
             <i class="fas fa-chalkboard-user" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
             No faculty members found{% if query %} matching "{{ query }}"{% endif %}.
           </td>
@@ -299,7 +259,6 @@
     <div class="modal-body">
       <form id="teacherForm" autocomplete="off">
         {% csrf_token %}
-        <input type="hidden" id="teacherId" name="teacher_id">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="form-group">
             <label class="form-label" for="teacherFirstName">First Name <span class="text-danger">*</span></label>
@@ -587,9 +546,7 @@
 <div id="teacher-reassign-boot" hidden data-reassign-url="{% url 'teacher_reassign_ajax' 0 %}"></div>
 {% load static %}
 <script src="{% static 'js/teachers/teachers_common.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/teachers/bulk_teacher_actions.js' %}?v=20261022_v1"></script>
 <script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v4"></script>
-<script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/save_teacher.js' %}?v=20261022_v4"></script>
 <script src="{% static 'js/teachers/view_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/delete_teacher.js' %}?v=20261022_v3"></script>

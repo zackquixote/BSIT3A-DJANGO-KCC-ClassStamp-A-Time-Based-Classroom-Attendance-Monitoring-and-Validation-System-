@@ -115,14 +115,10 @@
         <tr data-row-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-years="{{ p.years_total }}">
           <td class="text-muted">{{ p.id }}</td>
           <td>
-            <span class="js-inline-editable" data-type="program" data-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-field="code" data-value="{{ p.code }}">
-              <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
-            </span>
+            <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
           </td>
           <td>
-            <span class="js-inline-editable" data-type="program" data-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-field="name" data-value="{{ p.name }}">
-              <span class="text-primary font-semibold">{{ p.name }}</span>
-            </span>
+            <span class="text-primary font-semibold">{{ p.name }}</span>
             <div class="text-muted text-xs">Created {{ p.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
@@ -183,20 +179,6 @@
                  title="View Students Roster ({{ p.code }})">
                 <i class="fas fa-users-viewfinder text-primary"></i>
               </a>
-              <button type="button"
-                      class="btn btn-outline"
-                      style="padding: 6px 10px;"
-                      data-modal-target="editProgModal"
-                      data-mode="edit"
-                      data-id="{{ p.id }}"
-                      data-dept="{{ p.department.id }}"
-                      data-code="{{ p.code }}"
-                      data-name="{{ p.name }}"
-                      data-years="{{ p.years_total }}"
-                      data-active="{{ p.is_active|yesno:'true,false' }}"
-                      title="Edit Program">
-                <i class="fas fa-pen-to-square"></i>
-              </button>
               <button type="button"
                       class="btn btn-outline js-curriculum-matrix-btn"
                       style="padding: 6px 10px;"
@@ -419,7 +401,6 @@
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 
 <style>
 .year-chip {

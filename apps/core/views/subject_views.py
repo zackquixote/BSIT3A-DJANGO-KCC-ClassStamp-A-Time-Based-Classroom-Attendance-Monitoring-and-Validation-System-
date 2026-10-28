@@ -191,25 +191,6 @@ def subject_delete(request, pk: int):
 
 
 # // ==============================================================================
-# // AJAX: Get Single Subject Details (/subjects/get/<pk>/)
-# // ==============================================================================
-@login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
-def subject_get(request, pk: int):
-    """
-    // [AJAX] Returns serialized subject details for modal pre-population.
-    """
-    subject = get_object_or_404(
-        Subject.objects.annotate(
-            class_count=Count('classes', distinct=True),
-            curriculum_count=Count('curriculum_entries', distinct=True),
-        ),
-        pk=pk
-    )
-    return JsonResponse({'ok': True, 'subject': serialize_subject(subject)})
-
-
-# // ==============================================================================
 # // AJAX: Assign Subject to Program Year Level (/programs/curriculum/assign/)
 # // ==============================================================================
 @login_required(login_url='login')

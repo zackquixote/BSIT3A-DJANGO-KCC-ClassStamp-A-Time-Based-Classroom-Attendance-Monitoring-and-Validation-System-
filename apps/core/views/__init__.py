@@ -147,7 +147,6 @@ from .subject_views import (
     subject_list,
     subject_save,
     subject_delete,
-    subject_get,
     subject_curriculum_assign,
     subject_curriculum_remove,
     subject_lookup_json,
@@ -158,7 +157,6 @@ from .subject_views import (
 # // ------------------------------------------------------------------------------
 from .teacher_views import (
     admin_reset_teacher_password,
-    bulk_teacher_operation,
     teacher_analytics_json,
     teacher_assign_class_ajax,
     teacher_create,
@@ -168,7 +166,6 @@ from .teacher_views import (
     teacher_reassign_ajax,
     teacher_toggle,
     teacher_unassign_class_ajax,
-    teacher_update,
 )
 
 # // ------------------------------------------------------------------------------
@@ -186,7 +183,6 @@ from .academic_year_views import (
     academic_year_save,
     academic_year_set_active,
     academic_year_delete,
-    academic_year_get,
     academic_year_rollover,
 )
 
@@ -200,7 +196,6 @@ from .class_views import (
     class_roster_enroll_batch,
     class_roster_get,
     class_roster_remove,
-    class_save,
     class_slot_delete,
     class_slot_save,
     class_toggle,
@@ -325,7 +320,6 @@ __all__ = [
     'subject_list',
     'subject_save',
     'subject_delete',
-    'subject_get',
     'subject_curriculum_assign',
     'subject_curriculum_remove',
     'subject_lookup_json',
@@ -333,13 +327,11 @@ __all__ = [
     # Teachers & Faculty
     'teacher_list',
     'teacher_create',
-    'teacher_update',
     'teacher_reassign_ajax',
     'teacher_toggle',
     'teacher_delete',
     'teacher_get',
     'teacher_analytics_json',
-    'bulk_teacher_operation',
     'admin_reset_teacher_password',
 
     # Disaster Recovery
@@ -350,12 +342,10 @@ __all__ = [
     'academic_year_save',
     'academic_year_set_active',
     'academic_year_delete',
-    'academic_year_get',
     'academic_year_rollover',
 
     # Class Sections & Schedules
     'class_list',
-    'class_save',
     'class_toggle',
     'class_slot_save',
     'class_slot_delete',

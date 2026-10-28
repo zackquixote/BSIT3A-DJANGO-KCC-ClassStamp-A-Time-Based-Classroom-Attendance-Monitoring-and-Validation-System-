@@ -49,11 +49,8 @@ from .student_service import (
 )
 from .teacher_service import (
     provision_teacher_account,
-    update_teacher_profile,
     reassign_teacher_department,
     toggle_teacher_active,
-    set_teacher_active,
-    reset_teacher_password,
     delete_or_deactivate_teacher,
 )
 
@@ -106,11 +103,8 @@ __all__ = [
     'promote_students',
     # Teacher Management
     'provision_teacher_account',
-    'update_teacher_profile',
     'reassign_teacher_department',
     'toggle_teacher_active',
-    'set_teacher_active',
-    'reset_teacher_password',
     'delete_or_deactivate_teacher',
     # Approval workflow
     'approve_student_registration',

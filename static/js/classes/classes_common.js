@@ -31,10 +31,9 @@
   }
 
   function initCommon() {
-    var classModal  = getEl('classModal');
     var slotsModal  = getEl('slotsModal');
     var rosterModal = getEl('rosterModal');
-    var allModals   = [classModal, slotsModal, rosterModal];
+    var allModals   = [slotsModal, rosterModal];
 
     // Backdrop click close for all modals
     allModals.forEach(function (m) {

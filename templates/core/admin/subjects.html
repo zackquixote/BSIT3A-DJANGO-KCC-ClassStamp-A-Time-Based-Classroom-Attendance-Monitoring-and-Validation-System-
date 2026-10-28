@@ -169,9 +169,6 @@
                  title="Create a Class Section (Section Wizard)">
                 <i class="fas fa-chalkboard-teacher"></i>
               </a>
-              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit">
-                <i class="fas fa-pen"></i>
-              </button>
               <button class="btn btn-danger btn-sm js-delete-subject" data-id="{{ s.id }}" data-code="{{ s.code }}"
                 title="Delete">
                 <i class="fas fa-trash"></i>
@@ -300,6 +297,5 @@
 {% load static %}
 <script src="{% static 'js/subjects/subjects_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/subjects/add_subject.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/subjects/edit_subject.js' %}?v=20261020_v4"></script>
 <script src="{% static 'js/subjects/delete_subject.js' %}?v=20261026_v1"></script>
 {% endblock %}

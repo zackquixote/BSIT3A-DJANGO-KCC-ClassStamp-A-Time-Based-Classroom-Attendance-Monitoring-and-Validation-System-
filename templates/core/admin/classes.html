@@ -257,19 +257,6 @@
                 <i class="fas fa-users"></i> Roster
               </button>
 
-              <!-- Edit Class Button -->
-              <button type="button" class="btn btn-ghost btn-xs btn-edit-class"
-                      data-id="{{ c.id }}"
-                      data-code="{{ c.class_code }}"
-                      data-subject-id="{{ c.subject_id }}"
-                      data-teacher-id="{{ c.teacher_profile_id }}"
-                      data-ay-id="{{ c.academic_year_id }}"
-                      data-capacity="{{ c.capacity|default:'' }}"
-                      data-grace="{{ c.grace_minutes }}"
-                      title="Edit Section Details">
-                <i class="fas fa-pen"></i>
-              </button>
-
               <!-- Toggle Active Button -->
               <form method="POST" action="{% url 'class_toggle' c.id %}" style="display: inline;">
                 {% csrf_token %}
@@ -301,83 +288,7 @@
   {% endif %}
 </div>
 
-<!-- ── Modal 1: Edit Class ─────────────────────────────────────── -->
-<div class="dash-modal-backdrop" id="classModal">
-  <div class="dash-modal" role="dialog" aria-labelledby="classModalTitle" style="max-width: 520px;">
-    <div class="dash-modal-head">
-      <h3 class="dash-modal-title" id="classModalTitle">
-        <i class="fas fa-chalkboard text-gold"></i>
-        <span>Edit Class Section</span>
-      </h3>
-      <button type="button" class="dash-modal-close" id="closeClassModal" aria-label="Close">
-        <i class="fas fa-xmark"></i>
-      </button>
-    </div>
-    <form method="POST" action="{% url 'class_save' %}" id="classForm">
-      {% csrf_token %}
-      <input type="hidden" name="class_id" id="formClassId" value="">
-
-      <div class="dash-modal-body" style="gap: 14px; padding: 18px 20px;">
-        <div>
-          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Class Section Code *</label>
-          <input type="text" name="class_code" id="formClassCode" class="form-control" required placeholder="e.g. BSIT-3A-WEBDEV" style="width: 100%; text-transform: uppercase;">
-          <span class="text-muted text-xs mt-1" style="display: block;">Unique section identifier per academic term</span>
-        </div>
-
-        <div>
-          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Subject *</label>
-          <select name="subject_id" id="formSubjectId" class="form-control" required style="width: 100%;">
-            <option value="">Select Course Subject...</option>
-            {% for s in subjects %}
-              <option value="{{ s.id }}" data-code="{{ s.code }}" data-name="{{ s.name }}">{{ s.code }} — {{ s.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div>
-          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Assigned Faculty Instructor *</label>
-          <select name="teacher_profile_id" id="formTeacherId" class="form-control" required style="width: 100%;">
-            <option value="">Select Instructor...</option>
-            {% for t in teachers %}
-              <option value="{{ t.id }}">
-                {{ t.user.get_full_name|default:t.user.username }} {% if t.department %}({{ t.department.code }}){% endif %}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-          <div>
-            <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Term *</label>
-            <select name="academic_year_id" id="formAyId" class="form-control" required style="width: 100%;">
-              {% for ay in academic_years %}
-                <option value="{{ ay.id }}" {% if ay.is_active %}selected{% endif %}>{{ ay.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div>
-            <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Roster Capacity</label>
-            <input type="number" name="capacity" id="formCapacity" class="form-control" min="1" max="250" placeholder="e.g. 45" style="width: 100%;">
-          </div>
-        </div>
-
-        <div>
-          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Grace Period Buffer (Minutes)</label>
-          <input type="number" name="grace_minutes" id="formGraceMinutes" class="form-control" min="0" max="60" value="10" required style="width: 100%;">
-          <span class="text-muted text-xs mt-1" style="display: block;">Minutes allowed after slot start time before marking LATE</span>
-        </div>
-      </div>
-
-      <div style="padding: 12px 20px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 8px;">
-        <button type="button" class="btn btn-outline btn-sm" id="cancelClassModal">Cancel</button>
-        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Save Section</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ── Modal 2: Weekly Schedule Timetable Slots ────────────────── -->
+<!-- ── Modal 1: Weekly Schedule Timetable Slots ────────────────── -->
 <div class="dash-modal-backdrop" id="slotsModal">
   <div class="dash-modal" role="dialog" aria-labelledby="slotsModalTitle" style="max-width: 560px;">
     <div class="dash-modal-head">
@@ -448,7 +359,7 @@
   </div>
 </div>
 
-<!-- ── Modal 3: Class Roster & Student Enlistment ───────────────── -->
+<!-- ── Modal 2: Class Roster & Student Enlistment ───────────────── -->
 <div class="dash-modal-backdrop" id="rosterModal">
   <div class="dash-modal" role="dialog" aria-labelledby="rosterModalTitle" style="max-width: 620px;">
     <div class="dash-modal-head">
@@ -572,7 +483,6 @@
 {% block extra_js %}
 {% load static %}
 <script src="{% static 'js/classes/classes_common.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/classes/class_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
