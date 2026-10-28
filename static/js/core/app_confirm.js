@@ -24,6 +24,7 @@
         modal = document.createElement('div');
         modal.id = 'appConfirmModal';
         modal.className = 'modal';
+        modal.style.zIndex = '1100';
         modal.setAttribute('role', 'dialog');
         modal.setAttribute('aria-modal', 'true');
         modal.innerHTML =

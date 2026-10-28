@@ -89,7 +89,7 @@ ul {
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-w);
-  padding: 28px 36px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -244,10 +244,52 @@ ul {
 .is-hidden       { display: none !important; }
 
 /* ── Responsive Layout Breakpoints ───────────────────────────── */
+/* Standard Laptop Displays (1366x768, 1280x800, 1440x900, 1080p @ 125% zoom) */
+@media (max-width: 1440px) {
+  .main-content {
+    padding: 16px 18px;
+  }
+
+  .table {
+    font-size: 0.8125rem;
+  }
+
+  .table th {
+    padding: 8px 8px;
+    font-size: 0.67rem;
+    letter-spacing: 0.05em;
+  }
+
+  .table td {
+    padding: 8px 8px;
+  }
+
+  .action-btn-text {
+    display: none !important;
+  }
+
+  .btn-xs {
+    padding: 3px 6px;
+    height: 26px;
+    font-size: 0.72rem;
+  }
+
+  .btn-icon-xs {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    font-size: 0.72rem;
+  }
+
+  .table-actions-cluster {
+    gap: 2px;
+  }
+}
+
 /* Tablet (iPad mini, iPad Pro 11", Surface Pro 8) */
 @media (max-width: 1024px) {
   .main-content {
-    padding: 22px 24px;
+    padding: 18px 16px;
   }
 }
 

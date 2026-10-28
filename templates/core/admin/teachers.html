@@ -177,7 +177,7 @@
           <th>Teaching Load &amp; Subjects</th>
           <th>Account Status</th>
           <th>Joined</th>
-          <th style="text-align: right; width: 210px;">Actions</th>
+          <th style="text-align: right; width: 220px; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -208,7 +208,7 @@
           </td>
           <td>
             {% if t.taught_classes.all %}
-              <div class="flex items-center gap-1" style="flex-wrap: wrap; max-width: 260px;">
+              <div class="flex items-center gap-1" style="flex-wrap: wrap; max-width: 190px;">
                 {% for c in t.taught_classes.all %}
                   <span class="badge badge--primary font-mono text-xs" style="padding: 2px 7px; margin-bottom: 2px;" title="{{ c.class_code }} • {{ c.subject.name }} ({{ c.academic_year.name }})">
                     <i class="fas fa-book-open text-gold" style="font-size: 0.65rem;"></i> {{ c.subject.code }}
@@ -228,27 +228,27 @@
             {% endif %}
           </td>
           <td class="text-muted text-sm">{{ t.user.date_joined|date:"M d, Y" }}</td>
-          <td style="text-align: right;">
-            <div class="flex justify-end gap-2">
-              <button class="btn btn-outline btn-sm js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Manage Teaching Load">
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="table-actions-cluster">
+              <button class="btn btn-outline btn-icon-xs js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Manage Teaching Load">
                 <i class="fas fa-book-bookmark text-gold"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="View Faculty Analytics & Teaching Load">
+              <button class="btn btn-outline btn-icon-xs js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="View Faculty Analytics &amp; Teaching Load">
                 <i class="fas fa-chart-pie text-green"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Details">
+              <button class="btn btn-outline btn-icon-xs js-view-teacher" data-id="{{ t.id }}" title="View Details">
                 <i class="fas fa-eye"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit">
+              <button class="btn btn-outline btn-icon-xs js-edit-teacher" data-id="{{ t.id }}" title="Edit">
                 <i class="fas fa-pen"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Force Reset Password">
+              <button class="btn btn-outline btn-icon-xs js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Force Reset Password">
                 <i class="fas fa-key text-warning"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-toggle-teacher {% if not t.user.is_active %}btn-success{% endif %}" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}" title="Toggle Active">
+              <button class="btn btn-outline btn-icon-xs js-toggle-teacher {% if not t.user.is_active %}btn-success{% endif %}" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}" title="Toggle Active">
                 <i class="fas {% if t.user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
               </button>
-              <button class="btn btn-danger btn-sm js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Delete">
+              <button class="btn btn-danger btn-icon-xs js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Delete">
                 <i class="fas fa-trash"></i>
               </button>
             </div>

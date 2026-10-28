@@ -222,7 +222,7 @@
     <table class="table" id="usersTable">
       <thead>
         <tr>
-          <th style="width: 50px;">#</th>
+          <th style="width: 32px;">#</th>
           <th>Account / Name</th>
           {% if role_tab == 'students' %}
             <th>Student ID</th>
@@ -246,7 +246,7 @@
             <th>Account Access</th>
           {% endif %}
           <th>Joined</th>
-          <th style="text-align: right; width: 140px;">Actions</th>
+          <th style="text-align: right; width: 140px; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody id="usersTableBody">
@@ -300,7 +300,7 @@
               {% endif %}
             </td>
             <!-- Email -->
-            <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <td class="text-muted text-xs" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ u.email }}">{{ u.email|default:"—" }}</td>
             <!-- Validation Status -->
             <td>
               {% if u.classstamp_profile.approval_status == 'PENDING' %}
@@ -350,7 +350,7 @@
               </span>
             </td>
             <!-- Email -->
-            <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <td class="text-muted text-xs" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ u.email }}">{{ u.email|default:"—" }}</td>
             <!-- Last Login (Teachers) -->
             <td class="text-muted text-xs">
               {% if u.last_login %}
@@ -399,7 +399,7 @@
               {% endif %}
             </td>
             <!-- Email -->
-            <td class="text-muted text-xs">{{ u.email|default:"—" }}</td>
+            <td class="text-muted text-xs" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ u.email }}">{{ u.email|default:"—" }}</td>
             <!-- Last Login (with recency indicator) -->
             <td class="text-muted text-xs">
               {% if u.last_login %}
@@ -429,29 +429,26 @@
           <td class="text-muted text-xs">{{ u.date_joined|date:"M j, Y" }}</td>
 
           <!-- Actions -->
-          <td style="text-align: right;">
-            <div class="flex items-center justify-end gap-1.5" style="justify-content: flex-end;">
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="table-actions-cluster">
               <!-- Deep Links -->
               {% if role_tab == 'students' %}
                 {% if u.classstamp_profile.approval_status == 'PENDING' %}
                   <a href="{% url 'validation_queue' %}?q={{ u.classstamp_profile.student_number|default:u.username }}"
-                     class="btn btn-outline"
-                     style="padding: 5px 9px;"
+                     class="btn btn-outline btn-icon-xs"
                      title="Open in Validation Queue">
                     <i class="fas fa-user-clock text-warning"></i>
                   </a>
                 {% else %}
                   <a href="{% url 'student_directory' %}?q={{ u.classstamp_profile.student_number|default:u.username }}"
-                     class="btn btn-outline"
-                     style="padding: 5px 9px;"
+                     class="btn btn-outline btn-icon-xs"
                      title="Open Student Master Record">
                     <i class="fas fa-id-card text-success"></i>
                   </a>
                 {% endif %}
               {% elif role_tab == 'teachers' %}
                 <a href="{% url 'teacher_list' %}?q={{ u.username }}"
-                   class="btn btn-outline"
-                   style="padding: 5px 9px;"
+                   class="btn btn-outline btn-icon-xs"
                    title="View Faculty Teaching Schedules">
                   <i class="fas fa-chalkboard text-gold"></i>
                 </a>
@@ -459,8 +456,7 @@
 
               <!-- Quick Reset Password Button -->
               <button type="button"
-                      class="btn btn-outline"
-                      style="padding: 5px 9px;"
+                      class="btn btn-outline btn-icon-xs"
                       data-modal-target="resetPasswordModal"
                       data-id="{{ u.id }}"
                       data-username="{{ u.classstamp_profile.student_number|default:u.username }}"
@@ -471,8 +467,7 @@
 
               <!-- Edit Account Button -->
               <button type="button"
-                      class="btn btn-outline"
-                      style="padding: 5px 9px;"
+                      class="btn btn-outline btn-icon-xs"
                       data-modal-target="editUserModal"
                       data-mode="edit"
                       data-id="{{ u.id }}"
@@ -492,13 +487,12 @@
 
               <!-- Delete Button -->
               {% if u.id == request.user.id %}
-                <button type="button" class="btn btn-outline" style="padding: 5px 9px; opacity: 0.4; cursor: not-allowed;" title="Self-deletion prohibited" disabled>
+                <button type="button" class="btn btn-outline btn-icon-xs" style="opacity: 0.4; cursor: not-allowed;" title="Self-deletion prohibited" disabled>
                   <i class="fas fa-trash text-muted"></i>
                 </button>
               {% else %}
                 <button type="button"
-                        class="btn btn-outline"
-                        style="padding: 5px 9px;"
+                        class="btn btn-outline btn-icon-xs"
                         data-modal-target="deleteUserModal"
                         data-id="{{ u.id }}"
                         data-name="{{ u.get_full_name|default:u.classstamp_profile.student_number|default:u.username }}"

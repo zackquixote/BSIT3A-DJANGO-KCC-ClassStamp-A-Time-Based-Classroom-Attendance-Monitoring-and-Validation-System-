@@ -44,7 +44,8 @@
       <i class="fas fa-graduation-cap"></i>
     </div>
     <div class="stat-info">
-      <span class="stat-value"><a href="{% url 'program_list' %}" style="color: inherit; text-decoration: none;">View</a></span>
+      <span class="stat-value"><a href="{% url 'program_list' %}"
+          style="color: inherit; text-decoration: none;">View</a></span>
       <span class="stat-label">Programs Linked</span>
     </div>
   </div>
@@ -64,10 +65,11 @@
   <form method="GET" class="flex items-center gap-3" style="max-width: 540px;">
     <div class="input-wrap w-full">
       <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by department code or name (e.g. CCS, Education)...">
+      <input type="text" name="q" value="{{ query }}" class="form-control"
+        placeholder="Search by department code or name (e.g. CCS, Education)...">
     </div>
     {% if query %}
-      <a href="{% url 'department_list' %}" class="btn btn-outline">Clear</a>
+    <a href="{% url 'department_list' %}" class="btn btn-outline">Clear</a>
     {% endif %}
     <button type="submit" class="btn btn-primary">Search</button>
   </form>
@@ -77,7 +79,8 @@
 
 <!-- Departments Table Card -->
 <div class="card" style="padding: 0; overflow: hidden;">
-  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+  <div
+    style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
       Academic Departments {% if query %}<span class="text-muted text-sm">— search results for "{{ query }}"</span>{% endif %}
     </div>
@@ -102,18 +105,15 @@
         <tr data-row-id="{{ d.id }}">
           <td class="text-muted">{{ d.id }}</td>
           <td>
-            <span class="js-inline-editable" data-type="department" data-id="{{ d.id }}" data-field="code" data-value="{{ d.code }}">
-              <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
-            </span>
+            <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ d.code }}</span>
           </td>
           <td>
-            <span class="js-inline-editable" data-type="department" data-id="{{ d.id }}" data-field="name" data-value="{{ d.name }}">
-              <span class="font-semibold text-primary">{{ d.name }}</span>
-            </span>
+            <span class="font-semibold text-primary">{{ d.name }}</span>
             <div class="text-muted text-xs">Created {{ d.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
-            <a href="{% url 'program_list' %}?department={{ d.id }}" class="badge badge--gold" title="Filter programs under this department">
+            <a href="{% url 'program_list' %}?department={{ d.id }}" class="badge badge--gold"
+              title="Filter programs under this department">
               <i class="fas fa-graduation-cap"></i> {{ d.program_count }} Program{{ d.program_count|pluralize }}
             </a>
           </td>
@@ -122,34 +122,21 @@
           </td>
           <td>
             {% if d.is_active %}
-              <span class="badge badge--success"><i class="fas fa-circle-check"></i> Active</span>
+            <span class="badge badge--success"><i class="fas fa-circle-check"></i> Active</span>
             {% else %}
-              <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
+            <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
             {% endif %}
           </td>
           <td style="text-align: right;">
             <div class="flex items-center gap-2" style="justify-content: flex-end;">
-              <button type="button"
-                      class="btn btn-outline"
-                      style="padding: 6px 10px;"
-                      data-modal-target="editDeptModal"
-                      data-mode="edit"
-                      data-id="{{ d.id }}"
-                      data-code="{{ d.code }}"
-                      data-name="{{ d.name }}"
-                      data-active="{{ d.is_active|yesno:'true,false' }}"
-                      title="Edit Department">
+              <button type="button" class="btn btn-outline" style="padding: 6px 10px;" data-modal-target="editDeptModal"
+                data-mode="edit" data-id="{{ d.id }}" data-code="{{ d.code }}" data-name="{{ d.name }}"
+                data-active="{{ d.is_active|yesno:'true,false' }}" title="Edit Department">
                 <i class="fas fa-pen-to-square"></i>
               </button>
-              <button type="button"
-                      class="btn btn-danger"
-                      style="padding: 6px 10px;"
-                      data-modal-target="deleteDeptModal"
-                      data-id="{{ d.id }}"
-                      data-code="{{ d.code }}"
-                      data-programs="{{ d.program_count }}"
-                      data-faculty="{{ d.faculty_count }}"
-                      title="Delete or Deactivate">
+              <button type="button" class="btn btn-danger" style="padding: 6px 10px;"
+                data-modal-target="deleteDeptModal" data-id="{{ d.id }}" data-code="{{ d.code }}"
+                data-programs="{{ d.program_count }}" data-faculty="{{ d.faculty_count }}" title="Delete or Deactivate">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
@@ -160,9 +147,9 @@
           <td colspan="7" style="text-align: center; padding: 40px 20px;" class="text-muted">
             <i class="fas fa-building" style="font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5;"></i>
             {% if query %}
-              No departments matched your query "{{ query }}".
+            No departments matched your query "{{ query }}".
             {% else %}
-              No departments defined yet. Click <strong>Add Department</strong> above to create one.
+            No departments defined yet. Click <strong>Add Department</strong> above to create one.
             {% endif %}
           </td>
         </tr>
@@ -173,20 +160,23 @@
 
   <!-- Pagination -->
   {% if departments.has_other_pages %}
-  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+  <div
+    style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="text-muted text-xs">
       Showing page {{ departments.number }} of {{ departments.paginator.num_pages }}
     </div>
     <div class="flex items-center gap-2">
       {% if departments.has_previous %}
-        <a href="?page={{ departments.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline" style="padding: 6px 12px;">
-          <i class="fas fa-chevron-left"></i> Previous
-        </a>
+      <a href="?page={{ departments.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+        class="btn btn-outline" style="padding: 6px 12px;">
+        <i class="fas fa-chevron-left"></i> Previous
+      </a>
       {% endif %}
       {% if departments.has_next %}
-        <a href="?page={{ departments.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline" style="padding: 6px 12px;">
-          Next <i class="fas fa-chevron-right"></i>
-        </a>
+      <a href="?page={{ departments.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-outline"
+        style="padding: 6px 12px;">
+        Next <i class="fas fa-chevron-right"></i>
+      </a>
       {% endif %}
     </div>
   </div>
@@ -215,7 +205,8 @@
           <label class="form-label" for="dept_code">Department Code <span class="text-danger">*</span></label>
           <div class="input-wrap">
             <i class="fas fa-tag input-icon"></i>
-            <input type="text" name="code" id="dept_code" class="form-control" placeholder="e.g. CITCS, CEAS, CMAT" maxlength="20" required style="text-transform: uppercase;">
+            <input type="text" name="code" id="dept_code" class="form-control" placeholder="e.g. CITCS, CEAS, CMAT"
+              maxlength="20" required style="text-transform: uppercase;">
           </div>
           <span class="text-muted text-xs">Unique acronym identifying the collegiate department</span>
         </div>
@@ -224,7 +215,8 @@
           <label class="form-label" for="dept_name">Full Department Name <span class="text-danger">*</span></label>
           <div class="input-wrap">
             <i class="fas fa-building input-icon"></i>
-            <input type="text" name="name" id="dept_name" class="form-control" placeholder="e.g. College of Information Technology and Computer Studies" maxlength="150" required>
+            <input type="text" name="name" id="dept_name" class="form-control"
+              placeholder="e.g. College of Information Technology and Computer Studies" maxlength="150" required>
           </div>
         </div>
 
@@ -258,10 +250,12 @@
     <form method="POST" id="deleteDeptForm" action="">
       {% csrf_token %}
       <div class="modal-body">
-        <p class="text-secondary">Are you sure you want to remove department <strong id="delete_dept_code" class="text-primary"></strong>?</p>
+        <p class="text-secondary">Are you sure you want to remove department <strong id="delete_dept_code"
+            class="text-primary"></strong>?</p>
         <div id="delete_dept_warning" class="auth-alert auth-alert--warning mt-3" style="display: none;">
           <i class="fas fa-triangle-exclamation"></i>
-          <span>This department has associated programs or faculty. It will be <strong>safely deactivated</strong> instead of deleted to protect academic records.</span>
+          <span>This department has associated programs or faculty. It will be <strong>safely deactivated</strong>
+            instead of deleted to protect academic records.</span>
         </div>
       </div>
       <div class="modal-footer">
@@ -278,6 +272,4 @@
 <script src="{% static 'js/departments/departments_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/departments/department_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/departments/delete_department.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 {% endblock %}
-

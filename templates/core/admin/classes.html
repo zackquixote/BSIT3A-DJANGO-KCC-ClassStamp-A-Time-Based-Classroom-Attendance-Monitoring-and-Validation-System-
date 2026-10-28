@@ -161,7 +161,7 @@
           <th>Weekly Timetable Schedule</th>
           <th>Roster Capacity</th>
           <th>Status</th>
-          <th style="text-align: right;">Actions</th>
+          <th style="text-align: right; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -178,7 +178,7 @@
           </td>
           <td>
             <div class="font-semibold text-sm">{{ c.subject.code }}</div>
-            <div class="text-xs text-muted" title="{{ c.subject.name }}">{{ c.subject.name|truncatechars:35 }}</div>
+            <div class="text-xs text-muted" title="{{ c.subject.name }}">{{ c.subject.name|truncatechars:26 }}</div>
           </td>
           <td>
             <div class="font-semibold text-sm">
@@ -192,13 +192,13 @@
               {% endif %}
             </div>
           </td>
-          <td style="max-width: 250px;">
+          <td style="max-width: 190px;">
             {% with slots=c.slots.all %}
               {% if slots %}
                 <div class="flex flex-col gap-1">
                   {% for slot in slots %}
                     {% if slot.is_active %}
-                      <div class="text-xs flex items-center gap-1.5" style="color: #cbd5e1;">
+                      <div class="text-xs flex items-center gap-1.5" style="color: #cbd5e1;" data-slot-id="{{ slot.id }}">
                         <span class="badge badge--dark badge--xs" style="background: rgba(255,255,255,0.06); font-weight: 700;">
                           {{ slot.get_weekday_display|slice:":3"|upper }}
                         </span>
@@ -230,35 +230,35 @@
               <span class="badge badge--dark badge--xs" style="color: #94a3b8;"><i class="fas fa-eye-slash"></i> Inactive</span>
             {% endif %}
           </td>
-          <td>
-            <div class="flex items-center gap-1.5" style="justify-content: flex-end;">
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="table-actions-cluster">
               <!-- Timetable Slots Button -->
-              <button type="button" class="btn btn-outline btn-xs btn-manage-slots"
+              <button type="button" class="btn btn-outline btn-xs btn-has-text btn-manage-slots"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
                       title="Manage Weekly Timetable Slots">
-                <i class="fas fa-clock"></i> Schedule
+                <i class="fas fa-clock"></i> <span class="action-btn-text">Schedule</span>
               </button>
 
               <!-- Attendance Matrix Button -->
-              <button type="button" class="btn btn-outline btn-xs js-open-matrix"
+              <button type="button" class="btn btn-outline btn-xs btn-has-text js-open-matrix"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
                       data-matrix-url="{% url 'class_attendance_matrix' c.id %}"
                       title="View Classroom Attendance Matrix Sheet">
-                <i class="fas fa-table-cells"></i> Matrix
+                <i class="fas fa-table-cells"></i> <span class="action-btn-text">Matrix</span>
               </button>
 
               <!-- Roster Enlistment Button -->
-              <button type="button" class="btn btn-outline btn-xs btn-manage-roster"
+              <button type="button" class="btn btn-outline btn-xs btn-has-text btn-manage-roster"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
                       title="Manage Enrolled Student Roster">
-                <i class="fas fa-users"></i> Roster
+                <i class="fas fa-users"></i> <span class="action-btn-text">Roster</span>
               </button>
 
               <!-- Edit Class Button -->
-              <button type="button" class="btn btn-ghost btn-xs btn-edit-class"
+              <button type="button" class="btn btn-outline btn-icon-xs btn-edit-class"
                       data-id="{{ c.id }}"
                       data-code="{{ c.class_code }}"
                       data-subject-id="{{ c.subject_id }}"
@@ -267,13 +267,13 @@
                       data-capacity="{{ c.capacity|default:'' }}"
                       data-grace="{{ c.grace_minutes }}"
                       title="Edit Section Details">
-                <i class="fas fa-pen"></i>
+                <i class="fas fa-pen text-gold"></i>
               </button>
 
               <!-- Toggle Active Button -->
-              <form method="POST" action="{% url 'class_toggle' c.id %}" style="display: inline;">
+              <form method="POST" action="{% url 'class_toggle' c.id %}" style="display: inline; margin: 0;">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-ghost btn-xs text-muted"
+                <button type="submit" class="btn btn-outline btn-icon-xs text-muted"
                         title="{% if c.is_active %}Deactivate Section{% else %}Activate Section{% endif %}">
                   <i class="fas {% if c.is_active %}fa-pause text-warning{% else %}fa-play text-success{% endif %}"></i>
                 </button>
@@ -631,22 +631,23 @@
 </script>
 
 <!-- ── Subject Cascade Filter Data & Logic ───────────────────────── -->
-<script id="subjectCascadeData"
-        data-subjects="{{ subjects_json|escapejs }}"
-        data-departments="{{ departments_json|escapejs }}"
-        data-programs="{{ programs_json|escapejs }}"
-        data-curriculum="{{ curriculum_map_json|escapejs }}">
-</script>
+{{ subjects_json|json_script:"cascade-subjects" }}
+{{ departments_json|json_script:"cascade-departments" }}
+{{ programs_json|json_script:"cascade-programs" }}
+{{ curriculum_map_json|json_script:"cascade-curriculum" }}
 <script>
 (function () {
   'use strict';
 
-  var dataEl      = document.getElementById('subjectCascadeData');
-  if (!dataEl) return;
+  function parseJsonScript(id, fallback) {
+    var el = document.getElementById(id);
+    if (!el) return fallback;
+    try { return JSON.parse(el.textContent); } catch (e) { return fallback; }
+  }
 
-  var ALL_SUBJECTS    = JSON.parse(dataEl.dataset.subjects    || '[]');
-  var ALL_PROGRAMS    = JSON.parse(dataEl.dataset.programs    || '[]');
-  var CURRICULUM_MAP  = JSON.parse(dataEl.dataset.curriculum  || '{}');
+  var ALL_SUBJECTS   = parseJsonScript('cascade-subjects',   []);
+  var ALL_PROGRAMS   = parseJsonScript('cascade-programs',   []);
+  var CURRICULUM_MAP = parseJsonScript('cascade-curriculum', {});
   // { "program_id": { "year_level": [subject_id, ...] } }
 
   var deptSel    = document.getElementById('cascadeDept');

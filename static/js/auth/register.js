@@ -153,6 +153,86 @@
         studentTypeSelect.dispatchEvent(new Event('change'));
       }
     }
+
+    // 7. Live Password Strength & Match Indicator
+    var pwdInput = document.getElementById('id_password');
+    var confirmInput = document.getElementById('id_confirm_password');
+    var strWrap = document.getElementById('passwordStrengthWrap');
+    var strBars = [
+      document.getElementById('strBar1'),
+      document.getElementById('strBar2'),
+      document.getElementById('strBar3'),
+      document.getElementById('strBar4')
+    ];
+    var strText = document.getElementById('passwordStrengthText');
+    var matchStatus = document.getElementById('passwordMatchStatus');
+
+    function checkPasswordStrength(val) {
+      if (!val) return 0;
+      var score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+      if (/\d/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+      return Math.max(1, score);
+    }
+
+    function updateStrength() {
+      if (!pwdInput || !strWrap) return;
+      var val = pwdInput.value;
+      if (!val) {
+        strWrap.style.display = 'none';
+        updateMatch();
+        return;
+      }
+
+      strWrap.style.display = 'block';
+      var score = checkPasswordStrength(val);
+
+      var colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
+      var labels = ['Weak (needs 8+ chars)', 'Fair', 'Good', 'Strong & Secure'];
+
+      strBars.forEach(function (bar, idx) {
+        if (bar) {
+          bar.style.background = idx < score ? colors[score - 1] : 'transparent';
+        }
+      });
+
+      if (strText) {
+        strText.textContent = labels[score - 1];
+        strText.style.color = colors[score - 1];
+      }
+
+      updateMatch();
+    }
+
+    function updateMatch() {
+      if (!confirmInput || !matchStatus) return;
+      var pVal = pwdInput ? pwdInput.value : '';
+      var cVal = confirmInput.value;
+
+      if (!cVal) {
+        matchStatus.style.display = 'none';
+        confirmInput.style.borderColor = '';
+        return;
+      }
+
+      matchStatus.style.display = 'block';
+      if (pVal === cVal) {
+        matchStatus.innerHTML = '<span style="color: #10b981;"><i class="fas fa-circle-check"></i> Passwords match</span>';
+        confirmInput.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+      } else {
+        matchStatus.innerHTML = '<span style="color: #f87171;"><i class="fas fa-circle-xmark"></i> Passwords do not match</span>';
+        confirmInput.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+      }
+    }
+
+    if (pwdInput) {
+      pwdInput.addEventListener('input', updateStrength);
+    }
+    if (confirmInput) {
+      confirmInput.addEventListener('input', updateMatch);
+    }
   }
 
   if (document.readyState === 'loading') {

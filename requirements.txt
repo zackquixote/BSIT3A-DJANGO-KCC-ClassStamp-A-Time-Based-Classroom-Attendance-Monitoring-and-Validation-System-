@@ -1,7 +1,13 @@
+﻿asgiref==3.12.1
+colorama==0.4.6
 Django==4.2.30
+django-sslserver==0.22
+et_xmlfile==2.0.0
 mysqlclient==2.2.8
 openpyxl==3.1.5
+pillow==12.3.0
+PyOTP==2.10.0
 python-dotenv==1.1.1
-pyotp==2.10.0
 qrcode==8.2
-Pillow==12.1.1
+sqlparse==0.6.0
+tzdata==2026.3

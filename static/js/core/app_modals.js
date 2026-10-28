@@ -35,7 +35,10 @@
     if (!modal) return;
 
     modal.classList.remove('is-active', 'is-open');
-    document.body.style.overflow = '';
+    var remainingModal = document.querySelector('.modal.is-active, .modal.is-open');
+    if (!remainingModal) {
+      document.body.style.overflow = '';
+    }
 
     // Smoothly return focus to the trigger button
     if (modal.id && modalTriggers[modal.id]) {

@@ -1,9 +1,9 @@
-﻿/* =============================================================
-   KCC ClassStamp â€” Reusable UI Components
-   Cards Â· Stat Cards Â· Buttons Â· Forms Â· Modals Â· Tables Â· Badges
+/* =============================================================
+   KCC ClassStamp — Reusable UI Components
+   Cards · Stat Cards · Buttons · Forms · Modals · Tables · Badges
    ============================================================= */
 
-/* â”€â”€ Role Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Role Badges ─────────────────────────────────────────────── */
 .role-badge {
   display: inline-flex;
   align-items: center;
@@ -33,7 +33,7 @@
   border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
-/* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Cards ───────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
@@ -55,14 +55,14 @@
   box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-/* â”€â”€ Stat Cards & Modern Responsive Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Stat Cards & Modern Responsive Grid ─────────────────────── */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
-/* â”€â”€ Admin Dashboard KPI Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Admin Dashboard KPI Grid ────────────────────────────────── */
 .admin-kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -142,7 +142,7 @@
   border: 1px solid var(--glass-border);
 }
 
-/* â”€â”€ Activity Feed Rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Activity Feed Rows ───────────────────────────────────────── */
 .activity-row {
   display: flex;
   align-items: center;
@@ -214,7 +214,7 @@
   text-decoration: none;
 }
 
-/* â”€â”€ Quick Launch Grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Quick Launch Grid ────────────────────────────────────────── */
 .quick-launch-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -258,7 +258,7 @@
   font-size: 1.1rem;
 }
 
-/* â”€â”€ Dashboard Two-Column Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Dashboard Two-Column Layout ─────────────────────────────── */
 .dashboard-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
@@ -487,7 +487,7 @@
   display: block;
 }
 
-/* â”€â”€ Buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Buttons ─────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -580,8 +580,47 @@
 }
 
 .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 0.74rem;
+  height: 28px;
+  border-radius: var(--radius-xs, 6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-icon-xs,
+.table-actions-cluster .btn:not(.btn-has-text) {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.78rem !important;
+  border-radius: var(--radius-xs, 6px) !important;
+  flex-shrink: 0 !important;
+  gap: 0 !important;
+}
 
-/* â”€â”€ Forms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.table-actions-cluster .btn.btn-has-text {
+  width: auto !important;
+  max-width: none !important;
+  padding: 4px 8px !important;
+  gap: 4px !important;
+}
+
+.table-actions-cluster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+/* ── Forms ───────────────────────────────────────────────────── */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -718,7 +757,7 @@ select.form-control option:hover {
   padding-right: 42px;
 }
 
-/* â”€â”€ Form Switch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Form Switch ─────────────────────────────────────────────── */
 .form-switch {
   display: flex;
   align-items: center;
@@ -760,7 +799,7 @@ select.form-control option:hover {
   transform: translateX(18px);
 }
 
-/* â”€â”€ Status Badges & Pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Status Badges & Pills ───────────────────────────────────── */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -815,7 +854,7 @@ select.form-control option:hover {
   font-weight: 700;
 }
 
-/* â”€â”€ Student Profile Initials Avatar Shortcut (Professional Badge) â”€â”€ */
+/* ── Student Profile Initials Avatar Shortcut (Professional Badge) ── */
 .student-avatar-initial {
   width: 36px;
   height: 36px;
@@ -843,7 +882,7 @@ select.form-control option:hover {
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
 }
 
-/* â”€â”€ Vector Avatars (Male & Female Illustration Profiles) â”€â”€â”€â”€â”€â”€ */
+/* ── Vector Avatars (Male & Female Illustration Profiles) ────── */
 .student-avatar-wrap {
   position: relative;
   width: 38px;
@@ -900,7 +939,7 @@ select.form-control option:hover {
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
 }
 
-/* â”€â”€ Student ID Number Tag (Single-line guaranteed) â”€â”€ */
+/* ── Student ID Number Tag (Single-line guaranteed) ── */
 .student-id-tag {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-weight: 700;
@@ -919,7 +958,7 @@ select.form-control option:hover {
 }
 
 
-/* â”€â”€ Tables & Lists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Tables & Lists ─────────────────────────────────────────── */
 .table-wrap,
 .table-responsive {
   width: 100%;
@@ -944,11 +983,11 @@ select.form-control option:hover {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 13px 18px;
+  padding: 9px 10px;
   text-align: left;
   border-bottom: 1px solid var(--glass-border);
   white-space: nowrap;
-  /* â”€â”€ #14 Sticky Table Headers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── #14 Sticky Table Headers ────────────────────────────── */
   position: sticky;
   top: 0;
   z-index: 5;
@@ -957,7 +996,7 @@ select.form-control option:hover {
 }
 
 .table td {
-  padding: 14px 18px;
+  padding: 9px 10px;
   color: var(--text-secondary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   vertical-align: middle;
@@ -991,7 +1030,7 @@ select.form-control option:hover {
   max-height: 72vh;
 }
 
-/* â”€â”€ #11/#3 Batch-Action Floating Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── #11/#3 Batch-Action Floating Bar ────────────────────── */
 .batch-action-bar {
   position: fixed;
   bottom: 24px;
@@ -1026,7 +1065,7 @@ select.form-control option:hover {
   color: var(--accent-gold);
 }
 
-/* â”€â”€ Batch Checkbox Column â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Batch Checkbox Column ───────────────────────────────── */
 .batch-check-col { width: 40px; padding-left: 16px !important; }
 .batch-check {
   width: 16px;
@@ -1035,7 +1074,7 @@ select.form-control option:hover {
   cursor: pointer;
 }
 
-/* â”€â”€ #12b Breadcrumb Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── #12b Breadcrumb Navigation ──────────────────────────── */
 .breadcrumb-nav {
   display: flex;
   align-items: center;
@@ -1056,7 +1095,7 @@ select.form-control option:hover {
 }
 .breadcrumb-separator { opacity: 0.35; font-size: 0.65rem; }
 
-/* â”€â”€ #13 Keyboard Shortcut Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── #13 Keyboard Shortcut Modal ─────────────────────────── */
 .shortcut-modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1100,7 +1139,7 @@ kbd {
   margin-bottom: 12px;
 }
 
-/* â”€â”€ Toast Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Toast Notifications ─────────────────────────────────────── */
 .toast-container {
   position: fixed;
   top: 20px;
@@ -1174,7 +1213,7 @@ kbd {
   transform: translateX(30px) scale(0.95);
 }
 
-/* â”€â”€ Global Confirm & Alert Dialogs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Global Confirm & Alert Dialogs ─────────────────────────── */
 .confirm-dialog {
   max-width: 440px;
   background: rgba(15, 23, 42, 0.96) !important;
@@ -1204,7 +1243,7 @@ kbd {
   animation: toast-in 0.25s ease forwards;
 }
 
-/* â”€â”€ Page Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Page Header ─────────────────────────────────────────────── */
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -1226,7 +1265,7 @@ kbd {
   margin-top: 2px;
 }
 
-/* â”€â”€ Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Modals ──────────────────────────────────────────────────── */
 .modal,
 .modal-overlay {
   position: fixed;
@@ -1337,7 +1376,7 @@ kbd {
   border-top: 1px solid var(--glass-border);
 }
 
-/* â”€â”€ Pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Pagination ──────────────────────────────────────────────── */
 .pagination {
   display: flex;
   align-items: center;
@@ -1373,7 +1412,7 @@ kbd {
   font-weight: 700;
 }
 
-/* â”€â”€ Responsive Component Adjustments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Responsive Component Adjustments ────────────────────────── */
 /* Tablet (iPad mini, iPad Pro 11", Surface Pro 8: 769px - 1024px) */
 @media (max-width: 1024px) {
   .stat-grid {
@@ -1473,7 +1512,7 @@ kbd {
   }
 }
 
-/* â”€â”€ #7 Document Lightbox Inspector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── #7 Document Lightbox Inspector ──────────────────────── */
 .app-lightbox-modal {
   position: fixed;
   inset: 0;

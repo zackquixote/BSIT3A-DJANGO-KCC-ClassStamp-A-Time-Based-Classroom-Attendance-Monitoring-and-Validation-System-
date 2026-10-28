@@ -111,7 +111,7 @@
           </th>
           <th>Curriculum</th>
           <th>Status</th>
-          <th style="text-align: right; width: 200px;">Actions</th>
+          <th style="text-align: right; width: 140px; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -122,16 +122,16 @@
             <span class="badge badge--purple font-semibold" style="letter-spacing:0.5px;">{{ s.code }}</span>
           </td>
           <td>
-            <span class="font-semibold text-primary">{{ s.name }}</span>
+            <span class="font-semibold text-primary" title="{{ s.name }}">{{ s.name|truncatechars:32 }}</span>
           </td>
           <td class="text-muted text-sm"
-            style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            {{ s.description|default:"—"|truncatechars:60 }}
+            style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ s.description }}">
+            {{ s.description|default:"—"|truncatechars:35 }}
           </td>
           <td>
             <span class="badge badge--blue">{{ s.class_count }}</span>
           </td>
-          <td style="min-width: 180px;">
+          <td style="max-width: 180px;">
             {% if s.current_teachers %}
               <div style="display:flex; flex-wrap:wrap; gap:4px;">
                 {% for tname in s.current_teachers %}
@@ -158,22 +158,22 @@
             <span class="badge badge--muted">Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right;">
-            <div class="flex justify-end gap-2">
+          <td style="text-align: right; white-space: nowrap;">
+            <div class="table-actions-cluster">
               <a href="{% url 'class_list' %}?subject={{ s.id }}&create=1"
-                 class="btn btn-outline btn-sm"
+                 class="btn btn-outline btn-icon-xs"
                  style="color: var(--teal, #0d9488); border-color: var(--teal, #0d9488);"
                  title="Assign Teacher — Open Classes page for {{ s.code }}">
                 <i class="fas fa-chalkboard-teacher"></i>
               </a>
-              <button class="btn btn-outline btn-sm js-curriculum-btn" data-id="{{ s.id }}" data-code="{{ s.code }}"
+              <button class="btn btn-outline btn-icon-xs js-curriculum-btn" data-id="{{ s.id }}" data-code="{{ s.code }}"
                 title="Curriculum Mapping">
                 <i class="fas fa-sitemap"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit">
+              <button class="btn btn-outline btn-icon-xs js-edit-subject" data-id="{{ s.id }}" title="Edit">
                 <i class="fas fa-pen"></i>
               </button>
-              <button class="btn btn-danger btn-sm js-delete-subject" data-id="{{ s.id }}" data-code="{{ s.code }}"
+              <button class="btn btn-danger btn-icon-xs js-delete-subject" data-id="{{ s.id }}" data-code="{{ s.code }}"
                 title="Delete">
                 <i class="fas fa-trash"></i>
               </button>

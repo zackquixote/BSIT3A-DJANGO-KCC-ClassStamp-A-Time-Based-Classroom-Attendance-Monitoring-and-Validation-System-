@@ -17,6 +17,13 @@ if not SECRET_KEY:  # noqa: F405
 if not ALLOWED_HOSTS:  # noqa: F405
     raise RuntimeError('DJANGO_ALLOWED_HOSTS must be set in the environment for production.')
 
+# CSRF trusted origins for HTTPS in production (Django 4+)
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{h.strip()}"
+    for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if h.strip()
+]
+
 # HTTPS / transport security.
 SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True') == 'True'
 SESSION_COOKIE_SECURE = True

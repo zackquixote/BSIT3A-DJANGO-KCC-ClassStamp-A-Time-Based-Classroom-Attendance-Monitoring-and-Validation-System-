@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="{% static 'css/variables.css' %}">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261026_sz2">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261028_opt_b">
   <link rel="stylesheet" href="{% static 'css/register.css' %}">
 </head>
 <body class="kcc-auth-page">
@@ -319,6 +319,19 @@
                   Show
                 </button>
               </div>
+              <!-- Live Password Strength Meter -->
+              <div id="passwordStrengthWrap" style="display: none; margin-top: 6px;">
+                <div style="display: flex; gap: 4px; height: 4px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, 0.1);">
+                  <div id="strBar1" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
+                  <div id="strBar2" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
+                  <div id="strBar3" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
+                  <div id="strBar4" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 0.74rem;">
+                  <span id="passwordStrengthLabel" style="color: #94a3b8; font-weight: 500;">Password strength</span>
+                  <span id="passwordStrengthText" style="font-weight: 600;"></span>
+                </div>
+              </div>
               {% if errors.password %}
                 <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.password }}</span>
               {% endif %}
@@ -341,6 +354,8 @@
                   Show
                 </button>
               </div>
+              <!-- Live Password Match Indicator -->
+              <div id="passwordMatchStatus" style="display: none; margin-top: 6px; font-size: 0.78rem; font-weight: 500;"></div>
               {% if errors.confirm_password %}
                 <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.confirm_password }}</span>
               {% endif %}
@@ -390,6 +405,6 @@
 
   </div>
 
-  <script src="{% static 'js/auth/register.js' %}?v=20261020_v1"></script>
+  <script src="{% static 'js/auth/register.js' %}?v=20261028_pwd"></script>
 </body>
 </html>

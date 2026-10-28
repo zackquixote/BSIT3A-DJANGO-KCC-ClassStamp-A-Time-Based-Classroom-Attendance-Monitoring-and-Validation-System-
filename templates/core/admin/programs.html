@@ -115,14 +115,10 @@
         <tr data-row-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-years="{{ p.years_total }}">
           <td class="text-muted">{{ p.id }}</td>
           <td>
-            <span class="js-inline-editable" data-type="program" data-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-field="code" data-value="{{ p.code }}">
-              <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
-            </span>
+            <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ p.code }}</span>
           </td>
           <td>
-            <span class="js-inline-editable" data-type="program" data-id="{{ p.id }}" data-department-id="{{ p.department_id }}" data-field="name" data-value="{{ p.name }}">
-              <span class="text-primary font-semibold">{{ p.name }}</span>
-            </span>
+            <span class="text-primary font-semibold">{{ p.name }}</span>
             <div class="text-muted text-xs">Created {{ p.created_at|date:"M j, Y" }}</div>
           </td>
           <td>
@@ -419,7 +415,6 @@
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
 
 <style>
 .year-chip {
