@@ -242,6 +242,15 @@
               <button class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit">
                 <i class="fas fa-pen"></i>
               </button>
+              <button class="btn btn-outline btn-sm js-reassign-teacher"
+                      data-id="{{ t.id }}"
+                      data-name="{{ t.user.get_full_name|default:t.user.username }}"
+                      data-dept-code="{{ t.department.code|default:'None' }}"
+                      data-dept-id="{{ t.department.id|default:'' }}"
+                      data-class-count="{{ t.taught_classes.all|length }}"
+                      title="Reassign Department">
+                <i class="fas fa-right-left text-blue"></i>
+              </button>
               <button class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Force Reset Password">
                 <i class="fas fa-key text-warning"></i>
               </button>
@@ -350,6 +359,43 @@
     </div>
     <div class="modal-body" id="teacherDetailBody" style="max-height: 80vh; overflow-y: auto;">
       <div class="text-muted text-center" style="padding:40px;">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Department Reassignment (A-12) -->
+<div class="modal" id="reassignTeacherModal">
+  <div class="modal-dialog" style="max-width: 480px;">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-right-left text-blue"></i> Reassign Department</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="reassignTeacherModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom: 10px;">
+        Transfer <strong id="reassignTeacherName"></strong> to another academic department.
+      </p>
+      <div id="reassignLoadOverview" class="toast toast--info mb-3" style="display:block; margin-top: 6px;">
+        <i class="fas fa-circle-info"></i>
+        <span id="reassignLoadText">Loading overview…</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="reassignDept">New Department <span class="text-danger">*</span></label>
+        <select id="reassignDept" class="form-control" autocomplete="off" required>
+          <option value="">— select department —</option>
+          {% for d in departments %}
+          <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <p class="text-muted text-sm">
+        <i class="fas fa-shield-halved"></i>
+        Assigned class sections are left intact; the transfer is recorded in the audit log.
+      </p>
+      <div id="reassignError" class="toast toast--error mt-3" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-modal-dismiss="reassignTeacherModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="reassignConfirm"><i class="fas fa-right-left"></i> Reassign</button>
     </div>
   </div>
 </div>
@@ -538,6 +584,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<div id="teacher-reassign-boot" hidden data-reassign-url="{% url 'teacher_reassign_ajax' 0 %}"></div>
 {% load static %}
 <script src="{% static 'js/teachers/teachers_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/bulk_teacher_actions.js' %}?v=20261022_v1"></script>
@@ -549,4 +596,5 @@
 <script src="{% static 'js/teachers/toggle_teacher.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/reassign_teacher.js' %}?v=20261027_v1"></script>
 {% endblock %}

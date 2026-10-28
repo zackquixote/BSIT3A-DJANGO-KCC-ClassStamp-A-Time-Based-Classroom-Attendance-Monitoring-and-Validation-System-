@@ -18,14 +18,14 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
-from apps.core.models import AuditEvent, Class, Department, Profile, Program
+from apps.core.models import AcademicYear, AuditEvent, Class, Department, Profile, Program
 from apps.core.services import (
     build_student_queryset,
     export_student_directory_csv,
@@ -71,7 +71,11 @@ def student_directory(request):
     # Filter dropdown choices
     departments = Department.objects.filter(is_active=True).order_by('name')
     programs = Program.objects.filter(is_active=True).select_related('department').order_by('code')
-    sections = Class.objects.filter(is_active=True).values_list('class_code', flat=True).distinct().order_by('class_code')
+    active_ay = AcademicYear.objects.filter(is_active=True).first()
+    sections_qs = Class.objects.filter(is_active=True)
+    if active_ay:
+        sections_qs = sections_qs.filter(academic_year=active_ay)
+    sections = sections_qs.values_list('class_code', flat=True).distinct().order_by('class_code')
 
     # Aggregate counts across all registered students
     total_students = Profile.objects.filter(role=Profile.ROLE_STUDENT).count()
@@ -81,25 +85,8 @@ def student_directory(request):
 
     filtered_count = students_qs.count()
 
-    # Dynamic year level counts reflecting active department/program/status/search context
-    year_count_base = Profile.objects.filter(role=Profile.ROLE_STUDENT)
-    if dept_id:
-        year_count_base = year_count_base.filter(program__department_id=dept_id)
-    if prog_id:
-        year_count_base = year_count_base.filter(program_id=prog_id)
-    if status in [Profile.APPROVAL_APPROVED, Profile.APPROVAL_PENDING, Profile.APPROVAL_REJECTED]:
-        year_count_base = year_count_base.filter(approval_status=status)
-    if section:
-        year_count_base = year_count_base.filter(enrollments__class_obj__class_code__icontains=section).distinct()
-    if q:
-        year_count_base = year_count_base.filter(
-            Q(user__first_name__icontains=q) |
-            Q(user__last_name__icontains=q) |
-            Q(user__username__icontains=q) |
-            Q(user__email__icontains=q) |
-            Q(student_number__icontains=q)
-        )
-
+    # Dynamic year level counts follow the same filters as the listing itself
+    year_count_base = students_qs
     count_all_years = year_count_base.count()
     count_y1 = year_count_base.filter(year_level=1).count()
     count_y2 = year_count_base.filter(year_level=2).count()

@@ -88,6 +88,7 @@ def serialize_subject(subject) -> dict:
         'code': subject.code,
         'name': subject.name,
         'description': subject.description or '',
+        'units': subject.units,
         'is_active': subject.is_active,
         'class_count': getattr(subject, 'class_count', subject.classes.count() if hasattr(subject, 'classes') else 0),
         'curriculum_count': getattr(subject, 'curriculum_count', subject.curriculum_entries.count() if hasattr(subject, 'curriculum_entries') else 0),
@@ -105,6 +106,7 @@ def serialize_subject_summary(subject) -> dict:
         'id': subject.id,
         'code': subject.code,
         'name': subject.name,
+        'units': subject.units,
         'is_active': subject.is_active,
     }
 

@@ -46,6 +46,10 @@
       {% endwith %}
 
       <span class="sidebar-section-label">Organisation</span>
+      <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}">
+        <i class="fas fa-calendar-days sidebar-link-icon"></i>
+        <span>Academic Years</span>
+      </a>
       <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}">
         <i class="fas fa-building sidebar-link-icon"></i>
         <span>Departments</span>
@@ -65,10 +69,6 @@
       <a href="{% url 'class_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':5' == 'class' %}active{% endif %}">
         <i class="fas fa-chalkboard sidebar-link-icon"></i>
         <span>Classes &amp; Schedules</span>
-      </a>
-      <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}">
-        <i class="fas fa-calendar-days sidebar-link-icon"></i>
-        <span>Academic Years</span>
       </a>
       <a href="{% url 'admin_calendar' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'admin_calendar' %}active{% endif %}" title="Institutional Calendar & Milestones">
         <i class="fas fa-calendar-alt sidebar-link-icon"></i>

@@ -34,6 +34,8 @@ from .approval_service import (
     reject_student_registration,
 )
 from .auth_service import provision_student_account
+from .backup_service import stream_database_backup
+from .storage_optimizer import optimize_proof_upload
 from .attendance_service import build_attendance_matrix
 from .class_service import ClassAssignmentError, assign_class
 from .export_service import (
@@ -48,6 +50,7 @@ from .student_service import (
 from .teacher_service import (
     provision_teacher_account,
     update_teacher_profile,
+    reassign_teacher_department,
     toggle_teacher_active,
     set_teacher_active,
     reset_teacher_password,
@@ -58,6 +61,13 @@ from .holiday_service import (
     calculate_easter_sunday,
     get_philippine_holidays,
     seed_philippine_holidays,
+)
+
+from .schedule_service import (
+    detect_slot_conflicts,
+    eligible_teachers_for,
+    suggest_section_letter,
+    validate_slot_times,
 )
 
 from .anomaly_service import (
@@ -97,6 +107,7 @@ __all__ = [
     # Teacher Management
     'provision_teacher_account',
     'update_teacher_profile',
+    'reassign_teacher_department',
     'toggle_teacher_active',
     'set_teacher_active',
     'reset_teacher_password',
@@ -106,6 +117,9 @@ __all__ = [
     'reject_student_registration',
     # Auth provisioning
     'provision_student_account',
+    # Backup & storage optimization
+    'stream_database_backup',
+    'optimize_proof_upload',
     # Student directory & import
     'build_student_queryset',
     'import_students_from_csv',
@@ -122,6 +136,11 @@ __all__ = [
     'calculate_easter_sunday',
     'get_philippine_holidays',
     'seed_philippine_holidays',
+    # Schedule & Timetable (A-19)
+    'detect_slot_conflicts',
+    'eligible_teachers_for',
+    'suggest_section_letter',
+    'validate_slot_times',
     # Anomaly / Fraud Detection
     'RULE_TOKEN_REPLAY_ACROSS_SESSION',
     'RULE_DUPLICATE_STAMP_ATTEMPT',

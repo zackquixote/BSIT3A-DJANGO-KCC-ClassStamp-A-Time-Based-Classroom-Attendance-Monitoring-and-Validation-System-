@@ -12,10 +12,10 @@
 """
 
 from django.conf import settings
-from django.core.validators import MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from .academic import AcademicYear, Subject
+from .academic import AcademicYear, Program, Subject
 from .profile import Profile
 
 
@@ -45,6 +45,18 @@ class Class(models.Model):
         on_delete=models.RESTRICT,
         related_name='taught_classes',
         help_text="// Instructor responsible for class delivery"
+    )
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='class_sections',
+        help_text="// Owning degree program the section serves (curriculum context)"
+    )
+    year_level = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(8)],
+        help_text="// Standing year level the section serves (1 = 1st Year, etc.)"
     )
     capacity = models.PositiveIntegerField(
         null=True, blank=True,

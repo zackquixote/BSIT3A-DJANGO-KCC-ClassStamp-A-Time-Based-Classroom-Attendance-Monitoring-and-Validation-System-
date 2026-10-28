@@ -29,9 +29,14 @@ def _teacher_label(profile) -> str:
 def assign_class(
     *, actor, teacher_profile, academic_year, subject, class_code,
     grace_minutes=10, capacity=None, class_obj=None, reassign_existing=False,
+    program=None, year_level=None,
 ):
     """
     // [Service] Creates or updates a Class assignment and writes its audit event.
+    //
+    // program/year_level are optional curriculum context. They are only applied
+    // when explicitly provided so callers without those fields (e.g. the legacy
+    // class modal) cannot silently wipe backfilled values.
     //
     // Returns: dict with keys class, created, reassigned_from
     // Raises: ClassAssignmentError on duplicate/invalid assignment.
@@ -80,6 +85,10 @@ def assign_class(
         class_obj.class_code = class_code
         class_obj.grace_minutes = grace_minutes
         class_obj.capacity = capacity
+        if program is not None:
+            class_obj.program = program
+        if year_level is not None:
+            class_obj.year_level = year_level
         if created or reassigned_from:
             class_obj.is_active = True
         class_obj.save()

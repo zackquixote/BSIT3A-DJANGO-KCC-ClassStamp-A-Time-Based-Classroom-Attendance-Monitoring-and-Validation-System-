@@ -14,6 +14,7 @@ urlpatterns = [
 
     # // Role-specific dashboard pages
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/database-backup/', views.admin_db_backup, name='admin_db_backup'),
     path('teacher/dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
     path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
     path('student/qr/', views.student_qr_badge, name='student_qr_badge'),
@@ -55,6 +56,8 @@ urlpatterns = [
     path('programs/save/', views.program_save, name='program_save'),
     path('programs/delete/<int:pk>/', views.program_delete, name='program_delete'),
     path('programs/<int:program_id>/curriculum/', views.program_curriculum_list, name='program_curriculum_list'),
+    path('programs/curriculum/assign/', views.subject_curriculum_assign, name='program_curriculum_assign'),
+    path('programs/curriculum/remove/<int:pk>/', views.subject_curriculum_remove, name='program_curriculum_remove'),
     path('programs/<int:program_id>/students/', views.program_students_per_year, name='program_students_per_year'),
     path('programs/export-csv/<int:program_id>/', views.program_students_csv_export, name='program_students_csv_export'),
 
@@ -63,14 +66,12 @@ urlpatterns = [
     path('subjects/save/', views.subject_save, name='subject_save'),
     path('subjects/delete/<int:pk>/', views.subject_delete, name='subject_delete'),
     path('subjects/get/<int:pk>/', views.subject_get, name='subject_get'),
-    path('subjects/<int:pk>/curriculum/', views.subject_curriculum_list, name='subject_curriculum_list'),
-    path('subjects/curriculum/assign/', views.subject_curriculum_assign, name='subject_curriculum_assign'),
-    path('subjects/curriculum/remove/<int:pk>/', views.subject_curriculum_remove, name='subject_curriculum_remove'),
 
     # // Admin: Teacher & Faculty Management
     path('teachers/', views.teacher_list, name='teacher_list'),
     path('teachers/create/', views.teacher_create, name='teacher_create'),
     path('teachers/update/<int:pk>/', views.teacher_update, name='teacher_update'),
+    path('teachers/<int:pk>/reassign/', views.teacher_reassign_ajax, name='teacher_reassign_ajax'),
     path('teachers/toggle/<int:pk>/', views.teacher_toggle, name='teacher_toggle'),
     path('teachers/bulk-operation/', views.bulk_teacher_operation, name='bulk_teacher_operation'),
     path('teachers/<int:pk>/reset-password/', views.admin_reset_teacher_password, name='admin_reset_teacher_password'),
@@ -104,8 +105,13 @@ urlpatterns = [
     path('classes/toggle/<int:pk>/', views.class_toggle, name='class_toggle'),
     path('classes/<int:class_id>/slot/save/', views.class_slot_save, name='class_slot_save'),
     path('classes/slot/delete/<int:slot_id>/', views.class_slot_delete, name='class_slot_delete'),
+    path('classes/wizard/options/', views.class_wizard_options, name='class_wizard_options'),
+    path('classes/wizard/save/', views.class_wizard_save, name='class_wizard_save'),
+    path('classes/wizard/check-slots/', views.class_wizard_slots_check, name='class_wizard_slots_check'),
+    path('classes/setup/', views.class_wizard_setup, name='class_wizard_setup'),
     path('classes/<int:class_id>/roster/', views.class_roster_get, name='class_roster_get'),
     path('classes/<int:class_id>/roster/enroll/', views.class_roster_enroll, name='class_roster_enroll'),
+    path('classes/<int:class_id>/roster/enroll-batch/', views.class_roster_enroll_batch, name='class_roster_enroll_batch'),
     path('classes/roster/remove/<int:enrollment_id>/', views.class_roster_remove, name='class_roster_remove'),
     path('classes/<int:class_id>/matrix/', views.class_attendance_matrix, name='class_attendance_matrix'),
 

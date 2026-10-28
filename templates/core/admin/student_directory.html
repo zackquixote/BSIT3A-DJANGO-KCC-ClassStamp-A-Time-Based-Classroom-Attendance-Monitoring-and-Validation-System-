@@ -338,6 +338,19 @@
     border: 1px solid rgba(147, 51, 234, 0.3);
     color: #c084fc;
     margin: 1px;
+    text-decoration: none;
+  }
+
+  .section-tag:hover {
+    background: rgba(147, 51, 234, 0.3);
+    color: #e9d5ff;
+  }
+
+  .section-tag--pending {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fcd34d;
+    cursor: default;
   }
 
   .unassigned-tag {
@@ -590,6 +603,7 @@
       title="Class Section"
     >
     <datalist id="sectionDatalist">
+      <option value="__unassigned__" label="Unassigned (no section)">
       {% for sec in sections %}
         <option value="{{ sec }}">
       {% endfor %}
@@ -740,19 +754,24 @@
             {% endif %}
           </td>
 
-          <!-- Enrolled Sections -->
+          <!-- Enrolled Sections (active academic year) -->
           <td>
-            {% with enrolls=student.enrollments.all %}
-              {% if enrolls %}
-                {% for e in enrolls %}
-                  <span class="section-tag" title="{{ e.class_obj.subject.name }}">
-                    {{ e.class_obj.class_code }}
-                  </span>
-                {% endfor %}
-              {% else %}
-                <span class="unassigned-tag">Unassigned</span>
-              {% endif %}
-            {% endwith %}
+            {% if student.active_section_enrollments or student.pending_section_enrollments %}
+              {% for e in student.active_section_enrollments %}
+                <a class="section-tag" href="?section={{ e.class_obj.class_code|urlencode }}"
+                   title="View classmates in {{ e.class_obj.class_code }} — {{ e.class_obj.subject.name }}">
+                  {{ e.class_obj.class_code }}
+                </a>
+              {% endfor %}
+              {% for e in student.pending_section_enrollments %}
+                <span class="section-tag section-tag--pending"
+                      title="Awaiting approval — {{ e.class_obj.subject.name }}">
+                  Pending: {{ e.class_obj.class_code }}
+                </span>
+              {% endfor %}
+            {% else %}
+              <span class="unassigned-tag">Unassigned</span>
+            {% endif %}
           </td>
 
           <!-- Status Badge -->

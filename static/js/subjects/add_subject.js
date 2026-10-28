@@ -15,37 +15,6 @@
     // Guard: only run if the add/edit subject modal exists on this page
     if (!getEl('addSubjectBtn')) return;
 
-    const inlineDeptSel = getEl('inlineDept');
-    const inlineProgSel = getEl('inlineProgram');
-    const inlineYearSel = getEl('inlineYearLevel');
-
-    // Inline curriculum cascade
-    if (inlineDeptSel) {
-      inlineDeptSel.addEventListener('change', function () {
-        const App = getApp();
-        if (App) App.populatePrograms(inlineProgSel, this.value, inlineYearSel);
-      });
-    }
-    if (inlineProgSel) {
-      inlineProgSel.addEventListener('change', function () {
-        const App = getApp();
-        if (App) App.populateYears(inlineProgSel, inlineYearSel);
-      });
-    }
-
-    // Toggle collapsible curriculum section
-    const toggleBtn = getEl('toggleCurrSection');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', function () {
-        const section = getEl('inlineCurrSection');
-        const icon = getEl('toggleCurrIcon');
-        if (!section) return;
-        const open = section.style.display === 'none';
-        section.style.display = open ? 'block' : 'none';
-        if (icon) icon.style.transform = open ? 'rotate(90deg)' : '';
-      });
-    }
-
     // Add Subject button click
     const addBtn = getEl('addSubjectBtn');
     if (addBtn) {
@@ -55,17 +24,9 @@
         const codeEl  = getEl('subjectCode');        if (codeEl)  codeEl.value = '';
         const nameEl  = getEl('subjectName');        if (nameEl)  nameEl.value = '';
         const descEl  = getEl('subjectDesc');        if (descEl)  descEl.value = '';
+        const unitEl  = getEl('subjectUnits');       if (unitEl)  unitEl.value = '3';
         const actEl   = getEl('subjectActive');      if (actEl)   actEl.checked = true;
         const errEl   = getEl('subjectFormError');   if (errEl)   errEl.style.display = 'none';
-
-        // Reset inline curriculum section
-        const inlineCurrSection = getEl('inlineCurrSection');
-        if (inlineCurrSection) inlineCurrSection.style.display = 'none';
-        const toggleCurrIcon = getEl('toggleCurrIcon');
-        if (toggleCurrIcon) toggleCurrIcon.style.transform = '';
-        if (inlineDeptSel) inlineDeptSel.value = '';
-        if (inlineProgSel) { inlineProgSel.innerHTML = '<option value="">— program —</option>'; inlineProgSel.disabled = true; }
-        if (inlineYearSel) { inlineYearSel.innerHTML = '<option value="">— year —</option>'; inlineYearSel.disabled = true; }
 
         const App = getApp();
         if (typeof window.openModal === 'function') {
@@ -79,7 +40,7 @@
       });
     }
 
-    // Save Subject (+ optional inline curriculum)
+    // Save Subject
     const saveBtn = getEl('subjectModalSave');
     if (saveBtn) {
       saveBtn.addEventListener('click', async function () {
@@ -112,23 +73,6 @@
               window.App.toast('error', data.error || 'Failed to save subject.');
             } else if (errEl) { errEl.style.display = 'block'; errEl.textContent = data.error; }
             return;
-          }
-
-          // Optionally assign to curriculum right now if inputs provided
-          const progId = inlineProgSel && inlineProgSel.value;
-          const yearLevel = inlineYearSel && inlineYearSel.value;
-          if (data.subject && progId && yearLevel) {
-            const cfd = new FormData();
-            cfd.append('subject_id', data.subject.id);
-            cfd.append('program_id', progId);
-            cfd.append('year_level', yearLevel);
-            try {
-              await fetch('/subjects/curriculum/assign/', {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCSRF() },
-                body: cfd,
-              });
-            } catch (_) { /* non-fatal */ }
           }
 
           if (typeof window.closeModal === 'function') {

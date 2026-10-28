@@ -46,10 +46,19 @@ def _seconds_remaining():
 def student_qr_badge(request):
     """Renders the personal rotating badge that teachers scan for attendance."""
     profile = getattr(request.user, 'classstamp_profile', None)
+
+    proof = profile.registration_proof
+    proof_is_image = False
+    if proof:
+        ext = (proof.name or '').lower().rsplit('.', 1)[-1]
+        proof_is_image = ext in {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+
     return render(request, 'core/student/qr_badge.html', {
         'profile': profile,
         'student_number': profile.student_number or request.user.get_username(),
         'has_qr_secret': bool(profile.qr_secret),
+        'proof': proof,
+        'proof_is_image': proof_is_image,
         'today': timezone.localdate(),
     })
 

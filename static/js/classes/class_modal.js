@@ -1,4 +1,4 @@
-/* KCC ClassStamp — Classes: Create / Edit Class Modal Controller */
+/* KCC ClassStamp — Classes: Edit Class Modal Controller */
 (function (window) {
   'use strict';
 
@@ -9,7 +9,6 @@
     var classModal = getEl('classModal');
     if (!classModal) return;
 
-    var classModalHeading = getEl('classModalHeading');
     var classForm         = getEl('classForm');
     var formClassId       = getEl('formClassId');
     var formClassCode     = getEl('formClassCode');
@@ -22,24 +21,12 @@
     var closeClassModal   = getEl('closeClassModal');
     var cancelClassModal  = getEl('cancelClassModal');
 
-    // Open Create Modal
-    var openCreateBtn = getEl('openCreateClassBtn');
-    if (openCreateBtn) {
-      openCreateBtn.addEventListener('click', function () {
-        if (classModalHeading) classModalHeading.textContent = 'Create Class Section';
-        if (formClassId) formClassId.value = '';
-        if (classForm) classForm.reset();
-        classModal.classList.add('is-open');
-      });
-    }
-
     // Event delegation for Edit button clicks
     document.addEventListener('click', function (e) {
       var editBtn = e.target.closest('.btn-edit-class');
       if (!editBtn) return;
 
       e.preventDefault();
-      if (classModalHeading) classModalHeading.textContent = 'Edit Class Section';
       if (formClassId)      formClassId.value      = editBtn.dataset.id || '';
       if (formClassCode)    formClassCode.value    = editBtn.dataset.code || '';
       if (formSubjectId)    formSubjectId.value    = editBtn.dataset.subjectId || '';

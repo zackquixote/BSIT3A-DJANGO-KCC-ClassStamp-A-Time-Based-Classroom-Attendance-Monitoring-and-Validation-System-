@@ -148,7 +148,6 @@ from .subject_views import (
     subject_save,
     subject_delete,
     subject_get,
-    subject_curriculum_list,
     subject_curriculum_assign,
     subject_curriculum_remove,
     subject_lookup_json,
@@ -166,9 +165,17 @@ from .teacher_views import (
     teacher_delete,
     teacher_get,
     teacher_list,
+    teacher_reassign_ajax,
     teacher_toggle,
     teacher_unassign_class_ajax,
     teacher_update,
+)
+
+# // ------------------------------------------------------------------------------
+# // 9b. Disaster Recovery / Database Backup Subsystem
+# // ------------------------------------------------------------------------------
+from .backup_views import (
+    admin_db_backup,
 )
 
 # // ------------------------------------------------------------------------------
@@ -190,12 +197,17 @@ from .class_views import (
     class_attendance_matrix,
     class_list,
     class_roster_enroll,
+    class_roster_enroll_batch,
     class_roster_get,
     class_roster_remove,
     class_save,
     class_slot_delete,
     class_slot_save,
     class_toggle,
+    class_wizard_options,
+    class_wizard_save,
+    class_wizard_setup,
+    class_wizard_slots_check,
 )
 
 # // ------------------------------------------------------------------------------
@@ -314,7 +326,6 @@ __all__ = [
     'subject_save',
     'subject_delete',
     'subject_get',
-    'subject_curriculum_list',
     'subject_curriculum_assign',
     'subject_curriculum_remove',
     'subject_lookup_json',
@@ -323,12 +334,16 @@ __all__ = [
     'teacher_list',
     'teacher_create',
     'teacher_update',
+    'teacher_reassign_ajax',
     'teacher_toggle',
     'teacher_delete',
     'teacher_get',
     'teacher_analytics_json',
     'bulk_teacher_operation',
     'admin_reset_teacher_password',
+
+    # Disaster Recovery
+    'admin_db_backup',
 
     # Academic Years
     'academic_year_list',
@@ -344,8 +359,13 @@ __all__ = [
     'class_toggle',
     'class_slot_save',
     'class_slot_delete',
+    'class_wizard_options',
+    'class_wizard_save',
+    'class_wizard_slots_check',
+    'class_wizard_setup',
     'class_roster_get',
     'class_roster_enroll',
+    'class_roster_enroll_batch',
     'class_roster_remove',
     'class_attendance_matrix',
 

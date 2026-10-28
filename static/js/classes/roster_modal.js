@@ -3,6 +3,7 @@
   'use strict';
 
   var currentRosterClassId = null;
+  var lastRosterClassId = null;
 
   function getEl(id) { return document.getElementById(id); }
   function getCSRF() {
@@ -65,17 +66,48 @@
     var rosterCountBadge        = getEl('rosterCountBadge');
     var rosterCapacityText      = getEl('rosterCapacityText');
     var availableStudentsSelect = getEl('availableStudentsSelect');
+    var programFilter           = getEl('rosterProgramFilter');
+    var yearFilter              = getEl('rosterYearFilter');
+    var batchLabel              = getEl('rosterBatchLabel');
 
     if (rosterStudentsList) {
       rosterStudentsList.innerHTML = '<p class="text-muted text-xs">Loading roster...</p>';
     }
 
-    fetch('/classes/' + classId + '/roster/')
+    var params = new URLSearchParams();
+    if (programFilter && programFilter.value) params.set('program_id', programFilter.value);
+    if (yearFilter && yearFilter.value) params.set('year_level', yearFilter.value);
+    var qs = params.toString() ? ('?' + params.toString()) : '';
+
+    fetch('/classes/' + classId + '/roster/' + qs)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.success) return;
         if (rosterCountBadge) rosterCountBadge.textContent = data.enrolled_count;
-        if (rosterCapacityText) rosterCapacityText.textContent = data.capacity ? ('Capacity: ' + data.capacity + ' max') : 'No capacity limit';
+        if (rosterCapacityText) {
+          rosterCapacityText.textContent = data.capacity
+            ? ('Seats: ' + data.enrolled_count + ' / ' + data.capacity)
+            : (data.enrolled_count + ' enrolled \u00b7 no capacity limit');
+        }
+
+        // Auto-scope the candidate filters to the section's own program/year
+        // the first time this section is opened, not on every reload.
+        if (classId !== lastRosterClassId) {
+          lastRosterClassId = classId;
+          if (programFilter) programFilter.value = data.class_program_id ? String(data.class_program_id) : '';
+          if (yearFilter) yearFilter.value = data.class_year_level ? String(data.class_year_level) : '';
+        }
+        if (batchLabel) {
+          var scope = [];
+          if (programFilter && programFilter.value) {
+            var opt = programFilter.options[programFilter.selectedIndex];
+            scope.push(opt ? opt.textContent : 'program');
+          }
+          if (yearFilter && yearFilter.value) scope.push('Year ' + yearFilter.value);
+          batchLabel.textContent = scope.length
+            ? ('Enlist All ' + scope.join(' ') + ' Students')
+            : 'Enlist All Matching Students';
+        }
 
         // Render available dropdown
         var optHtml = '<option value="">Choose an approved student to enlist...</option>';
@@ -117,6 +149,75 @@
 
     var closeRosterModal = getEl('closeRosterModal');
     var btnEnrollStudent = getEl('btnEnrollStudent');
+    var btnBatchEnroll = getEl('btnRosterBatchEnroll');
+    var programFilter = getEl('rosterProgramFilter');
+    var yearFilter = getEl('rosterYearFilter');
+
+    // Candidate scope filters reload the available-students dropdown
+    [programFilter, yearFilter].forEach(function (sel) {
+      if (sel) sel.addEventListener('change', function () {
+        if (currentRosterClassId) loadRosterData(currentRosterClassId);
+      });
+    });
+
+    // Batch enlist: every approved candidate in the current scope
+    if (btnBatchEnroll) {
+      btnBatchEnroll.addEventListener('click', async function () {
+        if (!currentRosterClassId) return;
+        var confirmed = window.App && window.App.confirm
+          ? await window.App.confirm({
+              title: 'Batch Enlistment',
+              message: 'Enlist every approved student matching the current program/year scope into this section?',
+              confirmText: 'Enlist All',
+              confirmClass: 'btn-primary',
+              type: 'info'
+            })
+          : confirm('Enlist every approved student matching the current program/year scope into this section?');
+
+        if (!confirmed) return;
+
+        if (window.App && window.App.setButtonLoading) {
+          window.App.setButtonLoading(btnBatchEnroll, true, 'Enlisting...');
+        }
+
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', getCSRF());
+        if (programFilter && programFilter.value) fd.append('program_id', programFilter.value);
+        if (yearFilter && yearFilter.value) fd.append('year_level', yearFilter.value);
+
+        fetch('/classes/' + currentRosterClassId + '/roster/enroll-batch/', {
+          method: 'POST',
+          body: fd,
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res.success) {
+            if (window.App && window.App.toast) {
+              window.App.toast('success', res.message || 'Batch enlistment completed.');
+            }
+            loadRosterData(currentRosterClassId);
+          } else {
+            if (window.App && window.App.toast) {
+              window.App.toast('error', res.message || 'Batch enlistment failed.');
+            } else {
+              alert(res.message || 'Batch enlistment failed.');
+            }
+          }
+        })
+        .catch(function (err) {
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Batch enlist request failed: ' + err);
+          } else {
+            alert('Batch enlist request failed: ' + err);
+          }
+        })
+        .finally(function () {
+          if (window.App && window.App.setButtonLoading) {
+            window.App.setButtonLoading(btnBatchEnroll, false);
+          }
+        });
+      });
+    }
 
     // Event delegation for Manage Roster button clicks
     document.addEventListener('click', function (e) {

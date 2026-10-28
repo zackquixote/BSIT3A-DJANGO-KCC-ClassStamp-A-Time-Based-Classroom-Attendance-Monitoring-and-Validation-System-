@@ -78,6 +78,11 @@ class Subject(models.Model):
     code = models.CharField(max_length=40, unique=True, help_text="// Unique course code, e.g. IT311")
     name = models.CharField(max_length=150, help_text="// Official subject descriptive title")
     description = models.TextField(blank=True, null=True, help_text="// Syllabus syllabus/overview")
+    units = models.PositiveSmallIntegerField(
+        default=3,
+        validators=[MinValueValidator(1)],
+        help_text="// Credit units; 1 unit = 1 class hour per week",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

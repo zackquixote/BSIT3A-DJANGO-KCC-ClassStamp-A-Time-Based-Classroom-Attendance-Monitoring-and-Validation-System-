@@ -1,0 +1,198 @@
+{% extends "theme/base.html" %}
+{% block title %}Section Builder Wizard — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div id="wizard-boot" hidden
+  data-options-url="{% url 'class_wizard_options' %}"
+  data-save-url="{% url 'class_wizard_save' %}"
+  data-check-url="{% url 'class_wizard_slots_check' %}"
+  data-classes-url="{% url 'class_list' %}"></div>
+<script id="wizard-programs" type="application/json">{{ programs_json|safe }}</script>
+
+<div class="page-header" style="margin-bottom: 20px;">
+  <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <a href="{% url 'class_list' %}">Class Sections</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Section Builder Wizard</span>
+    </div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
+        <i class="fas fa-wand-magic-sparkles"></i> Guided Section Setup
+      </span>
+      {% if active_ay %}
+        <span class="badge badge--success" style="font-size: 0.7rem; padding: 2px 8px;">
+          <i class="fas fa-calendar-check"></i> {{ active_ay.name }}
+        </span>
+      {% endif %}
+    </div>
+    <h1 class="page-title" style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">
+      Section Builder Wizard
+    </h1>
+    <p class="page-subtitle" style="font-size: 0.88rem;">
+      Five guided steps: curriculum, subject &amp; teacher, section details, weekly schedule, review.
+      1 credit unit = 1 class hour per week.
+    </p>
+  </div>
+  <div>
+    <a href="{% url 'class_list' %}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Classes</a>
+  </div>
+</div>
+
+<!-- ── Step indicator ─────────────────────────────────────────── -->
+<ol id="wizard-progress" style="display:flex;gap:8px;list-style:none;padding:0;margin:0 0 18px;flex-wrap:wrap;">
+  <li data-step-indicator="1" class="badge badge--blue" style="padding:8px 14px;">1 · Curriculum</li>
+  <li data-step-indicator="2" class="badge" style="padding:8px 14px;">2 · Subject &amp; Teacher</li>
+  <li data-step-indicator="3" class="badge" style="padding:8px 14px;">3 · Section</li>
+  <li data-step-indicator="4" class="badge" style="padding:8px 14px;">4 · Schedule</li>
+  <li data-step-indicator="5" class="badge" style="padding:8px 14px;">5 · Review</li>
+</ol>
+
+<div id="wizard-card" class="card" style="padding: 24px; max-width: 860px;">
+
+  <!-- STEP 1: Curriculum -->
+  <section id="wizard-step-1">
+    <h2 class="font-semibold text-primary mb-3"><i class="fas fa-sitemap"></i> Which curriculum is this section for?</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="form-group">
+        <label class="form-label" for="wiz-program">Program <span class="text-danger">*</span></label>
+        <select id="wiz-program" class="form-control">
+          <option value="">— select program —</option>
+          {% for p in programs %}
+          <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="wiz-year">Year Level <span class="text-danger">*</span></label>
+        <select id="wiz-year" class="form-control" disabled>
+          <option value="">— select program first —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="wiz-semester">Semester <span class="text-danger">*</span></label>
+        <select id="wiz-semester" class="form-control">
+          {% for value, label in semester_choices %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="wiz-ay">Academic Year <span class="text-danger">*</span></label>
+        <select id="wiz-ay" class="form-control">
+          {% for ay in academic_years %}
+          <option value="{{ ay.id }}" {% if active_ay and ay.id == active_ay.id %}selected{% endif %}>
+            {{ ay.name }}{% if ay.is_active %} (Active){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <p class="form-hint">Subjects are pulled from the curriculum matrix for this program / year / semester.</p>
+  </section>
+
+  <!-- STEP 2: Subject & Teacher -->
+  <section id="wizard-step-2" style="display:none;">
+    <h2 class="font-semibold text-primary mb-3"><i class="fas fa-book-open"></i> Pick the subject and instructor</h2>
+    <div class="form-group">
+      <label class="form-label" for="wiz-subject">Subject <span class="text-danger">*</span></label>
+      <select id="wiz-subject" class="form-control"></select>
+      <span class="form-hint" id="wiz-subject-units"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="wiz-teacher">Teacher <span class="text-danger">*</span></label>
+      <select id="wiz-teacher" class="form-control"></select>
+      <span class="form-hint">Department-matched teachers, lightest current teaching load first.</span>
+    </div>
+  </section>
+
+  <!-- STEP 3: Section details -->
+  <section id="wizard-step-3" style="display:none;">
+    <h2 class="font-semibold text-primary mb-3"><i class="fas fa-chalkboard"></i> Section details</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+      <div class="form-group">
+        <label class="form-label" for="wiz-code">Section Code <span class="text-danger">*</span></label>
+        <input type="text" id="wiz-code" class="form-control" style="text-transform:uppercase;" placeholder="e.g. BSIT-3A">
+        <span class="form-hint">Next free code suggested automatically.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="wiz-capacity">Capacity</label>
+        <input type="number" id="wiz-capacity" class="form-control" min="1" placeholder="e.g. 40">
+        <span class="form-hint">Leave blank for unlimited.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="wiz-grace">Grace Minutes</label>
+        <input type="number" id="wiz-grace" class="form-control" min="0" value="10">
+        <span class="form-hint">Late threshold after class start.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4: Weekly schedule -->
+  <section id="wizard-step-4" style="display:none;">
+    <h2 class="font-semibold text-primary mb-3"><i class="fas fa-calendar-week"></i> Weekly schedule</h2>
+    <div id="hours-tally" class="badge badge--gold mb-3" style="padding:8px 14px;font-size:0.85rem;"></div>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1.2fr auto;gap:10px;align-items:end;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" for="slot-weekday">Day</label>
+        <select id="slot-weekday" class="form-control">
+          {% for value, label in weekday_choices %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" for="slot-start">Start</label>
+        <input type="time" id="slot-start" class="form-control" value="08:00">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" for="slot-end">End</label>
+        <input type="time" id="slot-end" class="form-control" value="09:00">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" for="slot-room">Room</label>
+        <input type="text" id="slot-room" class="form-control" placeholder="TBA">
+      </div>
+      <button type="button" class="btn btn-outline" id="slot-add"><i class="fas fa-plus"></i> Add</button>
+    </div>
+    <p class="form-hint" style="margin-top:6px;">Teacher clashes block saving; room clashes only warn. Overlapping slots in this list are not allowed.</p>
+    <div id="slot-list" style="margin-top:14px;"></div>
+  </section>
+
+  <!-- STEP 5: Review -->
+  <section id="wizard-step-5" style="display:none;">
+    <h2 class="font-semibold text-primary mb-3"><i class="fas fa-clipboard-check"></i> Review &amp; create</h2>
+    <div id="review-summary"></div>
+    <div id="review-warnings"></div>
+  </section>
+
+  {# Not using .toast classes: app_toasts.js sweeps and removes .toast elements from the DOM after 5s #}
+  <div id="wiz-error" style="display:none;margin-top:14px;padding:10px 14px;border:1px solid rgba(239,68,68,0.5);border-radius:10px;background:rgba(239,68,68,0.12);color:#fca5a5;font-size:0.9rem;"></div>
+
+  <div class="flex items-center gap-2 mt-4" style="justify-content:space-between;">
+    <button type="button" class="btn btn-outline" id="wiz-back" style="visibility:hidden;"><i class="fas fa-arrow-left"></i> Back</button>
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-primary" id="wiz-next">Continue <i class="fas fa-arrow-right"></i></button>
+      <button type="button" class="btn btn-primary" id="wiz-create" style="display:none;"><i class="fas fa-check"></i> Create Section</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Success panel ──────────────────────────────────────────── -->
+<div id="wizard-success" class="card" style="padding:28px;max-width:860px;display:none;">
+  <h2 class="font-semibold text-primary mb-2"><i class="fas fa-circle-check" style="color:var(--accent-green, #22c55e);"></i> Section created</h2>
+  <p id="success-code" class="mb-2"></p>
+  <div id="success-warnings"></div>
+  <div class="flex items-center gap-2 mt-3">
+    <a id="success-goto" class="btn btn-primary" href="{% url 'class_list' %}"><i class="fas fa-chalkboard"></i> Open Class Sections</a>
+    <a class="btn btn-outline" href="{% url 'class_wizard_setup' %}"><i class="fas fa-plus"></i> Build Another Section</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/classes/section_wizard.js' %}?v=20261027_v1"></script>
+{% endblock %}

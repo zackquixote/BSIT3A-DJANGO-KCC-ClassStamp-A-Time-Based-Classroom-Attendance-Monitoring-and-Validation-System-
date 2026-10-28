@@ -38,6 +38,7 @@ from apps.core.services import (
     assign_class,
     delete_or_deactivate_teacher,
     provision_teacher_account,
+    reassign_teacher_department,
     reset_teacher_password,
     set_teacher_active,
     toggle_teacher_active,
@@ -659,5 +660,29 @@ def teacher_analytics_json(request, pk: int):
         },
         'classes': class_items,
     })
+
+
+# // ==============================================================================
+# // AJAX: Quick Department Reassignment (/teachers/<pk>/reassign/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def teacher_reassign_ajax(request, pk: int):
+    """
+    // [AJAX] Transfer a faculty member between academic departments (A-12).
+    // POST params: dept_id
+    """
+    dept_id_raw = request.POST.get('dept_id', '').strip()
+    try:
+        dept_id = int(dept_id_raw)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Please select a valid department.'}, status=400)
+
+    try:
+        result = reassign_teacher_department(actor=request.user, profile_id=pk, dept_id=dept_id)
+        return JsonResponse({'ok': True, **result})
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
 
 
