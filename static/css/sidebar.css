@@ -345,11 +345,4 @@ svg.sidebar-link-icon {
   .sidebar-close-btn {
     display: inline-flex;
   }
-
-  /* The bottom tab bar already exposes these destinations on phones, so the
-     drawer keeps only the entries the tab bar does not cover. */
-  .sidebar-link--tabbar,
-  .sidebar-logout--tabbar {
-    display: none;
-  }
 }

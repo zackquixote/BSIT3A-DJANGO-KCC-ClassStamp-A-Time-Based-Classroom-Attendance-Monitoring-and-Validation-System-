@@ -1909,3 +1909,18 @@ th:has(.action-dropdown) {
   background: rgba(74, 222, 128, 0.12) !important;
   color: #86efac !important;
 }
+
+/* ── Excuse Slips: two-column student layout ─────────────────── */
+.excuse-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .excuse-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}

@@ -10,13 +10,13 @@
 @import url('base.css?v=20261029_v4_tabbar');
 
 /* ── 3. Sidebar Navigation & Brand Layout ────────────────────── */
-@import url('sidebar.css?v=20261029_v6_tabbar');
+@import url('sidebar.css?v=20261030_v7_drawer');
 
 /* ── 4. UI Components (Cards, Buttons, Forms, Modals, Tables) ── */
-@import url('components.css?v=20261029_v5_portal');
+@import url('components.css?v=20261030_excuse');
 
 /* ── 5. Shared Authentication Layout & Ambient Orbs ──────────── */
-@import url('auth.css?v=20261029_v3_fileinput');
+@import url('auth.css?v=20261030_pill');
 
 /* ── 6. Dedicated Sign-In / Login Page ───────────────────────── */
 @import url('login.css?v=20261029_v2_crossbrowser');

@@ -169,12 +169,19 @@
 
     function checkPasswordStrength(val) {
       if (!val) return 0;
-      var score = 0;
-      if (val.length >= 8) score++;
-      if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
-      if (/\d/.test(val)) score++;
-      if (/[^A-Za-z0-9]/.test(val)) score++;
-      return Math.max(1, score);
+      if (val.length < 8) return 1;
+
+      var variety = 0;
+      if (/[a-z]/.test(val)) variety++;
+      if (/[A-Z]/.test(val)) variety++;
+      if (/\d/.test(val)) variety++;
+      if (/[^A-Za-z0-9]/.test(val)) variety++;
+
+      if (val.length >= 16) return 4;
+      if (val.length >= 12 && variety >= 3) return 4;
+      if (val.length >= 10 && variety >= 4) return 4;
+      if (val.length >= 10 || variety >= 3) return 3;
+      return 2;
     }
 
     function updateStrength() {
@@ -190,7 +197,7 @@
       var score = checkPasswordStrength(val);
 
       var colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
-      var labels = ['Weak (needs 8+ chars)', 'Fair', 'Good', 'Strong & Secure'];
+      var labels = ['Weak (needs 8+ chars)', 'Fair', 'Good', 'Very strong'];
 
       strBars.forEach(function (bar, idx) {
         if (bar) {

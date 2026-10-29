@@ -627,8 +627,14 @@
   }
 
   .kcc-tag-pill {
-    font-size: 0.65rem;
-    padding: 4px 10px;
+    font-size: 0.58rem;
+    letter-spacing: 0.02em;
+    padding: 6px 12px;
+    border-radius: 14px;
+    gap: 6px;
+    max-width: 100%;
+    line-height: 1.45;
+    text-align: center;
     margin-bottom: 10px;
   }
 
@@ -732,5 +738,11 @@
 
   .kcc-form-title {
     font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .kcc-pill-dot {
+    display: none; /* Frees enough width for the tagline to stay on one line */
   }
 }

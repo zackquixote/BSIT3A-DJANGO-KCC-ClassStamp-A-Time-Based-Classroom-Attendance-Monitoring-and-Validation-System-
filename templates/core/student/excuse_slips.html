@@ -15,17 +15,17 @@
   </div>
 </div>
 
-<div class="grid" style="grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
+<div class="excuse-layout">
   <!-- File New Excuse -->
   <div class="card" style="padding: 20px;">
     <h2 class="font-semibold text-primary mb-4"><i class="fas fa-file-pen text-gold"></i> File an Excuse</h2>
+    <p class="text-muted text-sm mb-4">
+      When an instructor marks you <strong>ABSENT</strong> for a session, that meeting appears here.
+      You explain the reason, attach a proof if you have one, and your instructor reviews it.
+      If approved, the record is updated from <strong>ABSENT</strong> to <strong class="text-success">EXCUSED</strong>.
+    </p>
 
     {% if fileable_records %}
-      <p class="text-muted text-sm mb-4">
-        Select one of your absently-marked meetings and explain why you could not attend.
-        Your instructor will review and either mark you <strong class="text-success">EXCUSED</strong> or keep the absence.
-      </p>
-
       {% for r in fileable_records %}
       <form method="POST" enctype="multipart/form-data" class="mb-4" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 14px; background: rgba(255,255,255,0.02);">
         {% csrf_token %}
@@ -47,9 +47,10 @@
       </form>
       {% endfor %}
     {% else %}
-      <div style="text-align: center; padding: 28px 12px;">
+      <div style="text-align: center; padding: 24px 12px; border: 1px dashed var(--glass-border); border-radius: 10px;">
         <i class="fas fa-circle-check" style="font-size: 2rem; color: #4ade80; display: block; margin-bottom: 10px;"></i>
-        <p class="text-secondary mb-0">No absences are awaiting an excuse. Keep it up!</p>
+        <p class="text-secondary mb-1">No absences are awaiting an excuse.</p>
+        <p class="text-muted text-sm mb-0">Nothing to file right now — only sessions marked ABSENT can be excused.</p>
       </div>
     {% endif %}
   </div>
@@ -57,6 +58,7 @@
   <!-- Slip History -->
   <div class="card" style="padding: 20px;">
     <h2 class="font-semibold text-primary mb-4"><i class="fas fa-clock-rotate-left text-gold"></i> My Filed Slips</h2>
+    <p class="text-muted text-sm mb-4">Every excuse you submit is listed here with your instructor’s decision.</p>
 
     {% if slips %}
       <div class="flex flex-col gap-3">
