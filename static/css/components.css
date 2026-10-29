@@ -1600,128 +1600,195 @@ svg.lucide + .lucide-fallback,
 }
 
 /* ── Student Dashboard Mobile Telemetry Collapsible ──────────── */
+/* Base: strictly hidden on all screens by default (desktop/laptop/tablet) */
 .student-stats-toggle-btn,
 button.student-stats-toggle-btn,
 .btn.student-stats-toggle-btn {
-  display: none !important; /* strictly hidden on laptop & desktop screens */
+  display: none !important;
+}
+
+/* Shared style definitions (applied only when display is activated via mobile media query) */
+.student-stats-toggle-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  -webkit-align-items: center;
   align-items: center;
-  gap: 10px;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+  gap: 8px;
   font-weight: 600;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  background: rgba(12, 21, 40, 0.85);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  font-size: 0.88rem;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: rgba(10, 18, 38, 0.92);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
   color: #e2e8f0;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  transition: all 0.2s ease;
+  -webkit-box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  -webkit-transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  -webkit-user-select: none;
+  -moz-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  margin-bottom: 12px;
 }
 
-.student-stats-toggle-btn:hover {
-  background: rgba(18, 30, 56, 0.95);
-  border-color: rgba(56, 189, 248, 0.6);
-  color: #fff;
+.student-stats-toggle-btn:active {
+  background: rgba(15, 26, 52, 0.98);
+  border-color: rgba(56, 189, 248, 0.7);
 }
 
-.student-stats-summary-pill {
-  font-size: 0.76rem;
-  background: rgba(255, 255, 255, 0.06);
-  padding: 3px 10px;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: inline-flex;
+/* Left side: icon + label */
+.student-stats-toggle-left {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
   align-items: center;
-  letter-spacing: 0.02em;
+  gap: 7px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
+.student-stats-toggle-left svg,
+.student-stats-toggle-left i {
+  width: 16px !important;
+  height: 16px !important;
+  font-size: 0.9rem;
+  color: rgba(56, 189, 248, 0.9);
+  flex-shrink: 0;
+}
+
+/* Center: colored stats pill */
+.student-stats-summary-pill {
+  font-size: 0.73rem;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: -webkit-inline-flex;
+  display: inline-flex;
+  -webkit-align-items: center;
+  align-items: center;
+  gap: 3px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  font-weight: 500;
+}
+
+/* Right side: chevron */
 .student-stats-toggle-btn .toggle-chevron {
-  font-size: 0.72rem;
-  opacity: 0.7;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  flex-shrink: 0;
+  -webkit-transition: -webkit-transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-left: 2px;
+}
+
+.student-stats-toggle-btn.is-active {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(12, 22, 45, 0.95);
 }
 
 .student-stats-toggle-btn.is-active .toggle-chevron {
+  -webkit-transform: rotate(180deg);
   transform: rotate(180deg);
 }
 
-/* Strictly desktop (> 768px): 4 cards always visible, hamburger button completely absent */
+/* ── Desktop / Laptop / Tablet (>= 769px): hamburger COMPLETELY absent ── */
 @media (min-width: 769px) {
   .student-stats-toggle-btn,
   button.student-stats-toggle-btn,
   .btn.student-stats-toggle-btn {
     display: none !important;
   }
-
   .student-kpi-collapsible {
     display: block !important;
   }
 }
 
-/* Strictly mobile phone (<= 768px): hamburger button visible, 4 cards hidden by default until tapped */
+/* ── Mobile phones (<= 768px): hamburger visible, cards hidden until tapped ── */
 @media (max-width: 768px) {
   .student-stats-toggle-btn,
   button.student-stats-toggle-btn,
   .btn.student-stats-toggle-btn {
-    display: inline-flex !important;
-    width: 100% !important;
-    justify-content: space-between !important;
-    margin-bottom: 14px !important;
+    display: -webkit-flex !important;
+    display: flex !important;
   }
 
   .student-kpi-collapsible {
     display: none !important;
+    overflow: hidden;
   }
 
   .student-kpi-collapsible.is-open {
     display: block !important;
-    animation: studentStatsSlide 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    -webkit-animation: studentStatsSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: studentStatsSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
-  /* Compact 2x2 grid on mobile phones instead of 4 giant vertical rows! */
+  /* Compact 2×2 grid on phones */
   .student-stat-grid {
+    display: -webkit-grid !important;
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 10px !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 14px !important;
   }
 
   .student-stat-grid .stat-card {
-    padding: 12px 14px !important;
+    padding: 12px 12px !important;
     min-height: auto !important;
     border-radius: 10px !important;
   }
 
   .student-stat-grid .stat-icon {
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 0.95rem !important;
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 0.9rem !important;
     border-radius: 8px !important;
+    flex-shrink: 0;
   }
 
-  .student-stat-grid .stat-icon svg.lucide {
-    width: 18px !important;
-    height: 18px !important;
+  .student-stat-grid .stat-icon svg.lucide,
+  .student-stat-grid .stat-icon i {
+    width: 17px !important;
+    height: 17px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .student-stat-grid .stat-info {
+    min-width: 0;
   }
 
   .student-stat-grid .stat-value {
-    font-size: 1.4rem !important;
-    line-height: 1.15 !important;
+    font-size: 1.45rem !important;
+    line-height: 1.1 !important;
+    display: block;
   }
 
   .student-stat-grid .stat-label {
-    font-size: 0.72rem !important;
-    margin-top: 2px !important;
+    font-size: 0.68rem !important;
+    margin-top: 1px !important;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 }
 
+@-webkit-keyframes studentStatsSlide {
+  from { opacity: 0; -webkit-transform: translateY(-6px); transform: translateY(-6px); }
+  to   { opacity: 1; -webkit-transform: translateY(0);    transform: translateY(0); }
+}
 @keyframes studentStatsSlide {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

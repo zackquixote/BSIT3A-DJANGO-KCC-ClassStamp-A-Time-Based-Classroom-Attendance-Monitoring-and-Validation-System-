@@ -49,19 +49,27 @@
 </div>
 {% endif %}
 
-<!-- Mobile-Only Hamburger Toggle for Attendance Stats (100% Hidden on Laptop/Desktop) -->
-<button type="button" class="btn student-stats-toggle-btn" id="studentStatsToggleBtn" aria-expanded="false" aria-controls="studentKpiCollapsible" title="Tap to view Present, Late, Absent, Enrolled Stats">
-  <span class="flex items-center gap-2">
-    <i data-lucide="menu"></i>
-    <i class="fas fa-bars lucide-fallback"></i>
-    <span>Attendance Stats</span>
+<!-- Mobile-Only Stats Toggle (hidden on desktop/tablet via CSS) -->
+<button type="button" class="student-stats-toggle-btn" id="studentStatsToggleBtn"
+  aria-expanded="false" aria-controls="studentKpiCollapsible">
+  <span class="student-stats-toggle-left">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      style="color:rgba(56,189,248,0.9)">
+      <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+    </svg>
+    <span style="font-size:0.88rem;font-weight:600;color:#e2e8f0;">Attendance Stats</span>
   </span>
-  <span class="student-stats-summary-pill font-mono">
-    <span class="text-green">{{ present_count }} Present</span>&nbsp;•&nbsp;
-    <span class="text-gold">{{ late_count }} Late</span>&nbsp;•&nbsp;
-    <span class="text-red">{{ absent_count }} Absent</span>
+  <span class="student-stats-summary-pill">
+    <span style="color:#4ade80;">{{ present_count }}P</span>&nbsp;·&nbsp;
+    <span style="color:#f59e0b;">{{ late_count }}L</span>&nbsp;·&nbsp;
+    <span style="color:#f87171;">{{ absent_count }}A</span>
   </span>
-  <i class="fas fa-chevron-down toggle-chevron"></i>
+  <svg class="toggle-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+    style="opacity:0.6;flex-shrink:0;">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
 </button>
 
 <!-- Telemetry KPI Stat Cards (Collapsible on Mobile, 4-col on Desktop) -->
