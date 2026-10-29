@@ -1600,15 +1600,17 @@ svg.lucide + .lucide-fallback,
 }
 
 /* ── Student Dashboard Mobile Telemetry Collapsible ──────────── */
-.student-stats-toggle-btn {
-  display: none; /* hidden on desktop screens */
+.student-stats-toggle-btn,
+button.student-stats-toggle-btn,
+.btn.student-stats-toggle-btn {
+  display: none !important; /* strictly hidden on laptop & desktop screens */
   align-items: center;
   gap: 10px;
   font-weight: 600;
-  padding: 9px 15px;
+  padding: 10px 16px;
   border-radius: var(--radius-md);
-  background: rgba(12, 21, 40, 0.75);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(12, 21, 40, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.35);
   color: #e2e8f0;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   transition: all 0.2s ease;
@@ -1616,8 +1618,8 @@ svg.lucide + .lucide-fallback,
 }
 
 .student-stats-toggle-btn:hover {
-  background: rgba(18, 30, 56, 0.9);
-  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(18, 30, 56, 0.95);
+  border-color: rgba(56, 189, 248, 0.6);
   color: #fff;
 }
 
@@ -1643,20 +1645,36 @@ svg.lucide + .lucide-fallback,
   transform: rotate(180deg);
 }
 
-@media (max-width: 768px) {
-  .student-stats-toggle-btn {
-    display: inline-flex !important;
-    width: 100%;
-    justify-content: space-between;
-    margin-bottom: 14px;
+/* Strictly desktop (> 768px): 4 cards always visible, hamburger button completely absent */
+@media (min-width: 769px) {
+  .student-stats-toggle-btn,
+  button.student-stats-toggle-btn,
+  .btn.student-stats-toggle-btn {
+    display: none !important;
   }
 
   .student-kpi-collapsible {
-    display: none;
+    display: block !important;
+  }
+}
+
+/* Strictly mobile phone (<= 768px): hamburger button visible, 4 cards hidden by default until tapped */
+@media (max-width: 768px) {
+  .student-stats-toggle-btn,
+  button.student-stats-toggle-btn,
+  .btn.student-stats-toggle-btn {
+    display: inline-flex !important;
+    width: 100% !important;
+    justify-content: space-between !important;
+    margin-bottom: 14px !important;
+  }
+
+  .student-kpi-collapsible {
+    display: none !important;
   }
 
   .student-kpi-collapsible.is-open {
-    display: block;
+    display: block !important;
     animation: studentStatsSlide 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 

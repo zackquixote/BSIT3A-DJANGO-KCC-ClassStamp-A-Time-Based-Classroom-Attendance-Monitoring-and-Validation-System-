@@ -4,31 +4,31 @@
    ============================================================= */
 
 /* ── 1. Design Tokens & CSS Custom Properties ────────────────── */
-@import url('variables.css?v=20261029_modern_icons');
+@import url('variables.css?v=20261029_fix_mobile_only');
 
 /* ── 2. Reset, Base Elements & Core Layout ───────────────────── */
-@import url('base.css?v=20261029_modern_icons');
+@import url('base.css?v=20261029_fix_mobile_only');
 
 /* ── 3. Sidebar Navigation & Brand Layout ────────────────────── */
-@import url('sidebar.css?v=20261029_modern_icons');
+@import url('sidebar.css?v=20261029_fix_mobile_only');
 
 /* ── 4. UI Components (Cards, Buttons, Forms, Modals, Tables) ── */
-@import url('components.css?v=20261029_modern_icons');
+@import url('components.css?v=20261029_fix_mobile_only');
 
 /* ── 5. Shared Authentication Layout & Ambient Orbs ──────────── */
-@import url('auth.css?v=20261029_modern_icons');
+@import url('auth.css?v=20261029_fix_mobile_only');
 
 /* ── 6. Dedicated Sign-In / Login Page ───────────────────────── */
-@import url('login.css?v=20261029_modern_icons');
+@import url('login.css?v=20261029_fix_mobile_only');
 
 /* ── 7. Dedicated Student Registration Page ──────────────────── */
-@import url('register.css?v=20261029_modern_icons');
+@import url('register.css?v=20261029_fix_mobile_only');
 
 /* ── 8. Account Validation Queue & Dossier Review ────────────── */
-@import url('validation.css?v=20261029_modern_icons');
+@import url('validation.css?v=20261029_fix_mobile_only');
 
 /* ── 9. Admin Command Center Dashboard ───────────────────────── */
-@import url('dashboard.css?v=20261029_modern_icons');
+@import url('dashboard.css?v=20261029_fix_mobile_only');
 
 /* ── 10. In-Page Anchor Targets (Teacher Dashboard) ──────────── */
 #today-schedule,

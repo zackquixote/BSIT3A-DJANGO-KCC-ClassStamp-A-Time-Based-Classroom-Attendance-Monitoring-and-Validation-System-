@@ -11,21 +11,7 @@
       <span class="text-gold font-mono">{{ today_date|date:"l, F j, Y" }}</span>
     </p>
   </div>
-  <div class="flex items-center gap-2 flex-wrap">
-    <!-- Student Hamburger Stats Toggle Button (Compact on Mobile) -->
-    <button type="button" class="btn btn-outline student-stats-toggle-btn" id="studentStatsToggleBtn" aria-expanded="false" aria-controls="studentKpiCollapsible" title="Toggle Attendance Metrics">
-      <span class="flex items-center gap-2">
-        <i data-lucide="menu"></i>
-        <i class="fas fa-bars-staggered lucide-fallback"></i>
-        <span>Attendance Overview</span>
-      </span>
-      <span class="student-stats-summary-pill font-mono">
-        <span class="text-green">{{ present_count }} Present</span>&nbsp;•&nbsp;
-        <span class="text-gold">{{ late_count }} Late</span>&nbsp;•&nbsp;
-        <span class="text-red">{{ absent_count }} Absent</span>
-      </span>
-      <i class="fas fa-chevron-down toggle-chevron"></i>
-    </button>
+  <div class="flex items-center gap-2">
     <a href="{% url 'student_qr_badge' %}" class="btn btn-primary">
       <i data-lucide="qr-code"></i>
       <i class="fas fa-qrcode lucide-fallback"></i> Show My QR
@@ -62,6 +48,21 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Mobile-Only Hamburger Toggle for Attendance Stats (100% Hidden on Laptop/Desktop) -->
+<button type="button" class="btn student-stats-toggle-btn" id="studentStatsToggleBtn" aria-expanded="false" aria-controls="studentKpiCollapsible" title="Tap to view Present, Late, Absent, Enrolled Stats">
+  <span class="flex items-center gap-2">
+    <i data-lucide="menu"></i>
+    <i class="fas fa-bars lucide-fallback"></i>
+    <span>Attendance Stats</span>
+  </span>
+  <span class="student-stats-summary-pill font-mono">
+    <span class="text-green">{{ present_count }} Present</span>&nbsp;•&nbsp;
+    <span class="text-gold">{{ late_count }} Late</span>&nbsp;•&nbsp;
+    <span class="text-red">{{ absent_count }} Absent</span>
+  </span>
+  <i class="fas fa-chevron-down toggle-chevron"></i>
+</button>
 
 <!-- Telemetry KPI Stat Cards (Collapsible on Mobile, 4-col on Desktop) -->
 <div class="student-kpi-collapsible" id="studentKpiCollapsible">
