@@ -12,33 +12,65 @@
   </div>
 </div>
 
-<div class="stat-grid mb-6">
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--green"><i class="fas fa-user-check"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ totals.present_count|default:0 }}</span>
-      <span class="stat-label">Present</span>
+<!-- Mobile-Only Hamburger Toggle for Attendance Stats -->
+<button type="button" class="btn student-stats-toggle-btn" id="attendanceStatsToggleBtn"
+  aria-expanded="false" aria-controls="attendanceKpiCollapsible"
+  title="Tap to view attendance summary stats">
+  <span class="flex items-center gap-2">
+    <i data-lucide="menu"></i>
+    <i class="fas fa-bars lucide-fallback"></i>
+    <span>Attendance Summary</span>
+  </span>
+  <span class="student-stats-summary-pill font-mono">
+    <span class="text-green">{{ totals.present_count|default:0 }} Present</span>&nbsp;&bull;&nbsp;
+    <span class="text-gold">{{ totals.late_count|default:0 }} Late</span>&nbsp;&bull;&nbsp;
+    <span class="text-red">{{ totals.absent_count|default:0 }} Absent</span>
+  </span>
+  <i class="fas fa-chevron-down toggle-chevron"></i>
+</button>
+
+<!-- Collapsible KPI Cards (mobile hidden, desktop always visible) -->
+<div class="student-kpi-collapsible" id="attendanceKpiCollapsible">
+  <div class="stat-grid student-stat-grid mb-6">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--green">
+        <i data-lucide="user-check"></i>
+        <i class="fas fa-user-check lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ totals.present_count|default:0 }}</span>
+        <span class="stat-label">Present</span>
+      </div>
     </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--gold"><i class="fas fa-clock"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ totals.late_count|default:0 }}</span>
-      <span class="stat-label">Late</span>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--gold">
+        <i data-lucide="clock"></i>
+        <i class="fas fa-clock lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ totals.late_count|default:0 }}</span>
+        <span class="stat-label">Late</span>
+      </div>
     </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--red"><i class="fas fa-user-xmark"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ totals.absent_count|default:0 }}</span>
-      <span class="stat-label">Absent</span>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--red">
+        <i data-lucide="user-x"></i>
+        <i class="fas fa-user-xmark lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ totals.absent_count|default:0 }}</span>
+        <span class="stat-label">Absent</span>
+      </div>
     </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--purple"><i class="fas fa-percent"></i></div>
-    <div class="stat-info">
-      <span class="stat-value">{{ totals.compliance_rate }}%</span>
-      <span class="stat-label">Compliance ({{ total_records }} stamps)</span>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--purple">
+        <i data-lucide="percent"></i>
+        <i class="fas fa-percent lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ totals.compliance_rate }}%</span>
+        <span class="stat-label">Compliance ({{ total_records }} stamps)</span>
+      </div>
     </div>
   </div>
 </div>
@@ -171,4 +203,26 @@
     </table>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const statsBtn = document.getElementById('attendanceStatsToggleBtn');
+    const collapsible = document.getElementById('attendanceKpiCollapsible');
+    if (statsBtn && collapsible) {
+      statsBtn.addEventListener('click', function() {
+        const isOpen = collapsible.classList.toggle('is-open');
+        statsBtn.classList.toggle('is-active', isOpen);
+        statsBtn.setAttribute('aria-expanded', isOpen);
+        if (isOpen && window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      });
+    }
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  });
+</script>
 {% endblock %}
