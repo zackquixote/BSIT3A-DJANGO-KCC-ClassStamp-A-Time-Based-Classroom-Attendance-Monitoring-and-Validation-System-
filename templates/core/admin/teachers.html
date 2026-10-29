@@ -124,7 +124,7 @@
 <div id="teacherSuccess" class="toast toast--success mb-4" style="display: none;"></div>
 
 <!-- Faculty Table -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: visible;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
       Faculty Roster {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
@@ -132,7 +132,7 @@
     <span class="text-muted text-xs">{{ teachers.paginator.count }} faculty members</span>
   </div>
 
-  <div class="table-responsive">
+  <div class="table-responsive" style="overflow-x: auto; overflow-y: visible;">
     <table class="table" id="teacherTable">
       <thead>
         <tr>
@@ -143,7 +143,7 @@
           <th>Teaching Load &amp; Subjects</th>
           <th>Account Status</th>
           <th>Joined</th>
-          <th style="text-align: right; width: 210px;">Actions</th>
+          <th style="text-align: right; width: 130px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -191,41 +191,59 @@
             {% endif %}
           </td>
           <td class="text-muted text-sm">{{ t.user.date_joined|date:"M d, Y" }}</td>
-          <td style="text-align: right;">
-            <div class="flex justify-end gap-2">
-              <button class="btn btn-outline btn-sm js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Manage Teaching Load">
-                <i class="fas fa-book-bookmark text-gold"></i>
-              </button>
-              <button class="btn btn-outline btn-sm js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="View Faculty Analytics & Teaching Load">
-                <i class="fas fa-chart-pie text-green"></i>
-              </button>
-              <button class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Details">
+          <td style="text-align: right; width: 130px; overflow: visible; position: relative;">
+            <div class="flex justify-end items-center gap-1">
+              <button type="button" class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Profile">
                 <i class="fas fa-eye"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-reassign-teacher"
-                      data-id="{{ t.id }}"
-                      data-name="{{ t.user.get_full_name|default:t.user.username }}"
-                      data-dept-code="{{ t.department.code|default:'None' }}"
-                      data-dept-id="{{ t.department.id|default:'' }}"
-                      data-class-count="{{ t.taught_classes.all|length }}"
-                      title="Reassign Department">
-                <i class="fas fa-right-left text-blue"></i>
+              <button type="button" class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit Profile">
+                <i class="fas fa-pen"></i>
               </button>
-              <button class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Force Reset Password">
-                <i class="fas fa-key text-warning"></i>
-              </button>
-              <button class="btn btn-outline btn-sm js-toggle-teacher {% if not t.user.is_active %}btn-success{% endif %}" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}" title="Toggle Active">
-                <i class="fas {% if t.user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
-              </button>
-              <button class="btn btn-danger btn-sm js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
+              
+              <!-- Clean Actions Dropdown -->
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;">
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="action-dropdown-menu">
+                  <button type="button" class="action-dropdown-item js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-book-bookmark text-gold"></i>
+                    <span>Teaching Load</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-chart-pie text-green"></i>
+                    <span>Load Analytics</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item js-reassign-teacher"
+                          data-id="{{ t.id }}"
+                          data-name="{{ t.user.get_full_name|default:t.user.username }}"
+                          data-dept-code="{{ t.department.code|default:'None' }}"
+                          data-dept-id="{{ t.department.id|default:'' }}"
+                          data-class-count="{{ t.taught_classes.all|length }}">
+                    <i class="fas fa-right-left text-blue"></i>
+                    <span>Reassign Dept</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-key text-warning"></i>
+                    <span>Reset Password</span>
+                  </button>
+                  <div class="action-dropdown-divider"></div>
+                  <button type="button" class="action-dropdown-item js-toggle-teacher" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}">
+                    <i class="fas {% if t.user.is_active %}fa-user-slash text-muted{% else %}fa-user-check text-green{% endif %}"></i>
+                    <span>{% if t.user.is_active %}Deactivate{% else %}Activate{% endif %}</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item action-dropdown-item--danger js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete Account</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="text-center text-muted" style="padding: 48px 0;">
+          <td colspan="9" class="text-center text-muted" style="padding: 48px 0;">
             <i class="fas fa-chalkboard-user" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
             No faculty members found{% if query %} matching "{{ query }}"{% endif %}.
           </td>
@@ -259,6 +277,7 @@
     <div class="modal-body">
       <form id="teacherForm" autocomplete="off">
         {% csrf_token %}
+        <input type="hidden" id="teacherId" name="teacher_id">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="form-group">
             <label class="form-label" for="teacherFirstName">First Name <span class="text-danger">*</span></label>
@@ -270,18 +289,14 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label" for="teacherUsername">Username <span class="text-danger">*</span></label>
-          <input type="text" id="teacherUsername" name="username" class="form-control" placeholder="e.g. msantos" autocomplete="username" required>
-          <span class="form-hint" id="teacherUsernameHint" style="display:none;"></span>
-        </div>
-        <div class="form-group">
           <label class="form-label" for="teacherEmail">Email Address <span class="text-danger">*</span></label>
           <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" autocomplete="email" required>
+          <span class="form-hint"><i class="fas fa-circle-info"></i> Login username will be auto-set to the email prefix (e.g. <code>msantos</code>).</span>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherDept">Department <span class="text-danger">*</span></label>
           <select id="teacherDept" name="dept_id" class="form-control" autocomplete="organization" required>
-            <option value="">— select department —</option>
+            <option value="">Select Department</option>
             {% for d in departments %}
             <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
             {% endfor %}
@@ -340,7 +355,7 @@
       <div class="form-group">
         <label class="form-label" for="reassignDept">New Department <span class="text-danger">*</span></label>
         <select id="reassignDept" class="form-control" autocomplete="off" required>
-          <option value="">— select department —</option>
+          <option value="">Select Department</option>
           {% for d in departments %}
           <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
           {% endfor %}
@@ -432,7 +447,7 @@
             <div class="form-group">
               <label class="form-label" for="assignSubject">Subject Offering <span class="text-danger">*</span></label>
               <select id="assignSubject" name="subject_id" class="form-control" required>
-                <option value="">— select subject —</option>
+                <option value="">Select Subject</option>
                 {% for sub in all_subjects %}
                 <option value="{{ sub.id }}">{{ sub.code }} — {{ sub.name }}</option>
                 {% endfor %}
@@ -547,6 +562,7 @@
 {% load static %}
 <script src="{% static 'js/teachers/teachers_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v4"></script>
+<script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/save_teacher.js' %}?v=20261022_v4"></script>
 <script src="{% static 'js/teachers/view_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/delete_teacher.js' %}?v=20261022_v3"></script>
@@ -554,4 +570,22 @@
 <script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/reassign_teacher.js' %}?v=20261027_v1"></script>
+<script>
+  // Table Action Dropdown Menu Toggle & Outside Click
+  document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.action-dropdown-toggle');
+    var allDropdowns = document.querySelectorAll('.action-dropdown');
+    if (toggle) {
+      e.stopPropagation();
+      var parent = toggle.closest('.action-dropdown');
+      var wasOpen = parent.classList.contains('open');
+      allDropdowns.forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) {
+        parent.classList.add('open');
+      }
+    } else {
+      allDropdowns.forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+</script>
 {% endblock %}

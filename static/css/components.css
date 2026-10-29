@@ -1,4 +1,4 @@
-﻿/* =============================================================
+/* =============================================================
    KCC ClassStamp â€” Reusable UI Components
    Cards Â· Stat Cards Â· Buttons Â· Forms Â· Modals Â· Tables Â· Badges
    ============================================================= */
@@ -987,8 +987,9 @@ select.form-control option:hover {
   border-radius: 0;
   background: transparent;
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: 72vh;
+  overflow-y: visible;
+  /* NOTE: overflow-y must be visible (not auto/hidden) so that
+     absolutely-positioned action dropdowns can escape the container */
 }
 
 /* â”€â”€ #11/#3 Batch-Action Floating Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -1531,4 +1532,100 @@ kbd {
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.6);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
   transform-origin: center center;
+}
+
+/* ── Table Action Dropdown Menu ────────────────────────── */
+/* ─── Action Dropdown ─────────────────────────────────────────────────────── */
+.action-dropdown {
+  position: relative;
+  display: inline-block;
+  overflow: visible;
+}
+.action-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 200px;
+  background: #182234;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 0;
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.8), 0 6px 16px -4px rgba(0, 0, 0, 0.6);
+  z-index: 9000;
+  display: none !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  pointer-events: none;
+}
+.action-dropdown.open .action-dropdown-menu {
+  display: block !important;
+  pointer-events: all;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+/* Make td overflow visible so absolute dropdown is not clipped */
+td:has(.action-dropdown),
+th:has(.action-dropdown) {
+  overflow: visible !important;
+}
+/* Fallback: any ancestor with overflow:hidden that wraps the dropdown */
+.action-dropdown-menu {
+  /* already absolute — but ensure stacking context is correct */
+  isolation: isolate;
+}
+.action-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  color: var(--text-primary, #f1f5f9);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+.action-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.action-dropdown-item i {
+  width: 16px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+.action-dropdown-item--danger {
+  color: #f87171 !important;
+}
+.action-dropdown-item--danger:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+}
+.action-dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 5px 0;
+}
+
+/* action-dropdown warning (deactivate) */
+.action-dropdown-item--warning {
+  color: #fbbf24 !important;
+}
+.action-dropdown-item--warning:hover {
+  background: rgba(251, 191, 36, 0.12) !important;
+  color: #fde68a !important;
+}
+/* action-dropdown success (activate) */
+.action-dropdown-item--success {
+  color: #4ade80 !important;
+}
+.action-dropdown-item--success:hover {
+  background: rgba(74, 222, 128, 0.12) !important;
+  color: #86efac !important;
 }

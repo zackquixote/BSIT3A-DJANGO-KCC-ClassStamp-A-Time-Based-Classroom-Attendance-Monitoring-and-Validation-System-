@@ -134,7 +134,7 @@
 </div>
 
 <!-- ── Classes Master Table ────────────────────────────────────── -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: visible;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="flex items-center gap-3">
       <div class="stat-icon stat-icon--purple" style="width: 36px; height: 36px; font-size: 1rem;">
@@ -151,7 +151,7 @@
   </div>
 
   {% if classes %}
-  <div class="table-responsive">
+  <div class="table-responsive" style="overflow: visible;">
     <table class="table">
       <thead>
         <tr>
@@ -230,41 +230,62 @@
               <span class="badge badge--dark badge--xs" style="color: #94a3b8;"><i class="fas fa-eye-slash"></i> Inactive</span>
             {% endif %}
           </td>
-          <td>
-            <div class="flex items-center gap-1.5" style="justify-content: flex-end;">
-              <!-- Timetable Slots Button -->
+          <td style="text-align: right; overflow: visible; position: relative;">
+            <div class="flex items-center gap-1" style="justify-content: flex-end;">
+              <!-- Schedule (quick) -->
               <button type="button" class="btn btn-outline btn-xs btn-manage-slots"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
-                      title="Manage Weekly Timetable Slots">
-                <i class="fas fa-clock"></i> Schedule
+                      title="Manage Weekly Schedule Slots">
+                <i class="fas fa-clock"></i>
               </button>
-
-              <!-- Attendance Matrix Button -->
-              <button type="button" class="btn btn-outline btn-xs js-open-matrix"
-                      data-class-id="{{ c.id }}"
-                      data-class-code="{{ c.class_code }}"
-                      data-matrix-url="{% url 'class_attendance_matrix' c.id %}"
-                      title="View Classroom Attendance Matrix Sheet">
-                <i class="fas fa-table-cells"></i> Matrix
-              </button>
-
-              <!-- Roster Enlistment Button -->
+              <!-- Roster (quick) -->
               <button type="button" class="btn btn-outline btn-xs btn-manage-roster"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
-                      title="Manage Enrolled Student Roster">
-                <i class="fas fa-users"></i> Roster
+                      title="Manage Student Roster">
+                <i class="fas fa-users"></i>
               </button>
-
-              <!-- Toggle Active Button -->
-              <form method="POST" action="{% url 'class_toggle' c.id %}" style="display: inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-ghost btn-xs text-muted"
-                        title="{% if c.is_active %}Deactivate Section{% else %}Activate Section{% endif %}">
-                  <i class="fas {% if c.is_active %}fa-pause text-warning{% else %}fa-play text-success{% endif %}"></i>
+              <!-- More Actions Dropdown -->
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-xs action-dropdown-toggle" style="padding:5px 8px;" title="More">
+                  <i class="fas fa-ellipsis-vertical"></i>
                 </button>
-              </form>
+                <div class="action-dropdown-menu">
+                  <button type="button" class="action-dropdown-item js-open-matrix"
+                          data-class-id="{{ c.id }}"
+                          data-class-code="{{ c.class_code }}"
+                          data-matrix-url="{% url 'class_attendance_matrix' c.id %}">
+                    <i class="fas fa-table-cells text-blue"></i>
+                    <span>Attendance Matrix</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item btn-edit-class"
+                          data-id="{{ c.id }}"
+                          data-code="{{ c.class_code }}"
+                          data-subject-id="{{ c.subject_id }}"
+                          data-teacher-id="{{ c.teacher_profile_id }}"
+                          data-ay-id="{{ c.academic_year_id }}"
+                          data-capacity="{{ c.capacity|default:'' }}"
+                          data-grace="{{ c.grace_minutes }}">
+                    <i class="fas fa-pen text-gold"></i>
+                    <span>Edit Section</span>
+                  </button>
+                  <div class="action-dropdown-divider"></div>
+                  <button type="button"
+                          class="action-dropdown-item {% if c.is_active %}action-dropdown-item--warning{% else %}action-dropdown-item--success{% endif %} js-toggle-class"
+                          data-id="{{ c.id }}"
+                          data-code="{{ c.class_code }}"
+                          data-active="{{ c.is_active|yesno:'true,false' }}"
+                          data-csrf="{% csrf_token %}"
+                          data-toggle-url="{% url 'class_toggle' c.id %}">
+                    {% if c.is_active %}
+                      <i class="fas fa-pause"></i><span>Deactivate</span>
+                    {% else %}
+                      <i class="fas fa-play"></i><span>Activate</span>
+                    {% endif %}
+                  </button>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -288,7 +309,83 @@
   {% endif %}
 </div>
 
-<!-- ── Modal 1: Weekly Schedule Timetable Slots ────────────────── -->
+<!-- ── Modal 1: Edit Class ─────────────────────────────────────── -->
+<div class="dash-modal-backdrop" id="classModal">
+  <div class="dash-modal" role="dialog" aria-labelledby="classModalTitle" style="max-width: 520px;">
+    <div class="dash-modal-head">
+      <h3 class="dash-modal-title" id="classModalTitle">
+        <i class="fas fa-chalkboard text-gold"></i>
+        <span>Edit Class Section</span>
+      </h3>
+      <button type="button" class="dash-modal-close" id="closeClassModal" aria-label="Close">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" action="{% url 'class_save' %}" id="classForm">
+      {% csrf_token %}
+      <input type="hidden" name="class_id" id="formClassId" value="">
+
+      <div class="dash-modal-body" style="gap: 14px; padding: 18px 20px;">
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Class Section Code *</label>
+          <input type="text" name="class_code" id="formClassCode" class="form-control" required placeholder="e.g. BSIT-3A-WEBDEV" style="width: 100%; text-transform: uppercase;">
+          <span class="text-muted text-xs mt-1" style="display: block;">Unique section identifier per academic term</span>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Subject *</label>
+          <select name="subject_id" id="formSubjectId" class="form-control" required style="width: 100%;">
+            <option value="">Select Course Subject...</option>
+            {% for s in subjects %}
+              <option value="{{ s.id }}" data-code="{{ s.code }}" data-name="{{ s.name }}">{{ s.code }} — {{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Assigned Faculty Instructor *</label>
+          <select name="teacher_profile_id" id="formTeacherId" class="form-control" required style="width: 100%;">
+            <option value="">Select Instructor...</option>
+            {% for t in teachers %}
+              <option value="{{ t.id }}">
+                {{ t.user.get_full_name|default:t.user.username }} {% if t.department %}({{ t.department.code }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Academic Term *</label>
+            <select name="academic_year_id" id="formAyId" class="form-control" required style="width: 100%;">
+              {% for ay in academic_years %}
+                <option value="{{ ay.id }}" {% if ay.is_active %}selected{% endif %}>{{ ay.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Roster Capacity</label>
+            <input type="number" name="capacity" id="formCapacity" class="form-control" min="1" max="250" placeholder="e.g. 45" style="width: 100%;">
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Grace Period Buffer (Minutes)</label>
+          <input type="number" name="grace_minutes" id="formGraceMinutes" class="form-control" min="0" max="60" value="10" required style="width: 100%;">
+          <span class="text-muted text-xs mt-1" style="display: block;">Minutes allowed after slot start time before marking LATE</span>
+        </div>
+      </div>
+
+      <div style="padding: 12px 20px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-outline btn-sm" id="cancelClassModal">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Save Section</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Modal 2: Weekly Schedule Timetable Slots ────────────────── -->
 <div class="dash-modal-backdrop" id="slotsModal">
   <div class="dash-modal" role="dialog" aria-labelledby="slotsModalTitle" style="max-width: 560px;">
     <div class="dash-modal-head">
@@ -359,7 +456,7 @@
   </div>
 </div>
 
-<!-- ── Modal 2: Class Roster & Student Enlistment ───────────────── -->
+<!-- ── Modal 3: Class Roster & Student Enlistment ───────────────── -->
 <div class="dash-modal-backdrop" id="rosterModal">
   <div class="dash-modal" role="dialog" aria-labelledby="rosterModalTitle" style="max-width: 620px;">
     <div class="dash-modal-head">
@@ -483,8 +580,75 @@
 {% block extra_js %}
 {% load static %}
 <script src="{% static 'js/classes/classes_common.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/class_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
+
+<script>
+  /* ── Action Dropdown toggle ───────────────────────────── */
+  document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.action-dropdown-toggle');
+    var all = document.querySelectorAll('.action-dropdown');
+    if (toggle) {
+      e.stopPropagation();
+      var parent = toggle.closest('.action-dropdown');
+      var wasOpen = parent.classList.contains('open');
+      all.forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) parent.classList.add('open');
+    } else {
+      all.forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+
+  /* ── AJAX Class Activate / Deactivate ────────────────── */
+  var _csrfToken = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-toggle-class');
+    if (!btn) return;
+    e.preventDefault();
+    var url = btn.dataset.toggleUrl;
+    var row = btn.closest('tr');
+    btn.disabled = true;
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': _csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data.ok) throw new Error('toggle failed');
+      var isActive = data.is_active;
+      var statusCell = row.querySelector('td:nth-child(6)');
+      if (statusCell) {
+        statusCell.innerHTML = isActive
+          ? '<span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Active</span>'
+          : '<span class="badge badge--dark badge--xs" style="color:#94a3b8;"><i class="fas fa-eye-slash"></i> Inactive</span>';
+      }
+      var icon = btn.querySelector('i');
+      var label = btn.querySelector('span');
+      btn.classList.remove('action-dropdown-item--warning', 'action-dropdown-item--success');
+      if (isActive) {
+        btn.classList.add('action-dropdown-item--warning');
+        if (icon) icon.className = 'fas fa-pause';
+        if (label) label.textContent = 'Deactivate';
+        btn.dataset.active = 'true';
+      } else {
+        btn.classList.add('action-dropdown-item--success');
+        if (icon) icon.className = 'fas fa-play';
+        if (label) label.textContent = 'Activate';
+        btn.dataset.active = 'false';
+      }
+      var dd = btn.closest('.action-dropdown');
+      if (dd) dd.classList.remove('open');
+    })
+    .catch(function () { alert('Toggle failed. Please refresh.'); })
+    .finally(function () { btn.disabled = false; });
+  });
+</script>
 {% endblock %}
+
 

@@ -906,7 +906,7 @@
           <div class="form-group">
             <label class="form-label" for="studentEditDept">Department</label>
             <select id="studentEditDept" name="department" class="form-control">
-              <option value="">— none —</option>
+              <option value="">None</option>
               {% for d in departments %}
               <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
               {% endfor %}
@@ -924,7 +924,7 @@
         <div class="form-group">
           <label class="form-label" for="studentEditProg">Program / Course</label>
           <select id="studentEditProg" name="program" class="form-control">
-            <option value="">— none —</option>
+            <option value="">None</option>
             {% for p in programs %}
             <option value="{{ p.id }}" data-dept="{{ p.department_id }}">{{ p.code }} — {{ p.name }}</option>
             {% endfor %}

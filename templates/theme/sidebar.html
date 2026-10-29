@@ -22,66 +22,72 @@
   <nav class="sidebar-nav">
 
     {% if request.user.is_superuser or profile and profile.role == 'ADMIN' %}
-      <span class="sidebar-section-label">Admin Panel</span>
+      <span class="sidebar-section-label">Overview</span>
       <a href="{% url 'admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
         <i class="fas fa-gauge-high sidebar-link-icon"></i>
         <span>Dashboard</span>
       </a>
 
-      <span class="sidebar-section-label">Account Management</span>
+      <span class="sidebar-section-label">Academic Structure</span>
+      <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}" title="School Years & Term Rollover">
+        <i class="fas fa-calendar-days sidebar-link-icon"></i>
+        <span>Academic Terms</span>
+      </a>
+      <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}" title="Academic Colleges & Departments">
+        <i class="fas fa-building sidebar-link-icon"></i>
+        <span>Departments</span>
+      </a>
+      <a href="{% url 'program_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'program_list program_save' %}active{% endif %}" title="Degree Programs & Curriculum Matrix">
+        <i class="fas fa-graduation-cap sidebar-link-icon"></i>
+        <span>Programs &amp; Curriculum</span>
+      </a>
+      <a href="{% url 'subject_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'subject' %}active{% endif %}" title="Master Course Catalogue">
+        <i class="fas fa-book-bookmark sidebar-link-icon"></i>
+        <span>Subject Catalogue</span>
+      </a>
+
+      <span class="sidebar-section-label">Classrooms &amp; Rosters</span>
+      <a href="{% url 'class_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':5' == 'class' and request.resolver_match.url_name != 'class_wizard_setup' %}active{% endif %}" title="Class Sections & Enlistment">
+        <i class="fas fa-chalkboard sidebar-link-icon"></i>
+        <span>Class Sections</span>
+      </a>
+      <a href="{% url 'class_wizard_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'class_wizard_setup' %}active{% endif %}" title="Section Setup Wizard">
+        <i class="fas fa-wand-magic-sparkles sidebar-link-icon"></i>
+        <span>Section Wizard</span>
+      </a>
+      <a href="{% url 'teacher_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'teacher' %}active{% endif %}" title="Faculty Loading & Departments">
+        <i class="fas fa-chalkboard-user sidebar-link-icon"></i>
+        <span>Faculty Directory</span>
+      </a>
+
+      <span class="sidebar-section-label">Student Management</span>
       {% with current_view=request.resolver_match.url_name %}
       <a href="{% url 'validation_queue' %}" class="sidebar-link {% if current_view in 'validation_queue validation_hub validation_pending_queue recently_reviewed_list validation_detail approve_student reject_student' %}active{% endif %}">
         <i class="fas fa-user-clock sidebar-link-icon"></i>
         <span>Account Validation</span>
         <span class="sidebar-badge" id="sidebarPendingBadge" data-pending-count-url="{% url 'admin_pending_count_json' %}"{% if not pending_approval_count %} style="display: none;"{% endif %}>{{ pending_approval_count }}</span>
       </a>
-      <a href="{% url 'student_directory' %}" class="sidebar-link {% if current_view in 'student_directory student_list student_directory_import_csv program_students_per_year' %}active{% endif %}" title="Student List & Masterlist">
+      <a href="{% url 'student_directory' %}" class="sidebar-link {% if current_view in 'student_directory student_list student_directory_import_csv program_students_per_year' %}active{% endif %}" title="Student Masterlist & Import">
         <i class="fas fa-user-graduate sidebar-link-icon"></i>
-        <span>Student List</span>
+        <span>Student Masterlist</span>
       </a>
-      <a href="{% url 'users:user_list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'users' %}active{% endif %}">
+      <a href="{% url 'users:user_list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'users' %}active{% endif %}" title="System User Accounts">
         <i class="fas fa-users-gear sidebar-link-icon"></i>
-        <span>User Management</span>
+        <span>User Accounts</span>
       </a>
       {% endwith %}
 
-      <span class="sidebar-section-label">Organisation</span>
-      <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}">
-        <i class="fas fa-calendar-days sidebar-link-icon"></i>
-        <span>Academic Years</span>
-      </a>
-      <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}">
-        <i class="fas fa-building sidebar-link-icon"></i>
-        <span>Departments</span>
-      </a>
-      <a href="{% url 'program_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'program_list program_save' %}active{% endif %}">
-        <i class="fas fa-graduation-cap sidebar-link-icon"></i>
-        <span>Programs</span>
-      </a>
-      <a href="{% url 'subject_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'subject' %}active{% endif %}">
-        <i class="fas fa-book sidebar-link-icon"></i>
-        <span>Subjects</span>
-      </a>
-      <a href="{% url 'teacher_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'teacher' %}active{% endif %}">
-        <i class="fas fa-chalkboard-user sidebar-link-icon"></i>
-        <span>Teachers</span>
-      </a>
-      <a href="{% url 'class_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':5' == 'class' %}active{% endif %}">
-        <i class="fas fa-chalkboard sidebar-link-icon"></i>
-        <span>Classes &amp; Schedules</span>
+      <span class="sidebar-section-label">Oversight &amp; Security</span>
+      <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}" title="Security Anomalies & Flagged Scans">
+        <i class="fas fa-triangle-exclamation sidebar-link-icon"></i>
+        <span>Security Alerts</span>
+        <span class="sidebar-badge sidebar-badge--danger" id="sidebarAnomalyBadge"{% if not open_anomaly_count %} style="display: none;"{% endif %}>{{ open_anomaly_count }}</span>
       </a>
       <a href="{% url 'admin_calendar' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'admin_calendar' %}active{% endif %}" title="Institutional Calendar & Milestones">
         <i class="fas fa-calendar-alt sidebar-link-icon"></i>
         <span>Academic Calendar</span>
       </a>
-
-      <span class="sidebar-section-label">Security</span>
-      <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}">
-        <i class="fas fa-triangle-exclamation sidebar-link-icon"></i>
-        <span>Security Alerts</span>
-        <span class="sidebar-badge" id="sidebarAnomalyBadge" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);{% if not open_anomaly_count %} display: none;{% endif %}">{{ open_anomaly_count }}</span>
-      </a>
-      <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}">
+      <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}" title="System Activity & Audit Trail">
         <i class="fas fa-shield-halved sidebar-link-icon"></i>
         <span>Audit Log</span>
       </a>

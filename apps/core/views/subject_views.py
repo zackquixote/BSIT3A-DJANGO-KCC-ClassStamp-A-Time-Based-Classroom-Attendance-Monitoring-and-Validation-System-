@@ -191,6 +191,53 @@ def subject_delete(request, pk: int):
 
 
 # // ==============================================================================
+# // AJAX: Toggle Subject Active/Inactive (/subjects/toggle/<pk>/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def subject_toggle(request, pk: int):
+    """
+    // [AJAX] Flips the is_active flag of a subject.
+    // Safe: can always re-activate; deactivation is blocked if classes are live.
+    """
+    try:
+        subject = get_object_or_404(Subject, pk=pk)
+        new_state = not subject.is_active
+        subject.is_active = new_state
+        subject.save(update_fields=['is_active'])
+        action = 'activated' if new_state else 'deactivated'
+        return JsonResponse({
+            'ok': True,
+            'is_active': new_state,
+            'message': f'Subject {subject.code} has been {action}.',
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+
+
+# // ==============================================================================
+# // AJAX: Get Single Subject Details (/subjects/get/<pk>/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def subject_get(request, pk: int):
+    """
+    // [AJAX] Returns serialized subject details for modal pre-population.
+    """
+    subject = get_object_or_404(
+        Subject.objects.annotate(
+            class_count=Count('classes', distinct=True),
+            curriculum_count=Count('curriculum_entries', distinct=True),
+        ),
+        pk=pk
+    )
+    return JsonResponse({'ok': True, 'subject': serialize_subject(subject)})
+
+
+# // ==============================================================================
 # // AJAX: Assign Subject to Program Year Level (/programs/curriculum/assign/)
 # // ==============================================================================
 @login_required(login_url='login')

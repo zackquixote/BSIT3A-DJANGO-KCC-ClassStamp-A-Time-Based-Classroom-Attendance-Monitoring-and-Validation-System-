@@ -307,7 +307,7 @@
         <div class="input-wrap">
           <i class="fas fa-users-rectangle input-icon"></i>
           <select name="target_class_id" id="id_target_class" class="form-control">
-            <option value="">— Automatically use section from CSV column —</option>
+            <option value="">Automatically use section from CSV column</option>
             {% for c in classes %}
               <option value="{{ c.id }}">{{ c.class_code }} ({{ c.subject.code }} — {{ c.subject.name }})</option>
             {% endfor %}

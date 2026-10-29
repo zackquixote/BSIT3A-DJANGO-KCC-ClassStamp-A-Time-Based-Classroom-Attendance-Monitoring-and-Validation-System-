@@ -154,6 +154,22 @@ def academic_year_delete(request, pk: int):
 
 
 # // ==============================================================================
+# // AJAX: Get Single Academic Year (/academic-years/get/<pk>/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+def academic_year_get(request, pk: int):
+    """
+    // [AJAX] Returns serialized academic year for modal pre-population.
+    """
+    ay = get_object_or_404(
+        AcademicYear.objects.annotate(class_count=Count('classes', distinct=True)),
+        pk=pk
+    )
+    return JsonResponse({'ok': True, 'academic_year': serialize_academic_year(ay)})
+
+
+# // ==============================================================================
 # // AJAX: Term Rollover (/academic-years/rollover/)
 # // ==============================================================================
 @login_required(login_url='login')

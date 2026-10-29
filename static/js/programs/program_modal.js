@@ -20,21 +20,39 @@
 
     if (!form) return;
 
-    // Handle Create button clicks (event delegation)
+    // Handle Edit / Create button clicks (event delegation)
     document.addEventListener('click', function (e) {
       var editBtn = e.target.closest('[data-modal-target="editProgModal"]');
       if (!editBtn) return;
 
       if (errorBox) errorBox.style.display = 'none';
+      var mode = editBtn.getAttribute('data-mode');
 
-      if (modalTitle) modalTitle.textContent = 'Add Program';
-      form.reset();
-      var idEl2 = getEl('prog_id');
-      var yearsEl2 = getEl('prog_years');
-      var actEl2 = getEl('prog_is_active');
-      if (idEl2)    idEl2.value = '';
-      if (yearsEl2) yearsEl2.value = '4';
-      if (actEl2)   actEl2.checked = true;
+      if (mode === 'edit') {
+        if (modalTitle) modalTitle.textContent = 'Edit Program';
+        var idEl = getEl('prog_id');
+        var deptEl = getEl('prog_department');
+        var codeEl = getEl('prog_code');
+        var nameEl = getEl('prog_name');
+        var yearsEl = getEl('prog_years');
+        var actEl = getEl('prog_is_active');
+
+        if (idEl)    idEl.value    = editBtn.getAttribute('data-id') || '';
+        if (deptEl)  deptEl.value  = editBtn.getAttribute('data-dept') || '';
+        if (codeEl)  codeEl.value  = editBtn.getAttribute('data-code') || '';
+        if (nameEl)  nameEl.value  = editBtn.getAttribute('data-name') || '';
+        if (yearsEl) yearsEl.value = editBtn.getAttribute('data-years') || '4';
+        if (actEl)   actEl.checked = editBtn.getAttribute('data-active') === 'true';
+      } else {
+        if (modalTitle) modalTitle.textContent = 'Add Program';
+        form.reset();
+        var idEl2 = getEl('prog_id');
+        var yearsEl2 = getEl('prog_years');
+        var actEl2 = getEl('prog_is_active');
+        if (idEl2)    idEl2.value = '';
+        if (yearsEl2) yearsEl2.value = '4';
+        if (actEl2)   actEl2.checked = true;
+      }
 
       var App = getApp();
       if (typeof window.openModal === 'function') {

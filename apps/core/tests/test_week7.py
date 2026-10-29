@@ -709,6 +709,13 @@ class SubjectUnitsTests(BaseWeek5FixtureMixin, TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn('whole number', res.json()['error'])
 
+    def test_units_returned_by_subject_get(self):
+        self._save('UNITS105', 'Lookup Subject', units='2')
+        subject = Subject.objects.get(code='UNITS105')
+        res = self.client.get(reverse('subject_get', args=[subject.pk]))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['subject']['units'], 2)
+
 
 # // ==============================================================================
 # // A-19 PHASE 4: WIZARD PAGE & LIVE SLOT CONFLICT CHECK

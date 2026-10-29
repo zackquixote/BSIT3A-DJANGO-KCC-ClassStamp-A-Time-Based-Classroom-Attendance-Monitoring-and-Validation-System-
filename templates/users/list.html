@@ -469,6 +469,27 @@
                 <i class="fas fa-key text-warning"></i>
               </button>
 
+              <!-- Edit Account Button -->
+              <button type="button"
+                      class="btn btn-outline"
+                      style="padding: 5px 9px;"
+                      data-modal-target="editUserModal"
+                      data-mode="edit"
+                      data-id="{{ u.id }}"
+                      data-username="{{ u.classstamp_profile.student_number|default:u.username }}"
+                      data-first="{{ u.first_name }}"
+                      data-last="{{ u.last_name }}"
+                      data-email="{{ u.email }}"
+                      data-role="{% if u.classstamp_profile %}{{ u.classstamp_profile.role }}{% elif u.is_superuser %}ADMIN{% elif u.is_staff %}ADMIN{% else %}STUDENT{% endif %}"
+                      data-program="{{ u.classstamp_profile.program_id|default:'' }}"
+                      data-department="{{ u.classstamp_profile.department_id|default:'' }}"
+                      data-year="{{ u.classstamp_profile.year_level|default:'1' }}"
+                      data-active="{{ u.is_active|yesno:'true,false' }}"
+                      data-staff="{{ u.is_staff|yesno:'true,false' }}"
+                      title="Edit Account Details">
+                <i class="fas fa-pen text-gold"></i>
+              </button>
+
               <!-- Delete Button -->
               {% if u.id == request.user.id %}
                 <button type="button" class="btn btn-outline" style="padding: 5px 9px; opacity: 0.4; cursor: not-allowed;" title="Self-deletion prohibited" disabled>

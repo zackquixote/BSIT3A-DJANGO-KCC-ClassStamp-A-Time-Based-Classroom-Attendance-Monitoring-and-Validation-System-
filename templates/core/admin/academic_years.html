@@ -68,7 +68,7 @@
 <div id="aySuccess" class="toast toast--success mb-4" style="display: none;"></div>
 
 <!-- Academic Years Table -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: visible;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">Term Registry</div>
     <span class="text-muted text-xs">{{ academic_years.paginator.count }} terms registered</span>
@@ -110,16 +110,37 @@
               <span class="badge badge--muted">Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right;">
-            <div class="flex justify-end gap-2">
-              {% if not ay.is_active %}
-              <button class="btn btn-outline btn-sm js-set-active" data-id="{{ ay.id }}" title="Set as Active Term">
-                <i class="fas fa-circle-check"></i> Set Active
+          <td style="text-align: right; overflow: visible; position: relative;">
+            <div class="flex justify-end items-center gap-1">
+              <!-- Edit (primary) -->
+              <button class="btn btn-outline btn-sm js-edit-ay" data-id="{{ ay.id }}" title="Edit">
+                <i class="fas fa-pen"></i>
               </button>
-              {% endif %}
-              <button class="btn btn-danger btn-sm js-delete-ay" data-id="{{ ay.id }}" data-name="{{ ay.name }}" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
+              <!-- More Actions Dropdown -->
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding:5px 9px;" title="More">
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="action-dropdown-menu">
+                  {% if not ay.is_active %}
+                  <button class="action-dropdown-item js-set-active" data-id="{{ ay.id }}">
+                    <i class="fas fa-circle-check text-green"></i>
+                    <span>Set as Active Term</span>
+                  </button>
+                  {% else %}
+                  <div class="action-dropdown-item" style="opacity:0.4;cursor:default;">
+                    <i class="fas fa-circle-check text-green"></i>
+                    <span>Currently Active</span>
+                  </div>
+                  {% endif %}
+                  <div class="action-dropdown-divider"></div>
+                  <button class="action-dropdown-item action-dropdown-item--danger js-delete-ay"
+                          data-id="{{ ay.id }}" data-name="{{ ay.name }}">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete Term</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -369,4 +390,5 @@
 .rollover-panel h3 { font-size: 1.02rem; font-weight: 700; }
 </style>
 {% endblock %}
+
 

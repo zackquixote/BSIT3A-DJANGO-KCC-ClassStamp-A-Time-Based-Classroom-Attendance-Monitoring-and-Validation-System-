@@ -151,6 +151,75 @@ def class_list(request):
 
 
 # // ==============================================================================
+# // ACTION: Save Class Section (Edit only — creation lives in the Section Wizard)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def class_save(request):
+    """
+    // Updates an existing Class section. New sections are created exclusively
+    // through the Section Builder wizard (class_wizard_save).
+    """
+    class_id = request.POST.get('class_id', '').strip()
+    class_code = request.POST.get('class_code', '').strip().upper()
+    subject_id = request.POST.get('subject_id', '').strip()
+    teacher_profile_id = request.POST.get('teacher_profile_id', '').strip()
+    academic_year_id = request.POST.get('academic_year_id', '').strip()
+    capacity_str = request.POST.get('capacity', '').strip()
+    grace_minutes_str = request.POST.get('grace_minutes', '10').strip()
+
+    if not class_id:
+        messages.error(request, 'New sections are created through the Section Wizard.')
+        return redirect('class_wizard_setup')
+
+    if not (class_code and subject_id and teacher_profile_id and academic_year_id):
+        messages.error(request, 'Class Code, Subject, Teacher, and Academic Year are all required.')
+        return redirect('class_list')
+
+    try:
+        capacity = int(capacity_str) if capacity_str else None
+    except ValueError:
+        capacity = None
+
+    try:
+        grace_minutes = int(grace_minutes_str) if grace_minutes_str else 10
+    except ValueError:
+        grace_minutes = 10
+
+    subject = get_object_or_404(Subject, pk=subject_id)
+    teacher = get_object_or_404(Profile, pk=teacher_profile_id, role=Profile.ROLE_TEACHER)
+    academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+
+    class_obj = get_object_or_404(Class, pk=class_id)
+
+    try:
+        result = assign_class(
+            actor=request.user,
+            teacher_profile=teacher,
+            academic_year=academic_year,
+            subject=subject,
+            class_code=class_code,
+            grace_minutes=grace_minutes,
+            capacity=capacity,
+            class_obj=class_obj,
+        )
+    except ClassAssignmentError as exc:
+        messages.error(request, str(exc))
+        return redirect('class_list')
+
+    if result['reassigned_from']:
+        messages.success(
+            request,
+            f"Class '{class_code}' reassigned from {result['reassigned_from']} successfully.",
+        )
+    else:
+        messages.success(request, f"Class '{class_code}' updated successfully.")
+
+    return redirect('class_list')
+
+
+# // ==============================================================================
 # // ACTION: Toggle Class Active State
 # // ==============================================================================
 @login_required(login_url='login')
@@ -173,6 +242,9 @@ def class_toggle(request, pk):
         new_value=str(class_obj.is_active),
         reason=f"Class {class_obj.class_code} {status_str}",
     )
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        return JsonResponse({'ok': True, 'is_active': class_obj.is_active, 'status_str': status_str})
     messages.success(request, f"Class '{class_obj.class_code}' has been {status_str}.")
     return redirect('class_list')
 

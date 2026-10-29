@@ -43,6 +43,37 @@
       });
     }
 
+    // Open modal (edit) - event delegation
+    document.addEventListener('click', async function (e) {
+      var editBtn = e.target.closest('.js-edit-ay');
+      if (!editBtn) return;
+
+      var id = editBtn.dataset.id;
+      if (!id) return;
+
+      try {
+        var res = await fetch('/academic-years/get/' + id + '/');
+        var data = await res.json();
+        if (!data.ok) return;
+
+        var ay = data.academic_year;
+        if (modalTitle) modalTitle.textContent = 'Edit Academic Year';
+        if (ayId)       ayId.value = ay.id;
+        if (ayName)     ayName.value = ay.name;
+        if (ayStartsOn) ayStartsOn.value = ay.starts_on;
+        if (ayEndsOn)   ayEndsOn.value = ay.ends_on;
+        if (ayIsActive) ayIsActive.checked = !!ay.is_active;
+        if (formError)  formError.style.display = 'none';
+
+        var App = getApp();
+        if (App) App.showModal('ayModal');
+        else if (window.openModal) window.openModal('ayModal');
+        else if (modal) modal.classList.add('is-active');
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
     // Close modal handlers
     ['ayModalClose', 'ayModalCancel'].forEach(function (btnId) {
       var el = getEl(btnId);

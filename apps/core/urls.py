@@ -65,12 +65,16 @@ urlpatterns = [
     path('subjects/', views.subject_list, name='subject_list'),
     path('subjects/save/', views.subject_save, name='subject_save'),
     path('subjects/delete/<int:pk>/', views.subject_delete, name='subject_delete'),
+    path('subjects/get/<int:pk>/', views.subject_get, name='subject_get'),
+    path('subjects/toggle/<int:pk>/', views.subject_toggle, name='subject_toggle'),
 
     # // Admin: Teacher & Faculty Management
     path('teachers/', views.teacher_list, name='teacher_list'),
     path('teachers/create/', views.teacher_create, name='teacher_create'),
+    path('teachers/update/<int:pk>/', views.teacher_update, name='teacher_update'),
     path('teachers/<int:pk>/reassign/', views.teacher_reassign_ajax, name='teacher_reassign_ajax'),
     path('teachers/toggle/<int:pk>/', views.teacher_toggle, name='teacher_toggle'),
+    path('teachers/bulk-operation/', views.bulk_teacher_operation, name='bulk_teacher_operation'),
     path('teachers/<int:pk>/reset-password/', views.admin_reset_teacher_password, name='admin_reset_teacher_password'),
     path('teachers/delete/<int:pk>/', views.teacher_delete, name='teacher_delete'),
     path('teachers/get/<int:pk>/', views.teacher_get, name='teacher_get'),
@@ -83,6 +87,7 @@ urlpatterns = [
     path('academic-years/save/', views.academic_year_save, name='academic_year_save'),
     path('academic-years/set-active/<int:pk>/', views.academic_year_set_active, name='academic_year_set_active'),
     path('academic-years/delete/<int:pk>/', views.academic_year_delete, name='academic_year_delete'),
+    path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
     path('academic-years/rollover/', views.academic_year_rollover, name='academic_year_rollover'),
 
     # // Admin: Academic Calendar & Institutional Schedule
@@ -97,6 +102,7 @@ urlpatterns = [
 
     # // Admin: Class Sections, Schedules & Roster Enrollment
     path('classes/', views.class_list, name='class_list'),
+    path('classes/save/', views.class_save, name='class_save'),
     path('classes/toggle/<int:pk>/', views.class_toggle, name='class_toggle'),
     path('classes/<int:class_id>/slot/save/', views.class_slot_save, name='class_slot_save'),
     path('classes/slot/delete/<int:slot_id>/', views.class_slot_delete, name='class_slot_delete'),

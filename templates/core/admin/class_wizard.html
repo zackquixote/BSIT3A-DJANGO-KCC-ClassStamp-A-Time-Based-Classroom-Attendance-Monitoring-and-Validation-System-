@@ -59,7 +59,7 @@
       <div class="form-group">
         <label class="form-label" for="wiz-program">Program <span class="text-danger">*</span></label>
         <select id="wiz-program" class="form-control">
-          <option value="">— select program —</option>
+          <option value="">Select Program</option>
           {% for p in programs %}
           <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
           {% endfor %}
@@ -68,7 +68,7 @@
       <div class="form-group">
         <label class="form-label" for="wiz-year">Year Level <span class="text-danger">*</span></label>
         <select id="wiz-year" class="form-control" disabled>
-          <option value="">— select program first —</option>
+          <option value="">Select program first</option>
         </select>
       </div>
       <div class="form-group">
