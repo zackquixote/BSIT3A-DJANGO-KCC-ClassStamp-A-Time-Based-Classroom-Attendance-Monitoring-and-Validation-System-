@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261029_v2_crossbrowser">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261029_v3_mobilenav">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -28,7 +28,7 @@
 
     <main class="main-content {% if not request.user.is_authenticated %}main-content--full{% endif %}">
       {% if request.user.is_authenticated %}
-        <header class="mobile-topbar" id="mobileTopbar" style="display: none;">
+        <header class="mobile-topbar" id="mobileTopbar">
           <div class="mobile-topbar-left">
             <button type="button" class="mobile-toggle-btn" id="sidebar-toggle" aria-label="Toggle Navigation">
               <i class="fas fa-bars"></i>
@@ -38,12 +38,17 @@
               <span class="mobile-topbar-title">KCC <span class="text-gold">ClassStamp</span></span>
             </div>
           </div>
-          <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
-            {% if request.user.first_name and request.user.last_name %}
-              {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
-            {% else %}
-              {{ request.user.username|slice:":2"|upper }}
-            {% endif %}
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
+              {% if request.user.first_name and request.user.last_name %}
+                {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+              {% else %}
+                {{ request.user.username|slice:":2"|upper }}
+              {% endif %}
+            </div>
+            <a href="{% url 'logout' %}" title="Log out" aria-label="Log out" style="color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
+              <i class="fas fa-right-from-bracket"></i>
+            </a>
           </div>
         </header>
       {% endif %}
@@ -61,6 +66,56 @@
 
       {% block content %}{% endblock %}
     </main>
+
+    {% if request.user.is_authenticated %}
+      {% with profile=request.user.classstamp_profile %}
+        {% if profile and profile.role == 'STUDENT' %}
+          <!-- Mobile Bottom Navigation Bar (For Students on Cellphones) -->
+          <nav class="mobile-bottom-nav" aria-label="Student Mobile Navigation">
+            <a href="{% url 'student_dashboard' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'student_dashboard' %}active{% endif %}">
+              <i class="fas fa-gauge-high"></i>
+              <span>Dashboard</span>
+            </a>
+            <a href="{% url 'student_qr_badge' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'student_qr_badge' %}active{% endif %}">
+              <i class="fas fa-qrcode"></i>
+              <span>My QR</span>
+            </a>
+            <a href="{% url 'student_attendance_log' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'student_attendance_log' %}active{% endif %}">
+              <i class="fas fa-calendar-check"></i>
+              <span>Attendance</span>
+            </a>
+            <a href="{% url 'student_excuse_slips' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'student_excuse_slips' %}active{% endif %}">
+              <i class="fas fa-file-medical"></i>
+              <span>Excuse Slips</span>
+            </a>
+            <a href="{% url 'logout' %}" class="mobile-bottom-nav-item mobile-bottom-nav-item--logout" title="Logout">
+              <i class="fas fa-right-from-bracket"></i>
+              <span>Logout</span>
+            </a>
+          </nav>
+        {% elif profile and profile.role == 'TEACHER' %}
+          <!-- Mobile Bottom Navigation Bar (For Teachers on Cellphones) -->
+          <nav class="mobile-bottom-nav" aria-label="Teacher Mobile Navigation">
+            <a href="{% url 'teacher_dashboard' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'teacher_dashboard' %}active{% endif %}">
+              <i class="fas fa-gauge-high"></i>
+              <span>Dashboard</span>
+            </a>
+            <a href="{% url 'teacher_session_history' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'teacher_session_history' %}active{% endif %}">
+              <i class="fas fa-clipboard-list"></i>
+              <span>History</span>
+            </a>
+            <a href="{% url 'teacher_excuse_slips' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'teacher_excuse_slips' %}active{% endif %}">
+              <i class="fas fa-file-medical"></i>
+              <span>Excuse</span>
+            </a>
+            <a href="{% url 'logout' %}" class="mobile-bottom-nav-item mobile-bottom-nav-item--logout" title="Logout">
+              <i class="fas fa-right-from-bracket"></i>
+              <span>Logout</span>
+            </a>
+          </nav>
+        {% endif %}
+      {% endwith %}
+    {% endif %}
 
   </div>
 

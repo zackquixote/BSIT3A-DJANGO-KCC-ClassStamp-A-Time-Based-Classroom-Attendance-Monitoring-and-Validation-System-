@@ -299,7 +299,7 @@ svg.sidebar-link-icon {
 }
 
 /* ── Responsive Sidebar Drawer (Mobile & Small Tablets) ───────── */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .sidebar {
     width: 280px;
     transform: translateX(-100%);
