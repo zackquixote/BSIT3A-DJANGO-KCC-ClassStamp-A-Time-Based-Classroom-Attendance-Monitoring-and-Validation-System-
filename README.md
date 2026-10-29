@@ -1,5 +1,4 @@
-# 🎓 KCC ClassStamp
-### A Time-Based Classroom Attendance Monitoring and Validation System
+# KCC ClassStamp - A Time-Based Classroom Attendance Monitoring and Validation System
 
 A **Django-powered**, QR-code-based attendance system for KCC with 3 role-based portals: Admin, Teacher, and Student.
 
@@ -11,4 +10,4 @@ A **Django-powered**, QR-code-based attendance system for KCC with 3 role-based 
 *10/7/2026 — 100 Points*
 
 ## 📄 Concept Paper
-- [KCC ClassStamp — Concept Paper (DOCX)](docs/KCC-ClassStamp-Concept-Paper.docx)
+- [KCC ClassStamp - A Time-Based Classroom Attendance Monitoring and Validation System (DOCX)](docs/KCC-ClassStamp-Concept-Paper.docx)
