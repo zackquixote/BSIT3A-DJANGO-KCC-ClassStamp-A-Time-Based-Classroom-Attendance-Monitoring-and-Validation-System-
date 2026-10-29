@@ -19,7 +19,6 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
-import json
 from apps.core.models import AcademicYear, Class, Curriculum, Department, Profile, Program, Subject
 from apps.core.serializers import serialize_subject, serialize_subject_summary
 from apps.core.serializers.academic_serializers import serialize_curriculum_entry
@@ -38,9 +37,10 @@ from apps.core.services import (
 @role_required(Profile.ROLE_ADMIN)
 def subject_list(request):
     """
-    // [Admin Controller] Subject & Curriculum Management
-    // Lists all registered subjects with curriculum mappings, status filters,
-    // and actions for create/edit/delete and curriculum assignment.
+    // [Admin Controller] Subject Catalogue Management
+    // Lists all registered subjects with status filters and create/edit/delete
+    // actions. Curriculum (program-year) mappings are managed exclusively on
+    // the Programs page matrix builder (A-07).
     """
     query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
@@ -91,18 +91,6 @@ def subject_list(request):
         .order_by('code')
     )
 
-    # Serialise programs for JS cascade (dept_id, years_total needed)
-    programs_json = json.dumps([
-        {
-            'id': p.id,
-            'code': p.code,
-            'name': p.name,
-            'dept_id': p.department_id,
-            'years_total': p.years_total,
-        }
-        for p in programs
-    ])
-
     # Build a dict of subject_id → unique teacher display names for the active AY.
     # One bulk query — no N+1.
     active_ay = AcademicYear.objects.filter(is_active=True).first()
@@ -140,7 +128,6 @@ def subject_list(request):
         'curriculum_count': curriculum_count,
         'departments': departments,
         'programs': programs,
-        'programs_json': programs_json,
         'active_ay': active_ay,
     })
 
@@ -154,7 +141,7 @@ def subject_list(request):
 def subject_save(request):
     """
     // [AJAX] Create or update a subject record.
-    // POST params: code, name, description, is_active, subject_id (optional)
+    // POST params: code, name, description, units, is_active, subject_id (optional)
     """
     try:
         subject_id = request.POST.get('subject_id') or None
@@ -166,6 +153,7 @@ def subject_save(request):
             code=request.POST.get('code', ''),
             name=request.POST.get('name', ''),
             description=request.POST.get('description', ''),
+            units=request.POST.get('units', '3'),
             is_active=request.POST.get('is_active') == '1',
             subject_id=subject_id,
         )
@@ -203,6 +191,34 @@ def subject_delete(request, pk: int):
 
 
 # // ==============================================================================
+# // AJAX: Toggle Subject Active/Inactive (/subjects/toggle/<pk>/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def subject_toggle(request, pk: int):
+    """
+    // [AJAX] Flips the is_active flag of a subject.
+    // Safe: can always re-activate; deactivation is blocked if classes are live.
+    """
+    try:
+        subject = get_object_or_404(Subject, pk=pk)
+        new_state = not subject.is_active
+        subject.is_active = new_state
+        subject.save(update_fields=['is_active'])
+        action = 'activated' if new_state else 'deactivated'
+        return JsonResponse({
+            'ok': True,
+            'is_active': new_state,
+            'message': f'Subject {subject.code} has been {action}.',
+        })
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+
+
+# // ==============================================================================
 # // AJAX: Get Single Subject Details (/subjects/get/<pk>/)
 # // ==============================================================================
 @login_required(login_url='login')
@@ -222,36 +238,15 @@ def subject_get(request, pk: int):
 
 
 # // ==============================================================================
-# // AJAX: Get Curriculum Entries for a Subject (/subjects/<pk>/curriculum/)
-# // ==============================================================================
-@login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
-def subject_curriculum_list(request, pk: int):
-    """
-    // [AJAX] Returns all curriculum entries (program + year level) for a subject.
-    """
-    subject = get_object_or_404(Subject, pk=pk)
-    entries = (
-        Curriculum.objects.filter(subject=subject)
-        .select_related('program', 'subject')
-        .order_by('program__code', 'year_level')
-    )
-    return JsonResponse({
-        'ok': True,
-        'subject_code': subject.code,
-        'entries': [serialize_curriculum_entry(e) for e in entries],
-    })
-
-
-# // ==============================================================================
-# // AJAX: Assign Subject to Program Year Level (/subjects/curriculum/assign/)
+# // AJAX: Assign Subject to Program Year Level (/programs/curriculum/assign/)
 # // ==============================================================================
 @login_required(login_url='login')
 @role_required(Profile.ROLE_ADMIN)
 @require_http_methods(['POST'])
 def subject_curriculum_assign(request):
     """
-    // [AJAX] Maps a subject to a program + year level + semester in the curriculum matrix.
+    // [AJAX] Maps a subject to a program + year level + semester in the curriculum
+    // matrix. The Programs page matrix builder (A-07) is the only caller.
     // POST params: subject_id, program_id, year_level, semester (optional, default 1)
     """
     try:
@@ -274,7 +269,7 @@ def subject_curriculum_assign(request):
 
 
 # // ==============================================================================
-# // AJAX: Remove Curriculum Entry (/subjects/curriculum/remove/<pk>/)
+# // AJAX: Remove Curriculum Entry (/programs/curriculum/remove/<pk>/)
 # // ==============================================================================
 @login_required(login_url='login')
 @role_required(Profile.ROLE_ADMIN)

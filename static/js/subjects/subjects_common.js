@@ -1,4 +1,4 @@
-/* KCC ClassStamp — Subjects: Common Utilities & Cascade Helpers */
+/* KCC ClassStamp — Subjects: Common Utilities & Filter Cascade */
 (function (window) {
   'use strict';
 
@@ -19,23 +19,6 @@
     return '';
   }
 
-  function getProgramsList() {
-    const el = document.getElementById('programsData');
-    if (el && el.textContent) {
-      try {
-        return JSON.parse(el.textContent);
-      } catch (err) {
-        console.error('Failed to parse programsData JSON:', err);
-      }
-    }
-    if (window.SUBJECTS_CONFIG && Array.isArray(window.SUBJECTS_CONFIG.programs)) {
-      return window.SUBJECTS_CONFIG.programs;
-    }
-    return [];
-  }
-
-  let ALL_PROGRAMS = getProgramsList();
-
   function showAlert(el, msg, type = 'error') {
     if (window.App && window.App.toast) { window.App.toast(type, msg); return; }
     if (!el) return;
@@ -43,11 +26,6 @@
     el.className = `toast toast--${type} mb-4`;
     el.textContent = msg;
     if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
-  }
-
-  function ordinalSuffix(n) {
-    const num = parseInt(n, 10);
-    return num === 1 ? '1st' : num === 2 ? '2nd' : num === 3 ? '3rd' : `${num}th`;
   }
 
   function showModal(id) {
@@ -74,48 +52,7 @@
     }
   }
 
-  function populatePrograms(programSel, deptId, yearSel) {
-    if (!programSel) return;
-    if (!ALL_PROGRAMS || ALL_PROGRAMS.length === 0) {
-      ALL_PROGRAMS = getProgramsList();
-    }
-    programSel.innerHTML = '<option value="">— program —</option>';
-    const filtered = deptId
-      ? ALL_PROGRAMS.filter(p => String(p.dept_id) === String(deptId))
-      : ALL_PROGRAMS;
-    filtered.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = `${p.code} — ${p.name}`;
-      opt.dataset.years = p.years_total;
-      programSel.appendChild(opt);
-    });
-    programSel.disabled = filtered.length === 0;
-    if (yearSel) {
-      yearSel.innerHTML = '<option value="">— year —</option>';
-      yearSel.disabled = true;
-    }
-  }
-
-  function populateYears(programSel, yearSel) {
-    if (!programSel || !yearSel) return;
-    const opt = programSel.selectedOptions[0];
-    const maxYears = parseInt(opt?.dataset.years || '0', 10);
-    yearSel.innerHTML = '<option value="">— year —</option>';
-    yearSel.disabled = maxYears === 0;
-    for (let i = 1; i <= maxYears; i++) {
-      const o = document.createElement('option');
-      o.value = i;
-      o.textContent = `${ordinalSuffix(i)} Year`;
-      yearSel.appendChild(o);
-    }
-  }
-
   function initCommon() {
-    if (!ALL_PROGRAMS || ALL_PROGRAMS.length === 0) {
-      ALL_PROGRAMS = getProgramsList();
-    }
-
     // Filter bar cascade
     const filterDeptEl = document.getElementById('filterDept');
     const filterProgEl = document.getElementById('filterProgram');
@@ -142,9 +79,6 @@
     ['subjectModalClose', 'subjectModalCancel'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', () => hideModal('subjectModal'));
     });
-    ['curriculumModalClose', 'curriculumModalClose2'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', () => hideModal('curriculumModal'));
-    });
     ['subjectDeleteClose', 'subjectDeleteCancel'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', () => hideModal('subjectDeleteModal'));
     });
@@ -162,21 +96,8 @@
     configurable: true,
     enumerable: true
   });
-  Object.defineProperty(window.SubjectsApp, 'ALL_PROGRAMS', {
-    get: function () {
-      if (!ALL_PROGRAMS || ALL_PROGRAMS.length === 0) {
-        ALL_PROGRAMS = getProgramsList();
-      }
-      return ALL_PROGRAMS;
-    },
-    configurable: true,
-    enumerable: true
-  });
   window.SubjectsApp.getCSRFToken = getCSRFToken;
   window.SubjectsApp.showAlert = showAlert;
-  window.SubjectsApp.ordinalSuffix = ordinalSuffix;
   window.SubjectsApp.showModal = showModal;
   window.SubjectsApp.hideModal = hideModal;
-  window.SubjectsApp.populatePrograms = populatePrograms;
-  window.SubjectsApp.populateYears = populateYears;
 })(window);

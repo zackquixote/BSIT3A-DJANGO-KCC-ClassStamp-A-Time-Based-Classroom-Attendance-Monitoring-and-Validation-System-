@@ -111,7 +111,7 @@ class CurriculumMatrixTests(TestCase, BaseWeek4FixtureMixin):
         self.client.force_login(self.admin_user)
 
     def _assign(self, subject_id, year_level, semester):
-        return self.client.post(reverse('subject_curriculum_assign'), {
+        return self.client.post(reverse('program_curriculum_assign'), {
             'subject_id': subject_id,
             'program_id': self.program.id,
             'year_level': year_level,
@@ -161,7 +161,7 @@ class CurriculumMatrixTests(TestCase, BaseWeek4FixtureMixin):
     def test_remove_curriculum_entry(self):
         self._assign(self.subject.id, 1, 1)
         entry = Curriculum.objects.get(program=self.program)
-        res = self.client.post(reverse('subject_curriculum_remove', args=[entry.id]))
+        res = self.client.post(reverse('program_curriculum_remove', args=[entry.id]))
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json()['ok'])
         self.assertFalse(Curriculum.objects.filter(pk=entry.id).exists())

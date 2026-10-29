@@ -175,7 +175,28 @@ class AdminTeacherFlowRegressionTests(TestCase):
         self.assertIn('flow_teacher', event.old_value)
         self.assertIn('flow_teacher_two', event.new_value)
 
-    def test_class_save_uses_shared_assignment_service(self):
+    def test_class_list_page_renders_with_wizard_as_only_create_path(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('class_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('class_wizard_setup'))
+        self.assertContains(response, 'Edit Class Section')
+        self.assertNotContains(response, 'openCreateClassBtn')
+
+    def test_subject_list_page_has_no_curriculum_editor(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.get(reverse('subject_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'curriculumModal')
+        self.assertNotContains(response, 'js-curriculum-btn')
+        self.assertNotContains(response, 'curriculum_modal.js')
+        self.assertContains(response, 'Managed in Programs')
+
+    def test_class_save_rejects_create_without_class_id(self):
         self.client.force_login(self.admin_user)
 
         response = self.client.post(
@@ -191,12 +212,35 @@ class AdminTeacherFlowRegressionTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        saved = Class.objects.get(class_code='BSIT-2A')
-        self.assertEqual(saved.teacher_profile, self.teacher_profile)
+        self.assertEqual(response.url, reverse('class_wizard_setup'))
+        self.assertFalse(Class.objects.filter(class_code='BSIT-2A').exists())
+
+    def test_class_save_edit_updates_existing_class(self):
+        self.client.force_login(self.admin_user)
+        other_subject = Subject.objects.create(code='IT202', name='Advanced Computing')
+
+        response = self.client.post(
+            reverse('class_save'),
+            {
+                'class_id': self.class_obj.pk,
+                'class_code': 'BSIT-1A-RENAMED',
+                'subject_id': other_subject.pk,
+                'teacher_profile_id': self.teacher_profile.pk,
+                'academic_year_id': self.active_year.pk,
+                'capacity': 50,
+                'grace_minutes': 15,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.class_obj.refresh_from_db()
+        self.assertEqual(self.class_obj.class_code, 'BSIT-1A-RENAMED')
+        self.assertEqual(self.class_obj.subject, other_subject)
+        self.assertEqual(self.class_obj.capacity, 50)
         self.assertTrue(
             AuditEvent.objects.filter(
-                action='CREATE_CLASS',
-                object_id=str(saved.pk),
+                action='UPDATE_CLASS',
+                object_id=str(self.class_obj.pk),
             ).exists()
         )
 

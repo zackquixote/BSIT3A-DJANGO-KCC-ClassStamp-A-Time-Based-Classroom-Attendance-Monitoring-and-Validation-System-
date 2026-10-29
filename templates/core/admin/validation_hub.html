@@ -155,7 +155,7 @@
 
   <!-- Pending Table or Empty State -->
   {% if pending %}
-    <div class="card mb-4" style="padding: 0; overflow: hidden;">
+    <div class="card mb-4" style="padding: 0; overflow: visible;">
       <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
         <div class="font-semibold text-primary text-sm">
           Awaiting Verification ({{ pending|length }})
@@ -300,7 +300,7 @@
   </div>
 
   <!-- Reviewed Accounts Table -->
-  <div class="card mb-4" style="padding: 0; overflow: hidden;">
+  <div class="card mb-4" style="padding: 0; overflow: visible;">
     <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
       <div class="font-semibold text-primary text-sm">
         All Evaluated Student Records
@@ -617,3 +617,5 @@ document.addEventListener('DOMContentLoaded', function () {
 </style>
 <script src="{% static 'js/validation/dossier_drawer.js' %}?v=20261026_v1"></script>
 {% endblock %}
+
+

@@ -138,7 +138,7 @@
     var subjSelect = getEl('curriculumSubjectSelect');
 
     if (yearSelect) {
-      yearSelect.innerHTML = '<option value="">— Year —</option>';
+      yearSelect.innerHTML = '<option value="">Select Year Level</option>';
       for (var y = 1; y <= state.yearsTotal; y++) {
         var opt = document.createElement('option');
         opt.value = y;
@@ -148,7 +148,7 @@
     }
 
     if (semSelect) {
-      semSelect.innerHTML = '<option value="">— Semester —</option>';
+      semSelect.innerHTML = '<option value="">Select Semester</option>';
       state.semesters.forEach(function (sem) {
         var opt = document.createElement('option');
         opt.value = sem.value;
@@ -158,7 +158,7 @@
     }
 
     if (subjSelect) {
-      subjSelect.innerHTML = '<option value="">— Select Subject —</option>';
+      subjSelect.innerHTML = '<option value="">Select Subject</option>';
       state.subjects.forEach(function (s) {
         var opt = document.createElement('option');
         opt.value = s.id;
@@ -249,7 +249,7 @@
         var entryId = removeBtn.getAttribute('data-entry-id');
         if (!entryId) return;
         removeBtn.disabled = true;
-        var prefix = modal.getAttribute('data-remove-url-prefix') || '/subjects/curriculum/remove/';
+        var prefix = modal.getAttribute('data-remove-url-prefix') || '/programs/curriculum/remove/';
         postJSON(prefix + entryId + '/', '')
         .then(function (result) {
           if (!result.data.ok) {
@@ -286,7 +286,7 @@
         var addBtn = getEl('curriculumAddBtn');
         if (addBtn) addBtn.disabled = true;
 
-        var assignUrl = modal.getAttribute('data-assign-url') || '/subjects/curriculum/assign/';
+        var assignUrl = modal.getAttribute('data-assign-url') || '/programs/curriculum/assign/';
         postJSON(assignUrl, toFormBody({
           program_id: state.programId,
           subject_id: subjectId,

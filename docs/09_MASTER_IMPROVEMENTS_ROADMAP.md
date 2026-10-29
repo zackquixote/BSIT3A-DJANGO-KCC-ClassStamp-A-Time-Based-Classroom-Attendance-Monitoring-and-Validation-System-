@@ -1,7 +1,7 @@
 # 📋 KCC ClassStamp — Master Improvement Roadmap
 **System:** KCC ClassStamp: A Time-Based Classroom Attendance Monitoring & Validation System
-**Last Updated:** October 27, 2026
-**Total Improvements:** 51 items across 4 areas
+**Last Updated:** October 28, 2026
+**Total Improvements:** 53 items across 4 areas
 
 > **Status Legend:**
 > - ✅ **Done** — Fully implemented
@@ -11,7 +11,7 @@
 ---
 
 ## 📑 Table of Contents
-1. [Admin Portal Improvements (18)](#admin-portal--18-improvements)
+1. [Admin Portal Improvements (20)](#admin-portal--20-improvements)
 2. [Teacher Portal Improvements (12)](#teacher-portal--12-improvements)
 3. [Student Portal Improvements (9)](#student-portal--9-improvements)
 4. [Backend & Technical Improvements (12)](#backend--technical--12-improvements)
@@ -19,7 +19,7 @@
 
 ---
 
-## 🛡️ Admin Portal — 18 Improvements
+## 🛡️ Admin Portal — 20 Improvements
 
 ### 🔴 Urgent
 
@@ -79,11 +79,28 @@
 - **Solution:** Link subjects as prerequisites (e.g. IT211 requires IT111); prevent duplicate course codes
 
 #### A-12 — Teacher Department Reassignment Modal
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (2026-10-27) — Each teacher row has a reassign button that opens a modal showing name, current department, and intact teaching-load count; `POST /teachers/<pk>/reassign/` (`teacher_reassign_ajax` → `reassign_teacher_department`) moves the teacher, leaves assigned classes untouched, and audits `TEACHER_REASSIGNED` with old/new department; same-department transfers are rejected 400)
 - **Solution:** Quick modal to transfer a teacher between academic departments with load overview
 
 #### A-13 — Student TOTP QR Secret Reset Button
 - **Status:** ✅ Done (2026-10-27) — Shield button on each student directory row calls `student_qr_reset_ajax`, which rotates the 64-char TOTP seed, invalidates all unconsumed offline badges, and audits `STUDENT_QR_RESET` with a security-reset reason)
+
+#### A-19 — Section Builder Wizard & Timetable Conflict Detection
+- **Status:** ✅ Done (2026-10-27) — 5 phases shipped:
+  - **P1 Model foundation:** nullable `program` + `year_level` FKs on `Class` (migration 0009); `assign_class` accepts them; idempotent `backfill_class_program` command parses `BSIT-3A`-style legacy codes.
+  - **P2 `schedule_service.py`:** `detect_slot_conflicts` (same-weekday interval overlap for teacher/room; boundary-touch = no clash; TBA rooms never clash), `suggest_section_letter`, `eligible_teachers_for(program)`; wired into the existing slot modal (teacher double-book = hard block, room clash = warning).
+  - **P3 Wizard endpoints:** `class_wizard_options` (program+year+semester → curriculum subjects, ranked teachers, suggested code) and atomic `class_wizard_save` (class + slots + audits).
+  - **P4 Wizard UI:** `/classes/setup/` 5-step flow — Term → Offering → Teacher → Section → Schedule (Mon–Sat time click-grid with live conflict highlights) → Review; verified end-to-end in browser (golden path created a section with 2 slots).
+  - **P5 Wrap:** 31 tests in `test_week7.py`; full suite green.
+  - **Problem solved:** building a section no longer spans five pages; hand-typed codes are auto-suggested; double-bookings are caught at save time.
+
+#### A-20 — Organisation Flow Consolidation
+- **Status:** ✅ Done (2026-10-28) — answers "which section is the student in?" from both directions and removes duplicated feature paths:
+  - **P1 Section identity & enlistment:** student directory "Enrolled Section(s)" column scoped to the active academic year with ACTIVE tags (clickable → filtered directory) and amber Pending tags; "Unassigned (no section)" filter option; roster modal gained program/year candidate filters, a seats counter, and a batch "Enlist All Matching Students" endpoint (`class_roster_enroll_batch` — capacity-guarded, reactivates withdrawn enrollments, one audit event per student).
+  - **P2 One way to create a section:** the classes page "Create Class Section" button now points at the Section Wizard; the legacy create modal, its subject-cascade JS, and the create path of `class_save` were removed (edit modal retained; `class_save` rejects POSTs without `class_id`).
+  - **P3 Curriculum single-owner:** Subjects page lost its Curriculum Mapping modal and inline assign section (read-only count badge retained, "managed in Programs → Curriculum Matrix"); the assign/remove AJAX endpoints moved under `/programs/curriculum/*`; `subject_curriculum_list` deleted; `curriculum_modal.js` deleted. The Programs matrix builder (A-07) is now the only curriculum editor.
+  - **P4 Sidebar & coherence:** Organisation menu reordered to Academic Years → Departments → Programs → Subjects → Teachers → Classes & Schedules; Subjects page retitled "Subject Catalogue".
+  - **Tests:** 19 new tests in `test_week8.py` + render smoke tests; full suite 354/354 green.
 
 ### ⚪ Polish
 
@@ -92,11 +109,11 @@
 - **Solution:** CR80 card format PDF with photo, barcode, program name, emergency contact
 
 #### A-15 — 1-Click Database Backup Button
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (2026-10-27) — "Database Backup" launcher on the admin dashboard streams a gzip-compressed mysqldump snapshot (`classstamp_backup_<timestamp>.sql.gz`) via `backup_service.stream_database_backup`; password passed through the `MYSQL_PWD` env var so it never appears in the process list; gzip produced with zlib (`wbits=31`) so no external gzip binary is needed; every download audited as `DB_BACKUP_DOWNLOAD`; a missing mysqldump shows a friendly message and redirects instead of 500ing)
 - **Solution:** Admin panel button to download compressed `.sql.gz` database snapshot
 
 #### A-16 — Storage Optimizer (Auto WebP Compression)
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (2026-10-27) — `storage_optimizer.optimize_proof_upload` is hooked into account provisioning: raster proofs (jpg/png/webp/bmp/tif) are downscaled to ≤1600px and re-encoded as WebP quality 80; PDFs and unreadable/corrupt files pass through unchanged so registration never breaks on a bad upload)
 - **Solution:** Auto-compress uploaded COR/ID photos to WebP format on upload
 
 #### A-17 — Dossier Cleanup Tool
@@ -183,7 +200,7 @@
 - **Solution:** Replace progress bar with animated SVG circular countdown ring; pulses on 30s reset
 
 #### S-02 — QR Badge Photo Watermark
-- **Status:** ❌ Not Built
+- **Status:** ✅ Done (2026-10-27) — The badge header renders the uploaded COR/ID photo (when it is an image) with a rotated, semi-transparent student-number watermark overlaid via `badge-id-photo__watermark`; the watermark is baked into the DOM so screenshots carry the number — a proxy-sharing deterrent; non-image proofs (e.g. PDF) skip the photo block)
 - **Solution:** Overlay student photo + student ID on QR badge card to deter proxy sharing
 
 #### S-03 — Per-Subject Attendance Breakdown Cards
@@ -283,11 +300,11 @@
 
 | Portal | ✅ Done | 🟡 Partial | ❌ Not Built | Total |
 |---|---|---|---|---|
-| 🛡️ Admin | 12 | 0 | 6 | **18** |
+| 🛡️ Admin | 17 | 0 | 3 | **20** |
 | 👨‍🏫 Teacher | 8 | 0 | 4 | **12** |
-| 🎓 Student | 8 | 0 | 1 | **9** |
+| 🎓 Student | 9 | 0 | 0 | **9** |
 | ⚙️ Backend | 6 | 1 | 5 | **12** |
-| **TOTAL** | **34** | **1** | **16** | **51** |
+| **TOTAL** | **40** | **1** | **12** | **53** |
 
 ---
 
@@ -324,6 +341,16 @@
 | S-07 | Offline PWA QR badge |
 | S-08 | Excuse slip upload workflow |
 | T-12 | Offline camera buffer (IndexedDB) |
+
+#### Week 7 — Section Builder & Schedules ✅ Complete (2026-10-27)
+| ID | Feature |
+|---|---|
+| A-19 | 5-step Section Builder Wizard + timetable conflict detection |
+
+#### Week 8 — Organisation Flow Consolidation ✅ Complete (2026-10-28)
+| ID | Feature |
+|---|---|
+| A-20 | Single section-creation path, curriculum single-owner, section identity & batch enlistment |
 
 ---
 

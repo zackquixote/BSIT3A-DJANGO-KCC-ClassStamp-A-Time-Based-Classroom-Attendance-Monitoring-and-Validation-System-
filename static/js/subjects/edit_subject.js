@@ -57,17 +57,14 @@
         const descEl = getEl('subjectDesc');
         if (descEl) descEl.value = s.description || '';
 
+        const unitEl = getEl('subjectUnits');
+        if (unitEl) unitEl.value = s.units || 3;
+
         const activeEl = getEl('subjectActive');
         if (activeEl) activeEl.checked = Boolean(s.is_active);
 
         const errEl = getEl('subjectFormError');
         if (errEl) errEl.style.display = 'none';
-
-        // Hide inline curriculum on edit (mappings managed via sitemap drawer)
-        const inlineCurrSection = getEl('inlineCurrSection');
-        if (inlineCurrSection) inlineCurrSection.style.display = 'none';
-        const toggleCurrIcon = getEl('toggleCurrIcon');
-        if (toggleCurrIcon) toggleCurrIcon.style.transform = '';
 
         const App = getApp();
         if (typeof window.openModal === 'function') {

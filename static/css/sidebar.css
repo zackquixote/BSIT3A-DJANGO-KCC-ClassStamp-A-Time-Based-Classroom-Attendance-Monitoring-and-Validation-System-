@@ -222,6 +222,12 @@ svg.sidebar-link-icon {
   line-height: 1.3;
 }
 
+.sidebar-badge--danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
 /* ── User Profile Footer Card ────────────────────────────────── */
 .sidebar-footer {
   padding: 8px 10px;

@@ -25,6 +25,7 @@ import secrets
 from django.contrib.auth import get_user_model
 
 from apps.core.models import Profile, Program
+from apps.core.services.storage_optimizer import optimize_proof_upload
 
 User = get_user_model()
 
@@ -68,7 +69,7 @@ def provision_student_account(form_data: dict, proof_file=None):
         student_type=form_data.get('student_type') or Profile.STUDENT_TYPE_REGULAR,
         gender=form_data.get('gender') or None,
         phone_number=form_data.get('phone_number') or None,
-        registration_proof=proof_file,
+        registration_proof=optimize_proof_upload(proof_file),
         program=program,
         year_level=int(form_data['year_level']),
         approval_status=Profile.APPROVAL_PENDING,

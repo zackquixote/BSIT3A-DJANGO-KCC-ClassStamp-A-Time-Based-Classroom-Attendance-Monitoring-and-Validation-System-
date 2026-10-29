@@ -299,3 +299,48 @@ def delete_or_deactivate_teacher(actor, profile_id: int) -> dict:
         profile = None
 
     return {'instance': profile, 'type': status_type, 'message': msg}
+
+
+# // ==============================================================================
+# // [Service] Quick Department Reassignment (A-12)
+# // ==============================================================================
+def reassign_teacher_department(actor, profile_id: int, dept_id: int) -> dict:
+    """
+    // Transfer a faculty member to another active department.
+    // Teaching load (assigned classes) is intentionally left intact; the
+    // reassignment is recorded in the audit trail with the previous department.
+    """
+    profile = get_object_or_404(
+        Profile.objects.select_related('user', 'department'),
+        pk=profile_id,
+        role=Profile.ROLE_TEACHER,
+    )
+    department = get_object_or_404(Department, pk=dept_id, is_active=True)
+
+    display_name = profile.user.get_full_name() or profile.user.username
+    previous = profile.department
+
+    if previous and previous.pk == department.pk:
+        raise ValueError(f'{display_name} is already assigned to {department.name}.')
+
+    class_count = profile.taught_classes.count()
+
+    profile.department = department
+    profile.save(update_fields=['department', 'updated_at'])
+
+    AuditEvent.objects.create(
+        actor=actor,
+        action='TEACHER_REASSIGNED',
+        object_type='Profile',
+        object_id=str(profile.pk),
+        old_value=previous.name if previous else 'None',
+        new_value=department.name,
+        reason=f'Department reassignment (A-12); {class_count} assigned class(es) left intact.',
+    )
+
+    return {
+        'message': f'{display_name} reassigned to {department.name} ({department.code}).',
+        'department_name': department.name,
+        'department_code': department.code,
+        'class_count': class_count,
+    }

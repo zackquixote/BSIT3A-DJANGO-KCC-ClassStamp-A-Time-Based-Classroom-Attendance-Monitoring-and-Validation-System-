@@ -88,7 +88,7 @@
 <div id="progAlert" class="toast toast--error mb-4" style="display: none;"></div>
 
 <!-- Programs Table Card -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: visible;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
       Degree Programs {% if query or dept_filter %}<span class="text-muted text-sm">— filtered results</span>{% endif %}
@@ -276,7 +276,7 @@
           <div class="input-wrap">
             <i class="fas fa-building input-icon"></i>
             <select name="department_id" id="prog_department" class="form-control" required>
-              <option value="">— Select Department —</option>
+              <option value="">Select Department</option>
               {% for d in departments %}
                 <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
               {% endfor %}
@@ -358,8 +358,8 @@
 
 <!-- Curriculum Matrix Modal -->
 <div class="modal" id="curriculumMatrixModal"
-     data-assign-url="{% url 'subject_curriculum_assign' %}"
-     data-remove-url-prefix="/subjects/curriculum/remove/">
+     data-assign-url="{% url 'program_curriculum_assign' %}"
+     data-remove-url-prefix="/programs/curriculum/remove/">
   <div class="modal-dialog" style="max-width: 860px; width: 94%;">
     <div class="modal-header">
       <h3 class="modal-title" id="curriculumMatrixTitle">Curriculum Matrix</h3>
@@ -383,19 +383,19 @@
         <div class="form-group" style="flex: 1; min-width: 220px;">
           <label class="form-label" for="curriculumSubjectSelect">Subject <span class="text-danger">*</span></label>
           <select name="subject_id" id="curriculumSubjectSelect" class="form-control" required>
-            <option value="">— Select Subject —</option>
+            <option value="">Select Subject</option>
           </select>
         </div>
         <div class="form-group" style="flex: 1; min-width: 140px;">
           <label class="form-label" for="curriculumYearSelect">Year Level <span class="text-danger">*</span></label>
           <select name="year_level" id="curriculumYearSelect" class="form-control" required>
-            <option value="">— Year —</option>
+            <option value="">Select Year Level</option>
           </select>
         </div>
         <div class="form-group" style="flex: 1; min-width: 160px;">
           <label class="form-label" for="curriculumSemesterSelect">Semester <span class="text-danger">*</span></label>
           <select name="semester" id="curriculumSemesterSelect" class="form-control" required>
-            <option value="">— Semester —</option>
+            <option value="">Select Semester</option>
           </select>
         </div>
         <div class="form-group" style="flex: 0 0 auto;">
@@ -515,3 +515,4 @@
 }
 </style>
 {% endblock %}
+

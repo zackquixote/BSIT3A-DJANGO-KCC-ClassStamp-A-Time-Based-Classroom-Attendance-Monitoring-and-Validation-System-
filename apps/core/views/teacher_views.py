@@ -38,6 +38,7 @@ from apps.core.services import (
     assign_class,
     delete_or_deactivate_teacher,
     provision_teacher_account,
+    reassign_teacher_department,
     reset_teacher_password,
     set_teacher_active,
     toggle_teacher_active,
@@ -167,13 +168,10 @@ def teacher_create(request):
         except ObjectDoesNotExist:
             return JsonResponse({'ok': False, 'error': 'Selected department does not exist.'}, status=400)
 
-        username = request.POST.get('username', '').strip()
         email = request.POST.get('email', '').strip().lower()
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
 
-        if not username:
-            return JsonResponse({'ok': False, 'error': 'Username is required.'}, status=400)
         if not email:
             return JsonResponse({'ok': False, 'error': 'Email address is required.'}, status=400)
         if not first_name:
@@ -187,9 +185,21 @@ def teacher_create(request):
         except Exception:
             return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'}, status=400)
 
+        # Auto-generate username from email prefix (e.g. msantos@kcc.edu.ph → msantos)
+        # If that username is taken, append a counter suffix (msantos2, msantos3, …)
+        from django.contrib.auth import get_user_model as _get_user_model
+        _User = _get_user_model()
+        base_username = email.split('@')[0].lower().replace(' ', '')
+        username = base_username
+        counter = 2
+        while _User.objects.filter(username=username).exists():
+            username = f'{base_username}{counter}'
+            counter += 1
+
         # Additional check: ensure department exists and is valid
         if dept_id <= 0:
             return JsonResponse({'ok': False, 'error': 'Invalid department ID.'}, status=400)
+
 
         # Ensure password handling: empty password will be auto-generated
         password = request.POST.get('password')
@@ -659,5 +669,29 @@ def teacher_analytics_json(request, pk: int):
         },
         'classes': class_items,
     })
+
+
+# // ==============================================================================
+# // AJAX: Quick Department Reassignment (/teachers/<pk>/reassign/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def teacher_reassign_ajax(request, pk: int):
+    """
+    // [AJAX] Transfer a faculty member between academic departments (A-12).
+    // POST params: dept_id
+    """
+    dept_id_raw = request.POST.get('dept_id', '').strip()
+    try:
+        dept_id = int(dept_id_raw)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'Please select a valid department.'}, status=400)
+
+    try:
+        result = reassign_teacher_department(actor=request.user, profile_id=pk, dept_id=dept_id)
+        return JsonResponse({'ok': True, **result})
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
 
 

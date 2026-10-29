@@ -1,5 +1,5 @@
 {% extends "theme/base.html" %}
-{% block title %}Subjects & Curriculum — KCC ClassStamp{% endblock %}
+{% block title %}Subject Catalogue — KCC ClassStamp{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -7,10 +7,10 @@
     <div class="breadcrumb-nav">
       <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
       <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
-      <span class="breadcrumb-current">Subjects &amp; Curriculum</span>
+      <span class="breadcrumb-current">Subject Catalogue</span>
     </div>
-    <h1 class="page-title">Subjects & Curriculum</h1>
-    <p class="page-subtitle">Manage the institutional course catalogue and program curriculum matrix</p>
+    <h1 class="page-title">Subject Catalogue</h1>
+    <p class="page-subtitle">Manage the institutional course catalogue. Curriculum mappings live in <a href="{% url 'program_list' %}" class="text-primary">Programs &rarr; Curriculum Matrix</a>.</p>
   </div>
   <div>
     <button type="button" class="btn btn-primary" id="addSubjectBtn">
@@ -56,16 +56,15 @@
   <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
     <div class="input-wrap" style="flex: 1; min-width: 220px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" class="form-control" data-table-search=".table" placeholder="Search by code or title…">
+      <input type="text" name="q" value="{{ query }}" id="subjectSearch" class="form-control"
+        placeholder="Search by code or title…" autocomplete="off">
     </div>
-    <!-- Department filter -->
     <select name="department" class="form-control" style="width: 180px;" id="filterDept">
       <option value="">All Departments</option>
       {% for d in departments %}
       <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
       {% endfor %}
     </select>
-    <!-- Program filter (scoped by dept JS-side) -->
     <select name="program" class="form-control" style="width: 180px;" id="filterProgram">
       <option value="">All Programs</option>
       {% for p in programs %}
@@ -74,7 +73,7 @@
     </select>
     <select name="status" class="form-control" style="width: 150px;">
       <option value="">All Status</option>
-      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+      <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
       <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
     </select>
     {% if query or status_filter or program_filter or dept_filter %}
@@ -84,34 +83,34 @@
   </form>
 </div>
 
-<div id="subjectAlert" class="toast toast--error   mb-4" style="display: none;"></div>
+<div id="subjectAlert"   class="toast toast--error   mb-4" style="display: none;"></div>
 <div id="subjectSuccess" class="toast toast--success mb-4" style="display: none;"></div>
 
 <!-- Subjects Table -->
-<div class="card" style="padding: 0; overflow: hidden;">
-  <div
-    style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+<div class="card" style="padding: 0; overflow: visible;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
       Course Catalogue {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
     </div>
     <span class="text-muted text-xs">{{ subjects.paginator.count }} subjects</span>
   </div>
 
-  <div class="table-responsive">
+  <div class="table-responsive" style="overflow-x: auto; overflow-y: visible;">
     <table class="table" id="subjectTable">
       <thead>
         <tr>
           <th style="width: 44px;">#</th>
           <th>Code</th>
           <th>Descriptive Title</th>
-          <th>Syllabus</th>
+          <th title="Credit units (1 unit = 1 class hour per week)">Units</th>
           <th title="Active class sections this semester">Classes</th>
-          <th title="Teachers handling this subject in the active AY">Handled By
+          <th title="Teachers handling this subject in the active AY">
+            Handled By
             {% if active_ay %}<span class="text-muted text-xs font-normal">({{ active_ay.name }})</span>{% endif %}
           </th>
-          <th>Curriculum</th>
+          <th title="Curriculum program mappings">Curriculum</th>
           <th>Status</th>
-          <th style="text-align: right; width: 140px; white-space: nowrap;">Actions</th>
+          <th style="text-align: right; width: 120px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -119,23 +118,31 @@
         <tr data-subject-id="{{ s.id }}">
           <td class="text-muted">{{ s.id }}</td>
           <td>
-            <span class="badge badge--purple font-semibold" style="letter-spacing:0.5px;">{{ s.code }}</span>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <span class="badge badge--purple font-semibold" style="letter-spacing:0.5px;">{{ s.code }}</span>
+              {% if s.description %}
+              <span class="text-muted" style="font-size:0.68rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ s.description }}">
+                {{ s.description|truncatechars:40 }}
+              </span>
+              {% endif %}
+            </div>
           </td>
           <td>
             <span class="font-semibold text-primary" title="{{ s.name }}">{{ s.name|truncatechars:32 }}</span>
           </td>
-          <td class="text-muted text-sm"
-            style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ s.description }}">
-            {{ s.description|default:"—"|truncatechars:35 }}
+          <td>
+            <span class="badge badge--teal" title="{{ s.units }} class hour(s) per week">{{ s.units }}u</span>
           </td>
           <td>
-            <span class="badge badge--blue">{{ s.class_count }}</span>
+            <span class="badge {% if s.class_count > 0 %}badge--blue{% else %}badge--muted{% endif %}">
+              {{ s.class_count }}
+            </span>
           </td>
-          <td style="max-width: 180px;">
+          <td style="min-width: 160px;">
             {% if s.current_teachers %}
               <div style="display:flex; flex-wrap:wrap; gap:4px;">
                 {% for tname in s.current_teachers %}
-                  <span class="badge badge--teal" style="font-size:0.7rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ tname }}">
+                  <span class="badge badge--teal" style="font-size:0.7rem; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ tname }}">
                     <i class="fas fa-chalkboard-teacher" style="font-size:0.6rem;"></i> {{ tname }}
                   </span>
                 {% endfor %}
@@ -145,38 +152,57 @@
             {% endif %}
           </td>
           <td>
-            {# Curriculum badge — hover reveals program tags via title tooltip #}
-            <span class="badge badge--gold js-curr-badge" data-id="{{ s.id }}" style="cursor: pointer;"
-              title="Click curriculum button to view mappings">
-              {{ s.curriculum_count }}
-            </span>
+            <a href="{% url 'program_list' %}" class="badge badge--gold text-decoration-none"
+               title="Mapped to {{ s.curriculum_count }} program(s). Click to open Curriculum Matrix.">
+              <i class="fas fa-sitemap" style="font-size:0.6rem;"></i> {{ s.curriculum_count }}
+            </a>
           </td>
-          <td>
+          <td class="js-status-badge">
             {% if s.is_active %}
             <span class="badge badge--green"><i class="fas fa-circle" style="font-size:0.55rem;"></i> Active</span>
             {% else %}
             <span class="badge badge--muted">Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right; white-space: nowrap;">
-            <div class="table-actions-cluster">
-              <a href="{% url 'class_list' %}?subject={{ s.id }}&create=1"
-                 class="btn btn-outline btn-icon-xs"
-                 style="color: var(--teal, #0d9488); border-color: var(--teal, #0d9488);"
-                 title="Assign Teacher — Open Classes page for {{ s.code }}">
-                <i class="fas fa-chalkboard-teacher"></i>
-              </a>
-              <button class="btn btn-outline btn-icon-xs js-curriculum-btn" data-id="{{ s.id }}" data-code="{{ s.code }}"
-                title="Curriculum Mapping">
-                <i class="fas fa-sitemap"></i>
-              </button>
-              <button class="btn btn-outline btn-icon-xs js-edit-subject" data-id="{{ s.id }}" title="Edit">
+          <td style="text-align: right; width: 120px; overflow: visible; position: relative;">
+            <div class="flex justify-end items-center gap-1">
+              <!-- Edit -->
+              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit Subject">
                 <i class="fas fa-pen"></i>
               </button>
-              <button class="btn btn-danger btn-icon-xs js-delete-subject" data-id="{{ s.id }}" data-code="{{ s.code }}"
-                title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
+              <!-- More Actions Dropdown -->
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;">
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="action-dropdown-menu">
+                  <a href="{% url 'class_wizard_setup' %}" class="action-dropdown-item">
+                    <i class="fas fa-chalkboard-teacher text-teal"></i>
+                    <span>Create Class Section</span>
+                  </a>
+                  <a href="{% url 'program_list' %}" class="action-dropdown-item">
+                    <i class="fas fa-sitemap text-gold"></i>
+                    <span>Curriculum Matrix</span>
+                  </a>
+                  <div class="action-dropdown-divider"></div>
+                  <button type="button" class="action-dropdown-item js-toggle-subject"
+                          data-id="{{ s.id }}" data-active="{{ s.is_active|yesno:'1,0' }}">
+                    {% if s.is_active %}
+                    <i class="fas fa-toggle-off text-muted"></i>
+                    <span>Deactivate</span>
+                    {% else %}
+                    <i class="fas fa-toggle-on text-green"></i>
+                    <span>Activate</span>
+                    {% endif %}
+                  </button>
+                  <div class="action-dropdown-divider"></div>
+                  <button class="action-dropdown-item action-dropdown-item--danger js-delete-subject"
+                          data-id="{{ s.id }}" data-code="{{ s.code }}">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete Subject</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -193,14 +219,12 @@
   </div>
 
   {% if subjects.has_other_pages %}
-  <div
-    style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
     {% if subjects.has_previous %}
     <a href="?page={{ subjects.previous_page_number }}&q={{ query }}&status={{ status_filter }}&department={{ dept_filter }}&program={{ program_filter }}"
       class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
     {% endif %}
-    <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ subjects.number }} of {{
-      subjects.paginator.num_pages }}</span>
+    <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ subjects.number }} of {{ subjects.paginator.num_pages }}</span>
     {% if subjects.has_next %}
     <a href="?page={{ subjects.next_page_number }}&q={{ query }}&status={{ status_filter }}&department={{ dept_filter }}&program={{ program_filter }}"
       class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
@@ -210,9 +234,7 @@
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════
-     MODAL: Create / Edit Subject
-     ═══════════════════════════════════════════════════════ -->
+<!-- ═══ MODAL: Create / Edit Subject ═══ -->
 <div class="modal" id="subjectModal">
   <div class="modal-dialog" style="max-width: 560px;">
     <div class="modal-header">
@@ -226,75 +248,43 @@
         {% csrf_token %}
         <input type="hidden" id="subjectId" name="subject_id">
 
-        <!-- Core fields -->
-        <div class="form-group">
-          <label class="form-label" for="subjectCode">Course Code <span class="text-danger">*</span></label>
-          <input type="text" id="subjectCode" name="code" class="form-control" placeholder="e.g. IT311"
-            style="text-transform:uppercase;" required>
-          <span class="form-hint">Auto-uppercased. Must be unique system-wide.</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label class="form-label" for="subjectCode">Course Code <span class="text-danger">*</span></label>
+            <input type="text" id="subjectCode" name="code" class="form-control"
+              placeholder="e.g. IT311" style="text-transform:uppercase;" required>
+            <span class="form-hint">Auto-uppercased. Must be unique.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="subjectUnits">Credit Units <span class="text-danger">*</span></label>
+            <input type="number" id="subjectUnits" name="units" class="form-control"
+              min="1" max="20" value="3" required>
+            <span class="form-hint">1 unit = 1 hr/week</span>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="subjectName">Descriptive Title <span class="text-danger">*</span></label>
-          <input type="text" id="subjectName" name="name" class="form-control" placeholder="e.g. Platform Technologies"
-            required>
+          <input type="text" id="subjectName" name="name" class="form-control"
+            placeholder="e.g. Platform Technologies" required>
         </div>
         <div class="form-group">
-          <label class="form-label" for="subjectDesc">Syllabus / Overview</label>
+          <label class="form-label" for="subjectDesc">Description / Syllabus Overview</label>
           <textarea id="subjectDesc" name="description" class="form-control" rows="3"
             placeholder="Brief course description or learning objectives…"></textarea>
         </div>
         <div class="form-group">
           <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
             <input type="checkbox" id="subjectActive" name="is_active"
-              style="width:16px;height:16px;accent-color:var(--accent-blue);">
-            <span>Mark subject as Active (eligible for class sectioning)</span>
+              style="width:16px;height:16px;accent-color:var(--accent-blue);" checked>
+            <span>Mark subject as <strong>Active</strong> (eligible for class sectioning)</span>
           </label>
-        </div>
-
-        <!-- ── Also assign to curriculum? ─────────────────────── -->
-        <div style="border-top: 1px solid var(--glass-border); margin-top: 4px; padding-top: 14px;">
-          <button type="button" id="toggleCurrSection"
-            style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:0.85rem;padding:0;margin-bottom:12px;">
-            <i class="fas fa-chevron-right" id="toggleCurrIcon" style="transition:transform .2s;font-size:0.75rem;"></i>
-            <span>Also assign to curriculum right now? <span class="text-muted">(optional)</span></span>
-          </button>
-          <div id="inlineCurrSection" style="display:none;">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-              <div class="form-group" style="margin:0;">
-                <label class="form-label">Department</label>
-                <select id="inlineDept" class="form-control">
-                  <option value="">— dept —</option>
-                  {% for d in departments %}
-                  <option value="{{ d.id }}">{{ d.code }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label">Program</label>
-                <select id="inlineProgram" class="form-control" disabled>
-                  <option value="">— program —</option>
-                </select>
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label">Year Level</label>
-                <select id="inlineYearLevel" class="form-control" disabled>
-                  <option value="">— year —</option>
-                </select>
-              </div>
-            </div>
-            <p class="form-hint mt-2" style="margin-top:6px;">
-              <i class="fas fa-info-circle"></i> You can add more mappings after saving via the <i
-                class="fas fa-sitemap"></i> button.
-            </p>
-          </div>
         </div>
 
         <div id="subjectFormError" class="toast toast--error mt-3" style="display:none;"></div>
       </form>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-outline" id="subjectModalCancel"
-        data-modal-dismiss="subjectModal">Cancel</button>
+      <button type="button" class="btn btn-outline" id="subjectModalCancel" data-modal-dismiss="subjectModal">Cancel</button>
       <button type="button" class="btn btn-primary" id="subjectModalSave">
         <i class="fas fa-floppy-disk"></i> Save Subject
       </button>
@@ -303,71 +293,11 @@
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════
-     MODAL: Curriculum Mapping (sitemap btn)
-     ═══════════════════════════════════════════════════════ -->
-<div class="modal" id="curriculumModal">
-  <div class="modal-dialog" style="max-width: 620px;">
-    <div class="modal-header">
-      <h2 class="modal-title">Curriculum Mapping — <span id="currSubjectCode" class="text-accent"></span></h2>
-      <button type="button" class="modal-close" id="curriculumModalClose" data-modal-dismiss="curriculumModal">
-        <i class="fas fa-xmark"></i>
-      </button>
-    </div>
-    <div class="modal-body">
-
-      <!-- Assign Form (Dept → Program → Year Level) -->
-      <div class="card mb-4" style="padding: 16px;">
-        <div class="font-semibold text-primary mb-3">Assign to Program Year</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;">
-          <div class="form-group" style="margin:0;">
-            <label class="form-label">Department</label>
-            <select id="currDept" class="form-control">
-              <option value="">— dept —</option>
-              {% for d in departments %}
-              <option value="{{ d.id }}">{{ d.code }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label class="form-label">Program</label>
-            <select id="currProgram" class="form-control" disabled>
-              <option value="">— program —</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label class="form-label">Year Level</label>
-            <select id="currYearLevel" class="form-control" disabled>
-              <option value="">— year —</option>
-            </select>
-          </div>
-          <button type="button" class="btn btn-primary" id="currAssignBtn" style="height:40px;">
-            <i class="fas fa-plus"></i> Assign
-          </button>
-        </div>
-        <div id="currAssignError" class="toast toast--error mt-3" style="display:none;"></div>
-      </div>
-
-      <!-- Existing Entries -->
-      <div class="font-semibold text-primary mb-3">Current Curriculum Assignments</div>
-      <div id="curriculumEntries">
-        <div class="text-muted text-sm text-center" style="padding: 24px 0;">Loading…</div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-outline" id="curriculumModalClose2" data-modal-dismiss="curriculumModal">Close</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══════════════════════════════════════════════════════
-     MODAL: Delete Confirm
-     ═══════════════════════════════════════════════════════ -->
+<!-- ═══ MODAL: Delete Confirm ═══ -->
 <div class="modal" id="subjectDeleteModal">
   <div class="modal-dialog" style="max-width: 440px;">
     <div class="modal-header">
-      <h2 class="modal-title">Remove Subject</h2>
+      <h2 class="modal-title"><i class="fas fa-triangle-exclamation text-danger"></i> Remove Subject</h2>
       <button type="button" class="modal-close" id="subjectDeleteClose" data-modal-dismiss="subjectDeleteModal">
         <i class="fas fa-xmark"></i>
       </button>
@@ -389,10 +319,36 @@
 
 {% block extra_js %}
 {% load static %}
-<script id="programsData" type="application/json">{{ programs_json|safe }}</script>
 <script src="{% static 'js/subjects/subjects_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/subjects/add_subject.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/subjects/edit_subject.js' %}?v=20261020_v4"></script>
-<script src="{% static 'js/subjects/curriculum_modal.js' %}?v=20261020_v4"></script>
 <script src="{% static 'js/subjects/delete_subject.js' %}?v=20261026_v1"></script>
+<script src="{% static 'js/subjects/toggle_subject.js' %}?v=20261029_v1"></script>
+<script>
+  /* Action Dropdown toggle */
+  document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.action-dropdown-toggle');
+    var allDropdowns = document.querySelectorAll('.action-dropdown');
+    if (toggle) {
+      e.stopPropagation();
+      var parent = toggle.closest('.action-dropdown');
+      var wasOpen = parent.classList.contains('open');
+      allDropdowns.forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) parent.classList.add('open');
+    } else {
+      allDropdowns.forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+
+  /* Dept → Program filter chaining */
+  document.getElementById('filterDept').addEventListener('change', function () {
+    var dept = this.value;
+    var prog = document.getElementById('filterProgram');
+    Array.from(prog.options).forEach(function (opt) {
+      if (!opt.value) return;
+      opt.hidden = dept ? opt.dataset.dept !== dept : false;
+    });
+    prog.value = '';
+  });
+</script>
 {% endblock %}

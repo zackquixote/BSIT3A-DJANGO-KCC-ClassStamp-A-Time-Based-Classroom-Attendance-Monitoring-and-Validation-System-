@@ -22,14 +22,53 @@
   <nav class="sidebar-nav">
 
     {% if request.user.is_superuser or profile and profile.role == 'ADMIN' %}
-      <span class="sidebar-section-label">Admin Panel</span>
+      <span class="sidebar-section-label">Overview</span>
       <a href="{% url 'admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
         <i data-lucide="layout-dashboard" class="sidebar-link-icon"></i>
         <i class="fas fa-gauge-high sidebar-link-icon lucide-fallback"></i>
         <span>Dashboard</span>
       </a>
 
-      <span class="sidebar-section-label">Account Management</span>
+      <span class="sidebar-section-label">Academic Structure</span>
+      <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}" title="School Years & Term Rollover">
+        <i data-lucide="calendar-days" class="sidebar-link-icon"></i>
+        <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
+        <span>Academic Terms</span>
+      </a>
+      <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}" title="Academic Colleges & Departments">
+        <i data-lucide="building-2" class="sidebar-link-icon"></i>
+        <i class="fas fa-building sidebar-link-icon lucide-fallback"></i>
+        <span>Departments</span>
+      </a>
+      <a href="{% url 'program_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'program_list program_save' %}active{% endif %}" title="Degree Programs & Curriculum Matrix">
+        <i data-lucide="award" class="sidebar-link-icon"></i>
+        <i class="fas fa-graduation-cap sidebar-link-icon lucide-fallback"></i>
+        <span>Programs &amp; Curriculum</span>
+      </a>
+      <a href="{% url 'subject_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'subject' %}active{% endif %}" title="Master Course Catalogue">
+        <i data-lucide="book-open" class="sidebar-link-icon"></i>
+        <i class="fas fa-book-bookmark sidebar-link-icon lucide-fallback"></i>
+        <span>Subject Catalogue</span>
+      </a>
+
+      <span class="sidebar-section-label">Classrooms &amp; Rosters</span>
+      <a href="{% url 'class_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':5' == 'class' and request.resolver_match.url_name != 'class_wizard_setup' %}active{% endif %}" title="Class Sections & Enlistment">
+        <i data-lucide="calendar-range" class="sidebar-link-icon"></i>
+        <i class="fas fa-chalkboard sidebar-link-icon lucide-fallback"></i>
+        <span>Class Sections</span>
+      </a>
+      <a href="{% url 'class_wizard_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'class_wizard_setup' %}active{% endif %}" title="Section Setup Wizard">
+        <i data-lucide="wand-sparkles" class="sidebar-link-icon"></i>
+        <i class="fas fa-wand-magic-sparkles sidebar-link-icon lucide-fallback"></i>
+        <span>Section Wizard</span>
+      </a>
+      <a href="{% url 'teacher_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'teacher' %}active{% endif %}" title="Faculty Loading & Departments">
+        <i data-lucide="presentation" class="sidebar-link-icon"></i>
+        <i class="fas fa-chalkboard-user sidebar-link-icon lucide-fallback"></i>
+        <span>Faculty Directory</span>
+      </a>
+
+      <span class="sidebar-section-label">Student Management</span>
       {% with current_view=request.resolver_match.url_name %}
       <a href="{% url 'validation_queue' %}" class="sidebar-link {% if current_view in 'validation_queue validation_hub validation_pending_queue recently_reviewed_list validation_detail approve_student reject_student' %}active{% endif %}">
         <i data-lucide="user-check" class="sidebar-link-icon"></i>
@@ -37,63 +76,31 @@
         <span>Account Validation</span>
         <span class="sidebar-badge" id="sidebarPendingBadge" data-pending-count-url="{% url 'admin_pending_count_json' %}"{% if not pending_approval_count %} style="display: none;"{% endif %}>{{ pending_approval_count }}</span>
       </a>
-      <a href="{% url 'student_directory' %}" class="sidebar-link {% if current_view in 'student_directory student_list student_directory_import_csv program_students_per_year' %}active{% endif %}" title="Student List & Masterlist">
+      <a href="{% url 'student_directory' %}" class="sidebar-link {% if current_view in 'student_directory student_list student_directory_import_csv program_students_per_year' %}active{% endif %}" title="Student Masterlist & Import">
         <i data-lucide="graduation-cap" class="sidebar-link-icon"></i>
         <i class="fas fa-user-graduate sidebar-link-icon lucide-fallback"></i>
-        <span>Student List</span>
+        <span>Student Masterlist</span>
       </a>
-      <a href="{% url 'users:user_list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'users' %}active{% endif %}">
+      <a href="{% url 'users:user_list' %}" class="sidebar-link {% if request.resolver_match.namespace == 'users' %}active{% endif %}" title="System User Accounts">
         <i data-lucide="users" class="sidebar-link-icon"></i>
         <i class="fas fa-users-gear sidebar-link-icon lucide-fallback"></i>
-        <span>User Management</span>
+        <span>User Accounts</span>
       </a>
       {% endwith %}
 
-      <span class="sidebar-section-label">Organisation</span>
-      <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}">
-        <i data-lucide="building-2" class="sidebar-link-icon"></i>
-        <i class="fas fa-building sidebar-link-icon lucide-fallback"></i>
-        <span>Departments</span>
-      </a>
-      <a href="{% url 'program_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'program_list program_save' %}active{% endif %}">
-        <i data-lucide="award" class="sidebar-link-icon"></i>
-        <i class="fas fa-graduation-cap sidebar-link-icon lucide-fallback"></i>
-        <span>Programs</span>
-      </a>
-      <a href="{% url 'subject_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'subject' %}active{% endif %}">
-        <i data-lucide="book-open" class="sidebar-link-icon"></i>
-        <i class="fas fa-book sidebar-link-icon lucide-fallback"></i>
-        <span>Subjects</span>
-      </a>
-      <a href="{% url 'teacher_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':7' == 'teacher' %}active{% endif %}">
-        <i data-lucide="presentation" class="sidebar-link-icon"></i>
-        <i class="fas fa-chalkboard-user sidebar-link-icon lucide-fallback"></i>
-        <span>Teachers</span>
-      </a>
-      <a href="{% url 'class_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':5' == 'class' %}active{% endif %}">
-        <i data-lucide="calendar-range" class="sidebar-link-icon"></i>
-        <i class="fas fa-chalkboard sidebar-link-icon lucide-fallback"></i>
-        <span>Classes &amp; Schedules</span>
-      </a>
-      <a href="{% url 'academic_year_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':13' == 'academic_year' %}active{% endif %}">
-        <i data-lucide="calendar-clock" class="sidebar-link-icon"></i>
-        <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
-        <span>Academic Years</span>
+      <span class="sidebar-section-label">Oversight &amp; Security</span>
+      <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}" title="Security Anomalies & Flagged Scans">
+        <i data-lucide="shield-alert" class="sidebar-link-icon"></i>
+        <i class="fas fa-triangle-exclamation sidebar-link-icon lucide-fallback"></i>
+        <span>Security Alerts</span>
+        <span class="sidebar-badge sidebar-badge--danger" id="sidebarAnomalyBadge"{% if not open_anomaly_count %} style="display: none;"{% endif %}>{{ open_anomaly_count }}</span>
       </a>
       <a href="{% url 'admin_calendar' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'admin_calendar' %}active{% endif %}" title="Institutional Calendar & Milestones">
         <i data-lucide="calendar" class="sidebar-link-icon"></i>
         <i class="fas fa-calendar-alt sidebar-link-icon lucide-fallback"></i>
         <span>Academic Calendar</span>
       </a>
-
-      <span class="sidebar-section-label">Security</span>
-      <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}">
-        <i data-lucide="shield-alert" class="sidebar-link-icon"></i>
-        <i class="fas fa-triangle-exclamation sidebar-link-icon lucide-fallback"></i>
-        <span>Security Alerts</span>
-        <span class="sidebar-badge" id="sidebarAnomalyBadge" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4);{% if not open_anomaly_count %} display: none;{% endif %}">{{ open_anomaly_count }}</span>
-      </a>
-      <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}">
+      <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}" title="System Activity & Audit Trail">
         <i data-lucide="file-text" class="sidebar-link-icon"></i>
         <i class="fas fa-shield-halved sidebar-link-icon lucide-fallback"></i>
         <span>Audit Log</span>

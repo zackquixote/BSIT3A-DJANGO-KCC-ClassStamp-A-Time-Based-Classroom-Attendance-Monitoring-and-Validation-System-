@@ -78,9 +78,8 @@
 <div id="deptAlert" class="toast toast--error mb-4" style="display: none;"></div>
 
 <!-- Departments Table Card -->
-<div class="card" style="padding: 0; overflow: hidden;">
-  <div
-    style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+<div class="card" style="padding: 0; overflow: visible;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
       Academic Departments {% if query %}<span class="text-muted text-sm">— search results for "{{ query }}"</span>{% endif %}
     </div>
@@ -97,7 +96,7 @@
           <th>Programs</th>
           <th>Faculty</th>
           <th>Status</th>
-          <th style="text-align: right; width: 140px;">Actions</th>
+          <th style="text-align: right; width: 110px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -127,18 +126,48 @@
             <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right;">
-            <div class="flex items-center gap-2" style="justify-content: flex-end;">
-              <button type="button" class="btn btn-outline" style="padding: 6px 10px;" data-modal-target="editDeptModal"
-                data-mode="edit" data-id="{{ d.id }}" data-code="{{ d.code }}" data-name="{{ d.name }}"
-                data-active="{{ d.is_active|yesno:'true,false' }}" title="Edit Department">
-                <i class="fas fa-pen-to-square"></i>
+          <td style="text-align: right; overflow: visible; position: relative;">
+            <div class="flex items-center gap-1" style="justify-content: flex-end;">
+              <!-- Edit (primary) -->
+              <button type="button"
+                      class="btn btn-outline btn-sm"
+                      style="padding: 6px 10px;"
+                      data-modal-target="editDeptModal"
+                      data-mode="edit"
+                      data-id="{{ d.id }}"
+                      data-code="{{ d.code }}"
+                      data-name="{{ d.name }}"
+                      data-active="{{ d.is_active|yesno:'true,false' }}"
+                      title="Edit Department">
+                <i class="fas fa-pen"></i>
               </button>
-              <button type="button" class="btn btn-danger" style="padding: 6px 10px;"
-                data-modal-target="deleteDeptModal" data-id="{{ d.id }}" data-code="{{ d.code }}"
-                data-programs="{{ d.program_count }}" data-faculty="{{ d.faculty_count }}" title="Delete or Deactivate">
-                <i class="fas fa-trash"></i>
-              </button>
+              <!-- More dropdown -->
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding: 5px 9px;" title="More">
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="action-dropdown-menu">
+                  <a href="{% url 'program_list' %}?department={{ d.id }}" class="action-dropdown-item">
+                    <i class="fas fa-graduation-cap text-gold"></i>
+                    <span>View Programs</span>
+                  </a>
+                  <a href="{% url 'teacher_list' %}?department={{ d.id }}" class="action-dropdown-item">
+                    <i class="fas fa-chalkboard-user text-blue"></i>
+                    <span>View Faculty</span>
+                  </a>
+                  <div class="action-dropdown-divider"></div>
+                  <button type="button"
+                          class="action-dropdown-item action-dropdown-item--danger"
+                          data-modal-target="deleteDeptModal"
+                          data-id="{{ d.id }}"
+                          data-code="{{ d.code }}"
+                          data-programs="{{ d.program_count }}"
+                          data-faculty="{{ d.faculty_count }}">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete / Deactivate</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -272,4 +301,21 @@
 <script src="{% static 'js/departments/departments_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/departments/department_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/departments/delete_department.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
+<script>
+  /* Action Dropdown toggle */
+  document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.action-dropdown-toggle');
+    var all = document.querySelectorAll('.action-dropdown');
+    if (toggle) {
+      e.stopPropagation();
+      var parent = toggle.closest('.action-dropdown');
+      var wasOpen = parent.classList.contains('open');
+      all.forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) parent.classList.add('open');
+    } else {
+      all.forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+</script>
 {% endblock %}

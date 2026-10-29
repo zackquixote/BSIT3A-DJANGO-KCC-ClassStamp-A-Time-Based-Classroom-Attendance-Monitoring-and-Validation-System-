@@ -120,42 +120,11 @@
   </form>
 </div>
 
-<div id="bulkActionsBar" class="card mb-4" data-bulk-url="{% url 'bulk_teacher_operation' %}" style="padding: 12px 18px; background: var(--bg-subtle); display: none;">
-  <div class="flex flex-wrap gap-2">
-    <select id="bulkAction" class="form-select form-select-sm" style="min-width: 180px;">
-      <option value="">Select Action</option>
-      <option value="activate">Activate Selected</option>
-      <option value="deactivate">Deactivate Selected</option>
-      <option value="reset-pw">Reset Password Selected</option>
-    </select>
-    <button id="btnExecuteBulk" class="btn btn-sm btn-primary">Execute</button>
-    <button id="btnCancelBulk" class="btn btn-sm btn-outline">Cancel</button>
-    <span id="bulkCount" class="text-muted text-sm"></span>
-  </div>
-</div>
-
 <div id="teacherAlert" class="toast toast--error mb-4" style="display: none;"></div>
 <div id="teacherSuccess" class="toast toast--success mb-4" style="display: none;"></div>
 
-<!-- Bulk Confirmation Modal -->
-<div id="bulkConfirmation" class="modal" style="display: none;">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-header">
-      <h5 class="modal-title">Confirm Bulk Action</h5>
-      <button type="button" class="btn-close" data-modal-dismiss="bulkConfirmation"></button>
-    </div>
-    <div class="modal-body">
-      <p>Are you sure you want to <strong id="bulkActionDesc"></strong> <strong id="bulkCountDesc"></strong> selected teacher(s)?</p>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" data-modal-dismiss="bulkConfirmation">Cancel</button>
-      <button type="button" id="btnConfirmBulk" class="btn btn-primary">Confirm</button>
-    </div>
-  </div>
-</div>
-
 <!-- Faculty Table -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: visible;">
   <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
     <div class="font-semibold text-primary">
       Faculty Roster {% if query %}<span class="text-muted text-sm">— "{{ query }}"</span>{% endif %}
@@ -163,13 +132,10 @@
     <span class="text-muted text-xs">{{ teachers.paginator.count }} faculty members</span>
   </div>
 
-  <div class="table-responsive">
+  <div class="table-responsive" style="overflow-x: auto; overflow-y: visible;">
     <table class="table" id="teacherTable">
       <thead>
         <tr>
-          <th style="width: 40px; text-align: center;">
-            <input type="checkbox" id="selectAllTeachers" title="Select all faculty" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
-          </th>
           <th style="width: 44px;">#</th>
           <th>Faculty Member</th>
           <th>Username</th>
@@ -177,15 +143,12 @@
           <th>Teaching Load &amp; Subjects</th>
           <th>Account Status</th>
           <th>Joined</th>
-          <th style="text-align: right; width: 220px; white-space: nowrap;">Actions</th>
+          <th style="text-align: right; width: 130px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for t in teachers %}
         <tr data-teacher-id="{{ t.id }}">
-          <td style="text-align: center;">
-            <input type="checkbox" class="teacher-checkbox" value="{{ t.id }}" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
-          </td>
           <td class="text-muted">{{ t.id }}</td>
           <td>
             <div style="display:flex;align-items:center;gap:10px;">
@@ -228,29 +191,53 @@
             {% endif %}
           </td>
           <td class="text-muted text-sm">{{ t.user.date_joined|date:"M d, Y" }}</td>
-          <td style="text-align: right; white-space: nowrap;">
-            <div class="table-actions-cluster">
-              <button class="btn btn-outline btn-icon-xs js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Manage Teaching Load">
-                <i class="fas fa-book-bookmark text-gold"></i>
-              </button>
-              <button class="btn btn-outline btn-icon-xs js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="View Faculty Analytics &amp; Teaching Load">
-                <i class="fas fa-chart-pie text-green"></i>
-              </button>
-              <button class="btn btn-outline btn-icon-xs js-view-teacher" data-id="{{ t.id }}" title="View Details">
+          <td style="text-align: right; width: 130px; overflow: visible; position: relative;">
+            <div class="flex justify-end items-center gap-1">
+              <button type="button" class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Profile">
                 <i class="fas fa-eye"></i>
               </button>
-              <button class="btn btn-outline btn-icon-xs js-edit-teacher" data-id="{{ t.id }}" title="Edit">
+              <button type="button" class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit Profile">
                 <i class="fas fa-pen"></i>
               </button>
-              <button class="btn btn-outline btn-icon-xs js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Force Reset Password">
-                <i class="fas fa-key text-warning"></i>
-              </button>
-              <button class="btn btn-outline btn-icon-xs js-toggle-teacher {% if not t.user.is_active %}btn-success{% endif %}" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}" title="Toggle Active">
-                <i class="fas {% if t.user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
-              </button>
-              <button class="btn btn-danger btn-icon-xs js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
+              
+              <!-- Clean Actions Dropdown -->
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;">
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="action-dropdown-menu">
+                  <button type="button" class="action-dropdown-item js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-book-bookmark text-gold"></i>
+                    <span>Teaching Load</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item js-teacher-analytics" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-chart-pie text-green"></i>
+                    <span>Load Analytics</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item js-reassign-teacher"
+                          data-id="{{ t.id }}"
+                          data-name="{{ t.user.get_full_name|default:t.user.username }}"
+                          data-dept-code="{{ t.department.code|default:'None' }}"
+                          data-dept-id="{{ t.department.id|default:'' }}"
+                          data-class-count="{{ t.taught_classes.all|length }}">
+                    <i class="fas fa-right-left text-blue"></i>
+                    <span>Reassign Dept</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item js-admin-reset-pw" data-user-id="{{ t.user.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-key text-warning"></i>
+                    <span>Reset Password</span>
+                  </button>
+                  <div class="action-dropdown-divider"></div>
+                  <button type="button" class="action-dropdown-item js-toggle-teacher" data-id="{{ t.id }}" data-active="{{ t.user.is_active|yesno:'1,0' }}">
+                    <i class="fas {% if t.user.is_active %}fa-user-slash text-muted{% else %}fa-user-check text-green{% endif %}"></i>
+                    <span>{% if t.user.is_active %}Deactivate{% else %}Activate{% endif %}</span>
+                  </button>
+                  <button type="button" class="action-dropdown-item action-dropdown-item--danger js-delete-teacher" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete Account</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -302,18 +289,14 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label" for="teacherUsername">Username <span class="text-danger">*</span></label>
-          <input type="text" id="teacherUsername" name="username" class="form-control" placeholder="e.g. msantos" autocomplete="username" required>
-          <span class="form-hint" id="teacherUsernameHint" style="display:none;"></span>
-        </div>
-        <div class="form-group">
           <label class="form-label" for="teacherEmail">Email Address <span class="text-danger">*</span></label>
           <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" autocomplete="email" required>
+          <span class="form-hint"><i class="fas fa-circle-info"></i> Login username will be auto-set to the email prefix (e.g. <code>msantos</code>).</span>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherDept">Department <span class="text-danger">*</span></label>
           <select id="teacherDept" name="dept_id" class="form-control" autocomplete="organization" required>
-            <option value="">— select department —</option>
+            <option value="">Select Department</option>
             {% for d in departments %}
             <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
             {% endfor %}
@@ -350,6 +333,43 @@
     </div>
     <div class="modal-body" id="teacherDetailBody" style="max-height: 80vh; overflow-y: auto;">
       <div class="text-muted text-center" style="padding:40px;">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Department Reassignment (A-12) -->
+<div class="modal" id="reassignTeacherModal">
+  <div class="modal-dialog" style="max-width: 480px;">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-right-left text-blue"></i> Reassign Department</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="reassignTeacherModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom: 10px;">
+        Transfer <strong id="reassignTeacherName"></strong> to another academic department.
+      </p>
+      <div id="reassignLoadOverview" class="toast toast--info mb-3" style="display:block; margin-top: 6px;">
+        <i class="fas fa-circle-info"></i>
+        <span id="reassignLoadText">Loading overview…</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="reassignDept">New Department <span class="text-danger">*</span></label>
+        <select id="reassignDept" class="form-control" autocomplete="off" required>
+          <option value="">Select Department</option>
+          {% for d in departments %}
+          <option value="{{ d.id }}">{{ d.code }} — {{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <p class="text-muted text-sm">
+        <i class="fas fa-shield-halved"></i>
+        Assigned class sections are left intact; the transfer is recorded in the audit log.
+      </p>
+      <div id="reassignError" class="toast toast--error mt-3" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-modal-dismiss="reassignTeacherModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="reassignConfirm"><i class="fas fa-right-left"></i> Reassign</button>
     </div>
   </div>
 </div>
@@ -427,7 +447,7 @@
             <div class="form-group">
               <label class="form-label" for="assignSubject">Subject Offering <span class="text-danger">*</span></label>
               <select id="assignSubject" name="subject_id" class="form-control" required>
-                <option value="">— select subject —</option>
+                <option value="">Select Subject</option>
                 {% for sub in all_subjects %}
                 <option value="{{ sub.id }}">{{ sub.code }} — {{ sub.name }}</option>
                 {% endfor %}
@@ -538,9 +558,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<div id="teacher-reassign-boot" hidden data-reassign-url="{% url 'teacher_reassign_ajax' 0 %}"></div>
 {% load static %}
 <script src="{% static 'js/teachers/teachers_common.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/teachers/bulk_teacher_actions.js' %}?v=20261022_v1"></script>
 <script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v4"></script>
 <script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/save_teacher.js' %}?v=20261022_v4"></script>
@@ -549,4 +569,23 @@
 <script src="{% static 'js/teachers/toggle_teacher.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/reassign_teacher.js' %}?v=20261027_v1"></script>
+<script>
+  // Table Action Dropdown Menu Toggle & Outside Click
+  document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.action-dropdown-toggle');
+    var allDropdowns = document.querySelectorAll('.action-dropdown');
+    if (toggle) {
+      e.stopPropagation();
+      var parent = toggle.closest('.action-dropdown');
+      var wasOpen = parent.classList.contains('open');
+      allDropdowns.forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) {
+        parent.classList.add('open');
+      }
+    } else {
+      allDropdowns.forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+</script>
 {% endblock %}

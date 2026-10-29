@@ -264,7 +264,7 @@ def delete_or_deactivate_program(actor, pk: int) -> dict:
 
 def create_or_update_subject(
     actor, code: str, name: str, description: str,
-    is_active: bool, subject_id=None
+    is_active: bool, units: int = 3, subject_id=None
 ) -> dict:
     """
     // [Service] Create or Update Academic Subject
@@ -275,10 +275,11 @@ def create_or_update_subject(
     //   name        (str):   Official subject descriptive title.
     //   description (str):   Optional syllabus or course overview.
     //   is_active   (bool):  Active status flag.
+    //   units       (int):   Credit units; 1 unit = 1 class hour per week.
     //   subject_id  (int):   If provided, updates existing subject; otherwise creates.
     //
     // Returns: dict with keys: instance, action, message
-    // Raises: ValueError on duplicate code.
+    // Raises: ValueError on duplicate code or invalid units.
     """
     code = code.strip().upper()
     name = name.strip()
@@ -288,6 +289,12 @@ def create_or_update_subject(
         raise ValueError('Subject code is required.')
     if not name:
         raise ValueError('Subject name is required.')
+    try:
+        units = int(units)
+    except (TypeError, ValueError):
+        raise ValueError('Units must be a whole number.')
+    if units < 1:
+        raise ValueError('Units must be at least 1.')
 
     code_qs = Subject.objects.filter(code__iexact=code)
     if subject_id:
@@ -297,10 +304,11 @@ def create_or_update_subject(
 
     if subject_id:
         subject = get_object_or_404(Subject, pk=subject_id)
-        old_val = f'{subject.code} - {subject.name} (active: {subject.is_active})'
+        old_val = f'{subject.code} - {subject.name} ({subject.units}u, active: {subject.is_active})'
         subject.code = code
         subject.name = name
         subject.description = description
+        subject.units = units
         subject.is_active = is_active
         subject.save()
         action = 'UPDATE_SUBJECT'
@@ -310,6 +318,7 @@ def create_or_update_subject(
             code=code,
             name=name,
             description=description,
+            units=units,
             is_active=is_active,
         )
         old_val = None
@@ -322,7 +331,7 @@ def create_or_update_subject(
         object_type='Subject',
         object_id=str(subject.pk),
         old_value=old_val,
-        new_value=f'{subject.code} - {subject.name} (active: {subject.is_active})',
+        new_value=f'{subject.code} - {subject.name} ({subject.units}u, active: {subject.is_active})',
     )
 
     return {'instance': subject, 'action': action, 'message': msg}

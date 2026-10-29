@@ -17,12 +17,15 @@ import secrets
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 
-from apps.core.models import AuditEvent, Class, Enrollment, Profile, Program
+from apps.core.models import AcademicYear, AuditEvent, Class, Enrollment, Profile, Program
 
 User = get_user_model()
+
+# Sentinel value for the directory's section filter meaning "no active-AY section yet"
+UNASSIGNED_SECTION = '__unassigned__'
 
 
 # // ==============================================================================
@@ -54,10 +57,35 @@ def build_student_queryset(filters: dict):
     q = filters.get('q', '').strip()
     sort = filters.get('sort', '-created_at').strip()
 
+    active_ay = AcademicYear.objects.filter(is_active=True).first()
+
+    # Enrollment prefetches are scoped to the active academic year so the
+    # directory's "Enrolled Section(s)" column only reflects the current term.
+    active_enrollments = Prefetch(
+        'enrollments',
+        queryset=(
+            Enrollment.objects.filter(
+                status=Enrollment.STATUS_ACTIVE,
+                class_obj__academic_year=active_ay,
+            ).select_related('class_obj', 'class_obj__subject')
+        ),
+        to_attr='active_section_enrollments',
+    )
+    pending_enrollments = Prefetch(
+        'enrollments',
+        queryset=(
+            Enrollment.objects.filter(
+                status=Enrollment.STATUS_PENDING,
+                class_obj__academic_year=active_ay,
+            ).select_related('class_obj', 'class_obj__subject')
+        ),
+        to_attr='pending_section_enrollments',
+    )
+
     qs = (
         Profile.objects.filter(role=Profile.ROLE_STUDENT)
         .select_related('user', 'program', 'program__department', 'approved_by')
-        .prefetch_related('enrollments__class_obj')
+        .prefetch_related(active_enrollments, pending_enrollments)
     )
 
     if dept_id:
@@ -76,7 +104,22 @@ def build_student_queryset(filters: dict):
         qs = qs.filter(approval_status=status)
 
     if section:
-        qs = qs.filter(enrollments__class_obj__class_code__icontains=section).distinct()
+        if section == UNASSIGNED_SECTION:
+            qs = qs.annotate(_active_section_count=Count(
+                'enrollments',
+                filter=Q(
+                    enrollments__status=Enrollment.STATUS_ACTIVE,
+                    enrollments__class_obj__academic_year=active_ay,
+                ),
+            )).filter(_active_section_count=0)
+        elif active_ay:
+            qs = qs.filter(
+                enrollments__status=Enrollment.STATUS_ACTIVE,
+                enrollments__class_obj__academic_year=active_ay,
+                enrollments__class_obj__class_code__icontains=section,
+            ).distinct()
+        else:
+            qs = qs.filter(enrollments__class_obj__class_code__icontains=section).distinct()
 
     if q:
         qs = qs.filter(
