@@ -193,6 +193,17 @@
   flex-shrink: 0;
   transition: color 0.15s ease;
   color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-link-icon svg.lucide,
+svg.sidebar-link-icon {
+  width: 17px !important;
+  height: 17px !important;
+  stroke-width: 1.95px !important;
+  vertical-align: middle;
 }
 
 .sidebar-link.active .sidebar-link-icon {

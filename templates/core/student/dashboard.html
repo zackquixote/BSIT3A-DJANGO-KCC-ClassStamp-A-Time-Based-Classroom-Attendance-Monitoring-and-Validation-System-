@@ -11,12 +11,28 @@
       <span class="text-gold font-mono">{{ today_date|date:"l, F j, Y" }}</span>
     </p>
   </div>
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-2 flex-wrap">
+    <!-- Student Hamburger Stats Toggle Button (Compact on Mobile) -->
+    <button type="button" class="btn btn-outline student-stats-toggle-btn" id="studentStatsToggleBtn" aria-expanded="false" aria-controls="studentKpiCollapsible" title="Toggle Attendance Metrics">
+      <span class="flex items-center gap-2">
+        <i data-lucide="menu"></i>
+        <i class="fas fa-bars-staggered lucide-fallback"></i>
+        <span>Attendance Overview</span>
+      </span>
+      <span class="student-stats-summary-pill font-mono">
+        <span class="text-green">{{ present_count }} Present</span>&nbsp;•&nbsp;
+        <span class="text-gold">{{ late_count }} Late</span>&nbsp;•&nbsp;
+        <span class="text-red">{{ absent_count }} Absent</span>
+      </span>
+      <i class="fas fa-chevron-down toggle-chevron"></i>
+    </button>
     <a href="{% url 'student_qr_badge' %}" class="btn btn-primary">
-      <i class="fas fa-qrcode"></i> Show My QR
+      <i data-lucide="qr-code"></i>
+      <i class="fas fa-qrcode lucide-fallback"></i> Show My QR
     </a>
     <a href="{% url 'student_attendance_log' %}" class="btn btn-outline">
-      <i class="fas fa-calendar-check"></i> Attendance Log
+      <i data-lucide="calendar-check"></i>
+      <i class="fas fa-calendar-check lucide-fallback"></i> Attendance Log
     </a>
   </div>
 </div>
@@ -27,7 +43,8 @@
   <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 12px;">
     <div class="flex items-center gap-3">
       <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; color: var(--accent-gold); font-size: 1.1rem; flex-shrink: 0;">
-        <i class="fas fa-flag-checkered"></i>
+        <i data-lucide="flag"></i>
+        <i class="fas fa-flag-checkered lucide-fallback"></i>
       </div>
       <div>
         <div class="flex items-center gap-2">
@@ -46,42 +63,48 @@
 </div>
 {% endif %}
 
-<!-- Telemetry KPI Stat Cards -->
-<div class="stat-grid mb-6">
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--green">
-      <i class="fas fa-user-check"></i>
+<!-- Telemetry KPI Stat Cards (Collapsible on Mobile, 4-col on Desktop) -->
+<div class="student-kpi-collapsible" id="studentKpiCollapsible">
+  <div class="stat-grid student-stat-grid mb-6">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--green">
+        <i data-lucide="user-check"></i>
+        <i class="fas fa-user-check lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ present_count }}</span>
+        <span class="stat-label">Present</span>
+      </div>
     </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ present_count }}</span>
-      <span class="stat-label">Present</span>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--gold">
+        <i data-lucide="clock"></i>
+        <i class="fas fa-clock lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ late_count }}</span>
+        <span class="stat-label">Late</span>
+      </div>
     </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--gold">
-      <i class="fas fa-clock"></i>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--red">
+        <i data-lucide="user-x"></i>
+        <i class="fas fa-user-xmark lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ absent_count }}</span>
+        <span class="stat-label">Absent</span>
+      </div>
     </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ late_count }}</span>
-      <span class="stat-label">Late</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--red">
-      <i class="fas fa-user-xmark"></i>
-    </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ absent_count }}</span>
-      <span class="stat-label">Absent</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon stat-icon--purple">
-      <i class="fas fa-book"></i>
-    </div>
-    <div class="stat-info">
-      <span class="stat-value">{{ enrolled_class_count }}</span>
-      <span class="stat-label">Enrolled Classes</span>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--purple">
+        <i data-lucide="book-open"></i>
+        <i class="fas fa-book lucide-fallback"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ enrolled_class_count }}</span>
+        <span class="stat-label">Enrolled Classes</span>
+      </div>
     </div>
   </div>
 </div>
@@ -332,4 +355,26 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const statsBtn = document.getElementById('studentStatsToggleBtn');
+    const collapsible = document.getElementById('studentKpiCollapsible');
+    if (statsBtn && collapsible) {
+      statsBtn.addEventListener('click', function() {
+        const isOpen = collapsible.classList.toggle('is-open');
+        statsBtn.classList.toggle('is-active', isOpen);
+        statsBtn.setAttribute('aria-expanded', isOpen);
+        if (isOpen && window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      });
+    }
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  });
+</script>
 {% endblock %}

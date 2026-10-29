@@ -1571,3 +1571,139 @@ kbd {
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
   transform-origin: center center;
 }
+
+/* ── Modern Lucide Icon Integration & Refinements ────────────── */
+svg.lucide,
+[data-lucide] {
+  width: 1.15em;
+  height: 1.15em;
+  stroke-width: 1.95px;
+  stroke: currentColor;
+  fill: none;
+  vertical-align: -0.15em;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, stroke 0.2s ease;
+}
+
+/* Hide fallback fontawesome icon when Lucide SVG replaces element */
+svg.lucide + .lucide-fallback,
+[data-lucide] + .lucide-fallback {
+  display: none !important;
+}
+
+/* Enhanced stat icons with modern crisp stroke rendering */
+.stat-icon svg.lucide {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2px;
+}
+
+/* ── Student Dashboard Mobile Telemetry Collapsible ──────────── */
+.student-stats-toggle-btn {
+  display: none; /* hidden on desktop screens */
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  padding: 9px 15px;
+  border-radius: var(--radius-md);
+  background: rgba(12, 21, 40, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #e2e8f0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.student-stats-toggle-btn:hover {
+  background: rgba(18, 30, 56, 0.9);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #fff;
+}
+
+.student-stats-summary-pill {
+  font-size: 0.76rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.02em;
+}
+
+.student-stats-toggle-btn .toggle-chevron {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-left: 2px;
+}
+
+.student-stats-toggle-btn.is-active .toggle-chevron {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 768px) {
+  .student-stats-toggle-btn {
+    display: inline-flex !important;
+    width: 100%;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .student-kpi-collapsible {
+    display: none;
+  }
+
+  .student-kpi-collapsible.is-open {
+    display: block;
+    animation: studentStatsSlide 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Compact 2x2 grid on mobile phones instead of 4 giant vertical rows! */
+  .student-stat-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .student-stat-grid .stat-card {
+    padding: 12px 14px !important;
+    min-height: auto !important;
+    border-radius: 10px !important;
+  }
+
+  .student-stat-grid .stat-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 0.95rem !important;
+    border-radius: 8px !important;
+  }
+
+  .student-stat-grid .stat-icon svg.lucide {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .student-stat-grid .stat-value {
+    font-size: 1.4rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .student-stat-grid .stat-label {
+    font-size: 0.72rem !important;
+    margin-top: 2px !important;
+  }
+}
+
+@keyframes studentStatsSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

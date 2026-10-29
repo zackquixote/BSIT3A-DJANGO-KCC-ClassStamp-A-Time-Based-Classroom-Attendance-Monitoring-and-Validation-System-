@@ -7,7 +7,7 @@
 
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261028_clean">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261029_modern_icons">
 {% endblock %}
 
 
@@ -248,7 +248,10 @@
 
   <a href="{% url 'validation_queue' %}" class="dash-kpi-card {% if pending_count %}dash-kpi-card--pulse{% endif %}">
 
-    <div class="dash-kpi-icon dash-kpi-icon--gold"><i class="fas fa-user-clock"></i></div>
+    <div class="dash-kpi-icon dash-kpi-icon--gold">
+      <i data-lucide="user-check"></i>
+      <i class="fas fa-user-clock lucide-fallback"></i>
+    </div>
 
     <div class="dash-kpi-body">
 
@@ -280,7 +283,10 @@
 
   <a href="{% url 'student_directory' %}" class="dash-kpi-card">
 
-    <div class="dash-kpi-icon dash-kpi-icon--green"><i class="fas fa-user-graduate"></i></div>
+    <div class="dash-kpi-icon dash-kpi-icon--green">
+      <i data-lucide="graduation-cap"></i>
+      <i class="fas fa-user-graduate lucide-fallback"></i>
+    </div>
 
     <div class="dash-kpi-body">
 
@@ -306,7 +312,10 @@
 
   <a href="{% url 'users:user_list' %}" class="dash-kpi-card">
 
-    <div class="dash-kpi-icon dash-kpi-icon--gold"><i class="fas fa-chalkboard-user"></i></div>
+    <div class="dash-kpi-icon dash-kpi-icon--gold">
+      <i data-lucide="presentation"></i>
+      <i class="fas fa-chalkboard-user lucide-fallback"></i>
+    </div>
 
     <div class="dash-kpi-body">
 
@@ -332,7 +341,10 @@
 
   <div class="dash-kpi-card" id="activeSessionsCard" style="cursor: pointer;" title="Click to view currently open classroom sessions">
 
-    <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-qrcode"></i></div>
+    <div class="dash-kpi-icon dash-kpi-icon--blue">
+      <i data-lucide="radio"></i>
+      <i class="fas fa-qrcode lucide-fallback"></i>
+    </div>
 
     <div class="dash-kpi-body">
 
@@ -362,7 +374,10 @@
 
   <!-- 5. Departments -->
   <a href="{% url 'department_list' %}" class="dash-kpi-card">
-    <div class="dash-kpi-icon dash-kpi-icon--purple"><i class="fas fa-building-columns"></i></div>
+    <div class="dash-kpi-icon dash-kpi-icon--purple">
+      <i data-lucide="layers"></i>
+      <i class="fas fa-building-columns lucide-fallback"></i>
+    </div>
     <div class="dash-kpi-body">
       <span class="dash-kpi-value">{{ department_count }}</span>
       <span class="dash-kpi-label">Departments</span>
@@ -375,7 +390,10 @@
 
   <!-- 6. Degree Programs -->
   <a href="{% url 'program_list' %}" class="dash-kpi-card">
-    <div class="dash-kpi-icon dash-kpi-icon--blue"><i class="fas fa-graduation-cap"></i></div>
+    <div class="dash-kpi-icon dash-kpi-icon--blue">
+      <i data-lucide="award"></i>
+      <i class="fas fa-graduation-cap lucide-fallback"></i>
+    </div>
     <div class="dash-kpi-body">
       <span class="dash-kpi-value">{{ program_count }}</span>
       <span class="dash-kpi-label">Degree Programs</span>
@@ -659,9 +677,8 @@
         <a href="{% url 'validation_queue' %}" class="dash-launcher-btn">
 
           <div class="dash-launcher-icon" style="background: rgba(245,158,11,0.18); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
-
-            <i class="fas fa-user-clock"></i>
-
+            <i data-lucide="user-check"></i>
+            <i class="fas fa-user-clock lucide-fallback"></i>
           </div>
 
           <div class="dash-launcher-text">
@@ -679,9 +696,8 @@
         <a href="{% url 'student_directory' %}" class="dash-launcher-btn">
 
           <div class="dash-launcher-icon" style="background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.35);">
-
-            <i class="fas fa-user-graduate"></i>
-
+            <i data-lucide="graduation-cap"></i>
+            <i class="fas fa-user-graduate lucide-fallback"></i>
           </div>
 
           <div class="dash-launcher-text">
@@ -699,9 +715,8 @@
         <a href="{% url 'users:user_list' %}" class="dash-launcher-btn">
 
           <div class="dash-launcher-icon" style="background: rgba(245,158,11,0.15); color: var(--accent-gold-h); border: 1px solid rgba(245,158,11,0.35);">
-
-            <i class="fas fa-users-gear"></i>
-
+            <i data-lucide="users"></i>
+            <i class="fas fa-users-gear lucide-fallback"></i>
           </div>
 
           <div class="dash-launcher-text">
@@ -719,9 +734,8 @@
         <a href="{% url 'department_list' %}" class="dash-launcher-btn">
 
           <div class="dash-launcher-icon" style="background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.35);">
-
-            <i class="fas fa-building-columns"></i>
-
+            <i data-lucide="building-2"></i>
+            <i class="fas fa-building-columns lucide-fallback"></i>
           </div>
 
           <div class="dash-launcher-text">
@@ -739,9 +753,8 @@
         <a href="{% url 'program_list' %}" class="dash-launcher-btn">
 
           <div class="dash-launcher-icon" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35);">
-
-            <i class="fas fa-graduation-cap"></i>
-
+            <i data-lucide="award"></i>
+            <i class="fas fa-graduation-cap lucide-fallback"></i>
           </div>
 
           <div class="dash-launcher-text">
@@ -759,9 +772,8 @@
         <a href="{% url 'admin_audit_log' %}" class="dash-launcher-btn">
 
           <div class="dash-launcher-icon" style="background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.35);">
-
-            <i class="fas fa-shield-halved"></i>
-
+            <i data-lucide="file-text"></i>
+            <i class="fas fa-shield-halved lucide-fallback"></i>
           </div>
 
           <div class="dash-launcher-text">

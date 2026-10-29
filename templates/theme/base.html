@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261028_sb_compact">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261029_modern_icons">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -64,7 +64,15 @@
 
   </div>
 
-  <!-- KCC ClassStamp — Core Modules (load order matters) -->
+  <!-- Modern Icon System (Lucide) & KCC ClassStamp Core Modules -->
+  <script src="{% static 'js/vendor/lucide.min.js' %}?v=20261029"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
   <script src="{% static 'js/core/app_toasts.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_buttons.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_modals.js' %}?v=20261020"></script>

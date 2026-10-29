@@ -107,6 +107,18 @@
 .dash-kpi-icon--blue   { background: linear-gradient(135deg,rgba(59,130,246,0.22),rgba(37,99,235,0.06)); border:1px solid rgba(59,130,246,0.38); color:#60a5fa; box-shadow:0 0 12px rgba(59,130,246,0.15); }
 .dash-kpi-icon--purple { background: linear-gradient(135deg,rgba(168,85,247,0.22),rgba(147,51,234,0.06)); border:1px solid rgba(168,85,247,0.38); color:#c084fc; box-shadow:0 0 12px rgba(168,85,247,0.15); }
 
+.dash-kpi-icon svg.lucide {
+  width: 17px !important;
+  height: 17px !important;
+  stroke-width: 2px !important;
+}
+
+.dash-launcher-icon svg.lucide {
+  width: 16px !important;
+  height: 16px !important;
+  stroke-width: 2px !important;
+}
+
 /* Body — strictly aligned to left edge below icon */
 .dash-kpi-body {
   width: 100% !important;
