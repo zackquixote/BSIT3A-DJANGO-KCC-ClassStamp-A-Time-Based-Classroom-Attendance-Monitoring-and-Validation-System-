@@ -11,24 +11,16 @@
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  padding: 0 8px 12px;
+  padding: 0 8px 10px;
   position: fixed;
   left: 0;
   top: 0;
   z-index: 100;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  /* The nav list scrolls, not the whole rail — this keeps the user card
+     pinned at the bottom instead of sliding over the last links. */
+  overflow: hidden;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sidebar::-webkit-scrollbar {
-  width: 3px;
-}
-.sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
 }
 
 /* ── Brand Header ────────────────────────────────────────────── */
@@ -132,29 +124,47 @@
 
 /* ── Navigation List ─────────────────────────────────────────── */
 .sidebar-nav {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 2px 6px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 3px;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
 }
 
 .sidebar-section-label {
   display: block;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: #64748b;
-  padding: 10px 8px 3px;
-  margin-top: 4px;
+  padding: 9px 8px 2px;
+  margin-top: 3px;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-radius: 8px;
   color: #94a3b8;
   font-size: 0.82rem;
@@ -231,14 +241,19 @@ svg.sidebar-link-icon {
 /* ── User Profile Footer Card ────────────────────────────────── */
 .sidebar-footer {
   padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  margin-top: auto;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(11, 22, 40, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 10px;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 -10px 20px -14px rgba(0, 0, 0, 0.9), 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .sidebar-user {
@@ -247,6 +262,7 @@ svg.sidebar-link-icon {
   gap: 8px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar-user-avatar {
@@ -280,6 +296,15 @@ svg.sidebar-link-icon {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.2;
+}
+
+.sidebar-user-info .role-badge {
+  align-self: flex-start;
+  margin-top: 1px;
+  font-size: 0.55rem;
+  padding: 0 6px;
+  line-height: 1.45;
+  letter-spacing: 0.03em;
 }
 
 .sidebar-logout {
@@ -319,5 +344,12 @@ svg.sidebar-link-icon {
 
   .sidebar-close-btn {
     display: inline-flex;
+  }
+
+  /* The bottom tab bar already exposes these destinations on phones, so the
+     drawer keeps only the entries the tab bar does not cover. */
+  .sidebar-link--tabbar,
+  .sidebar-logout--tabbar {
+    display: none;
   }
 }

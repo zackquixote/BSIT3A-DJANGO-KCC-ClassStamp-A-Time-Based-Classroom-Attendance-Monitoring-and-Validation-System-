@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin/database-backup/', views.admin_db_backup, name='admin_db_backup'),
     path('teacher/dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
     path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
+    path('student/profile/', views.student_profile, name='student_profile'),
     path('student/qr/', views.student_qr_badge, name='student_qr_badge'),
     path('student/attendance/', views.student_attendance_log, name='student_attendance_log'),
     path('student/excuse-slips/', views.student_excuse_slips, name='student_excuse_slips'),

@@ -1,0 +1,314 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}My Profile — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<style>
+  .profile-layout {
+    display: grid;
+    grid-template-columns: 330px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+  .profile-card { padding: 0; overflow: hidden; }
+  .profile-identity {
+    padding: 26px 22px 20px;
+    text-align: center;
+    border-bottom: 1px solid var(--glass-border);
+    background: radial-gradient(120% 90% at 50% 0%, rgba(245, 158, 11, 0.13), transparent 62%);
+  }
+  .profile-avatar {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f7b731 0%, #b45309 100%);
+    color: #0b1220;
+    font-weight: 800;
+    font-size: 1.65rem;
+    letter-spacing: 1px;
+    border: 3px solid rgba(245, 158, 11, 0.35);
+    box-shadow: 0 12px 28px -10px rgba(245, 158, 11, 0.55);
+  }
+  .profile-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  .profile-handle {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .profile-badges {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .profile-info { padding: 14px 20px 6px; }
+  .profile-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+    font-size: 0.82rem;
+  }
+  .profile-info-row:last-child { border-bottom: 0; }
+  .profile-info-label { color: var(--text-muted); white-space: nowrap; }
+  .profile-info-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .profile-note {
+    margin: 6px 16px 16px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(56, 189, 248, 0.07);
+    border: 1px solid rgba(56, 189, 248, 0.22);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  .profile-section-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .profile-section-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--accent-gold);
+    font-size: 0.85rem;
+  }
+  .profile-body { padding: 18px 20px 20px; }
+  .profile-help {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+  .profile-help ul { margin: 4px 0 0; padding-left: 18px; }
+  .profile-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  @media (max-width: 980px) {
+    .profile-layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .profile-body, .profile-info { padding-left: 14px; padding-right: 14px; }
+    .profile-section-title { padding-left: 14px; padding-right: 14px; }
+    .profile-actions { justify-content: stretch; }
+    .profile-actions .btn { flex: 1 1 auto; justify-content: center; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'student_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">My Profile</span>
+    </div>
+    <h1 class="page-title">My Profile</h1>
+    <p class="page-subtitle">Keep your contact details and account security up to date</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <a href="{% url 'student_qr_badge' %}" class="btn btn-outline">
+      <i data-lucide="qr-code"></i>
+      <i class="fas fa-qrcode lucide-fallback"></i> Show My QR
+    </a>
+    <a href="{% url 'student_dashboard' %}" class="btn btn-outline">
+      <i data-lucide="layout-dashboard"></i>
+      <i class="fas fa-gauge-high lucide-fallback"></i> Dashboard
+    </a>
+  </div>
+</div>
+
+<div class="profile-layout">
+  <!-- Identity summary -->
+  <div class="card profile-card">
+    <div class="profile-identity">
+      <div class="profile-avatar">{{ profile.initials|default:"ST" }}</div>
+      <div class="profile-name">{{ request.user.get_full_name|default:request.user.get_username }}</div>
+      <div class="profile-handle">@{{ request.user.get_username }}</div>
+      <div class="profile-badges">
+        {% if is_approved %}
+          <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Verified Student</span>
+        {% elif profile.approval_status == 'PENDING' %}
+          <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Pending Approval</span>
+        {% else %}
+          <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> {{ profile.approval_status|default:"Unverified"|title }}</span>
+        {% endif %}
+        {% if profile.qr_secret %}
+          <span class="badge badge--purple badge--xs"><i class="fas fa-shield-halved"></i> QR Active</span>
+        {% else %}
+          <span class="badge badge--muted badge--xs"><i class="fas fa-qrcode"></i> QR Pending</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="profile-info">
+      <div class="profile-info-row">
+        <span class="profile-info-label">Student ID</span>
+        <span class="profile-info-value font-mono">{{ student_number }}</span>
+      </div>
+      <div class="profile-info-row">
+        <span class="profile-info-label">Program</span>
+        <span class="profile-info-value">
+          {% if profile.program %}{{ profile.program.code }}{% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="profile-info-row">
+        <span class="profile-info-label">Year Level</span>
+        <span class="profile-info-value">
+          {% if profile.year_level %}{{ profile.year_level }}{% if profile.year_level == 1 %}st{% elif profile.year_level == 2 %}nd{% elif profile.year_level == 3 %}rd{% else %}th{% endif %} Year{% else %}—{% endif %}
+        </span>
+      </div>
+      <div class="profile-info-row">
+        <span class="profile-info-label">Student Type</span>
+        <span class="profile-info-value">{{ profile.get_student_type_display|default:"—" }}</span>
+      </div>
+      <div class="profile-info-row">
+        <span class="profile-info-label">Member Since</span>
+        <span class="profile-info-value">{{ profile.created_at|date:"M d, Y" }}</span>
+      </div>
+    </div>
+
+    <div class="profile-note">
+      <i class="fas fa-lock"></i>
+      Your student ID, program and year level are registrar-verified. Visit the admin office if any of these need correction.
+    </div>
+  </div>
+
+  <!-- Editable details -->
+  <div class="flex flex-col gap-4" style="min-width: 0;">
+    <div class="card profile-card">
+      <div class="profile-section-title">
+        <span class="profile-section-icon"><i data-lucide="user-round"></i><i class="fas fa-user lucide-fallback"></i></span>
+        Personal Information
+      </div>
+      <div class="profile-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="profile">
+
+          {% if profile_form.non_field_errors %}
+            <div class="form-error mb-3">{{ profile_form.non_field_errors|join:" " }}</div>
+          {% endif %}
+
+          <div class="form-row mb-3">
+            <div class="form-group">
+              <label class="form-label" for="{{ profile_form.first_name.id_for_label }}">First Name</label>
+              {{ profile_form.first_name }}
+              {% for error in profile_form.first_name.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="{{ profile_form.last_name.id_for_label }}">Last Name</label>
+              {{ profile_form.last_name }}
+              {% for error in profile_form.last_name.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </div>
+          </div>
+
+          <div class="form-group mb-3">
+            <label class="form-label" for="{{ profile_form.email.id_for_label }}">Email Address</label>
+            {{ profile_form.email }}
+            {% for error in profile_form.email.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </div>
+
+          <div class="form-row mb-3">
+            <div class="form-group">
+              <label class="form-label" for="{{ profile_form.phone_number.id_for_label }}">Mobile Number</label>
+              {{ profile_form.phone_number }}
+              {% for error in profile_form.phone_number.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="{{ profile_form.gender.id_for_label }}">Gender</label>
+              {{ profile_form.gender }}
+              {% for error in profile_form.gender.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </div>
+          </div>
+
+          <div class="profile-actions">
+            <button type="submit" class="btn btn-primary">
+              <i data-lucide="save"></i>
+              <i class="fas fa-floppy-disk lucide-fallback"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card profile-card">
+      <div class="profile-section-title">
+        <span class="profile-section-icon"><i data-lucide="shield-check"></i><i class="fas fa-shield-halved lucide-fallback"></i></span>
+        Account Security
+      </div>
+      <div class="profile-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="password">
+
+          {% if password_form.non_field_errors %}
+            <div class="form-error mb-3">{{ password_form.non_field_errors|join:" " }}</div>
+          {% endif %}
+
+          <div class="form-group mb-3">
+            <label class="form-label" for="{{ password_form.old_password.id_for_label }}">Current Password</label>
+            {{ password_form.old_password }}
+            {% for error in password_form.old_password.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+          </div>
+
+          <div class="form-row mb-3">
+            <div class="form-group">
+              <label class="form-label" for="{{ password_form.new_password1.id_for_label }}">New Password</label>
+              {{ password_form.new_password1 }}
+              {% for error in password_form.new_password1.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="{{ password_form.new_password2.id_for_label }}">Confirm New Password</label>
+              {{ password_form.new_password2 }}
+              {% for error in password_form.new_password2.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
+            </div>
+          </div>
+
+          {% if password_form.new_password1.help_text %}
+            <div class="profile-help mb-3">{{ password_form.new_password1.help_text|safe }}</div>
+          {% endif %}
+
+          <div class="profile-actions">
+            <button type="submit" class="btn btn-outline">
+              <i data-lucide="key-round"></i>
+              <i class="fas fa-key lucide-fallback"></i> Update Password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

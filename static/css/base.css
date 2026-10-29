@@ -366,4 +366,10 @@ ul {
   .mobile-bottom-nav-item--logout:hover {
     background: rgba(239, 68, 68, 0.15) !important;
   }
+
+  /* The drawer covers the screen; leaving the tab bar on top would stack two
+     navigation bars and hide the drawer's own footer. */
+  body.sidebar-open .mobile-bottom-nav {
+    display: none !important;
+  }
 }

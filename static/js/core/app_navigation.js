@@ -14,12 +14,14 @@
     function openSidebar() {
       if (sidebar) sidebar.classList.add('is-open');
       if (backdrop) backdrop.classList.add('is-active');
+      document.body.classList.add('sidebar-open');
       document.body.style.overflow = 'hidden';
     }
 
     function closeSidebar() {
       if (sidebar) sidebar.classList.remove('is-open');
       if (backdrop) backdrop.classList.remove('is-active');
+      document.body.classList.remove('sidebar-open');
       document.body.style.overflow = '';
     }
 

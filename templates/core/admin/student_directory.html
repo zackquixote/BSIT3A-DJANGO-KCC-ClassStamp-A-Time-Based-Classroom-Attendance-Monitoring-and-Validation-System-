@@ -250,12 +250,12 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary, #94a3b8);
-    padding: 10px 14px;
+    padding: 10px 9px;
     border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
   }
 
   .student-table-card .table tbody td {
-    padding: 10px 14px;
+    padding: 10px 9px;
     vertical-align: middle;
     font-size: 0.84rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -263,6 +263,22 @@
 
   .student-table-card .table tbody tr:hover {
     background: rgba(255, 255, 255, 0.025);
+  }
+
+  .student-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+  .student-actions .btn-sm {
+    height: 30px;
+    padding: 0 9px;
+    font-size: 0.76rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
   }
 
   .student-cell-profile {
@@ -684,11 +700,11 @@
       <thead>
         <tr>
           <th>Student Information</th>
-          <th style="white-space: nowrap; min-width: 130px;">Student ID</th>
+          <th style="white-space: nowrap;">Student ID</th>
           <th>Department</th>
           <th>Course / Program</th>
           <th>Year</th>
-          <th>Enrolled Section(s)</th>
+          <th>Sections</th>
           <th>Status</th>
           <th class="text-right action-col" style="white-space: nowrap;">Actions</th>
         </tr>
@@ -789,9 +805,9 @@
 
           <!-- Actions -->
           <td class="text-right action-col" style="white-space: nowrap;">
-            <div class="flex items-center justify-end gap-2">
+            <div class="student-actions">
               <a href="{% url 'validation_detail' student.student_number %}" class="btn btn-outline btn-sm" title="View Student Profile & Review Form">
-                <i class="fas fa-id-card"></i> View Profile
+                <i class="fas fa-id-card"></i> View
               </a>
               <button type="button" class="btn btn-outline btn-sm js-edit-student"
                       data-student-id="{{ student.id }}"

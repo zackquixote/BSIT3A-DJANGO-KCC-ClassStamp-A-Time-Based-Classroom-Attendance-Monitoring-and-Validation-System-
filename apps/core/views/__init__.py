@@ -58,6 +58,7 @@ from .dashboard_views import (
 # // ------------------------------------------------------------------------------
 from .student_portal_views import (
     student_attendance_log,
+    student_profile,
     student_qr_badge,
     student_qr_token_api,
     student_offline_badge_issue,

@@ -15,15 +15,19 @@ import hashlib
 import secrets
 import time
 
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.db.models import Count, Q
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import approved_required, role_required
-from apps.core.models import AttendanceRecord, Enrollment, OfflineBadge, Profile
+from apps.core.forms import StudentProfileForm
+from apps.core.models import AttendanceRecord, AuditEvent, Enrollment, OfflineBadge, Profile
 from apps.core.services.qr_service import (
     TOTP_INTERVAL,
     build_payload,
@@ -244,4 +248,95 @@ def student_attendance_log(request):
         'selected_status': selected_status,
         'selected_class_id': selected_class_id,
         'filter_classes': filter_classes,
+    })
+
+
+def _styled_password_form(form):
+    """Applies the shared form-control styling to Django's PasswordChangeForm."""
+    form.fields['old_password'].widget.attrs.update({
+        'class': 'form-control', 'autocomplete': 'current-password',
+    })
+    # Django autofocuses this field; that would scroll phones straight past the page header.
+    form.fields['old_password'].widget.attrs.pop('autofocus', None)
+    form.fields['new_password1'].widget.attrs.update({
+        'class': 'form-control', 'autocomplete': 'new-password',
+    })
+    form.fields['new_password2'].widget.attrs.update({
+        'class': 'form-control', 'autocomplete': 'new-password',
+    })
+    return form
+
+
+# // ==============================================================================
+# // VIEW: My Profile (/student/profile/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_STUDENT)
+@approved_required
+def student_profile(request):
+    """
+    // [Student Portal] Self-service profile maintenance: display name, email,
+    // mobile number, gender and password. Institutional fields (student number,
+    // program, year level, approval state) remain registrar-controlled.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    if profile is None:
+        messages.error(request, 'Student profile not found. Please contact the registrar.')
+        return redirect('student_dashboard')
+
+    user = request.user
+    profile_form = StudentProfileForm(instance=profile, user=user)
+    password_form = _styled_password_form(PasswordChangeForm(user=user))
+
+    if request.method == 'POST':
+        if request.POST.get('form_type') == 'password':
+            password_form = _styled_password_form(PasswordChangeForm(user=user, data=request.POST))
+            if password_form.is_valid():
+                password_form.save()
+                update_session_auth_hash(request, password_form.user)
+                AuditEvent.objects.create(
+                    actor=user,
+                    action='CHANGE_OWN_PASSWORD',
+                    object_type='User',
+                    object_id=str(user.pk),
+                )
+                messages.success(request, 'Password updated successfully.')
+                return redirect('student_profile')
+        else:
+            before = {
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'phone_number': profile.phone_number or '',
+                'gender': profile.gender or '',
+            }
+            profile_form = StudentProfileForm(request.POST, instance=profile, user=user)
+            if profile_form.is_valid():
+                profile_form.save()
+                after = {
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                    'phone_number': profile.phone_number or '',
+                    'gender': profile.gender or '',
+                }
+                changed = [key for key in before if before[key] != after[key]]
+                if changed:
+                    AuditEvent.objects.create(
+                        actor=user,
+                        action='UPDATE_OWN_PROFILE',
+                        object_type='Profile',
+                        object_id=str(profile.pk),
+                        old_value=', '.join(f'{k}={before[k]}' for k in changed),
+                        new_value=', '.join(f'{k}={after[k]}' for k in changed),
+                    )
+                messages.success(request, 'Profile updated successfully.')
+                return redirect('student_profile')
+
+    return render(request, 'core/student/profile.html', {
+        'profile': profile,
+        'profile_form': profile_form,
+        'password_form': password_form,
+        'student_number': profile.student_number or user.get_username(),
+        'is_approved': profile.approval_status == Profile.APPROVAL_APPROVED,
     })

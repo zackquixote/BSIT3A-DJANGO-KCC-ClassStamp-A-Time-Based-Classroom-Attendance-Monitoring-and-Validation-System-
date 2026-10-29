@@ -362,6 +362,34 @@
   padding-right: 68px !important;
 }
 
+/* Native file pickers keep the browser's grey button; theme it to match. */
+.kcc-input[type="file"] {
+  height: 46px !important;
+  padding: 8px 12px 8px 42px !important;
+  cursor: pointer;
+}
+
+.kcc-input[type="file"]::file-selector-button,
+.kcc-input[type="file"]::-webkit-file-upload-button {
+  margin-right: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 196, 68, 0.45);
+  background: rgba(245, 196, 68, 0.14);
+  color: #f5c444;
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kcc-input[type="file"]::file-selector-button:hover,
+.kcc-input[type="file"]::-webkit-file-upload-button:hover {
+  background: rgba(245, 196, 68, 0.24);
+  border-color: #f5c444;
+}
+
 .kcc-toggle-btn {
   position: absolute;
   right: 14px;

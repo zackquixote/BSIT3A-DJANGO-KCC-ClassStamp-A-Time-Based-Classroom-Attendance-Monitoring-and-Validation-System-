@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261029_mobilemerge">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261029_v9_nav">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -24,6 +24,13 @@
     {% if request.user.is_authenticated %}
       <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
       {% include 'theme/sidebar.html' %}
+      {% comment %}Loaded inline so sidebar icons exist before first paint; a deferred pass makes the rail visibly re-render on every navigation.{% endcomment %}
+      <script src="{% static 'js/vendor/lucide.min.js' %}?v=20261029b"></script>
+      <script>
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      </script>
     {% endif %}
 
     <main class="main-content {% if not request.user.is_authenticated %}main-content--full{% endif %}">
@@ -39,16 +46,22 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
+            {% if request.user.classstamp_profile.role == 'STUDENT' %}
+              <a href="{% url 'student_profile' %}" class="mobile-avatar" title="My Profile"
+                 style="width: 32px; height: 32px; min-width: 32px; text-decoration: none; color: inherit;">
+            {% else %}
+              <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
+            {% endif %}
               {% if request.user.first_name and request.user.last_name %}
                 {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
               {% else %}
                 {{ request.user.username|slice:":2"|upper }}
               {% endif %}
-            </div>
-            <a href="{% url 'logout' %}" title="Log out" aria-label="Log out" style="color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
-              <i class="fas fa-right-from-bracket"></i>
-            </a>
+            {% if request.user.classstamp_profile.role == 'STUDENT' %}
+              </a>
+            {% else %}
+              </div>
+            {% endif %}
           </div>
         </header>
       {% endif %}
@@ -120,7 +133,6 @@
   </div>
 
   <!-- Modern Icon System (Lucide) & KCC ClassStamp Core Modules -->
-  <script src="{% static 'js/vendor/lucide.min.js' %}?v=20261029b"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -134,8 +146,9 @@
   <script src="{% static 'js/core/app_confirm.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_audio.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_table_search.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_action_dropdowns.js' %}?v=20261029_v2"></script>
   <script src="{% static 'js/core/app_session_guard.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_navigation.js' %}?v=20261022_nav1"></script>
+  <script src="{% static 'js/core/app_navigation.js' %}?v=20261029_nav2"></script>
   <script src="{% static 'js/core/app_shortcuts.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_password_reset.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_lightbox.js' %}?v=20261020"></script>

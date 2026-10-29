@@ -1826,6 +1826,26 @@ button.student-stats-toggle-btn,
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)   scale(1);    }
 }
+/* Open menus are re-parented here by app_action_dropdowns.js, so card and
+   table overflow rules cannot clip them. */
+#action-dropdown-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  pointer-events: none;
+}
+#action-dropdown-layer .action-dropdown-menu--portal {
+  display: block !important;
+  pointer-events: all;
+  min-width: 210px;
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+
 /* Make td overflow visible so absolute dropdown is not clipped */
 td:has(.action-dropdown),
 th:has(.action-dropdown) {

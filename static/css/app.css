@@ -7,16 +7,16 @@
 @import url('variables.css?v=20261029_v2_crossbrowser');
 
 /* ── 2. Reset, Base Elements & Core Layout ───────────────────── */
-@import url('base.css?v=20261029_v3_mobilenav');
+@import url('base.css?v=20261029_v4_tabbar');
 
 /* ── 3. Sidebar Navigation & Brand Layout ────────────────────── */
-@import url('sidebar.css?v=20261029_v3_mobilenav');
+@import url('sidebar.css?v=20261029_v6_tabbar');
 
 /* ── 4. UI Components (Cards, Buttons, Forms, Modals, Tables) ── */
-@import url('components.css?v=20261029_v2_crossbrowser');
+@import url('components.css?v=20261029_v5_portal');
 
 /* ── 5. Shared Authentication Layout & Ambient Orbs ──────────── */
-@import url('auth.css?v=20261029_v2_crossbrowser');
+@import url('auth.css?v=20261029_v3_fileinput');
 
 /* ── 6. Dedicated Sign-In / Login Page ───────────────────────── */
 @import url('login.css?v=20261029_v2_crossbrowser');
