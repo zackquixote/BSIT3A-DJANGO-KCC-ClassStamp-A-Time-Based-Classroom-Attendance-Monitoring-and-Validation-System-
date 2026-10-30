@@ -2,7 +2,100 @@
 
 {% block title %}Teacher Portal &amp; Attendance Console — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  .teacher-dashboard {
+    width: 100%;
+    min-width: 0;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .teacher-card-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .teacher-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 30px 20px 32px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+  .teacher-empty i {
+    font-size: 1.45rem;
+    color: rgba(255, 255, 255, 0.18);
+  }
+  .teacher-empty p { margin: 0; }
+  .teacher-empty .teacher-empty-sub {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.35);
+  }
+  .teacher-milestones-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px 20px;
+  }
+  @media (min-width: 720px) {
+    .teacher-milestones-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1200px) {
+    .teacher-milestones-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .teacher-milestone {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid var(--glass-border);
+    border-radius: 8px;
+  }
+  .teacher-milestone-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .teacher-milestone-date {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .teacher-milestone-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  .teacher-milestone-desc {
+    margin: 0;
+    font-size: 0.73rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="teacher-dashboard">
 <!-- Page Header -->
 <div class="page-header mb-4">
   <div>
@@ -128,7 +221,7 @@
     <div class="flex items-center justify-between">
       <div>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Compliance Rate</p>
-        <h3 class="stat-value font-mono text-primary mt-1" style="color: #c084fc;">{{ overall_attendance_rate }}%</h3>
+        <h3 class="stat-value font-mono text-primary mt-1" style="color: #c084fc;">{% if total_sessions_count %}{{ overall_attendance_rate }}%{% else %}—{% endif %}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-chart-line" style="font-size: 1.2rem;"></i>
@@ -147,6 +240,7 @@
     <span class="text-muted text-xs">{{ today_slots.count }} scheduled slot{{ today_slots.count|pluralize }} today</span>
   </div>
 
+  {% if today_slots %}
   <div class="table-responsive">
     <table class="table">
       <thead>
@@ -188,16 +282,19 @@
           </td>
         </tr>
         {% empty %}
-        <tr>
-          <td colspan="5" style="text-align: center; padding: 28px 16px;" class="text-muted text-sm">
-            <i class="fas fa-calendar-day" style="font-size: 1.5rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
-            No scheduled timetable slots for today ({{ today_date|date:"l" }}). You can still launch an ad-hoc session below.
-          </td>
-        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% else %}
+  <div class="teacher-empty">
+    <i class="fas fa-calendar-day"></i>
+    <p>
+      No scheduled timetable slots for today ({{ today_date|date:"l" }}).
+      <span class="teacher-empty-sub">You can still launch an ad-hoc session using the button above.</span>
+    </p>
+  </div>
+  {% endif %}
 </div>
 
 {% if upcoming_calendar_events %}
@@ -209,20 +306,18 @@
     </div>
     <span class="text-muted text-xs">Official KCC Academic Calendar</span>
   </div>
-  <div style="padding: 14px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+  <div class="teacher-milestones-grid">
     {% for evt in upcoming_calendar_events %}
-      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {{ evt.category_meta.color }}; border-radius: 6px; padding: 10px 14px;">
-        <div class="flex items-center justify-between text-xs mb-1.5">
+      <div class="teacher-milestone" style="border-left-color: {{ evt.category_meta.color }};">
+        <div class="teacher-milestone-top">
           <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.05); color: {{ evt.category_meta.color }}; border: 1px solid {{ evt.category_meta.color }}40;">
             <i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.get_category_display }}
           </span>
-          <span class="text-muted font-mono" style="font-size: 0.7rem;">
-            {{ evt.start_datetime|date:"M d, Y" }}
-          </span>
+          <span class="teacher-milestone-date">{{ evt.start_datetime|date:"M d, Y" }}</span>
         </div>
-        <div class="font-bold text-sm text-primary">{{ evt.title }}</div>
+        <div class="teacher-milestone-title">{{ evt.title }}</div>
         {% if evt.description %}
-          <p class="text-muted text-xs mt-1 mb-0" style="font-size: 0.72rem; line-height: 1.35;">{{ evt.description|truncatechars:90 }}</p>
+          <p class="teacher-milestone-desc">{{ evt.description }}</p>
         {% endif %}
       </div>
     {% endfor %}
@@ -242,6 +337,7 @@
     </a>
   </div>
 
+  {% if recent_sessions %}
   <div class="table-responsive">
     <table class="table">
       <thead>
@@ -312,16 +408,19 @@
           </td>
         </tr>
         {% empty %}
-        <tr>
-          <td colspan="7" style="text-align: center; padding: 36px 16px;" class="text-muted text-sm">
-            <i class="fas fa-folder-open" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
-            No concluded attendance meetings yet. Once you open and close a session, its official attendance roll will be recorded here.
-          </td>
-        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% else %}
+  <div class="teacher-empty">
+    <i class="fas fa-folder-open"></i>
+    <p>
+      No concluded attendance meetings yet.
+      <span class="teacher-empty-sub">Once you open and close a session, its official attendance roll will be recorded here.</span>
+    </p>
+  </div>
+  {% endif %}
 </div>
 
 <!-- My Assigned Classes Masterlist -->
@@ -333,6 +432,7 @@
     <span class="text-muted text-xs">{{ classes.count }} active section{{ classes.count|pluralize }}</span>
   </div>
 
+  {% if classes %}
   <div class="table-responsive">
     <table class="table">
       <thead>
@@ -404,16 +504,19 @@
           </td>
         </tr>
         {% empty %}
-        <tr>
-          <td colspan="6" style="text-align: center; padding: 48px 16px;" class="text-muted text-sm">
-            <i class="fas fa-chalkboard-user" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 10px; display: block;"></i>
-            You do not have any assigned classes yet. Please coordinate with the College Department or System Administrator.
-          </td>
-        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% else %}
+  <div class="teacher-empty">
+    <i class="fas fa-chalkboard-user"></i>
+    <p>
+      You do not have any assigned classes yet.
+      <span class="teacher-empty-sub">Please coordinate with the College Department or System Administrator.</span>
+    </p>
+  </div>
+  {% endif %}
 </div>
 
 <!-- ============================================================================== -->
@@ -453,5 +556,6 @@
       </div>
     </form>
   </div>
+</div>
 </div>
 {% endblock %}
