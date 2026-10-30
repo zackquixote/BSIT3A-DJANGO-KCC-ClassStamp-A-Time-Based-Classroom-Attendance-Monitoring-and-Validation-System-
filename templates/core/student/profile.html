@@ -148,6 +148,18 @@
     color: var(--text-muted);
     line-height: 1.4;
   }
+  .profile-signout {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 16px;
+    flex-wrap: wrap;
+  }
+  .profile-signout-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
   .profile-name {
     font-size: 1.05rem;
     font-weight: 700;
@@ -260,10 +272,6 @@
     <a href="{% url 'student_dashboard' %}" class="btn btn-outline">
       <i data-lucide="layout-dashboard"></i>
       <i class="fas fa-gauge-high lucide-fallback"></i> Dashboard
-    </a>
-    <a href="{% url 'logout' %}" class="btn btn-outline">
-      <i data-lucide="log-out"></i>
-      <i class="fas fa-right-from-bracket lucide-fallback"></i> Log out
     </a>
   </div>
 </div>
@@ -461,6 +469,18 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <div class="card profile-card">
+      <div class="profile-body profile-signout">
+        <div>
+          <div class="profile-signout-title">Sign out</div>
+          <p class="profile-help" style="margin: 2px 0 0;">End your session on this device.</p>
+        </div>
+        <a href="{% url 'logout' %}" class="btn btn-outline btn-sm">
+          <i class="fas fa-right-from-bracket"></i> Log out
+        </a>
       </div>
     </div>
   </div>

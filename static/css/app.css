@@ -55,3 +55,11 @@
     scroll-margin-top: 76px;
   }
 }
+
+@media (max-width: 900px) {
+  /* The bottom tab bar already exposes Excuse Slips and the avatar opens My
+     Profile, so these repeat actions only push the row onto a second line. */
+  .student-quick-action--dup {
+    display: none !important;
+  }
+}
