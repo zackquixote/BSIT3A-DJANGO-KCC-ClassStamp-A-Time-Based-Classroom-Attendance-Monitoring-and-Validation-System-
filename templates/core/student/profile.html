@@ -21,7 +21,8 @@
     width: 86px;
     height: 86px;
     border-radius: 50%;
-    margin: 0 auto 12px;
+    margin: 0;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -33,6 +34,17 @@
     border: 3px solid rgba(245, 158, 11, 0.35);
     box-shadow: 0 12px 28px -10px rgba(245, 158, 11, 0.55);
     overflow: hidden;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .profile-avatar:hover,
+  .profile-avatar:focus-visible {
+    border-color: rgba(245, 158, 11, 0.8);
+    box-shadow: 0 12px 30px -8px rgba(245, 158, 11, 0.7);
+    outline: none;
   }
   .profile-avatar img {
     width: 100%;
@@ -41,34 +53,97 @@
     object-fit: cover;
     display: block;
   }
-  .profile-avatar-form {
+  .profile-avatar-trigger {
+    position: relative;
+    width: 86px;
+    margin: 0 auto 12px;
+  }
+  .profile-avatar-pen {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0b1220;
+    border: 2px solid rgba(245, 158, 11, 0.7);
+    color: #f5c444;
+    font-size: 0.62rem;
+    pointer-events: none;
+  }
+  .profile-avatar-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 196px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 14px;
+    gap: 2px;
+    text-align: left;
+    background: rgba(9, 20, 39, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 22px 44px -14px rgba(0, 0, 0, 0.85);
+    z-index: 60;
   }
-  .profile-avatar-form .form-control {
-    font-size: 0.72rem;
-    padding: 7px 9px;
-    cursor: pointer;
+  .profile-avatar-menu[hidden] {
+    display: none;
   }
-  .profile-avatar-form .form-control::file-selector-button {
-    margin-right: 8px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid rgba(245, 158, 11, 0.4);
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--accent-gold);
-    font-size: 0.7rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .profile-avatar-actions {
+  .profile-avatar-menu-item {
     display: flex;
-    justify-content: center;
-    gap: 8px;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 9px 11px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .profile-avatar-menu-item i {
+    width: 14px;
+    font-size: 0.78rem;
+    color: var(--accent-gold);
+  }
+  .profile-avatar-menu-item:hover,
+  .profile-avatar-menu-item:focus-visible {
+    background: rgba(255, 255, 255, 0.07);
+    outline: none;
+  }
+  .profile-avatar-menu-item--danger,
+  .profile-avatar-menu-item--danger i {
+    color: #f87171;
+  }
+  .profile-avatar-menu-item--danger:hover {
+    background: rgba(239, 68, 68, 0.14);
+  }
+  .profile-avatar-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .profile-avatar-error {
+    margin: 8px auto 0;
+    max-width: 260px;
+    font-size: 0.72rem;
+    color: #f87171;
+    line-height: 1.4;
   }
   .profile-avatar-hint {
+    margin-top: 12px;
     font-size: 0.7rem;
     color: var(--text-muted);
     line-height: 1.4;
@@ -197,13 +272,39 @@
   <!-- Identity summary -->
   <div class="card profile-card">
     <div class="profile-identity">
-      <div class="profile-avatar">
-        {% if profile.avatar %}
-          <img src="{{ profile.avatar.url }}" alt="Profile photo of {{ request.user.get_full_name }}">
-        {% else %}
-          {{ profile.initials|default:"ST" }}
-        {% endif %}
-      </div>
+      <form method="post" enctype="multipart/form-data" id="avatarForm">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="avatar">
+        <div class="profile-avatar-trigger">
+          <button type="button" class="profile-avatar" id="avatarTrigger"
+                  aria-haspopup="true" aria-expanded="false" aria-controls="avatarMenu"
+                  aria-label="Change profile photo">
+            {% if profile.avatar %}
+              <img src="{{ profile.avatar.url }}" alt="Profile photo of {{ request.user.get_full_name }}">
+            {% else %}
+              {{ profile.initials|default:"ST" }}
+            {% endif %}
+          </button>
+          <span class="profile-avatar-pen"><i class="fas fa-pen"></i></span>
+
+          <div class="profile-avatar-menu" id="avatarMenu" hidden>
+            <button type="button" class="profile-avatar-menu-item" id="avatarChangeBtn">
+              <i class="fas fa-camera"></i> Change Avatar
+            </button>
+            {% if profile.avatar %}
+              <button type="submit" name="avatar_action" value="remove" formnovalidate
+                      class="profile-avatar-menu-item profile-avatar-menu-item--danger">
+                <i class="fas fa-trash-can"></i> Remove Avatar
+              </button>
+            {% endif %}
+          </div>
+
+          <div class="profile-avatar-input">{{ avatar_form.avatar }}</div>
+        </div>
+        {% for error in avatar_form.avatar.errors %}
+          <div class="profile-avatar-error"><i class="fas fa-circle-exclamation"></i> {{ error }}</div>
+        {% endfor %}
+      </form>
       <div class="profile-name">{{ request.user.get_full_name|default:request.user.get_username }}</div>
       <div class="profile-handle">@{{ request.user.get_username }}</div>
       <div class="profile-badges">
@@ -220,27 +321,9 @@
           <span class="badge badge--muted badge--xs"><i class="fas fa-qrcode"></i> QR Pending</span>
         {% endif %}
       </div>
-
-      <form method="post" enctype="multipart/form-data" class="profile-avatar-form">
-        {% csrf_token %}
-        <input type="hidden" name="form_type" value="avatar">
-        <label class="form-label" for="{{ avatar_form.avatar.id_for_label }}">Profile Photo</label>
-        {{ avatar_form.avatar }}
-        {% for error in avatar_form.avatar.errors %}<span class="form-error">{{ error }}</span>{% endfor %}
-        <div class="profile-avatar-actions">
-          <button type="submit" class="btn btn-outline btn-sm">
-            <i class="fas fa-upload"></i> {% if profile.avatar %}Replace{% else %}Upload{% endif %}
-          </button>
-          {% if profile.avatar %}
-            <button type="submit" name="avatar_action" value="remove" class="btn btn-danger btn-sm">
-              <i class="fas fa-trash-can"></i> Remove
-            </button>
-          {% endif %}
-        </div>
-        <div class="profile-avatar-hint">
-          <i class="fas fa-eye-slash"></i> Only you can see this photo — teachers and admins still see your initials.
-        </div>
-      </form>
+      <div class="profile-avatar-hint">
+        <i class="fas fa-eye-slash"></i> Only you can see this photo — teachers and admins still see your initials.
+      </div>
     </div>
 
     <div class="profile-info">
@@ -382,4 +465,64 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var trigger = document.getElementById('avatarTrigger');
+  var menu = document.getElementById('avatarMenu');
+  var changeBtn = document.getElementById('avatarChangeBtn');
+  var form = document.getElementById('avatarForm');
+  var fileInput = form ? form.querySelector('input[type="file"]') : null;
+  if (!trigger || !menu || !changeBtn || !fileInput) return;
+
+  function closeMenu() {
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function openMenu() {
+    menu.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+  }
+
+  trigger.addEventListener('click', function (event) {
+    event.stopPropagation();
+    if (menu.hidden) {
+      openMenu();
+    } else {
+      closeMenu();
+    }
+  });
+
+  changeBtn.addEventListener('click', function () {
+    closeMenu();
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files && fileInput.files.length) {
+      if (form.requestSubmit) {
+        form.requestSubmit();
+      } else {
+        form.submit();
+      }
+    }
+  });
+
+  document.addEventListener('click', function (event) {
+    if (menu.hidden) return;
+    if (menu.contains(event.target) || trigger.contains(event.target)) return;
+    closeMenu();
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !menu.hidden) {
+      closeMenu();
+      trigger.focus();
+    }
+  });
+})();
+</script>
 {% endblock %}
