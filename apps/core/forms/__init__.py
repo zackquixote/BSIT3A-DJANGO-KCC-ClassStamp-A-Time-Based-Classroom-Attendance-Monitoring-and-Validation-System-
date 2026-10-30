@@ -16,11 +16,12 @@
 
 from .academic_forms import DepartmentForm, ProgramForm
 from .registration_form import RegistrationForm
-from .student_profile_form import StudentProfileForm
+from .student_profile_form import StudentAvatarForm, StudentProfileForm
 
 __all__ = [
     'RegistrationForm',
     'DepartmentForm',
     'ProgramForm',
     'StudentProfileForm',
+    'StudentAvatarForm',
 ]

@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261029_v9_nav">
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% if request.user.is_authenticated and request.user.classstamp_profile.role == 'STUDENT' %}role-student{% endif %}">
   <div class="app-layout">
 
     {% if request.user.is_authenticated %}
@@ -52,7 +52,9 @@
             {% else %}
               <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
             {% endif %}
-              {% if request.user.first_name and request.user.last_name %}
+              {% if request.user.classstamp_profile.role == 'STUDENT' and request.user.classstamp_profile.avatar %}
+                <img src="{{ request.user.classstamp_profile.avatar.url }}" alt="Profile photo">
+              {% elif request.user.first_name and request.user.last_name %}
                 {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
               {% else %}
                 {{ request.user.username|slice:":2"|upper }}
@@ -101,9 +103,9 @@
               <i class="fas fa-file-medical"></i>
               <span>Excuse Slips</span>
             </a>
-            <a href="{% url 'logout' %}" class="mobile-bottom-nav-item mobile-bottom-nav-item--logout" title="Logout">
-              <i class="fas fa-right-from-bracket"></i>
-              <span>Logout</span>
+            <a href="{% url 'student_profile' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'student_profile' %}active{% endif %}">
+              <i class="fas fa-circle-user"></i>
+              <span>Profile</span>
             </a>
           </nav>
         {% elif profile and profile.role == 'TEACHER' %}

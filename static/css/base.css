@@ -176,6 +176,15 @@ ul {
   font-size: 0.72rem;
   font-weight: 700;
   color: #060b17;
+  overflow: hidden;
+}
+
+.mobile-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
 }
 
 /* ── Mobile Sidebar Backdrop Overlay ─────────────────────────── */
@@ -302,6 +311,12 @@ ul {
 @media (max-width: 900px) {
   .mobile-topbar {
     display: flex !important;
+  }
+
+  /* Students navigate with the bottom tab bar only; the drawer repeats the
+     same five links, so the hamburger is removed for that role. */
+  body.role-student .mobile-toggle-btn {
+    display: none !important;
   }
 
   .main-content {

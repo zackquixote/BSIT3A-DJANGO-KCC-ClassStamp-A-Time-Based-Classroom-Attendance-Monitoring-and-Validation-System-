@@ -7,10 +7,10 @@
 @import url('variables.css?v=20261029_v2_crossbrowser');
 
 /* ── 2. Reset, Base Elements & Core Layout ───────────────────── */
-@import url('base.css?v=20261029_v4_tabbar');
+@import url('base.css?v=20261030_v5_avatar');
 
 /* ── 3. Sidebar Navigation & Brand Layout ────────────────────── */
-@import url('sidebar.css?v=20261030_v7_drawer');
+@import url('sidebar.css?v=20261030_v8_avatar');
 
 /* ── 4. UI Components (Cards, Buttons, Forms, Modals, Tables) ── */
 @import url('components.css?v=20261030_excuse');

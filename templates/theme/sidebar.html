@@ -175,7 +175,9 @@
   <div class="sidebar-footer">
     <div class="sidebar-user">
       <div class="sidebar-user-avatar">
-        {% if request.user.first_name and request.user.last_name %}
+        {% if profile.role == 'STUDENT' and profile.avatar %}
+          <img src="{{ profile.avatar.url }}" alt="Profile photo">
+        {% elif request.user.first_name and request.user.last_name %}
           {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
         {% else %}
           {{ request.user.username|slice:":2"|upper }}

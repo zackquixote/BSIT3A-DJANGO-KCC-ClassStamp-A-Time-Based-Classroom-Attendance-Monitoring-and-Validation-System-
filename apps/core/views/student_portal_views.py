@@ -26,7 +26,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import approved_required, role_required
-from apps.core.forms import StudentProfileForm
+from apps.core.forms import StudentAvatarForm, StudentProfileForm
 from apps.core.models import AttendanceRecord, AuditEvent, Enrollment, OfflineBadge, Profile
 from apps.core.services.qr_service import (
     TOTP_INTERVAL,
@@ -286,6 +286,7 @@ def student_profile(request):
 
     user = request.user
     profile_form = StudentProfileForm(instance=profile, user=user)
+    avatar_form = StudentAvatarForm()
     password_form = _styled_password_form(PasswordChangeForm(user=user))
 
     if request.method == 'POST':
@@ -301,6 +302,34 @@ def student_profile(request):
                     object_id=str(user.pk),
                 )
                 messages.success(request, 'Password updated successfully.')
+                return redirect('student_profile')
+        elif request.POST.get('form_type') == 'avatar':
+            if request.POST.get('avatar_action') == 'remove':
+                if profile.avatar:
+                    profile.avatar.delete(save=False)
+                    profile.avatar = None
+                    profile.save(update_fields=['avatar'])
+                    AuditEvent.objects.create(
+                        actor=user,
+                        action='REMOVE_OWN_AVATAR',
+                        object_type='Profile',
+                        object_id=str(profile.pk),
+                    )
+                    messages.success(request, 'Profile photo removed.')
+                return redirect('student_profile')
+            avatar_form = StudentAvatarForm(request.POST, request.FILES)
+            if avatar_form.is_valid():
+                if profile.avatar:
+                    profile.avatar.delete(save=False)
+                profile.avatar = avatar_form.cleaned_data['avatar']
+                profile.save(update_fields=['avatar'])
+                AuditEvent.objects.create(
+                    actor=user,
+                    action='UPDATE_OWN_AVATAR',
+                    object_type='Profile',
+                    object_id=str(profile.pk),
+                )
+                messages.success(request, 'Profile photo updated.')
                 return redirect('student_profile')
         else:
             before = {
@@ -336,6 +365,7 @@ def student_profile(request):
     return render(request, 'core/student/profile.html', {
         'profile': profile,
         'profile_form': profile_form,
+        'avatar_form': avatar_form,
         'password_form': password_form,
         'student_number': profile.student_number or user.get_username(),
         'is_approved': profile.approval_status == Profile.APPROVAL_APPROVED,

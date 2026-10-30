@@ -130,6 +130,11 @@ class Profile(models.Model):
         null=True, blank=True,
         help_text="// Student mobile contact number (e.g. 09123456789)"
     )
+    avatar = models.ImageField(
+        upload_to='avatars/',
+        null=True, blank=True,
+        help_text="// Optional profile photo shown only inside the student portal"
+    )
     registration_proof = models.FileField(
         upload_to='registration_proofs/',
         null=True, blank=True,

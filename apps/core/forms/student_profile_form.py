@@ -112,3 +112,21 @@ class StudentProfileForm(forms.ModelForm):
         if commit:
             profile.save()
         return profile
+
+
+class StudentAvatarForm(forms.Form):
+    """
+    // [Student Form] Optional profile photo shown only inside the student portal.
+    """
+    avatar = forms.ImageField(
+        widget=forms.ClearableFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/png,image/jpeg,image/webp',
+        }),
+    )
+
+    def clean_avatar(self):
+        image = self.cleaned_data['avatar']
+        if image.size > 2 * 1024 * 1024:
+            raise forms.ValidationError('Photo must be 2 MB or smaller.')
+        return image
