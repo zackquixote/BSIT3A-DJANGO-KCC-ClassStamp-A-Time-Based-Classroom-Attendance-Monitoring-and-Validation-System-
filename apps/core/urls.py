@@ -16,6 +16,7 @@ urlpatterns = [
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin/database-backup/', views.admin_db_backup, name='admin_db_backup'),
     path('teacher/dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
+    path('teacher/classes/', views.teacher_classes, name='teacher_classes'),
     path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
     path('student/profile/', views.student_profile, name='student_profile'),
     path('student/qr/', views.student_qr_badge, name='student_qr_badge'),

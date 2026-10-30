@@ -103,6 +103,37 @@
   .teacher-table-actions form + form {
     margin-left: 6px;
   }
+  .teacher-load-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .teacher-load-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--glass-border);
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .teacher-load-row:last-child { border-bottom: 0; }
+  .teacher-load-row:hover { background: rgba(255, 255, 255, 0.035); }
+  .teacher-load-subject {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .teacher-load-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
   @media (max-width: 700px) {
     .teacher-table thead { display: none; }
     .teacher-table,
@@ -504,90 +535,32 @@
   {% endif %}
 </div>
 
-<!-- My Assigned Classes Masterlist -->
-<div class="card" id="my-classes" style="padding: 0; overflow: hidden;">
-  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+<!-- My Assigned Classes — summary only; the full workspace lives at /teacher/classes/ -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="teacher-card-head">
     <div class="font-semibold text-primary flex items-center gap-2">
       <i class="fas fa-chalkboard text-gold"></i> My Active Classes &amp; Sections
     </div>
-    <span class="text-muted text-xs">{{ classes.count }} active section{{ classes.count|pluralize }}</span>
+    <div class="flex items-center gap-3">
+      <span class="text-muted text-xs">{{ class_count }} active section{{ class_count|pluralize }}</span>
+      <a href="{% url 'teacher_classes' %}" class="btn btn-outline btn-sm" style="padding: 5px 11px;">
+        Open My Classes <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
   </div>
 
   {% if classes %}
-  <div class="table-responsive">
-    <table class="table teacher-table">
-      <thead>
-        <tr>
-          <th>Class Code</th>
-          <th>Subject Description</th>
-          <th>Academic Term</th>
-          <th>Roster Size</th>
-          <th>Grace Window</th>
-          <th class="teacher-table-actions" style="width: 215px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in classes %}
-        <tr>
-          <td data-label="Class Code">
-            <span class="badge badge--primary font-mono font-semibold">{{ c.class_code }}</span>
-          </td>
-          <td data-label="Subject">
-            <div class="font-semibold text-primary">{{ c.subject.code }} — {{ c.subject.name }}</div>
-            <div class="text-muted text-xs">{{ c.slot_count }} weekly meeting slot{{ c.slot_count|pluralize }}</div>
-            {% if c.radar_critical or c.radar_watch %}
-            <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
-              {% if c.radar_critical %}
-              <span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 999px; padding: 1px 8px; font-size: 0.62rem; font-weight: 700;"
-                    title="CHED 20% unexcused absence threshold exceeded — Failure Due to Absences risk">
-                <i class="fas fa-triangle-exclamation"></i> {{ c.radar_critical }} FDA risk
-              </span>
-              {% endif %}
-              {% if c.radar_watch %}
-              <span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 999px; padding: 1px 8px; font-size: 0.62rem; font-weight: 700;"
-                    title="10–19% unexcused absences — monitor closely">
-                <i class="fas fa-eye"></i> {{ c.radar_watch }} watchlist
-              </span>
-              {% endif %}
-            </div>
-            {% endif %}
-            {% if c.absent_streaks %}
-            <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
-              {% for s in c.absent_streaks %}
-              <span style="background: rgba(168, 85, 247, 0.15); color: #c4b5fd; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 999px; padding: 1px 8px; font-size: 0.62rem; font-weight: 700;"
-                    title="Skipped the last {{ s.streak }} consecutive meetings without excuse">
-                <i class="fas fa-user-slash"></i> {{ s.first_name }} {{ s.last_name }} ({{ s.student_number }}) — {{ s.streak }} straight absences
-              </span>
-              {% endfor %}
-            </div>
-            {% endif %}
-          </td>
-          <td data-label="Term">
-            <span class="text-muted text-xs">{{ c.academic_year.name }}</span>
-          </td>
-          <td data-label="Roster">
-            <span class="badge badge--muted font-mono"><i class="fas fa-user-graduate"></i> {{ c.roster_count }} student{{ c.roster_count|pluralize }}</span>
-          </td>
-          <td data-label="Grace Window">
-            <span class="text-muted text-xs font-mono"><i class="fas fa-stopwatch text-gold"></i> {{ c.grace_minutes }} mins</span>
-          </td>
-          <td class="teacher-table-actions" data-label="Actions">
-            <a href="{% url 'teacher_attendance_matrix' c.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="View attendance matrix">
-              <i class="fas fa-table-cells text-gold"></i> Matrix
-            </a>
-            <form method="POST" action="{% url 'teacher_session_open' %}" style="display: inline-block;">
-              {% csrf_token %}
-              <input type="hidden" name="class_id" value="{{ c.id }}">
-              <button type="submit" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="Open attendance scanning session">
-                <i class="fas fa-qrcode text-gold"></i> Start Session
-              </button>
-            </form>
-          </td>
-        </tr>
-        {% empty %}
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="teacher-load-list">
+    {% for c in classes %}
+    <a href="{% url 'teacher_classes' %}#class-{{ c.id }}" class="teacher-load-row">
+      <span class="badge badge--primary font-mono font-semibold">{{ c.class_code }}</span>
+      <span class="teacher-load-subject">{{ c.subject.code }} — {{ c.subject.name }}</span>
+      <span class="teacher-load-meta">
+        <span class="text-muted text-xs font-mono"><i class="fas fa-user-graduate"></i> {{ c.roster_count }} student{{ c.roster_count|pluralize }}</span>
+        <span class="text-muted text-xs font-mono"><i class="fas fa-calendar-week"></i> {{ c.slot_count }} slot{{ c.slot_count|pluralize }}</span>
+      </span>
+    </a>
+    {% endfor %}
   </div>
   {% else %}
   <div class="teacher-empty">

@@ -1,0 +1,308 @@
+{% extends "theme/base.html" %}
+
+{% block title %}My Classes &amp; Sections — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<style>
+  .teacher-classes {
+    width: 100%;
+    min-width: 0;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .teacher-classes .stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .classes-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  @media (min-width: 1150px) {
+    .classes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .class-card {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
+  .class-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .class-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 18px;
+    flex: 1;
+  }
+  .class-subject {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.35;
+  }
+  .class-subject span {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.73rem;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .class-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .class-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+  .class-schedule {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .class-schedule li {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.025);
+    font-size: 0.74rem;
+  }
+  .class-schedule .slot-day {
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.66rem;
+  }
+  .class-schedule .slot-time { color: var(--text-secondary); }
+  .class-schedule .slot-room {
+    color: var(--text-muted);
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .class-schedule li.slot-row-empty { display: block; }
+  .class-schedule .slot-empty {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    padding: 5px 2px;
+  }
+  .class-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .class-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.64rem;
+    font-weight: 700;
+  }
+  .class-flag--critical {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+  }
+  .class-flag--watch {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+  }
+  .class-flag--streak {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c4b5fd;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+  }
+  .class-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.16);
+  }
+  .teacher-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 38px 20px 40px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+  .teacher-empty i {
+    font-size: 1.5rem;
+    color: rgba(255, 255, 255, 0.18);
+  }
+  .teacher-empty p { margin: 0; }
+  .teacher-empty .teacher-empty-sub {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.35);
+  }
+  @media (max-width: 1100px) {
+    .teacher-classes .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .class-schedule li {
+      grid-template-columns: 46px minmax(0, 1fr);
+      row-gap: 1px;
+    }
+    .class-schedule .slot-room { grid-column: 2; text-align: left; }
+    .class-card-foot .btn { flex: 1; justify-content: center; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="teacher-classes">
+  <div class="page-header mb-4">
+    <div>
+      <h1 class="page-title">My Classes &amp; Sections</h1>
+      <p class="page-subtitle">
+        {% if active_year %}{{ active_year.name }} &nbsp;•&nbsp; {% endif %}
+        Your active teaching load — weekly schedule, roster size and attendance launchers per section.
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid mb-4">
+    <div class="card stat-card--kpi">
+      <p class="stat-label text-muted text-xs uppercase font-semibold">Assigned Sections</p>
+      <h3 class="stat-value font-mono text-primary mt-1">{{ class_count }}</h3>
+      <div class="mt-2 text-xs text-muted">Active teaching load</div>
+    </div>
+    <div class="card stat-card--kpi">
+      <p class="stat-label text-muted text-xs uppercase font-semibold">Enrolled Students</p>
+      <h3 class="stat-value font-mono text-success mt-1">{{ total_students_roster }}</h3>
+      <div class="mt-2 text-xs text-muted">Across all rosters</div>
+    </div>
+    <div class="card stat-card--kpi">
+      <p class="stat-label text-muted text-xs uppercase font-semibold">Weekly Meeting Slots</p>
+      <h3 class="stat-value font-mono text-warning mt-1">{{ weekly_slot_total }}</h3>
+      <div class="mt-2 text-xs text-muted">Recurring schedule entries</div>
+    </div>
+    <div class="card stat-card--kpi" style="border-color: {% if at_risk_count %}rgba(239, 68, 68, 0.45){% else %}var(--glass-border){% endif %};">
+      <p class="stat-label text-muted text-xs uppercase font-semibold">FDA-Risk Sections</p>
+      <h3 class="stat-value font-mono mt-1" style="color: {% if at_risk_count %}#f87171{% else %}var(--text-muted){% endif %};">{{ at_risk_count }}</h3>
+      <div class="mt-2 text-xs text-muted">Past the 20% absence threshold</div>
+    </div>
+  </div>
+
+  {% if classes %}
+  <div class="classes-grid">
+    {% for c in classes %}
+    <div class="card class-card" id="class-{{ c.id }}">
+      <div class="class-card-head">
+        <span class="badge badge--primary font-mono font-semibold">{{ c.class_code }}</span>
+        <span class="text-muted text-xs">{{ c.academic_year.name }}</span>
+      </div>
+
+      <div class="class-card-body">
+        <div class="class-subject">
+          {{ c.subject.code }} — {{ c.subject.name }}
+          <span>{{ c.slot_count }} weekly meeting slot{{ c.slot_count|pluralize }} configured</span>
+        </div>
+
+        <div class="class-meta">
+          <span><i class="fas fa-user-graduate"></i> {{ c.roster_count }} student{{ c.roster_count|pluralize }}</span>
+          <span><i class="fas fa-stopwatch"></i> {{ c.grace_minutes }} min grace</span>
+        </div>
+
+        <ul class="class-schedule">
+          {% for slot in c.week_slots %}
+          <li>
+            <span class="slot-day">{{ slot.get_weekday_display|slice:":3" }}</span>
+            <span class="slot-time font-mono">{{ slot.starts_at|time:"g:i A" }} – {{ slot.ends_at|time:"g:i A" }}</span>
+            <span class="slot-room" title="{{ slot.room|default:'Room TBA' }}">{{ slot.room|default:"Room TBA" }}</span>
+          </li>
+          {% empty %}
+          <li class="slot-row-empty"><span class="slot-empty"><i class="fas fa-circle-info"></i> No weekly slot on file — coordinate with the College Department.</span></li>
+          {% endfor %}
+        </ul>
+
+        {% if c.radar_critical or c.radar_watch or c.absent_streaks %}
+        <div class="class-flags">
+          {% if c.radar_critical %}
+          <span class="class-flag class-flag--critical" title="Past the CHED 20% unexcused-absence threshold">
+            <i class="fas fa-triangle-exclamation"></i> {{ c.radar_critical }} FDA risk
+          </span>
+          {% endif %}
+          {% if c.radar_watch %}
+          <span class="class-flag class-flag--watch" title="10–19% unexcused absences — monitor closely">
+            <i class="fas fa-eye"></i> {{ c.radar_watch }} watchlist
+          </span>
+          {% endif %}
+          {% for s in c.absent_streaks %}
+          <span class="class-flag class-flag--streak" title="Skipped the last {{ s.streak }} meetings without excuse">
+            <i class="fas fa-user-slash"></i> {{ s.first_name }} {{ s.last_name }} — {{ s.streak }} straight absences
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="class-card-foot">
+        <a href="{% url 'teacher_attendance_matrix' c.id %}" class="btn btn-outline btn-sm" style="padding: 6px 12px;">
+          <i class="fas fa-table-cells text-gold"></i> Attendance Matrix
+        </a>
+        <form method="POST" action="{% url 'teacher_session_open' %}">
+          {% csrf_token %}
+          <input type="hidden" name="class_id" value="{{ c.id }}">
+          <button type="submit" class="btn btn-primary btn-sm" style="padding: 6px 12px;">
+            <i class="fas fa-qrcode"></i> Start Session
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card">
+    <div class="teacher-empty">
+      <i class="fas fa-chalkboard-user"></i>
+      <p>
+        You do not have any assigned classes yet.
+        <span class="teacher-empty-sub">Ask the College Department to load your sections before opening a session.</span>
+      </p>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

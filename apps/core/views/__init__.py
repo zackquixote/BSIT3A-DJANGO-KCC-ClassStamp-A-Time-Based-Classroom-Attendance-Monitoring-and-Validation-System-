@@ -50,6 +50,7 @@ from .dashboard_views import (
     admin_live_stream,
     dashboard_redirect,
     student_dashboard,
+    teacher_classes,
     teacher_dashboard,
 )
 
@@ -273,6 +274,7 @@ __all__ = [
     'admin_dashboard',
     'admin_live_stream',
     'teacher_dashboard',
+    'teacher_classes',
     'student_dashboard',
     'student_qr_badge',
     'student_qr_token_api',

@@ -118,7 +118,7 @@
         <i class="fas fa-qrcode sidebar-link-icon lucide-fallback"></i>
         <span>Scan Attendance</span>
       </a>
-      <a href="{% url 'teacher_dashboard' %}#my-classes" class="sidebar-link">
+      <a href="{% url 'teacher_classes' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teacher_classes' %}active{% endif %}">
         <i data-lucide="presentation" class="sidebar-link-icon"></i>
         <i class="fas fa-chalkboard sidebar-link-icon lucide-fallback"></i>
         <span>My Classes</span>

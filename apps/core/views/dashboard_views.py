@@ -19,7 +19,7 @@ from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 
 from apps.core.decorators import approved_required, role_required
-from apps.core.models import Profile
+from apps.core.models import AcademicYear, ClassSlot, Profile
 from apps.core.views.helpers import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
@@ -154,6 +154,50 @@ def teacher_dashboard(request):
     """
     profile = getattr(request.user, 'classstamp_profile', None)
     return render(request, 'core/teacher/dashboard.html', _teacher_dashboard_stats(profile))
+
+
+# // ==============================================================================
+# // VIEW: Teacher "My Classes" Workspace (/teacher/classes/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER)
+def teacher_classes(request):
+    """
+    // [Teacher Portal] Dedicated teaching-load workspace: each assigned section
+    // with its weekly meeting slots, roster size and session launchers.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    stats = _teacher_dashboard_stats(profile)
+    classes = list(stats['classes'])
+
+    slots_by_class = {}
+    if classes:
+        slots = (
+            ClassSlot.objects.filter(
+                class_obj_id__in=[c.id for c in classes],
+                is_active=True,
+            )
+            .order_by('weekday', 'starts_at')
+        )
+        for slot in slots:
+            slots_by_class.setdefault(slot.class_obj_id, []).append(slot)
+
+    weekly_slot_total = 0
+    at_risk_count = 0
+    for c in classes:
+        c.week_slots = slots_by_class.get(c.id, [])
+        weekly_slot_total += len(c.week_slots)
+        if c.radar_critical:
+            at_risk_count += 1
+
+    return render(request, 'core/teacher/classes.html', {
+        'classes': classes,
+        'class_count': len(classes),
+        'weekly_slot_total': weekly_slot_total,
+        'at_risk_count': at_risk_count,
+        'total_students_roster': stats['total_students_roster'],
+        'active_year': AcademicYear.objects.filter(is_active=True).first(),
+    })
 
 
 # // ==============================================================================
