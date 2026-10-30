@@ -115,6 +115,14 @@
               <i class="fas fa-gauge-high"></i>
               <span>Dashboard</span>
             </a>
+            <a href="{% url 'teacher_dashboard' %}#today-schedule" class="mobile-bottom-nav-item">
+              <i class="fas fa-qrcode"></i>
+              <span>Scan</span>
+            </a>
+            <a href="{% url 'teacher_dashboard' %}#my-classes" class="mobile-bottom-nav-item">
+              <i class="fas fa-chalkboard"></i>
+              <span>Classes</span>
+            </a>
             <a href="{% url 'teacher_session_history' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'teacher_session_history' %}active{% endif %}">
               <i class="fas fa-clipboard-list"></i>
               <span>History</span>
@@ -122,10 +130,6 @@
             <a href="{% url 'teacher_excuse_slips' %}" class="mobile-bottom-nav-item {% if request.resolver_match.url_name == 'teacher_excuse_slips' %}active{% endif %}">
               <i class="fas fa-file-medical"></i>
               <span>Excuse</span>
-            </a>
-            <a href="{% url 'logout' %}" class="mobile-bottom-nav-item mobile-bottom-nav-item--logout" title="Logout">
-              <i class="fas fa-right-from-bracket"></i>
-              <span>Logout</span>
             </a>
           </nav>
         {% endif %}
@@ -150,7 +154,7 @@
   <script src="{% static 'js/core/app_table_search.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_action_dropdowns.js' %}?v=20261029_v2"></script>
   <script src="{% static 'js/core/app_session_guard.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_navigation.js' %}?v=20261029_nav2"></script>
+  <script src="{% static 'js/core/app_navigation.js' %}?v=20261030_nav3"></script>
   <script src="{% static 'js/core/app_shortcuts.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_password_reset.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_lightbox.js' %}?v=20261020"></script>

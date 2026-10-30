@@ -182,6 +182,10 @@ def teacher_session_open(request):
     class_id = request.POST.get('class_id')
     slot_id = request.POST.get('slot_id')
 
+    if not class_id:
+        messages.error(request, 'Select a class section before opening an attendance session.')
+        return redirect('teacher_dashboard')
+
     teacher_profile = getattr(request.user, 'classstamp_profile', None)
 
     # Superuser or Admin can open sessions for testing; Teachers can only open for their assigned classes

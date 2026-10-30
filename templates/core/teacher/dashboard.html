@@ -91,6 +91,87 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+  .teacher-table-actions {
+    white-space: nowrap;
+    text-align: right;
+  }
+  .teacher-table-actions > * {
+    vertical-align: middle;
+  }
+  .teacher-table-actions .btn + .btn,
+  .teacher-table-actions .btn + form,
+  .teacher-table-actions form + form {
+    margin-left: 6px;
+  }
+  @media (max-width: 700px) {
+    .teacher-table thead { display: none; }
+    .teacher-table,
+    .teacher-table tbody,
+    .teacher-table tr,
+    .teacher-table td {
+      display: block;
+      width: 100%;
+    }
+    .teacher-table tr {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .teacher-table tr:last-child { border-bottom: 0; }
+    .teacher-table td {
+      border: 0;
+      padding: 3px 0;
+    }
+    .teacher-table td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .teacher-table td.teacher-table-actions {
+      display: block;
+      margin-top: 10px;
+      text-align: left;
+    }
+    .teacher-table td.teacher-table-actions form {
+      display: block !important;
+    }
+    .teacher-table td.teacher-table-actions .btn {
+      display: flex;
+      width: 100%;
+      justify-content: center;
+    }
+    .teacher-table td.teacher-table-actions .btn + .btn,
+    .teacher-table td.teacher-table-actions .btn + form,
+    .teacher-table td.teacher-table-actions form + form {
+      margin: 8px 0 0;
+    }
+  }
+  @media (max-width: 768px) {
+    .teacher-dashboard .stat-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .teacher-dashboard .stat-grid .stat-card {
+      padding: 12px;
+      min-height: auto;
+    }
+    .teacher-dashboard .stat-grid .stat-icon {
+      width: 34px;
+      height: 34px;
+      font-size: 0.9rem;
+      border-radius: 8px;
+    }
+    .teacher-dashboard .stat-grid .stat-value {
+      font-size: 1.45rem;
+    }
+    .teacher-dashboard .stat-grid .stat-label {
+      font-size: 0.66rem;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -242,35 +323,35 @@
 
   {% if today_slots %}
   <div class="table-responsive">
-    <table class="table">
+    <table class="table teacher-table">
       <thead>
         <tr>
           <th>Time Window</th>
           <th>Class Code</th>
           <th>Subject</th>
           <th>Room</th>
-          <th style="text-align: right;">Session Action</th>
+          <th class="teacher-table-actions" style="width: 210px;">Session Action</th>
         </tr>
       </thead>
       <tbody>
         {% for slot in today_slots %}
         <tr>
-          <td>
+          <td data-label="Time Window">
             <span class="font-mono text-primary font-semibold text-sm">
               <i class="fas fa-clock text-gold text-xs mr-1"></i> {{ slot.starts_at|time:"h:i A" }} – {{ slot.ends_at|time:"h:i A" }}
             </span>
           </td>
-          <td>
+          <td data-label="Class Code">
             <span class="badge badge--primary font-mono">{{ slot.class_obj.class_code }}</span>
           </td>
-          <td>
+          <td data-label="Subject">
             <div class="font-semibold text-primary">{{ slot.class_obj.subject.code }}</div>
             <div class="text-muted text-xs">{{ slot.class_obj.subject.name }}</div>
           </td>
-          <td>
+          <td data-label="Room">
             <span class="text-muted text-xs"><i class="fas fa-location-dot text-gold"></i> {{ slot.room|default:"TBA" }}</span>
           </td>
-          <td style="text-align: right;">
+          <td class="teacher-table-actions" data-label="Session Action">
             <form method="POST" action="{% url 'teacher_session_open' %}" style="display: inline-block;">
               {% csrf_token %}
               <input type="hidden" name="class_id" value="{{ slot.class_obj.id }}">
@@ -339,7 +420,7 @@
 
   {% if recent_sessions %}
   <div class="table-responsive">
-    <table class="table">
+    <table class="table teacher-table">
       <thead>
         <tr>
           <th>Meeting Date &amp; Time</th>
@@ -348,13 +429,13 @@
           <th>Attendance Breakdown</th>
           <th>Compliance</th>
           <th>Status</th>
-          <th style="text-align: right; width: 170px;">Official Roll</th>
+          <th class="teacher-table-actions" style="width: 190px;">Official Roll</th>
         </tr>
       </thead>
       <tbody>
         {% for s in recent_sessions %}
         <tr>
-          <td>
+          <td data-label="Meeting">
             <div class="font-semibold text-primary font-mono text-xs">
               <i class="fas fa-calendar-day text-gold mr-1"></i> {{ s.session_date|date:"M d, Y" }}
             </div>
@@ -362,14 +443,14 @@
               {{ s.opened_at|date:"h:i A" }}{% if s.closed_at %} – {{ s.closed_at|date:"h:i A" }}{% endif %}
             </div>
           </td>
-          <td>
+          <td data-label="Class Section">
             <span class="badge badge--primary font-mono">{{ s.slot.class_obj.class_code }}</span>
           </td>
-          <td>
+          <td data-label="Subject">
             <div class="font-semibold text-primary text-xs">{{ s.slot.class_obj.subject.code }}</div>
             <div class="text-muted text-xs" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ s.slot.class_obj.subject.name }}</div>
           </td>
-          <td>
+          <td data-label="Breakdown">
             <div class="flex items-center gap-1">
               <span class="badge badge--success text-xs font-mono" title="Present on time">
                 <i class="fas fa-check"></i> {{ s.present_count }}
@@ -387,7 +468,7 @@
               {% endif %}
             </div>
           </td>
-          <td>
+          <td data-label="Compliance">
             {% if s.attendance_rate >= 80 %}
               <span class="badge badge--success font-mono text-xs">{{ s.attendance_rate }}%</span>
             {% elif s.attendance_rate >= 60 %}
@@ -396,12 +477,12 @@
               <span class="badge badge--danger font-mono text-xs">{{ s.attendance_rate }}%</span>
             {% endif %}
           </td>
-          <td>
+          <td data-label="Status">
             <span class="badge badge--muted text-xs font-mono">
               <i class="fas fa-lock"></i> CLOSED
             </span>
           </td>
-          <td style="text-align: right;">
+          <td class="teacher-table-actions" data-label="Official Roll">
             <a href="{% url 'teacher_session_summary' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 12px; font-weight: 600;">
               <i class="fas fa-file-invoice text-gold"></i> View Summary Roll
             </a>
@@ -434,7 +515,7 @@
 
   {% if classes %}
   <div class="table-responsive">
-    <table class="table">
+    <table class="table teacher-table">
       <thead>
         <tr>
           <th>Class Code</th>
@@ -442,16 +523,16 @@
           <th>Academic Term</th>
           <th>Roster Size</th>
           <th>Grace Window</th>
-          <th style="text-align: right; width: 180px;">Actions</th>
+          <th class="teacher-table-actions" style="width: 215px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for c in classes %}
         <tr>
-          <td>
+          <td data-label="Class Code">
             <span class="badge badge--primary font-mono font-semibold">{{ c.class_code }}</span>
           </td>
-          <td>
+          <td data-label="Subject">
             <div class="font-semibold text-primary">{{ c.subject.code }} — {{ c.subject.name }}</div>
             <div class="text-muted text-xs">{{ c.slot_count }} weekly meeting slot{{ c.slot_count|pluralize }}</div>
             {% if c.radar_critical or c.radar_watch %}
@@ -481,16 +562,16 @@
             </div>
             {% endif %}
           </td>
-          <td>
+          <td data-label="Term">
             <span class="text-muted text-xs">{{ c.academic_year.name }}</span>
           </td>
-          <td>
+          <td data-label="Roster">
             <span class="badge badge--muted font-mono"><i class="fas fa-user-graduate"></i> {{ c.roster_count }} student{{ c.roster_count|pluralize }}</span>
           </td>
-          <td>
+          <td data-label="Grace Window">
             <span class="text-muted text-xs font-mono"><i class="fas fa-stopwatch text-gold"></i> {{ c.grace_minutes }} mins</span>
           </td>
-          <td style="text-align: right;">
+          <td class="teacher-table-actions" data-label="Actions">
             <a href="{% url 'teacher_attendance_matrix' c.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="View attendance matrix">
               <i class="fas fa-table-cells text-gold"></i> Matrix
             </a>
@@ -533,6 +614,7 @@
     <form method="POST" action="{% url 'teacher_session_open' %}">
       {% csrf_token %}
       <div class="modal-body">
+        {% if classes %}
         <div class="form-group mb-3">
           <label class="form-label" for="launch_class_id">Select Class Section <span class="text-danger">*</span></label>
           <select id="launch_class_id" name="class_id" class="form-control" required>
@@ -541,6 +623,15 @@
             {% endfor %}
           </select>
         </div>
+        {% else %}
+        <div class="teacher-empty" style="padding: 20px 0;">
+          <i class="fas fa-chalkboard-user"></i>
+          <p>
+            You have no assigned classes yet.
+            <span class="teacher-empty-sub">Ask the College Department to load your sections before opening a session.</span>
+          </p>
+        </div>
+        {% endif %}
 
         <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; margin-top: 14px;">
           <div class="text-xs text-muted uppercase font-semibold">Today's Meeting Instance</div>
@@ -550,7 +641,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" data-modal-dismiss="quickLaunchModal">Cancel</button>
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary" {% if not classes %}disabled{% endif %}>
           <i class="fas fa-qrcode"></i> Launch &amp; Enter Scanner
         </button>
       </div>

@@ -85,7 +85,7 @@
       return true;
     }
 
-    document.querySelectorAll('.sidebar-link[href*="#"]').forEach(function (link) {
+    document.querySelectorAll('.sidebar-link[href*="#"], .mobile-bottom-nav-item[href*="#"]').forEach(function (link) {
       link.addEventListener('click', function (e) {
         var href = link.getAttribute('href') || '';
         var linkUrl;
