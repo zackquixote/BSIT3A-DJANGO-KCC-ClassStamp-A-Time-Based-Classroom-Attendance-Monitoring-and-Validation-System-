@@ -36,6 +36,8 @@ from .auth_views import (
     logout_view,
     register_view,
     session_keepalive,
+    two_factor_setup,
+    two_factor_verify,
 )
 
 # // ------------------------------------------------------------------------------
@@ -78,6 +80,7 @@ from .document_views import (
 # // ------------------------------------------------------------------------------
 from .validation_views import (
     approve_student,
+    validation_reopen,
     batch_validation_action,
     recently_reviewed_list,
     reject_student,
@@ -216,6 +219,7 @@ from .class_views import (
     class_slot_save,
     class_toggle,
     class_wizard_options,
+    class_wizard_code_check,
     class_wizard_save,
     class_wizard_setup,
     class_wizard_slots_check,
@@ -224,11 +228,13 @@ from .class_views import (
 # // ------------------------------------------------------------------------------
 # // 12. Classroom Attendance Session & Live QR Scanner Subsystem
 # // ------------------------------------------------------------------------------
+from .policy_views import admin_policy
 from .session_views import (
     attendance_scan_api,
     teacher_attendance_matrix,
     teacher_class_term_export,
     teacher_manual_override_ajax,
+    teacher_session_bulk_mark,
     teacher_session_close,
     teacher_session_export,
     teacher_session_history,
@@ -275,11 +281,14 @@ __all__ = [
     'login_view',
     'logout_view',
     'register_view',
+    'two_factor_setup',
+    'two_factor_verify',
     'check_registration_availability',
 
     # Dashboards
     'dashboard_redirect',
     'admin_dashboard',
+    'admin_policy',
     'admin_live_stream',
     'teacher_dashboard',
     'teacher_classes',
@@ -301,6 +310,7 @@ __all__ = [
     'validation_detail',
     'validation_dossier_json',
     'approve_student',
+    'validation_reopen',
     'reject_student',
     'recently_reviewed_list',
 
@@ -374,6 +384,7 @@ __all__ = [
     'class_slot_save',
     'class_slot_delete',
     'class_wizard_options',
+    'class_wizard_code_check',
     'class_wizard_save',
     'class_wizard_slots_check',
     'class_wizard_setup',
@@ -387,6 +398,7 @@ __all__ = [
     'teacher_session_open',
     'teacher_session_scan',
     'teacher_session_roster_json',
+    'teacher_session_bulk_mark',
     'teacher_session_close',
     'teacher_session_summary',
     'teacher_session_export',

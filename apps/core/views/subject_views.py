@@ -55,6 +55,7 @@ def subject_list(request):
     status_filter = request.GET.get('status', '').strip()
     dept_filter = request.GET.get('department', '').strip()
     program_filter = request.GET.get('program', '').strip()
+    usage_filter = request.GET.get('usage', '').strip()
 
     subjects_qs = (
         Subject.objects.annotate(
@@ -73,6 +74,11 @@ def subject_list(request):
         subjects_qs = subjects_qs.filter(is_active=True)
     elif status_filter == 'inactive':
         subjects_qs = subjects_qs.filter(is_active=False)
+
+    # Catalogue hygiene: a subject with no classes and no curriculum mapping is a
+    # dead row — it cannot be scheduled and no wizard will ever offer it.
+    if usage_filter == 'unused':
+        subjects_qs = subjects_qs.filter(class_count=0, curriculum_count=0)
 
     if dept_filter:
         subjects_qs = subjects_qs.filter(
@@ -131,6 +137,7 @@ def subject_list(request):
         'status_filter': status_filter,
         'dept_filter': dept_filter,
         'program_filter': program_filter,
+        'usage_filter': usage_filter,
         'total_count': total_count,
         'active_count': active_count,
         'inactive_count': inactive_count,
@@ -169,6 +176,7 @@ def subject_save(request):
         return JsonResponse({
             'ok': True,
             'message': result['message'],
+            'warning': result.get('warning', ''),
             'subject': serialize_subject(result['instance']),
         })
     except ValueError as e:

@@ -222,31 +222,31 @@
     <table class="table" id="usersTable">
       <thead>
         <tr>
-          <th style="width: 32px;">#</th>
-          <th>Account / Name</th>
+          <th scope="col" style="width: 32px;">#</th>
+          <th scope="col">Account / Name</th>
           {% if role_tab == 'students' %}
-            <th>Student ID</th>
-            <th>Program &amp; Standing</th>
-            <th>Type</th>
-            <th>Email</th>
-            <th>Validation</th>
-            <th>Account Access</th>
+            <th scope="col">Student ID</th>
+            <th scope="col">Program &amp; Standing</th>
+            <th scope="col">Type</th>
+            <th scope="col">Email</th>
+            <th scope="col">Validation</th>
+            <th scope="col">Account Access</th>
           {% elif role_tab == 'teachers' %}
-            <th>Faculty ID / Username</th>
-            <th>Department</th>
-            <th>Class Load</th>
-            <th>Email</th>
-            <th>Last Login</th>
-            <th>Account Access</th>
+            <th scope="col">Faculty ID / Username</th>
+            <th scope="col">Department</th>
+            <th scope="col">Class Load</th>
+            <th scope="col">Email</th>
+            <th scope="col">Last Login</th>
+            <th scope="col">Account Access</th>
           {% else %}
-            <th>Username</th>
-            <th>Privilege Role</th>
-            <th>Email</th>
-            <th>Last Login</th>
-            <th>Account Access</th>
+            <th scope="col">Username</th>
+            <th scope="col">Privilege Role</th>
+            <th scope="col">Email</th>
+            <th scope="col">Last Login</th>
+            <th scope="col">Account Access</th>
           {% endif %}
-          <th>Joined</th>
-          <th style="text-align: right; width: 140px; white-space: nowrap;">Actions</th>
+          <th scope="col">Joined</th>
+          <th scope="col" style="text-align: right; width: 140px; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody id="usersTableBody">
@@ -436,20 +436,20 @@
                 {% if u.classstamp_profile.approval_status == 'PENDING' %}
                   <a href="{% url 'validation_queue' %}?q={{ u.classstamp_profile.student_number|default:u.username }}"
                      class="btn btn-outline btn-icon-xs"
-                     title="Open in Validation Queue">
+                     title="Open in Validation Queue" aria-label="Open in Validation Queue">
                     <i class="fas fa-user-clock text-warning"></i>
                   </a>
                 {% else %}
                   <a href="{% url 'student_directory' %}?q={{ u.classstamp_profile.student_number|default:u.username }}"
                      class="btn btn-outline btn-icon-xs"
-                     title="Open Student Master Record">
+                     title="Open Student Master Record" aria-label="Open Student Master Record">
                     <i class="fas fa-id-card text-success"></i>
                   </a>
                 {% endif %}
               {% elif role_tab == 'teachers' %}
                 <a href="{% url 'teacher_list' %}?q={{ u.username }}"
                    class="btn btn-outline btn-icon-xs"
-                   title="View Faculty Teaching Schedules">
+                   title="View Faculty Teaching Schedules" aria-label="View Faculty Teaching Schedules">
                   <i class="fas fa-chalkboard text-gold"></i>
                 </a>
               {% endif %}
@@ -461,7 +461,7 @@
                       data-id="{{ u.id }}"
                       data-username="{{ u.classstamp_profile.student_number|default:u.username }}"
                       data-name="{{ u.get_full_name|default:u.username }}"
-                      title="Quick Password Reset">
+                      title="Quick Password Reset" aria-label="Quick Password Reset">
                 <i class="fas fa-key text-warning"></i>
               </button>
 
@@ -481,13 +481,13 @@
                       data-year="{{ u.classstamp_profile.year_level|default:'1' }}"
                       data-active="{{ u.is_active|yesno:'true,false' }}"
                       data-staff="{{ u.is_staff|yesno:'true,false' }}"
-                      title="Edit Account Details">
+                      title="Edit Account Details" aria-label="Edit Account Details">
                 <i class="fas fa-pen text-gold"></i>
               </button>
 
               <!-- Delete Button -->
               {% if u.id == request.user.id %}
-                <button type="button" class="btn btn-outline btn-icon-xs" style="opacity: 0.4; cursor: not-allowed;" title="Self-deletion prohibited" disabled>
+                <button type="button" class="btn btn-outline btn-icon-xs" style="opacity: 0.4; cursor: not-allowed;" title="Self-deletion prohibited" disabled aria-label="Self-deletion prohibited">
                   <i class="fas fa-trash text-muted"></i>
                 </button>
               {% else %}
@@ -497,7 +497,7 @@
                         data-id="{{ u.id }}"
                         data-name="{{ u.get_full_name|default:u.classstamp_profile.student_number|default:u.username }}"
                         data-ident="{% if u.classstamp_profile.student_number %}Student ID: {{ u.classstamp_profile.student_number }}{% else %}Username: {{ u.username }}{% endif %}"
-                        title="Delete Account">
+                        title="Delete Account" aria-label="Delete Account">
                   <i class="fas fa-trash text-danger"></i>
                 </button>
               {% endif %}
@@ -708,7 +708,7 @@
             <label class="form-label" for="edit_password">Password</label>
             <div class="input-wrap" style="position: relative;">
               <input type="password" name="password" id="edit_password" class="form-control" autocomplete="new-password" placeholder="••••••••" style="padding-right: 38px;">
-              <button type="button" id="togglePasswordBtn" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" title="Show/Hide Password">
+              <button type="button" id="togglePasswordBtn" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;" title="Show/Hide Password" aria-label="Show/Hide Password">
                 <i class="fas fa-eye" id="togglePasswordIcon"></i>
               </button>
             </div>

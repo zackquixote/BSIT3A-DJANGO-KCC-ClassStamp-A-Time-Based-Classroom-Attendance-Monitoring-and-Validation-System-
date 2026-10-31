@@ -26,6 +26,7 @@ from apps.core.models import (
     ExcuseSlip,
     Profile,
 )
+from apps.core.services.notification_service import notify_excuse_decision
 from apps.core.validators import validate_uploaded_document
 
 
@@ -252,6 +253,7 @@ def excuse_slip_review_ajax(request, slip_id):
                 old_value=f'ABSENT -> EXCUSED for {slip.student_profile.student_number}',
                 new_value=f'Approved: {class_obj.class_code} on {slip.session.session_date}',
             )
+            notify_excuse_decision(slip, approved=True, note=note)
         return JsonResponse({'ok': True, 'message': 'Excuse slip approved — attendance marked EXCUSED.'})
 
     if action == 'reject':
@@ -272,6 +274,7 @@ def excuse_slip_review_ajax(request, slip_id):
             old_value=f'ABSENT kept for {slip.student_profile.student_number}',
             new_value=f'Rejected: {note[:200]}',
         )
+        notify_excuse_decision(slip, approved=False, note=note)
         return JsonResponse({'ok': True, 'message': 'Excuse slip rejected.'})
 
     return JsonResponse({'ok': False, 'error': 'Invalid action.'}, status=400)

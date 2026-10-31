@@ -67,8 +67,21 @@
           return { status: r.status, data: data };
         });
       })
-      .then(function () {
+      .then(function (result) {
         if (confirmBtn) confirmBtn.disabled = false;
+
+        var data = result.data || {};
+        var failed = result.status >= 400 || data.status === 'error';
+
+        if (failed) {
+          // Keep the modal open: the program still has live data underneath it.
+          var App = getApp();
+          var message = data.error || 'Could not retire this program.';
+          if (App && App.toast) App.toast('error', message);
+          else window.alert(message);
+          return;
+        }
+
         var App = getApp();
         if (App) App.hideModal('deleteProgModal');
         else if (typeof window.closeModal === 'function') window.closeModal('deleteProgModal');

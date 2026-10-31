@@ -88,6 +88,18 @@
       </a>
       {% endwith %}
 
+      <span class="sidebar-section-label">Security</span>
+      <a href="{% url 'two_factor_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'two_factor_setup' %}active{% endif %}" title="Two-Factor Authentication">
+        <i data-lucide="shield-check" class="sidebar-link-icon"></i>
+        <i class="fas fa-shield-halved sidebar-link-icon lucide-fallback"></i>
+        <span>Two-Factor Auth</span>
+      </a>
+      <a href="{% url 'admin_policy' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_policy' %}active{% endif %}" title="Attendance Policy Thresholds">
+        <i data-lucide="sliders-horizontal" class="sidebar-link-icon"></i>
+        <i class="fas fa-sliders sidebar-link-icon lucide-fallback"></i>
+        <span>Attendance Policy</span>
+      </a>
+
       <span class="sidebar-section-label">Oversight &amp; Security</span>
       <a href="{% url 'anomaly_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate' %}active{% endif %}" title="Security Anomalies & Flagged Scans">
         <i data-lucide="shield-alert" class="sidebar-link-icon"></i>
@@ -192,7 +204,7 @@
         {% endif %}
       </div>
     </div>
-    <a href="{% url 'logout' %}" class="sidebar-logout" title="Logout">
+    <a href="{% url 'logout' %}" class="sidebar-logout" title="Logout" aria-label="Logout">
       <i class="fas fa-right-from-bracket"></i>
     </a>
   </div>

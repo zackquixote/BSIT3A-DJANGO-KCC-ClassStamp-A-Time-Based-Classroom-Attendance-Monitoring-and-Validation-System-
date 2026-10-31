@@ -20,9 +20,27 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
-from apps.core.models import AuditEvent, Department, Profile
+from apps.core.models import AuditEvent, ClassSession, Department, Profile
 
 User = get_user_model()
+
+
+def _assert_no_open_sessions(profile) -> None:
+    """
+    // Refuse to retire an instructor while they are running a class right now.
+    // Deactivating the account does not stop the session: the scanner keeps
+    // accepting stamps attributed to a teacher nobody can sign in as.
+    """
+    open_sessions = ClassSession.objects.filter(
+        status=ClassSession.STATUS_OPEN,
+        slot__class_obj__teacher_profile=profile,
+    ).count()
+    if open_sessions:
+        name = profile.user.get_full_name() or profile.user.get_username()
+        raise ValueError(
+            f'"{name}" is running {open_sessions} open attendance session(s). '
+            f'Close them before deactivating the account.'
+        )
 
 
 def provision_teacher_account(
@@ -179,6 +197,11 @@ def toggle_teacher_active(actor, profile_id: int) -> dict:
     """
     profile = get_object_or_404(Profile.objects.select_related('user'), pk=profile_id, role=Profile.ROLE_TEACHER)
     user = profile.user
+
+    # About to deactivate: refuse while a class is live.
+    if user.is_active:
+        _assert_no_open_sessions(profile)
+
     user.is_active = not user.is_active
     user.save()
 
@@ -208,6 +231,9 @@ def set_teacher_active(actor, profile_id: int, is_active: bool) -> dict:
     )
     user = profile.user
     changed = user.is_active != is_active
+
+    if changed and not is_active:
+        _assert_no_open_sessions(profile)
 
     if changed:
         user.is_active = is_active

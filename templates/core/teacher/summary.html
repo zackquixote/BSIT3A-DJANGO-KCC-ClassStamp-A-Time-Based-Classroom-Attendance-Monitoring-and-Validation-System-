@@ -6,7 +6,7 @@
 <div class="page-header mb-4">
   <div>
     <div class="flex items-center gap-2 mb-1">
-      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Dashboard">
+      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Dashboard" aria-label="Back to Dashboard">
         <i class="fas fa-arrow-left"></i>
       </a>
       <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
@@ -101,15 +101,15 @@
     <table class="table" id="summaryTable">
       <thead>
         <tr>
-          <th style="width: 50px;">#</th>
-          <th>Student Account</th>
-          <th>Student ID</th>
-          <th>Program &amp; Year</th>
-          <th>Status</th>
-          <th>Stamp Time</th>
-          <th>Tardy Delay</th>
-          <th>Method</th>
-          <th>Remarks</th>
+          <th scope="col" style="width: 50px;">#</th>
+          <th scope="col">Student Account</th>
+          <th scope="col">Student ID</th>
+          <th scope="col">Program &amp; Year</th>
+          <th scope="col">Status</th>
+          <th scope="col">Stamp Time</th>
+          <th scope="col">Tardy Delay</th>
+          <th scope="col">Method</th>
+          <th scope="col">Remarks</th>
         </tr>
       </thead>
       <tbody>

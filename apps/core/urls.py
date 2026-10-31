@@ -4,6 +4,9 @@ from . import views
 urlpatterns = [
     # // Auth routes
     path('', views.login_view, name='login'),
+    path('login/2fa/', views.two_factor_verify, name='two_factor_verify'),
+    path('account/2fa/', views.two_factor_setup, name='two_factor_setup'),
+    path('admin/policy/', views.admin_policy, name='admin_policy'),
     path('logout/', views.logout_view, name='logout'),
     path('session/keepalive/', views.session_keepalive, name='session_keepalive'),
     path('register/', views.register_view, name='register'),
@@ -42,6 +45,7 @@ urlpatterns = [
     path('validation/dossier/<int:profile_id>/', views.validation_dossier_json, name='validation_dossier_json'),
     path('validation/<str:student_number>/', views.validation_detail, name='validation_detail'),
     path('validation/approve/<str:student_number>/', views.approve_student, name='approve_student'),
+    path('validation/reopen/<str:student_number>/', views.validation_reopen, name='validation_reopen'),
     path('validation/reject/<str:student_number>/', views.reject_student, name='reject_student'),
 
     # // Admin: Student Directory & Masterlist
@@ -113,6 +117,7 @@ urlpatterns = [
     path('classes/<int:class_id>/slot/save/', views.class_slot_save, name='class_slot_save'),
     path('classes/slot/delete/<int:slot_id>/', views.class_slot_delete, name='class_slot_delete'),
     path('classes/wizard/options/', views.class_wizard_options, name='class_wizard_options'),
+    path('classes/wizard/check-code/', views.class_wizard_code_check, name='class_wizard_code_check'),
     path('classes/wizard/save/', views.class_wizard_save, name='class_wizard_save'),
     path('classes/wizard/check-slots/', views.class_wizard_slots_check, name='class_wizard_slots_check'),
     path('classes/setup/', views.class_wizard_setup, name='class_wizard_setup'),
@@ -140,6 +145,7 @@ urlpatterns = [
     path('api/subjects/lookup/', views.subject_lookup_json, name='subject_lookup_json'),
     # // Teacher: Classroom Attendance Sessions & Live QR Scanner
     path('teacher/session/open/', views.teacher_session_open, name='teacher_session_open'),
+    path('teacher/session/<int:session_id>/bulk-mark/', views.teacher_session_bulk_mark, name='teacher_session_bulk_mark'),
     path('teacher/sessions/', views.teacher_session_history, name='teacher_session_history'),
     path('teacher/sessions/export/', views.teacher_session_history_export, name='teacher_session_history_export'),
     path('teacher/session/<int:session_id>/scan/', views.teacher_session_scan, name='teacher_session_scan'),

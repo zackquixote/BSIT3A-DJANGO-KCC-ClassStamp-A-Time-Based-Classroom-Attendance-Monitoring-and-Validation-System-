@@ -1,0 +1,126 @@
+{% extends "theme/base.html" %}
+{% load static %}
+{% block title %}Two-Factor Authentication — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<style>
+  .tfa-wrap { max-width: 760px; margin: 0 auto; }
+  .tfa-grid { display: grid; grid-template-columns: 240px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 720px) { .tfa-grid { grid-template-columns: 1fr; } }
+  .tfa-qr {
+    padding: 14px; border-radius: 16px; text-align: center;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .tfa-qr img { width: 100%; max-width: 210px; border-radius: 10px; background: #fff; padding: 8px; }
+  .tfa-secret {
+    margin-top: 10px; padding: 9px 10px; border-radius: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem; letter-spacing: 0.08em; word-break: break-all;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px dashed var(--glass-border);
+    color: var(--text-primary);
+  }
+  .tfa-steps { margin: 0; padding-left: 18px; font-size: 0.84rem; line-height: 1.9; color: var(--text-muted); }
+  .tfa-code-input {
+    max-width: 190px; letter-spacing: 0.35em; text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem;
+  }
+  .tfa-status {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600;
+  }
+  .tfa-status--on { background: rgba(34, 197, 94, 0.14); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); }
+  .tfa-status--off { background: rgba(148, 163, 184, 0.14); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tfa-wrap">
+  <div class="card mb-4" style="padding: 22px 24px;">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <h2 class="font-semibold text-primary" style="font-size: 1.05rem; margin: 0;">
+          <i class="fas fa-shield-halved text-gold"></i> Two-Factor Authentication
+        </h2>
+        <p class="text-muted text-xs" style="margin: 4px 0 0;">
+          Required for administrator and registrar accounts before deployment.
+        </p>
+      </div>
+      {% if enabled %}
+        <span class="tfa-status tfa-status--on"><i class="fas fa-circle-check"></i> Active</span>
+      {% else %}
+        <span class="tfa-status tfa-status--off"><i class="fas fa-circle-minus"></i> Not enrolled</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="card mb-3" style="padding: 12px 16px; border-color: rgba(212, 175, 55, 0.35);">
+        <span class="text-sm">{{ message }}</span>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if enabled %}
+    <div class="card" style="padding: 24px;">
+      <p class="text-sm text-muted" style="margin-top: 0;">
+        This account requires a 6-digit authenticator code in addition to its password.
+        Enrolled {% if profile.totp_confirmed_at %}on {{ profile.totp_confirmed_at|date:"M j, Y H:i" }}{% endif %}.
+      </p>
+      <form method="POST" autocomplete="off" style="margin-top: 18px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="disable">
+        <div class="form-group">
+          <label class="form-label" for="disable-code">Current authenticator code</label>
+          <input class="form-control tfa-code-input" id="disable-code" type="text"
+                 name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                 placeholder="000000" required>
+          <span class="form-hint">Required to prove the device is still in your possession.</span>
+        </div>
+        <button type="submit" class="btn btn-outline"
+                style="border-color: rgba(239, 68, 68, 0.45); color: #f87171;">
+          <i class="fas fa-shield-slash"></i> Disable two-factor
+        </button>
+      </form>
+    </div>
+  {% else %}
+    <div class="card" style="padding: 24px;">
+      <div class="tfa-grid">
+        <div class="tfa-qr">
+          {% if qr_data_uri %}
+            <img src="{{ qr_data_uri }}" alt="Authenticator QR code">
+          {% else %}
+            <span class="text-muted text-xs">QR unavailable — use the key below.</span>
+          {% endif %}
+          <div class="tfa-secret" title="Manual entry key">{{ secret }}</div>
+          <div class="text-muted" style="font-size: 0.7rem; margin-top: 8px;">Manual entry key</div>
+        </div>
+
+        <div>
+          <ol class="tfa-steps">
+            <li>Open Google Authenticator, Authy, or 1Password.</li>
+            <li>Scan the QR code, or type the manual key.</li>
+            <li>Enter the 6-digit code it shows to confirm.</li>
+          </ol>
+
+          <form method="POST" autocomplete="off" style="margin-top: 18px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="enable">
+            <div class="form-group">
+              <label class="form-label" for="enable-code">Authenticator code</label>
+              <input class="form-control tfa-code-input" id="enable-code" type="text"
+                     name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                     placeholder="000000" required>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-circle-check"></i> Confirm &amp; enable
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

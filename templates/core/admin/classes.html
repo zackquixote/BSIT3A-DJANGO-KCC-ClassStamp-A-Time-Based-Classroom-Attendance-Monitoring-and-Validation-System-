@@ -155,13 +155,13 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Class Code</th>
-          <th>Subject &amp; Units</th>
-          <th>Instructor</th>
-          <th>Weekly Timetable Schedule</th>
-          <th>Roster Capacity</th>
-          <th>Status</th>
-          <th style="text-align: right; white-space: nowrap;">Actions</th>
+          <th scope="col">Class Code</th>
+          <th scope="col">Subject &amp; Units</th>
+          <th scope="col">Instructor</th>
+          <th scope="col">Weekly Timetable Schedule</th>
+          <th scope="col">Roster Capacity</th>
+          <th scope="col">Status</th>
+          <th scope="col" style="text-align: right; white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -236,19 +236,19 @@
               <button type="button" class="btn btn-outline btn-xs btn-manage-slots"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
-                      title="Manage Weekly Schedule Slots">
+                      title="Manage Weekly Schedule Slots" aria-label="Manage Weekly Schedule Slots">
                 <i class="fas fa-clock"></i>
               </button>
               <!-- Roster (quick) -->
               <button type="button" class="btn btn-outline btn-xs btn-manage-roster"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
-                      title="Manage Student Roster">
+                      title="Manage Student Roster" aria-label="Manage Student Roster">
                 <i class="fas fa-users"></i>
               </button>
               <!-- More Actions Dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-xs action-dropdown-toggle" style="padding:5px 8px;" title="More">
+                <button type="button" class="btn btn-outline btn-xs action-dropdown-toggle" style="padding:5px 8px;" title="More" aria-label="More">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

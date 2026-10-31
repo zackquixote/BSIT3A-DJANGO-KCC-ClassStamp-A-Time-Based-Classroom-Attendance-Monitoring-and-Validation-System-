@@ -90,13 +90,13 @@
     <table class="table" id="deptTable">
       <thead>
         <tr>
-          <th style="width: 50px;">#</th>
-          <th>Code</th>
-          <th>Department Name</th>
-          <th>Programs</th>
-          <th>Faculty</th>
-          <th>Status</th>
-          <th style="text-align: right; width: 110px;">Actions</th>
+          <th scope="col" style="width: 50px;">#</th>
+          <th scope="col">Code</th>
+          <th scope="col">Department Name</th>
+          <th scope="col">Programs</th>
+          <th scope="col">Faculty</th>
+          <th scope="col">Status</th>
+          <th scope="col" style="text-align: right; width: 110px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -138,12 +138,12 @@
                       data-code="{{ d.code }}"
                       data-name="{{ d.name }}"
                       data-active="{{ d.is_active|yesno:'true,false' }}"
-                      title="Edit Department">
+                      title="Edit Department" aria-label="Edit Department">
                 <i class="fas fa-pen"></i>
               </button>
               <!-- More dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding: 5px 9px;" title="More">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding: 5px 9px;" title="More" aria-label="More">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

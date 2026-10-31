@@ -60,6 +60,9 @@ from .audit import (
 # // Academic Calendar & Institutional Schedule
 from .calendar import AcademicEvent
 
+# // Administrative Policy (singleton overrides)
+from .policy import SystemPolicy
+
 __all__ = [
     # Academic
     'AcademicYear',
@@ -80,6 +83,8 @@ __all__ = [
     'OfflineBadge',
     'StampAttempt',
     'ExcuseSlip',
+    # Policy
+    'SystemPolicy',
     # Audit
     'AnomalyFlag',
     'AuditEvent',

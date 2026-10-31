@@ -19,25 +19,20 @@
 from django.db.models import Count, Q
 
 from apps.core.models import AttendanceRecord
+from apps.core.services.attendance_policy import (
+    BAND_CRITICAL,
+    BAND_DISPLAY,
+    BAND_SAFE,
+    BAND_WATCH,
+    absence_threshold_percent,
+    classify_absence_rate,
+)
 
-BAND_SAFE = 'SAFE'
-BAND_WATCH = 'WATCH'
-BAND_CRITICAL = 'CRITICAL'
-
-BAND_DISPLAY = {
-    BAND_SAFE: 'Safe',
-    BAND_WATCH: 'Watchlist',
-    BAND_CRITICAL: 'FDA Risk',
-}
-
-
-def classify_absence_rate(rate):
-    """// Map an absence percentage to a CHED radar band."""
-    if rate < 10.0:
-        return BAND_SAFE
-    if rate < 20.0:
-        return BAND_WATCH
-    return BAND_CRITICAL
+# Re-exported for callers that historically imported the bands from this module.
+__all__ = [
+    'BAND_SAFE', 'BAND_WATCH', 'BAND_CRITICAL', 'BAND_DISPLAY',
+    'classify_absence_rate', 'absence_radar_for_class', 'absence_radar_for_students',
+]
 
 
 def _build_radar(class_obj, student_ids=None):
@@ -54,13 +49,14 @@ def _build_radar(class_obj, student_ids=None):
         qs = qs.filter(student_profile_id__in=student_ids)
 
     radar = {}
+    threshold = absence_threshold_percent()
     for row in qs:
         rate = round((row['absent'] / row['total'] * 100), 1) if row['total'] else 0.0
         radar[row['student_profile_id']] = {
             'absent': row['absent'],
             'total': row['total'],
             'rate': rate,
-            'band': classify_absence_rate(rate),
+            'band': classify_absence_rate(rate, threshold=threshold),
         }
     return radar
 

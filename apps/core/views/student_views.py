@@ -73,7 +73,12 @@ def student_directory(request):
     sections_qs = Class.objects.filter(is_active=True)
     if active_ay:
         sections_qs = sections_qs.filter(academic_year=active_ay)
-    sections = sections_qs.values_list('class_code', flat=True).distinct().order_by('class_code')
+    sections = (
+        sections_qs.exclude(section_code='')
+        .values_list('section_code', flat=True)
+        .distinct()
+        .order_by('section_code')
+    )
 
     # Aggregate counts across all registered students
     total_students = Profile.objects.filter(role=Profile.ROLE_STUDENT).count()

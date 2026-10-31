@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
@@ -63,11 +63,23 @@ def teacher_list(request):
     status_filter = request.GET.get('status', '').strip()
     year_filter = request.GET.get('year_joined', '').strip()
 
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+
+    # Teaching load is a per-term figure. A section from a past term is history,
+    # not current load, so both the badge and the "with load" KPI are scoped to
+    # the active academic year — same rule the class list and dashboards follow.
+    load_filter = (
+        Q(taught_classes__academic_year=active_year) if active_year is not None else Q()
+    )
+    load_queryset = Class.objects.select_related('subject', 'academic_year')
+    if active_year is not None:
+        load_queryset = load_queryset.filter(academic_year=active_year)
+
     teachers_qs = (
         Profile.objects.filter(role=Profile.ROLE_TEACHER)
         .select_related('user', 'department')
-        .annotate(class_count=Count('taught_classes', distinct=True))
-        .prefetch_related('taught_classes__subject', 'taught_classes__academic_year')
+        .annotate(class_count=Count('taught_classes', filter=load_filter, distinct=True))
+        .prefetch_related(Prefetch('taught_classes', queryset=load_queryset))
         .order_by('user__last_name', 'user__first_name')
     )
 
@@ -101,12 +113,12 @@ def teacher_list(request):
         Profile.objects.filter(role=Profile.ROLE_TEACHER, department__isnull=False)
         .values('department').distinct().count()
     )
-    active_load_count = (
-        Profile.objects.filter(role=Profile.ROLE_TEACHER)
-        .annotate(c=Count('taught_classes'))
-        .filter(c__gt=0)
-        .count()
-    )
+    active_load_qs = Profile.objects.filter(role=Profile.ROLE_TEACHER)
+    if active_year is not None:
+        active_load_qs = active_load_qs.filter(
+            taught_classes__academic_year=active_year
+        )
+    active_load_count = active_load_qs.distinct().count()
 
     departments = Department.objects.filter(is_active=True).order_by('code')
     all_subjects = Subject.objects.filter(is_active=True).order_by('code')
@@ -257,6 +269,7 @@ def bulk_teacher_operation(request):
 
     success_count = 0
     error_ids = []
+    first_error = ''
     credentials = []
 
     for raw_id in ids:
@@ -280,10 +293,12 @@ def bulk_teacher_operation(request):
                     'temporary_password': result['temporary_password'],
                 })
             success_count += 1
-        except Exception:
+        except Exception as exc:
             import traceback
             traceback.print_exc()
             error_ids.append(teacher_id)
+            if not first_error:
+                first_error = str(exc)
 
     verb = {
         'activate': 'activated',
@@ -293,6 +308,8 @@ def bulk_teacher_operation(request):
     message = f'Successfully {verb} {success_count} teacher(s).'
     if error_ids:
         message += f' {len(error_ids)} failed.'
+        if first_error:
+            message += f' First reason: {first_error}'
 
     return JsonResponse({
         'ok': True,

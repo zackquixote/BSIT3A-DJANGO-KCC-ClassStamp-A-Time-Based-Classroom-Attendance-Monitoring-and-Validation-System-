@@ -43,12 +43,12 @@
     <table class="table" id="infoTable">
       <thead>
         <tr>
-          <th style="width: 50px;">#</th>
-          <th>Name</th>
-          <th>Age</th>
-          <th>Address</th>
-          <th>Email</th>
-          <th style="text-align: right; width: 120px;">Actions</th>
+          <th scope="col" style="width: 50px;">#</th>
+          <th scope="col">Name</th>
+          <th scope="col">Age</th>
+          <th scope="col">Address</th>
+          <th scope="col">Email</th>
+          <th scope="col" style="text-align: right; width: 120px;">Actions</th>
         </tr>
       </thead>
       <tbody id="infoTableBody">
@@ -71,7 +71,7 @@
                       data-age="{{ info.age }}"
                       data-address="{{ info.address }}"
                       data-email="{{ info.email }}"
-                      title="Edit">
+                      title="Edit" aria-label="Edit">
                 <i class="fas fa-pen text-gold"></i>
               </button>
               <button type="button"
@@ -80,7 +80,7 @@
                       data-modal-target="deleteInfoModal"
                       data-id="{{ info.id }}"
                       data-name="{{ info.name }}"
-                      title="Delete">
+                      title="Delete" aria-label="Delete">
                 <i class="fas fa-trash text-danger"></i>
               </button>
             </div>

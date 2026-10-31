@@ -85,10 +85,16 @@
           }
 
           const successEl = getEl('subjectSuccess');
+          const warningText = data.warning || '';
           if (window.App && window.App.toast) {
             window.App.toast('success', data.message);
-          } else if (successEl) { successEl.style.display = 'block'; successEl.textContent = data.message; }
-          setTimeout(function () { location.reload(); }, 600);
+            if (warningText) window.App.toast('warning', warningText, 6000);
+          } else if (successEl) {
+            successEl.style.display = 'block';
+            successEl.textContent = warningText ? data.message + ' ' + warningText : data.message;
+          }
+          // Give the warning time to be read before the page reloads.
+          setTimeout(function () { location.reload(); }, warningText ? 3000 : 600);
         } catch (err) {
           const errEl = getEl('subjectFormError');
           if (window.App && window.App.toast) {

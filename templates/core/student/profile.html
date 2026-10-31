@@ -356,6 +356,19 @@
         <span class="profile-info-value">{{ profile.get_student_type_display|default:"—" }}</span>
       </div>
       <div class="profile-info-row">
+        <span class="profile-info-label">Section</span>
+        <span class="profile-info-value">
+          {% if section_summary.home_section %}
+            {{ section_summary.home_section }}
+          {% elif section_summary.sections %}
+            {{ section_summary.sections|join:", " }}
+            <span class="text-muted" style="font-size: 0.72rem;">({{ section_summary.section_count }} sections)</span>
+          {% else %}
+            <span class="text-muted">Not yet enrolled</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="profile-info-row">
         <span class="profile-info-label">Member Since</span>
         <span class="profile-info-value">{{ profile.created_at|date:"M d, Y" }}</span>
       </div>

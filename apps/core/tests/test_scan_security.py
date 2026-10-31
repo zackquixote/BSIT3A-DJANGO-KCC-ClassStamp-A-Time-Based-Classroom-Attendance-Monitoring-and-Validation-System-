@@ -101,6 +101,14 @@ class ScanSecurityTests(TestCase):
             status=Enrollment.STATUS_ACTIVE,
         )
 
+        # Anti-replay / throttle coverage, not the class-window boundary: widen the
+        # close tolerance so the fixed 08:00-11:00 slots stay scannable all day.
+        window = mock.patch(
+            'apps.core.views.session_views.SCAN_CLOSE_TOLERANCE_MINUTES', 24 * 60,
+        )
+        window.start()
+        self.addCleanup(window.stop)
+
         self.client.force_login(self.teacher_user)
 
     def _scan(self, session, token=None, payload=None):

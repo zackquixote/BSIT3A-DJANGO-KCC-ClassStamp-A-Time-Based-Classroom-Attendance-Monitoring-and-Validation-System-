@@ -97,7 +97,12 @@
       <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
       <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
     </select>
-    {% if query or status_filter or program_filter or dept_filter %}
+    <select name="usage" class="form-control" style="width: 165px;"
+            title="Subjects with no class sections and no curriculum mapping">
+      <option value="">All Usage</option>
+      <option value="unused" {% if usage_filter == 'unused' %}selected{% endif %}>Unused only</option>
+    </select>
+    {% if query or status_filter or program_filter or dept_filter or usage_filter %}
     <a href="{% url 'subject_list' %}" class="btn btn-outline">Clear</a>
     {% endif %}
     <button type="submit" class="btn btn-primary">Filter</button>
@@ -120,18 +125,18 @@
     <table class="table" id="subjectTable">
       <thead>
         <tr>
-          <th style="width: 44px;">#</th>
-          <th>Code</th>
-          <th>Descriptive Title</th>
-          <th title="Credit units (1 unit = 1 class hour per week)">Units</th>
-          <th title="Active class sections this semester">Classes</th>
-          <th title="Teachers handling this subject in the active AY">
+          <th scope="col" style="width: 44px;">#</th>
+          <th scope="col">Code</th>
+          <th scope="col">Descriptive Title</th>
+          <th scope="col" title="Credit units (1 unit = 1 class hour per week)">Units</th>
+          <th scope="col" title="Active class sections this semester">Classes</th>
+          <th scope="col" title="Teachers handling this subject in the active AY">
             Handled By
             {% if active_ay %}<span class="text-muted text-xs font-normal">({{ active_ay.name }})</span>{% endif %}
           </th>
-          <th title="Curriculum program mappings">Curriculum</th>
-          <th>Status</th>
-          <th style="text-align: right; width: 120px;">Actions</th>
+          <th scope="col" title="Curriculum program mappings">Curriculum</th>
+          <th scope="col">Status</th>
+          <th scope="col" style="text-align: right; width: 120px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -186,12 +191,12 @@
           <td style="text-align: right; width: 120px; overflow: visible; position: relative;">
             <div class="flex justify-end items-center gap-1">
               <!-- Edit -->
-              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit Subject">
+              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit Subject" aria-label="Edit Subject">
                 <i class="fas fa-pen"></i>
               </button>
               <!-- More Actions Dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;" aria-label="More Actions">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

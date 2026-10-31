@@ -193,6 +193,13 @@ class ScanInsertConcurrencyTests(TestCase):
             status=Enrollment.STATUS_ACTIVE,
         )
 
+        # This case exercises the insert race, not the class-window boundary.
+        window = mock.patch(
+            'apps.core.views.session_views.SCAN_CLOSE_TOLERANCE_MINUTES', 24 * 60,
+        )
+        window.start()
+        self.addCleanup(window.stop)
+
         self.client.force_login(self.teacher_user)
 
     def test_lost_insert_race_returns_duplicate_not_server_error(self):

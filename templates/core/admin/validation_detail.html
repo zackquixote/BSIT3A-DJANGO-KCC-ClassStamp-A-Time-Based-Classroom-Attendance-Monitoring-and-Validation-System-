@@ -62,11 +62,11 @@
     <table class="table" style="background: rgba(15, 23, 42, 0.4); font-size: 0.82rem;">
       <thead>
         <tr>
-          <th>Matching Account</th>
-          <th>Student No.</th>
-          <th>Program</th>
-          <th>Status</th>
-          <th>Profile ID</th>
+          <th scope="col">Matching Account</th>
+          <th scope="col">Student No.</th>
+          <th scope="col">Program</th>
+          <th scope="col">Status</th>
+          <th scope="col">Profile ID</th>
         </tr>
       </thead>
       <tbody>
@@ -142,6 +142,24 @@
     </div>
     <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Rejected</span>
   </div>
+
+  <form method="POST" action="{% url 'validation_reopen' student_profile.student_number %}"
+        enctype="multipart/form-data"
+        style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(239, 68, 68, 0.25);">
+    {% csrf_token %}
+    <div class="text-xs text-muted mb-2">
+      Rejected students cannot sign in or register again. Take the corrected COR / school ID from the student,
+      attach it here, and send the registration back to the review queue.
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <label class="form-label" for="reopen-proof" style="margin: 0; font-size: 0.72rem;">Corrected document</label>
+      <input type="file" id="reopen-proof" name="registration_proof"
+             accept=".pdf,.jpg,.jpeg,.png,.webp" class="form-control text-xs" style="max-width: 300px;">
+      <button type="submit" class="btn btn-outline btn-sm" style="border-color: rgba(212, 175, 55, 0.45);">
+        <i class="fas fa-rotate-left"></i> Reopen for review
+      </button>
+    </div>
+  </form>
 </div>
 {% endif %}
 
@@ -476,7 +494,7 @@
             data-caption="ID Proof / COR: {{ student_profile.user.get_full_name|default:student_profile.student_number }} ({{ student_profile.student_number }})"
             style="display: block; width: 100%; height: 100%; cursor: zoom-in;"
             title="Click to inspect in fullscreen lightbox"
-          >
+           aria-label="Click to inspect in fullscreen lightbox">
             <img
               src="{% url 'registration_proof_document' student_profile.pk %}"
               alt="Attached School ID / COR Proof"

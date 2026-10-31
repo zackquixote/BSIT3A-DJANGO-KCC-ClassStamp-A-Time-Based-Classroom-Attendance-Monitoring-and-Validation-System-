@@ -16,7 +16,7 @@
 
 from django.db.models import Count, Q
 
-from apps.core.models import Class, ClassSlot, Profile
+from apps.core.models import Class, ClassSlot, Enrollment, Profile
 
 SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -106,7 +106,7 @@ def suggest_section_letter(*, academic_year, program, year_level):
     for letter in SECTION_LETTERS:
         candidate = f'{prefix}{letter}'
         if not Class.objects.filter(
-            academic_year=academic_year, class_code=candidate,
+            academic_year=academic_year, section_code=candidate,
         ).exists():
             return candidate
     raise ValueError(
@@ -159,3 +159,50 @@ def eligible_teachers_for(program):
         }
         for teacher in teachers
     ]
+
+def student_overlap_conflicts(student_profile, class_obj):
+    """
+    // [Service] Weekly slots where this student is already committed elsewhere.
+    //
+    // A student can only attend one class at a time. Enlisting them into a second
+    // section that meets during an existing one produces a clash that otherwise
+    // surfaces days later as a RULE_SCHEDULE_CONFLICT anomaly — after attendance
+    // has already been recorded for both.
+    //
+    // Returns a list of dicts:
+    //   {class_code, subject_code, weekday, starts_at, ends_at}
+    """
+    target_slots = [s for s in class_obj.slots.filter(is_active=True)]
+    if not target_slots:
+        return []
+
+    conflicts = []
+    enrollments = (
+        Enrollment.objects
+        .filter(
+            student_profile=student_profile,
+            status=Enrollment.STATUS_ACTIVE,
+            class_obj__academic_year=class_obj.academic_year,
+        )
+        .exclude(class_obj=class_obj)
+        .select_related('class_obj__subject')
+        .prefetch_related('class_obj__slots')
+    )
+
+    for enrollment in enrollments:
+        other = enrollment.class_obj
+        for existing in other.slots.all():
+            if not existing.is_active:
+                continue
+            for target in target_slots:
+                if existing.weekday != target.weekday:
+                    continue
+                if existing.starts_at < target.ends_at and target.starts_at < existing.ends_at:
+                    conflicts.append({
+                        'class_code': other.class_code,
+                        'subject_code': other.subject.code if other.subject_id else '\u2014',
+                        'weekday': existing.get_weekday_display(),
+                        'starts_at': existing.starts_at,
+                        'ends_at': existing.ends_at,
+                    })
+    return conflicts

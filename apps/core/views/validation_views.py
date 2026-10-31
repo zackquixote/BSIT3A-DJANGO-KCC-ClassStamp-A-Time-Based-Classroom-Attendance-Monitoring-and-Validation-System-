@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
@@ -26,6 +27,7 @@ from django.views.decorators.http import require_http_methods
 from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Department, Profile, Program
 from apps.core.serializers import serialize_student_detail
+from apps.core.validators import validate_uploaded_document
 from apps.core.services import (
     approve_student_registration,
     reject_student_registration,
@@ -392,6 +394,69 @@ def validation_dossier_json(request, profile_id):
         'detail_url': reverse('validation_detail', args=[profile.pk]),
     })
     return JsonResponse({'ok': True, 'dossier': dossier})
+
+
+# // ==============================================================================
+# // VIEW: Reopen a Rejected Registration (/validation/reopen/<student_number>/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def validation_reopen(request, student_number):
+    """
+    // [Admin Controller] Returns a rejected registration to the review queue.
+    //
+    // Without this, rejection is terminal: the student cannot sign in, and
+    // registering again collides with the student_number/username their old row
+    // still owns. The registrar takes the corrected COR in person and attaches it
+    // here, so the whole recovery happens on the admin side — no new auth surface.
+    """
+    profile = get_object_or_404(
+        Profile,
+        student_number=student_number,
+        role=Profile.ROLE_STUDENT,
+    )
+
+    if profile.approval_status != Profile.APPROVAL_REJECTED:
+        messages.error(request, 'Only a rejected registration can be reopened.')
+        return redirect('validation_detail', student_number=profile.student_number)
+
+    upload = request.FILES.get('registration_proof')
+    if upload is not None:
+        try:
+            validate_uploaded_document(upload)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return redirect('validation_detail', student_number=profile.student_number)
+
+    old_note = profile.approval_note or ''
+    reason = (request.POST.get('reason') or '').strip()
+
+    profile.approval_status = Profile.APPROVAL_PENDING
+    profile.approval_note = None
+    profile.approved_by = None
+    profile.approved_at = None
+    update_fields = ['approval_status', 'approval_note', 'approved_by', 'approved_at']
+    if upload is not None:
+        profile.registration_proof = upload
+        update_fields.append('registration_proof')
+    profile.save(update_fields=update_fields)
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='REOPEN_STUDENT_REGISTRATION',
+        object_type='Profile',
+        object_id=str(profile.pk),
+        old_value=f'REJECTED: {old_note[:200]}',
+        new_value='PENDING' + (' (document replaced)' if upload is not None else ''),
+        reason=reason or 'Reopened for corrected documents',
+    )
+
+    messages.success(
+        request,
+        f'{profile.student_number} is back in the validation queue.',
+    )
+    return redirect('validation_detail', student_number=profile.student_number)
 
 
 # // ==============================================================================

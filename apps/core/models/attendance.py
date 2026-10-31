@@ -173,6 +173,7 @@ class StampAttempt(models.Model):
     OUTCOME_DUPLICATE = 'DUPLICATE'
     OUTCOME_INELIGIBLE = 'INELIGIBLE'
     OUTCOME_SESSION_CLOSED = 'SESSION_CLOSED'
+    OUTCOME_WINDOW_CLOSED = 'WINDOW_CLOSED'
     OUTCOME_CHOICES = [
         (OUTCOME_ACCEPTED, 'Accepted'),
         (OUTCOME_INVALID, 'Invalid'),
@@ -180,6 +181,7 @@ class StampAttempt(models.Model):
         (OUTCOME_DUPLICATE, 'Duplicate'),
         (OUTCOME_INELIGIBLE, 'Ineligible'),
         (OUTCOME_SESSION_CLOSED, 'Session Closed'),
+        (OUTCOME_WINDOW_CLOSED, 'Class Window Closed'),
     ]
 
     session = models.ForeignKey(

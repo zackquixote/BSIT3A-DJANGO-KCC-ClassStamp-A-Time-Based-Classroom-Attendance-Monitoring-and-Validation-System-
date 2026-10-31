@@ -100,14 +100,14 @@
     <table class="table" id="progTable">
       <thead>
         <tr>
-          <th style="width: 50px;">#</th>
-          <th>Code</th>
-          <th>Program Title</th>
-          <th>Department</th>
-          <th>Duration</th>
-          <th>Students</th>
-          <th>Status</th>
-          <th style="text-align: right; width: 140px;">Actions</th>
+          <th scope="col" style="width: 50px;">#</th>
+          <th scope="col">Code</th>
+          <th scope="col">Program Title</th>
+          <th scope="col">Department</th>
+          <th scope="col">Duration</th>
+          <th scope="col">Students</th>
+          <th scope="col">Status</th>
+          <th scope="col" style="text-align: right; width: 140px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -130,6 +130,17 @@
             <span class="badge badge--muted">
               <i class="fas fa-calendar-days"></i> {{ p.years_total }} Year{{ p.years_total|pluralize }}
             </span>
+            <div class="text-xs" style="margin-top: 4px;">
+              {% if p.curriculum_count %}
+                <span class="text-muted" title="Subjects mapped in the curriculum matrix">
+                  <i class="fas fa-list-check"></i> {{ p.curriculum_count }} subject{{ p.curriculum_count|pluralize }}
+                </span>
+              {% else %}
+                <span style="color: var(--danger);" title="The Section Wizard draws subjects from the curriculum — this program cannot build a section yet">
+                  <i class="fas fa-triangle-exclamation"></i> Not configured
+                </span>
+              {% endif %}
+            </div>
           </td>
           <td>
             <div>
@@ -176,7 +187,7 @@
               <a href="{% url 'student_directory' %}?program={{ p.id }}"
                  class="btn btn-outline"
                  style="padding: 6px 10px;"
-                 title="View Students Roster ({{ p.code }})">
+                 title="View Students Roster ({{ p.code }})" aria-label="View Students Roster ({{ p.code }})">
                 <i class="fas fa-users-viewfinder text-primary"></i>
               </a>
               <button type="button"
@@ -190,7 +201,7 @@
                       data-name="{{ p.name }}"
                       data-years="{{ p.years_total }}"
                       data-active="{{ p.is_active|yesno:'true,false' }}"
-                      title="Edit Program">
+                      title="Edit Program" aria-label="Edit Program">
                 <i class="fas fa-pen-to-square"></i>
               </button>
               <button type="button"
@@ -199,7 +210,7 @@
                       data-program-id="{{ p.id }}"
                       data-program-code="{{ p.code }}"
                       data-curriculum-url="{% url 'program_curriculum_list' p.id %}"
-                      title="Curriculum Matrix (Year x Semester)">
+                      title="Curriculum Matrix (Year x Semester)" aria-label="Curriculum Matrix (Year x Semester)">
                 <i class="fas fa-table-cells text-gold"></i>
               </button>
               <button type="button"
@@ -209,7 +220,7 @@
                       data-id="{{ p.id }}"
                       data-code="{{ p.code }}"
                       data-students="{{ p.student_count }}"
-                      title="Delete or Deactivate">
+                      title="Delete or Deactivate" aria-label="Delete or Deactivate">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
@@ -345,7 +356,7 @@
         <p class="text-secondary">Are you sure you want to remove program <strong id="delete_prog_code" class="text-primary"></strong>?</p>
         <div id="delete_prog_warning" class="auth-alert auth-alert--warning mt-3" style="display: none;">
           <i class="fas fa-triangle-exclamation"></i>
-          <span>This program has student enrollments or curriculum bindings. It will be <strong>safely deactivated</strong> instead of deleted.</span>
+          <span>This program still has student enrollments, curriculum bindings, or class sections. It will be <strong>safely deactivated</strong> instead of deleted.</span>
         </div>
       </div>
       <div class="modal-footer">

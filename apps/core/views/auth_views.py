@@ -20,8 +20,17 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from apps.core.models import Department, Profile, Program
+from apps.core.models import AuditEvent, Department, Profile, Program
 from apps.core.services import provision_student_account
+from apps.core.services.two_factor_service import (
+    is_privileged,
+    new_secret,
+    provisioning_uri,
+    qr_data_uri,
+    two_factor_required,
+    verify_code,
+    verify_code_for_secret,
+)
 from apps.core.views.helpers import (
     INVALID_LOGIN_MESSAGE,
     LOCK_DURATION,
@@ -112,6 +121,17 @@ def login_view(request):
                     f'Your account registration was rejected by the Admin.{reason}'
                 )
                 return render(request, 'auth/login.html')
+
+        # // [Second Factor] A password alone must not mint an authenticated
+        # // session for a privileged account. Park the identity in the session and
+        # // hand off to the TOTP step; the failure counter is NOT reset until the
+        # // code is also accepted, so a stolen password still hits the lockout.
+        if two_factor_required(profile):
+            request.session.cycle_key()
+            request.session[PENDING_2FA_USER_KEY] = user.pk
+            request.session[PENDING_2FA_AT_KEY] = timezone.now().timestamp()
+            request.session[PENDING_2FA_ATTEMPTS_KEY] = 0
+            return redirect('two_factor_verify')
 
         # // [Success Route] Reset failed attempt trackers and rotate session key
         _reset_lock_state(request)
@@ -318,4 +338,176 @@ def admin_reset_user_password(request, user_id):
         'username': target_user.username,
         'full_name': target_user.get_full_name() or target_user.username,
     })
+
+
+# // ==============================================================================
+# // TWO-FACTOR AUTHENTICATION (ADMIN / REGISTRAR)
+# // ==============================================================================
+# // The password is factor one. For a privileged account with TOTP enrolled, the
+# // login view parks the identity in the session and sends the browser here;
+# // no authenticated session exists until the code is also accepted.
+PENDING_2FA_USER_KEY = 'pending_2fa_user_id'
+PENDING_2FA_AT_KEY = 'pending_2fa_at'
+PENDING_2FA_ATTEMPTS_KEY = 'pending_2fa_attempts'
+PENDING_2FA_SECRET_KEY = 'pending_2fa_secret'
+PENDING_2FA_TTL_SECONDS = 300
+MAX_2FA_ATTEMPTS = 5
+
+
+def _clear_pending_2fa(request):
+    """Drop every trace of an unfinished second-factor challenge."""
+    for key in (
+        PENDING_2FA_USER_KEY,
+        PENDING_2FA_AT_KEY,
+        PENDING_2FA_ATTEMPTS_KEY,
+        PENDING_2FA_SECRET_KEY,
+    ):
+        request.session.pop(key, None)
+
+
+@require_http_methods(['GET', 'POST'])
+def two_factor_verify(request):
+    """
+    // [Login Step 2] Authenticator challenge presented after a correct password.
+    // The challenge window is short (5 minutes) and the attempt budget is
+    // separate from the password lockout, so guessing codes cannot extend a
+    // hijacked session indefinitely.
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    user_id = request.session.get(PENDING_2FA_USER_KEY)
+    issued_at = request.session.get(PENDING_2FA_AT_KEY) or 0
+    if not user_id or (timezone.now().timestamp() - issued_at) > PENDING_2FA_TTL_SECONDS:
+        _clear_pending_2fa(request)
+        messages.error(request, 'Your verification window expired. Please sign in again.')
+        return redirect('login')
+
+    profile = Profile.objects.filter(user_id=user_id).select_related('user').first()
+    if profile is None or not two_factor_required(profile):
+        _clear_pending_2fa(request)
+        return redirect('login')
+
+    if request.method == 'GET':
+        return render(request, 'auth/two_factor_verify.html')
+
+    attempts = (request.session.get(PENDING_2FA_ATTEMPTS_KEY) or 0) + 1
+    request.session[PENDING_2FA_ATTEMPTS_KEY] = attempts
+
+    if attempts > MAX_2FA_ATTEMPTS:
+        AuditEvent.objects.create(
+            actor=profile.user,
+            action='TWO_FACTOR_LOCKED',
+            object_type='Profile',
+            object_id=str(profile.pk),
+            reason='Too many incorrect authenticator codes',
+        )
+        _clear_pending_2fa(request)
+        messages.error(request, 'Too many incorrect codes. Please sign in again.')
+        return redirect('login')
+
+    if not verify_code(profile, request.POST.get('code', '')):
+        AuditEvent.objects.create(
+            actor=profile.user,
+            action='TWO_FACTOR_FAILED',
+            object_type='Profile',
+            object_id=str(profile.pk),
+            reason=f'Incorrect authenticator code (attempt {attempts})',
+        )
+        messages.error(
+            request,
+            f'Invalid or expired code. {MAX_2FA_ATTEMPTS - attempts} attempt(s) left.',
+        )
+        return render(request, 'auth/two_factor_verify.html')
+
+    _clear_pending_2fa(request)
+    _reset_lock_state(request)
+    login(request, profile.user, backend='django.contrib.auth.backends.ModelBackend')
+    request.session.cycle_key()
+    AuditEvent.objects.create(
+        actor=profile.user,
+        action='TWO_FACTOR_SUCCESS',
+        object_type='Profile',
+        object_id=str(profile.pk),
+        reason='Signed in with password and authenticator code',
+    )
+    return redirect('dashboard')
+
+
+@login_required(login_url='login')
+@_role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['GET', 'POST'])
+def two_factor_setup(request):
+    """
+    // [Enrollment] Pairs an authenticator app with a privileged account.
+    // GET  -> render the QR + manual key for a not-yet-saved seed
+    // POST action=enable  -> confirm the first code, then persist the seed
+    // POST action=disable -> remove the factor (requires a current code)
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    if profile is None or not is_privileged(profile):
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        if action == 'disable':
+            if not verify_code(profile, request.POST.get('code', '')):
+                messages.error(
+                    request,
+                    'Enter a valid authenticator code before disabling two-factor authentication.',
+                )
+                return redirect('two_factor_setup')
+
+            profile.totp_enabled = False
+            profile.totp_secret = ''
+            profile.totp_confirmed_at = None
+            profile.save(update_fields=['totp_enabled', 'totp_secret', 'totp_confirmed_at'])
+            AuditEvent.objects.create(
+                actor=request.user,
+                action='TWO_FACTOR_DISABLED',
+                object_type='Profile',
+                object_id=str(profile.pk),
+                reason='Second factor removed by the account holder',
+            )
+            messages.success(request, 'Two-factor authentication has been disabled.')
+            return redirect('two_factor_setup')
+
+        pending_secret = request.session.get(PENDING_2FA_SECRET_KEY, '')
+        if not pending_secret or not verify_code_for_secret(pending_secret, request.POST.get('code', '')):
+            messages.error(
+                request,
+                'That code did not match. Scan the QR again and enter the current 6-digit code.',
+            )
+            return redirect('two_factor_setup')
+
+        profile.totp_secret = pending_secret
+        profile.totp_enabled = True
+        profile.totp_confirmed_at = timezone.now()
+        profile.save(update_fields=['totp_secret', 'totp_enabled', 'totp_confirmed_at'])
+        request.session.pop(PENDING_2FA_SECRET_KEY, None)
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='TWO_FACTOR_ENABLED',
+            object_type='Profile',
+            object_id=str(profile.pk),
+            reason='Authenticator app paired successfully',
+        )
+        messages.success(request, 'Two-factor authentication is now active for this account.')
+        return redirect('two_factor_setup')
+
+    context = {'profile': profile, 'enabled': profile.totp_enabled}
+    if not profile.totp_enabled:
+        secret = request.session.get(PENDING_2FA_SECRET_KEY)
+        if not secret:
+            secret = new_secret()
+            request.session[PENDING_2FA_SECRET_KEY] = secret
+        uri = provisioning_uri(profile, secret)
+        context.update({
+            'secret': secret,
+            'otpauth_uri': uri,
+            'qr_data_uri': qr_data_uri(uri),
+        })
+
+    return render(request, 'auth/two_factor_setup.html', context)
 

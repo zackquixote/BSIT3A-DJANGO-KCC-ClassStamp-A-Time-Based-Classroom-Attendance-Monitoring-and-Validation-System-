@@ -56,6 +56,7 @@ from apps.core.services.anomaly_service import (
     detect_token_bruteforce,
     detect_token_replay,
 )
+from apps.core.services.attendance_policy import policy_value
 from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.services.export_service import SafeCsvWriter, safe_spreadsheet_cell
 from apps.core.services.qr_service import token_details, verify_token
@@ -94,6 +95,11 @@ SCAN_RATE_LIMIT_PER_IP = 120
 # A consumed token stays unavailable long enough to cover the 30s TOTP interval
 # plus the +/-1 window tolerance used by verification.
 SCAN_TOKEN_TTL_SECONDS = 120
+# A scan landing after the scheduled end of class plus this tolerance is refused
+# outright instead of being recorded as LATE. The attendance window is the claim
+# this system makes: a stamp three hours after class ended is an error, not a
+# status. Teacher manual override stays available and is audited.
+SCAN_CLOSE_TOLERANCE_MINUTES = 15
 
 
 def _client_ip(request):
@@ -713,6 +719,27 @@ def attendance_scan_api(request):
     # 7. Time Window & Grace Period Determination
     now, final_status, late_minutes = _grace_status(session, class_obj)
 
+    # 7b. Hard window enforcement: an open session does not license stamps for
+    #     ever. Once the scheduled class window has closed, the scan is refused
+    #     and logged as WINDOW_CLOSED. Attendance for such a session can still be
+    #     corrected by the instructor through the audited manual override.
+    if _scan_window_closed(session, now=now):
+        StampAttempt.objects.create(
+            session=session,
+            student_profile=student_profile,
+            scanned_by=request.user,
+            method=StampAttempt.METHOD_QR,
+            outcome=StampAttempt.OUTCOME_WINDOW_CLOSED,
+            token_bucket=token_bucket,
+            token_age_s=token_age_s,
+        )
+        return JsonResponse({
+            'error': 'The class attendance window has already closed for this session. '
+                     'Ask your instructor to record the attendance manually.',
+            'outcome': StampAttempt.OUTCOME_WINDOW_CLOSED,
+            'class_ends_at': session.slot.ends_at.strftime('%I:%M %p'),
+        }, status=400)
+
     # 8. Atomic Record Persistence
     #    get_or_create closes the check-then-create race: two terminals (or a
     #    student who refreshed their badge mid-flight) can clear the duplicate
@@ -774,6 +801,23 @@ def _grace_status(session, class_obj):
 
     diff = now - grace_cutoff_dt
     return now, AttendanceRecord.STATUS_LATE, max(1, int(diff.total_seconds() // 60))
+
+
+def _scan_window_closed(session, now=None):
+    """
+    // True once the scheduled class window has ended (plus a short tolerance).
+    // This is the upper bound of the attendance window: without it an OPEN session
+    // accepts stamps indefinitely and records hours-late arrivals as LATE.
+    """
+    now = now or timezone.now()
+    slot = session.slot
+    scheduled_end_dt = timezone.make_aware(
+        datetime.combine(session.session_date, slot.ends_at)
+    )
+    tolerance = policy_value(
+        'scan_close_tolerance_minutes', SCAN_CLOSE_TOLERANCE_MINUTES
+    )
+    return now > scheduled_end_dt + timedelta(minutes=int(tolerance))
 
 
 def _scan_success_response(session, class_obj, student_profile, final_status, late_minutes, now):
@@ -1055,6 +1099,89 @@ def teacher_manual_override_ajax(request, session_id):
 # // ==============================================================================
 # // CONTROLLER: Conclude / Close Attendance Session
 # // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+@require_POST
+def teacher_session_bulk_mark(request, session_id):
+    """
+    // [AJAX Mutation] Marks every enrolled student who has no record yet with a
+    // single status. Scanning 40 badges is the happy path; this is the "camera
+    // died" path, and it leaves the same audit trail as a manual stamp.
+    """
+    session = get_object_or_404(
+        ClassSession.objects.select_related('slot', 'slot__class_obj', 'slot__class_obj__subject'),
+        pk=session_id,
+    )
+    class_obj = session.slot.class_obj
+
+    if not _teacher_can_manage(request, class_obj):
+        return JsonResponse({
+            'ok': False, 'error': 'You are not authorized to manage this class section.'
+        }, status=403)
+
+    if session.status != ClassSession.STATUS_OPEN:
+        return JsonResponse({'ok': False, 'error': 'This session is not open.'}, status=400)
+
+    status = (request.POST.get('status') or AttendanceRecord.STATUS_PRESENT).strip().upper()
+    if status not in (
+        AttendanceRecord.STATUS_PRESENT,
+        AttendanceRecord.STATUS_LATE,
+        AttendanceRecord.STATUS_EXCUSED,
+    ):
+        return JsonResponse({'ok': False, 'error': 'Unsupported bulk status.'}, status=400)
+
+    reason = (request.POST.get('reason') or '').strip() or (
+        'Bulk marked by the instructor from the scanner'
+    )
+
+    enrolled_ids = Enrollment.objects.filter(
+        class_obj=class_obj, status=Enrollment.STATUS_ACTIVE,
+    ).values_list('student_profile_id', flat=True)
+    stamped_ids = set(
+        session.attendance_records.values_list('student_profile_id', flat=True)
+    )
+    missing = [pid for pid in enrolled_ids if pid not in stamped_ids]
+
+    now = timezone.now()
+    late_minutes = 0
+    if status == AttendanceRecord.STATUS_LATE:
+        cutoff = timezone.make_aware(
+            datetime.combine(session.session_date, session.slot.starts_at)
+        ) + timedelta(minutes=class_obj.grace_minutes)
+        if now > cutoff:
+            late_minutes = max(1, int((now - cutoff).total_seconds() // 60))
+
+    with transaction.atomic():
+        AttendanceRecord.objects.bulk_create(
+            [
+                AttendanceRecord(
+                    session=session,
+                    student_profile_id=profile_id,
+                    status=status,
+                    method=AttendanceRecord.METHOD_MANUAL,
+                    stamped_at=now,
+                    late_minutes=late_minutes,
+                    marked_by=request.user,
+                    correction_reason=reason,
+                )
+                for profile_id in missing
+            ],
+            # A scan landing at the same instant must win, not raise.
+            ignore_conflicts=True,
+        )
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='BULK_MARK_ATTENDANCE',
+        object_type='ClassSession',
+        object_id=str(session.pk),
+        new_value=f'{len(missing)} student(s) marked {status} in {class_obj.class_code}',
+        reason=reason,
+    )
+
+    return JsonResponse({'ok': True, 'marked': len(missing), 'status': status})
+
+
 @login_required(login_url='login')
 @role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
 @require_POST

@@ -187,6 +187,22 @@ class Profile(models.Model):
         help_text="// Timestamp when student's QR secret was last cycled"
     )
 
+    # // [Second Factor] TOTP authenticator for ADMIN / registrar accounts.
+    # // Deliberately separate from qr_secret: that one identifies a student to a
+    # // classroom scanner, this one proves an administrator to the login form.
+    totp_secret = models.CharField(
+        max_length=32, blank=True, default='',
+        help_text="// Base32 TOTP seed for two-factor authentication"
+    )
+    totp_enabled = models.BooleanField(
+        default=False,
+        help_text="// True once the account holder has confirmed an authenticator code"
+    )
+    totp_confirmed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="// Timestamp when two-factor authentication was last enrolled"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

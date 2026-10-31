@@ -8,7 +8,7 @@
 <div class="page-header mb-4">
   <div>
     <div class="flex items-center gap-2 mb-1">
-      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Dashboard">
+      <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Dashboard" aria-label="Back to Dashboard">
         <i class="fas fa-arrow-left"></i>
       </a>
       <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
@@ -251,6 +251,12 @@
           <option value="ABSENT">Absent</option>
           <option value="EXCUSED">Excused</option>
         </select>
+        <button type="button" id="bulkMarkPresentBtn" class="btn btn-outline btn-xs"
+                style="height: 32px; padding: 4px 10px; font-size: 0.72rem;"
+                title="Mark every un-scanned enrolled student as present"
+                aria-label="Mark remaining students present">
+          <i class="fas fa-check-double"></i> Mark remaining
+        </button>
         <div style="display: flex; border: 1px solid var(--glass-border); border-radius: 6px; overflow: hidden;" title="Roster view mode">
           <button type="button" id="viewListBtn" class="btn btn-outline" style="border: none; padding: 4px 10px; height: 32px; font-size: 0.75rem; background: rgba(245, 158, 11, 0.15);">
             <i class="fas fa-list"></i>
@@ -266,10 +272,10 @@
         <table class="table" style="margin-bottom: 0;">
           <thead>
             <tr>
-              <th>Student</th>
-              <th>Program</th>
-              <th>Status</th>
-              <th style="text-align: right; width: 60px;">Override</th>
+              <th scope="col">Student</th>
+              <th scope="col">Program</th>
+              <th scope="col">Status</th>
+              <th scope="col" style="text-align: right; width: 60px;">Override</th>
             </tr>
           </thead>
           <tbody id="rosterTbody">
@@ -320,7 +326,7 @@
                         class="btn btn-outline"
                         style="padding: 4px 7px; font-size: 0.7rem;"
                         onclick="openOverrideModal('{{ s.student_id }}', '{{ s.full_name|escapejs }}', '{{ s.student_number|escapejs }}', '{{ s.status }}')"
-                        title="Manual Status Override">
+                        title="Manual Status Override" aria-label="Manual Status Override">
                   <i class="fas fa-pen text-gold"></i>
                 </button>
               </td>
@@ -542,4 +548,40 @@
   object-fit: cover !important;
 }
 </style>
+<script>
+(function () {
+  var btn = document.getElementById('bulkMarkPresentBtn');
+  if (!btn) { return; }
+
+  btn.addEventListener('click', function () {
+    if (!window.confirm('Mark every enrolled student without a stamp as PRESENT?')) { return; }
+    btn.disabled = true;
+
+    var body = new FormData();
+    body.append('status', 'PRESENT');
+    body.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch("{% url 'teacher_session_bulk_mark' session.id %}", {
+      method: 'POST',
+      body: body,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (response) {
+        return response.json().then(function (data) { return { ok: response.ok, data: data }; });
+      })
+      .then(function (result) {
+        if (!result.ok || !result.data.ok) {
+          window.alert(result.data.error || 'Bulk mark failed.');
+          btn.disabled = false;
+          return;
+        }
+        window.location.reload();
+      })
+      .catch(function (error) {
+        window.alert('Bulk mark failed: ' + error.message);
+        btn.disabled = false;
+      });
+  });
+})();
+</script>
 {% endblock %}

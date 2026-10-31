@@ -15,6 +15,7 @@
 """
 
 from .academic_service import (
+    TermSwitchBlocked,
     create_or_update_department,
     delete_or_deactivate_department,
     create_or_update_program,
@@ -66,6 +67,7 @@ from .holiday_service import (
 
 from .schedule_service import (
     detect_slot_conflicts,
+    student_overlap_conflicts,
     eligible_teachers_for,
     suggest_section_letter,
     validate_slot_times,
@@ -142,6 +144,7 @@ __all__ = [
     'seed_philippine_holidays',
     # Schedule & Timetable (A-19)
     'detect_slot_conflicts',
+    'student_overlap_conflicts',
     'eligible_teachers_for',
     'suggest_section_letter',
     'validate_slot_times',

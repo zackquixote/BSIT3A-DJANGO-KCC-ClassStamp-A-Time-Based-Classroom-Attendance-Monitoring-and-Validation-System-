@@ -145,7 +145,7 @@
           <i class="fas fa-filter"></i> Apply
         </button>
         {% if selected_department or selected_program or query %}
-          <a href="{% url 'validation_hub' %}?tab=pending" class="btn btn-outline" title="Reset filter">
+          <a href="{% url 'validation_hub' %}?tab=pending" class="btn btn-outline" title="Reset filter" aria-label="Reset filter">
             <i class="fas fa-rotate-left"></i>
           </a>
         {% endif %}
@@ -167,12 +167,12 @@
         <table class="table">
           <thead>
             <tr>
-              <th>Student Name</th>
-              <th>Student No.</th>
-              <th>Department</th>
-              <th>Program &amp; Year</th>
-              <th>Registered</th>
-              <th style="text-align: right; width: 310px;">Decision &amp; Review</th>
+              <th scope="col">Student Name</th>
+              <th scope="col">Student No.</th>
+              <th scope="col">Department</th>
+              <th scope="col">Program &amp; Year</th>
+              <th scope="col">Registered</th>
+              <th scope="col" style="text-align: right; width: 310px;">Decision &amp; Review</th>
             </tr>
           </thead>
           <tbody>
@@ -313,13 +313,13 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Student Name</th>
-            <th>Student No.</th>
-            <th>Department / Program</th>
-            <th>Decision</th>
-            <th>Reviewed By</th>
-            <th>Reviewed At</th>
-            <th style="text-align: right; width: 110px;">Dossier</th>
+            <th scope="col">Student Name</th>
+            <th scope="col">Student No.</th>
+            <th scope="col">Department / Program</th>
+            <th scope="col">Decision</th>
+            <th scope="col">Reviewed By</th>
+            <th scope="col">Reviewed At</th>
+            <th scope="col" style="text-align: right; width: 110px;">Dossier</th>
           </tr>
         </thead>
         <tbody>

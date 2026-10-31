@@ -27,6 +27,7 @@ from apps.core.models import (
     AcademicYear,
     AuditEvent,
     Class,
+    ClassSession,
     ClassSlot,
     Curriculum,
     Department,
@@ -40,10 +41,12 @@ from apps.core.services import (
     assign_class,
     detect_slot_conflicts,
     eligible_teachers_for,
+    student_overlap_conflicts,
     suggest_section_letter,
     validate_slot_times,
 )
 from apps.core.services.attendance_service import build_attendance_matrix
+from apps.core.models.classroom import derive_section_code
 from apps.core.services.export_service import SafeCsvWriter
 
 
@@ -193,6 +196,22 @@ def class_save(request):
 
     class_obj = get_object_or_404(Class, pk=class_id)
 
+    # Attendance hangs off ClassSession -> ClassSlot -> Class. Changing the subject
+    # or the academic year therefore re-labels every recorded meeting, so those two
+    # fields are frozen once sessions exist. Teacher, capacity and grace stay editable.
+    session_count = ClassSession.objects.filter(slot__class_obj=class_obj).count()
+    if session_count and (
+        class_obj.subject_id != subject.pk
+        or class_obj.academic_year_id != academic_year.pk
+    ):
+        messages.error(
+            request,
+            f"'{class_obj.class_code}' already has {session_count} recorded session(s). "
+            f"Its subject and academic year cannot be changed without re-labelling "
+            f"that attendance history. Create a new section for the different offering.",
+        )
+        return redirect('class_list')
+
     try:
         result = assign_class(
             actor=request.user,
@@ -228,8 +247,34 @@ def class_save(request):
 def class_toggle(request, pk):
     """
     // Toggles the is_active status of a class.
+    //
+    // Deactivation is refused while an attendance session is still open: the
+    // scanner keeps accepting stamps for a class the admin believes is retired,
+    // because the scan API never consults Class.is_active.
     """
     class_obj = get_object_or_404(Class, pk=pk)
+
+    if class_obj.is_active:
+        open_sessions = ClassSession.objects.filter(
+            slot__class_obj=class_obj,
+            status=ClassSession.STATUS_OPEN,
+        ).count()
+        if open_sessions:
+            AuditEvent.objects.create(
+                actor=request.user,
+                action='BLOCKED_CLASS_DEACTIVATION',
+                object_type='Class',
+                object_id=str(class_obj.id),
+                new_value='blocked',
+                reason=f'{open_sessions} open attendance session(s) must be closed first',
+            )
+            messages.error(
+                request,
+                f"'{class_obj.class_code}' still has {open_sessions} open attendance "
+                f"session(s). Close them before deactivating the class.",
+            )
+            return redirect('class_list')
+
     class_obj.is_active = not class_obj.is_active
     class_obj.save(update_fields=['is_active', 'updated_at'])
 
@@ -492,6 +537,20 @@ def class_roster_enroll(request, class_id):
         approval_status=Profile.APPROVAL_APPROVED,
     )
 
+    # One room, one chair: a student cannot be in two overlapping sections.
+    clashes = student_overlap_conflicts(student, class_obj)
+    if clashes:
+        first = clashes[0]
+        return JsonResponse({
+            'success': False,
+            'message': (
+                f'{student.student_number or student.user.get_username()} is already in '
+                f'{first["class_code"]} ({first["subject_code"]}) on {first["weekday"]} '
+                f'{first["starts_at"]:%H:%M}\u2013{first["ends_at"]:%H:%M}, which overlaps '
+                f'this section. Withdraw that enrollment first.'
+            ),
+        }, status=400)
+
     # Check capacity limit
     current_enrolled = Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE).count()
     if class_obj.capacity and current_enrolled >= class_obj.capacity:
@@ -571,6 +630,7 @@ def class_roster_enroll_batch(request, class_id):
 
     enrolled = 0
     skipped_full = False
+    skipped_conflicts = 0
     with transaction.atomic():
         for student in candidates.iterator():
             current_enrolled = Enrollment.objects.filter(
@@ -579,6 +639,12 @@ def class_roster_enroll_batch(request, class_id):
             if class_obj.capacity and current_enrolled >= class_obj.capacity:
                 skipped_full = True
                 break
+
+            # Single enlistment already refuses a timetable clash; the batch path
+            # must not be the back door that lets one through.
+            if student_overlap_conflicts(student, class_obj):
+                skipped_conflicts += 1
+                continue
 
             enrollment, created = Enrollment.objects.get_or_create(
                 class_obj=class_obj,
@@ -608,6 +674,11 @@ def class_roster_enroll_batch(request, class_id):
             enrolled += 1
 
     message = f'Enlisted {enrolled} student(s) into {class_obj.class_code}.'
+    if skipped_conflicts:
+        message += (
+            f' Skipped {skipped_conflicts} student(s) whose existing sections '
+            f'overlap this timetable.'
+        )
     if skipped_full:
         message += f' Stopped early: the section reached its capacity of {class_obj.capacity}.'
     elif class_obj.capacity and Enrollment.objects.filter(
@@ -808,6 +879,28 @@ def class_wizard_options(request):
                 class_code__istartswith=f"{program.code}-{year_level}",
             ).values_list('class_code', flat=True).distinct().order_by('class_code')
         )
+        # Grouped view of the same rows: a registrar thinks in sections, not in
+        # one class_code per subject. Subjects are listed per section so the
+        # "this section already has IT311" fact is visible before step 3.
+        section_map = {}
+        for row in (
+            Class.objects.filter(
+                academic_year=academic_year,
+                class_code__istartswith=f"{program.code}-{year_level}",
+            )
+            .values('class_code', 'section_code', 'subject__code')
+            .order_by('class_code')
+        ):
+            key = row['section_code'] or derive_section_code(row['class_code'])
+            section_map.setdefault(key, set()).add(row['subject__code'] or '—')
+        existing_sections = [
+            {
+                'section_code': section,
+                'subjects': sorted(subjects),
+                'subject_count': len(subjects),
+            }
+            for section, subjects in sorted(section_map.items())
+        ]
     except ValueError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
 
@@ -818,6 +911,65 @@ def class_wizard_options(request):
         'teachers': teachers,
         'suggested_code': suggested_code,
         'existing_codes': existing_codes,
+        'existing_sections': existing_sections,
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_GET
+def class_wizard_code_check(request):
+    """
+    // [AJAX Read] Is this section code free in the chosen term?
+    // The wizard writes the typed value straight into Class.class_code, which is
+    // unique per academic year. Catching the collision at step 3 beats finding
+    // out at step 5, after the weekly schedule has already been built.
+    """
+    code = (request.GET.get('code') or '').strip().upper()
+    ay_id = (request.GET.get('ay') or '').strip()
+    subject_code = (request.GET.get('subject') or '').strip().upper()
+
+    if not code:
+        return JsonResponse(
+            {'available': False, 'code': code, 'message': 'Section code is required.'},
+            status=400,
+        )
+
+    classes = Class.objects.all()
+    if ay_id.isdigit():
+        classes = classes.filter(academic_year_id=int(ay_id))
+
+    clash = (
+        classes.filter(class_code__iexact=code)
+        .values('class_code', 'subject__code', 'section_code')
+        .first()
+    )
+    if clash is None:
+        return JsonResponse({
+            'available': True, 'code': code, 'suggestion': '', 'message': '',
+        })
+
+    # Offer the conventional section+subject form so the registrar can fix it in
+    # one click instead of guessing why the code is refused.
+    suggestion = ''
+    if subject_code:
+        candidate = f'{derive_section_code(code)}-{subject_code}'
+        if not classes.filter(class_code__iexact=candidate).exists():
+            suggestion = candidate
+
+    return JsonResponse({
+        'available': False,
+        'code': code,
+        'clash': {
+            'class_code': clash['class_code'],
+            'subject': clash['subject__code'] or '—',
+            'section_code': clash['section_code'] or '',
+        },
+        'suggestion': suggestion,
+        'message': (
+            f'{code} is already used by '
+            f'{clash["subject__code"] or "another subject"} in this term.'
+        ),
     })
 
 

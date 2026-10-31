@@ -647,7 +647,7 @@
       <button type="submit" class="btn btn-primary" title="Apply Filters">
         <i class="fas fa-filter"></i> Apply
       </button>
-      <a href="{% url 'student_directory' %}" class="btn btn-outline" title="Reset all filters">
+      <a href="{% url 'student_directory' %}" class="btn btn-outline" title="Reset all filters" aria-label="Reset all filters">
         <i class="fas fa-rotate-left"></i>
       </a>
     </div>
@@ -699,14 +699,14 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Student Information</th>
-          <th style="white-space: nowrap;">Student ID</th>
-          <th>Department</th>
-          <th>Course / Program</th>
-          <th>Year</th>
-          <th>Sections</th>
-          <th>Status</th>
-          <th class="text-right action-col" style="white-space: nowrap;">Actions</th>
+          <th scope="col">Student Information</th>
+          <th scope="col" style="white-space: nowrap;">Student ID</th>
+          <th scope="col">Department</th>
+          <th scope="col">Course / Program</th>
+          <th scope="col">Year</th>
+          <th scope="col">Sections</th>
+          <th scope="col">Status</th>
+          <th scope="col" class="text-right action-col" style="white-space: nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -774,8 +774,8 @@
           <td>
             {% if student.active_section_enrollments or student.pending_section_enrollments %}
               {% for e in student.active_section_enrollments %}
-                <a class="section-tag" href="?section={{ e.class_obj.class_code|urlencode }}"
-                   title="View classmates in {{ e.class_obj.class_code }} — {{ e.class_obj.subject.name }}">
+                <a class="section-tag" href="?section={{ e.class_obj.section_code|default:e.class_obj.class_code|urlencode }}"
+                   title="View all students in section {{ e.class_obj.section_code|default:e.class_obj.class_code }}">
                   {{ e.class_obj.class_code }}
                 </a>
               {% endfor %}
@@ -823,10 +823,10 @@
               <button type="button" class="btn btn-outline btn-sm js-qr-reset"
                       data-student-id="{{ student.id }}"
                       data-student-number="{{ student.student_number|default:''|escapejs }}"
-                      title="Rotate TOTP QR secret (invalidates current badge)">
+                      title="Rotate TOTP QR secret (invalidates current badge)" aria-label="Rotate TOTP QR secret (invalidates current badge)">
                 <i class="fas fa-shield-halved text-danger"></i>
               </button>
-              <button type="button" class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password">
+              <button type="button" class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password" aria-label="Reset Password">
                 <i class="fas fa-key text-warning"></i>
               </button>
             </div>

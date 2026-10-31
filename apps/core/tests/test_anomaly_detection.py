@@ -38,6 +38,7 @@ from apps.core.models import (
     Profile,
     Program,
     ReviewAction,
+    StampAttempt,
     Subject,
 )
 from apps.core.services.anomaly_service import (
@@ -48,6 +49,7 @@ from apps.core.services.anomaly_service import (
     RULE_STAMP_BEFORE_CLASS_START,
     RULE_TOKEN_BRUTE_FORCE,
     RULE_TOKEN_REPLAY_ACROSS_SESSION,
+    detect_off_window,
     raise_flag,
 )
 from apps.core.services.qr_service import build_payload, current_token
@@ -103,6 +105,14 @@ class AnomalyDetectionTests(TestCase):
         )
 
         self.student_profile = self._make_student(0)
+
+        # Detector-rule coverage only: widen the close tolerance so the fixed
+        # 08:00-11:00 slots stay scannable regardless of the hour the suite runs.
+        window = mock.patch(
+            'apps.core.views.session_views.SCAN_CLOSE_TOLERANCE_MINUTES', 24 * 60,
+        )
+        window.start()
+        self.addCleanup(window.stop)
 
         self.client.force_login(self.teacher_user)
 
@@ -170,13 +180,38 @@ class AnomalyDetectionTests(TestCase):
         self.assertEqual(flag.session, self.session_one)
         self.assertEqual(flag.student_profile, self.student_profile)
 
-    def test_stamp_after_class_end_is_flagged(self):
+    def test_stamp_after_class_end_is_refused(self):
+        # The hard window refuses the scan before any record exists. The detector
+        # test below still covers records created outside the scan path.
         today = timezone.localdate()
         fixed_now = timezone.make_aware(datetime.combine(today, time(12, 0)))
-        with mock.patch('apps.core.views.session_views.timezone.now', return_value=fixed_now):
+        with mock.patch(
+            'apps.core.views.session_views.SCAN_CLOSE_TOLERANCE_MINUTES', 0
+        ), mock.patch(
+            'apps.core.views.session_views.timezone.now', return_value=fixed_now
+        ):
             response = self._scan(self.session_one)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['outcome'], StampAttempt.OUTCOME_WINDOW_CLOSED)
+        self.assertFalse(AttendanceRecord.objects.filter(session=self.session_one).exists())
+
+    def test_off_window_detector_flags_records_created_outside_the_scan_path(self):
+        # Manual overrides and imports never pass through the scan window, so the
+        # AFTER_CLASS_END rule remains their safety net.
+        today = timezone.localdate()
+        fixed_now = timezone.make_aware(datetime.combine(today, time(12, 0)))
+        record = AttendanceRecord.objects.create(
+            session=self.session_one,
+            student_profile=self.student_profile,
+            status=AttendanceRecord.STATUS_LATE,
+            method=AttendanceRecord.METHOD_MANUAL,
+            stamped_at=fixed_now,
+            marked_by=self.teacher_user,
+        )
+
+        detect_off_window(record, self.session_one, now=fixed_now)
+
         AnomalyFlag.objects.get(rule_code=RULE_STAMP_AFTER_CLASS_END)
 
     def test_stamp_before_class_start_is_flagged(self):

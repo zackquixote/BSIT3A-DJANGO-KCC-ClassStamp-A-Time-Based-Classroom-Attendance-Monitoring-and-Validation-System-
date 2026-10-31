@@ -6,7 +6,7 @@
 <div class="page-header mb-4">
   <div>
     <div class="flex items-center gap-2 mb-1">
-      <a href="{% url 'teacher_session_history' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Session History">
+      <a href="{% url 'teacher_session_history' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Session History" aria-label="Back to Session History">
         <i class="fas fa-arrow-left"></i>
       </a>
       <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
@@ -96,20 +96,20 @@
     <table class="table" style="white-space: nowrap;">
       <thead>
         <tr>
-          <th style="position: sticky; left: 0; background: var(--bg-surface, #121827); z-index: 1;">Student</th>
-          <th>Program</th>
+          <th scope="col" style="position: sticky; left: 0; background: var(--bg-surface, #121827); z-index: 1;">Student</th>
+          <th scope="col">Program</th>
           {% for s in session_list %}
-            <th style="text-align: center; min-width: 64px;" title="{{ s.status }} • {{ s.room }}">
+            <th scope="col" style="text-align: center; min-width: 64px;" title="{{ s.status }} • {{ s.room }}">
               <a href="{% url 'teacher_session_summary' s.id %}" class="text-primary" style="text-decoration: none;">
                 {{ s.display_date }}<br><span class="text-muted" style="font-size: 0.68rem;">{{ s.weekday }}</span>
               </a>
             </th>
           {% endfor %}
-          <th style="text-align: center;">P</th>
-          <th style="text-align: center;">L</th>
-          <th style="text-align: center;">A</th>
-          <th style="text-align: center;">E</th>
-          <th style="text-align: center;">Rate</th>
+          <th scope="col" style="text-align: center;">P</th>
+          <th scope="col" style="text-align: center;">L</th>
+          <th scope="col" style="text-align: center;">A</th>
+          <th scope="col" style="text-align: center;">E</th>
+          <th scope="col" style="text-align: center;">Rate</th>
         </tr>
       </thead>
       <tbody>

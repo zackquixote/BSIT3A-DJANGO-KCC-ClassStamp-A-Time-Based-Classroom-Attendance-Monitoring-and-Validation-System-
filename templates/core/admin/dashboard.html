@@ -405,7 +405,18 @@
   </a>
 </div>
 
-
+{% if unassigned_count %}
+<div class="card mb-3" style="padding: 12px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-color: rgba(245, 158, 11, 0.35);">
+  <i class="fas fa-user-clock" style="color: var(--accent-gold);"></i>
+  <span class="text-sm">
+    <strong>{{ unassigned_count }}</strong> approved student{{ unassigned_count|pluralize }} not enrolled in any section yet —
+    their badges scan as <code>INELIGIBLE</code> until they are enlisted.
+  </span>
+  <a class="btn btn-outline btn-sm" style="margin-left: auto;" href="{% url 'student_directory' %}?section=__unassigned__">
+    <i class="fas fa-arrow-right"></i> Review
+  </a>
+</div>
+{% endif %}
 
 <!-- ── Interactive Attendance Analytics (Chart.js) ───────────── -->
 

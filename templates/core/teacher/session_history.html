@@ -80,13 +80,13 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Meeting Date &amp; Time</th>
-          <th>Class Section</th>
-          <th>Subject</th>
-          <th>Attendance Breakdown</th>
-          <th>Compliance</th>
-          <th>Status</th>
-          <th style="text-align: right; width: 190px;">Actions</th>
+          <th scope="col">Meeting Date &amp; Time</th>
+          <th scope="col">Class Section</th>
+          <th scope="col">Subject</th>
+          <th scope="col">Attendance Breakdown</th>
+          <th scope="col">Compliance</th>
+          <th scope="col">Status</th>
+          <th scope="col" style="text-align: right; width: 190px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -152,7 +152,7 @@
               <a href="{% url 'teacher_session_summary' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="View official roll">
                 <i class="fas fa-file-invoice text-gold"></i> View
               </a>
-              <a href="{% url 'teacher_session_export' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="Export roll as CSV">
+              <a href="{% url 'teacher_session_export' s.id %}" class="btn btn-outline btn-sm" style="padding: 5px 10px;" title="Export roll as CSV" aria-label="Export roll as CSV">
                 <i class="fas fa-file-csv"></i>
               </a>
             </div>

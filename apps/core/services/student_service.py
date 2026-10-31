@@ -116,10 +116,15 @@ def build_student_queryset(filters: dict):
             qs = qs.filter(
                 enrollments__status=Enrollment.STATUS_ACTIVE,
                 enrollments__class_obj__academic_year=active_ay,
-                enrollments__class_obj__class_code__icontains=section,
+            ).filter(
+                Q(enrollments__class_obj__section_code__iexact=section)
+                | Q(enrollments__class_obj__class_code__iexact=section)
             ).distinct()
         else:
-            qs = qs.filter(enrollments__class_obj__class_code__icontains=section).distinct()
+            qs = qs.filter(
+                Q(enrollments__class_obj__section_code__iexact=section)
+                | Q(enrollments__class_obj__class_code__iexact=section)
+            ).distinct()
 
     if q:
         qs = qs.filter(

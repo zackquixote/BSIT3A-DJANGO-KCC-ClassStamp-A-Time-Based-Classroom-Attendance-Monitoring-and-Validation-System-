@@ -1,0 +1,123 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Two-Factor Verification — KCC ClassStamp</title>
+  {% include "theme/favicons.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <style>
+    body.kcc-2fa-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(212, 175, 55, 0.10), transparent 45%),
+        radial-gradient(circle at 85% 100%, rgba(56, 189, 248, 0.10), transparent 45%),
+        var(--bg-base, #070b12);
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text-primary, #e8eef7);
+    }
+    .kcc-2fa-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 34px 30px 28px;
+      border-radius: 20px;
+      border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.10));
+      background: var(--glass-bg, rgba(16, 23, 35, 0.86));
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      text-align: center;
+    }
+    .kcc-2fa-icon {
+      width: 56px; height: 56px;
+      margin: 0 auto 14px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 16px;
+      background: rgba(212, 175, 55, 0.12);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      color: var(--gold, #d4af37);
+      font-size: 1.4rem;
+    }
+    .kcc-2fa-card h1 { font-size: 1.16rem; font-weight: 700; margin: 0 0 6px; }
+    .kcc-2fa-card p.sub { font-size: 0.82rem; color: var(--text-muted, #93a3b8); margin: 0 0 22px; line-height: 1.5; }
+    .kcc-2fa-code {
+      width: 100%;
+      padding: 14px 12px;
+      font-size: 1.5rem;
+      letter-spacing: 0.5em;
+      text-align: center;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+      background: rgba(0, 0, 0, 0.28);
+      color: var(--text-primary, #e8eef7);
+      outline: none;
+    }
+    .kcc-2fa-code:focus { border-color: var(--gold, #d4af37); }
+    .kcc-2fa-submit {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.5);
+      background: linear-gradient(180deg, rgba(212, 175, 55, 0.95), rgba(176, 141, 32, 0.95));
+      color: #10151d;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .kcc-2fa-submit:hover { filter: brightness(1.05); }
+    .kcc-2fa-back {
+      display: inline-block;
+      margin-top: 18px;
+      font-size: 0.78rem;
+      color: var(--text-muted, #93a3b8);
+      text-decoration: none;
+    }
+    .kcc-2fa-back:hover { color: var(--text-primary, #e8eef7); }
+  </style>
+</head>
+<body class="kcc-2fa-page">
+  <div class="kcc-2fa-card">
+    <div class="kcc-2fa-icon"><i class="fas fa-shield-halved"></i></div>
+    <h1>Two-Factor Verification</h1>
+    <p class="sub">Enter the 6-digit code from your authenticator app to finish signing in.</p>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="text-sm" style="margin-bottom: 14px; color: #fca5a5;">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="POST" autocomplete="off">
+      {% csrf_token %}
+      <input
+        class="kcc-2fa-code"
+        type="text"
+        name="code"
+        inputmode="numeric"
+        pattern="[0-9]{6}"
+        maxlength="6"
+        placeholder="000000"
+        autofocus
+        required
+      >
+      <button type="submit" class="kcc-2fa-submit">
+        <i class="fas fa-arrow-right-to-bracket"></i> Verify &amp; Sign In
+      </button>
+    </form>
+
+    <a class="kcc-2fa-back" href="{% url 'login' %}">
+      <i class="fas fa-arrow-left"></i> Back to sign in
+    </a>
+  </div>
+</body>
+</html>

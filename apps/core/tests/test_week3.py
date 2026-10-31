@@ -446,11 +446,13 @@ class ConsecutiveAbsenceSentinelTests(TestCase, BaseDashboardFixtureMixin):
         names = {(f['first_name'], f['last_name']) for f in flagged}
         self.assertNotIn(('Ben', 'Doe'), names)
 
-    def test_dashboard_renders_streak_chips(self):
+    def test_classes_page_renders_streak_chips(self):
+        # Streak chips moved to the My Classes workspace in f8becfe.
         self.client.force_login(self.teacher_user)
-        res = self.client.get(reverse('teacher_dashboard'))
+        res = self.client.get(reverse('teacher_classes'))
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'Ana Cruz')
-        self.assertContains(res, '2026-6301')
+        # The redesigned chip shows name + streak only; the student number is no
+        # longer part of the chip markup, so it is not asserted here.
         self.assertContains(res, '3 straight absences')
         self.assertNotContains(res, '2 straight absences')

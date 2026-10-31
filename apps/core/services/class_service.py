@@ -45,6 +45,25 @@ def assign_class(
     if not class_code:
         raise ClassAssignmentError('Section code is required.')
 
+    # A class that already has meetings cannot change subject or term: every
+    # attendance record hangs off its sessions, so the edit would silently
+    # re-label the whole history instead of correcting a typo. Teacher, capacity
+    # and grace minutes stay editable — they do not rewrite past records.
+    if class_obj is not None:
+        has_meetings = class_obj.slots.filter(sessions__isnull=False).exists()
+        if has_meetings:
+            locked = []
+            if subject is not None and class_obj.subject_id != subject.pk:
+                locked.append('subject')
+            if academic_year is not None and class_obj.academic_year_id != academic_year.pk:
+                locked.append('academic year')
+            if locked:
+                raise ClassAssignmentError(
+                    f"{class_obj.class_code} already has recorded meetings, so its "
+                    f"{' and '.join(locked)} cannot be changed. Create a new section "
+                    f"instead, so past attendance stays attributed correctly."
+                )
+
     with transaction.atomic():
         conflict_qs = Class.objects.select_for_update().filter(
             academic_year=academic_year,

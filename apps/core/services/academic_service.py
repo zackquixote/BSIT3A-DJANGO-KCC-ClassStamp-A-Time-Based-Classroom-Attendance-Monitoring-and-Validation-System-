@@ -18,17 +18,33 @@
 
 from datetime import date
 from django.db import transaction
+from django.db.models import Max, Q
 from django.shortcuts import get_object_or_404
 
 from apps.core.models import (
     AcademicYear,
     AuditEvent,
+    Class,
+    ClassSession,
     Curriculum,
     Department,
     Profile,
     Program,
     Subject,
 )
+
+
+class TermSwitchBlocked(Exception):
+    """
+    // Raised when switching the active term would strand live data in the
+    // outgoing one. Carries the counts so the UI can explain the block instead
+    // of just refusing.
+    """
+
+    def __init__(self, message, blockers):
+        super().__init__(message)
+        self.message = message
+        self.blockers = blockers
 
 
 # // ==============================================================================
@@ -104,6 +120,20 @@ def delete_or_deactivate_department(actor, pk: int) -> dict:
     has_programs = dept.programs.exists()
     has_faculty = dept.profiles.exists()
 
+    # A department is safe to retire only when nothing is still recording
+    # attendance under it. Sections keep working after archiving — the flag never
+    # gates scanning — so an open session is the one thing that must be closed
+    # first, or its stamps land under a unit the admin believes is retired.
+    open_sessions = ClassSession.objects.filter(
+        status=ClassSession.STATUS_OPEN,
+        slot__class_obj__program__department=dept,
+    ).count()
+    if open_sessions:
+        raise ValueError(
+            f'"{dept.code}" still has {open_sessions} open attendance session(s) in '
+            f'its programs. Close them before retiring the department.'
+        )
+
     if has_programs or has_faculty:
         dept.is_active = False
         dept.save()
@@ -115,9 +145,10 @@ def delete_or_deactivate_department(actor, pk: int) -> dict:
             new_value='is_active=False',
             reason='Protected deactivation due to existing child associations',
         )
+        faculty = dept.profiles.filter(role=Profile.ROLE_TEACHER).count()
         msg = (
             f'Department "{dept.code}" was deactivated '
-            f'(attached to {dept.programs.count()} programs and {dept.profiles.count()} faculty).'
+            f'(attached to {dept.programs.count()} programs and {faculty} faculty).'
         )
         status_type = 'deactivated'
     else:
@@ -177,6 +208,26 @@ def create_or_update_program(
 
     if prog_id:
         prog = get_object_or_404(Program, pk=prog_id)
+
+        # Shortening the duration below data that already exists strands those
+        # records: promotion caps at years_total, and a Year 4 student inside a
+        # 3-year program is a report nobody can explain.
+        highest_student_year = (
+            Profile.objects.filter(program_id=prog_id, role=Profile.ROLE_STUDENT)
+            .aggregate(top=Max('year_level'))['top'] or 0
+        )
+        highest_curriculum_year = (
+            Curriculum.objects.filter(program_id=prog_id)
+            .aggregate(top=Max('year_level'))['top'] or 0
+        )
+        ceiling = max(highest_student_year, highest_curriculum_year)
+        if years_total < ceiling:
+            raise ValueError(
+                f'{code} already has students or curriculum entries in Year {ceiling}. '
+                f'Duration cannot be shortened to {years_total} year(s) without moving '
+                f'them first.'
+            )
+
         old_val = (
             f'{prog.code} - {prog.name} '
             f'(dept={prog.department.code}, yrs={prog.years_total}, active={prog.is_active})'
@@ -222,8 +273,24 @@ def delete_or_deactivate_program(actor, pk: int) -> dict:
     prog = get_object_or_404(Program, pk=pk)
     has_students = prog.profiles.exists()
     has_curriculum = prog.curriculum_entries.exists()
+    # Class rows are not a hard FK (Class.program is SET_NULL), so without this
+    # check a program with sections but no students yet would be deleted and every
+    # one of its sections would silently lose its program.
+    has_classes = prog.class_sections.exists()
 
-    if has_students or has_curriculum:
+    # Same rule as departments and class sections: a retired unit must not still
+    # be recording attendance, or its stamps land under something nobody watches.
+    open_sessions = ClassSession.objects.filter(
+        status=ClassSession.STATUS_OPEN,
+        slot__class_obj__program=prog,
+    ).count()
+    if open_sessions:
+        raise ValueError(
+            f'"{prog.code}" still has {open_sessions} open attendance session(s). '
+            f'Close them before retiring the program.'
+        )
+
+    if has_students or has_curriculum or has_classes:
         prog.is_active = False
         prog.save()
         AuditEvent.objects.create(
@@ -295,6 +362,8 @@ def create_or_update_subject(
     if units < 1:
         raise ValueError('Units must be at least 1.')
 
+    warning = ''
+
     code_qs = Subject.objects.filter(code__iexact=code)
     if subject_id:
         code_qs = code_qs.exclude(pk=subject_id)
@@ -303,6 +372,7 @@ def create_or_update_subject(
 
     if subject_id:
         subject = get_object_or_404(Subject, pk=subject_id)
+        previous_units = subject.units
         old_val = f'{subject.code} - {subject.name} ({subject.units}u, active: {subject.is_active})'
         subject.code = code
         subject.name = name
@@ -312,6 +382,22 @@ def create_or_update_subject(
         subject.save()
         action = 'UPDATE_SUBJECT'
         msg = f'Subject "{subject.code}" updated successfully.'
+
+        # Units drive the wizard's "1 unit = 1 class hour per week" rule, so an
+        # edit silently changes what every existing section is expected to hold.
+        # Warn instead of blocking: unit corrections between terms are legitimate.
+        if previous_units != units:
+            active_year = AcademicYear.objects.filter(is_active=True).first()
+            affected = Class.objects.filter(subject=subject, is_active=True)
+            if active_year is not None:
+                affected = affected.filter(academic_year=active_year)
+            affected_count = affected.count()
+            if affected_count:
+                warning = (
+                    f'{affected_count} active section(s) still carry the old weekly '
+                    f'hours ({previous_units} unit(s) → {units}). Reschedule them if '
+                    f'this change was intentional.'
+                )
     else:
         subject = Subject.objects.create(
             code=code,
@@ -333,7 +419,7 @@ def create_or_update_subject(
         new_value=f'{subject.code} - {subject.name} ({subject.units}u, active: {subject.is_active})',
     )
 
-    return {'instance': subject, 'action': action, 'message': msg}
+    return {'instance': subject, 'action': action, 'message': msg, 'warning': warning}
 
 
 def delete_or_deactivate_subject(actor, pk: int) -> dict:
@@ -348,6 +434,18 @@ def delete_or_deactivate_subject(actor, pk: int) -> dict:
     subject = get_object_or_404(Subject, pk=pk)
     has_classes = subject.classes.exists()
     has_curriculum = subject.curriculum_entries.exists()
+
+    # Last of the "retire while still live" family: a subject cannot be retired
+    # while a session is open against one of its sections.
+    open_sessions = ClassSession.objects.filter(
+        status=ClassSession.STATUS_OPEN,
+        slot__class_obj__subject=subject,
+    ).count()
+    if open_sessions:
+        raise ValueError(
+            f'"{subject.code}" still has {open_sessions} open attendance session(s). '
+            f'Close them before retiring the subject.'
+        )
 
     if has_classes or has_curriculum:
         subject.is_active = False
@@ -487,6 +585,22 @@ def create_or_update_academic_year(
     if ends_on <= starts_on:
         raise ValueError(f'Closing date ({ends_on}) must be chronologically after opening date ({starts_on}).')
 
+    # A term is a time window, and two windows covering the same days mean two
+    # answers to "which term was this absence in?".
+    overlapping = AcademicYear.objects.filter(
+        starts_on__lte=ends_on,
+        ends_on__gte=starts_on,
+    )
+    if ay_id:
+        overlapping = overlapping.exclude(pk=ay_id)
+    clash = overlapping.first()
+    if clash is not None:
+        raise ValueError(
+            f'These dates overlap "{clash.name}" '
+            f'({clash.starts_on} to {clash.ends_on}). Adjust the window so two '
+            f'terms never run at the same time.'
+        )
+
     name_qs = AcademicYear.objects.filter(name__iexact=name)
     if ay_id:
         name_qs = name_qs.exclude(pk=ay_id)
@@ -531,11 +645,35 @@ def create_or_update_academic_year(
     return {'instance': ay, 'action': action, 'message': msg}
 
 
-def set_active_academic_year(actor, pk: int) -> dict:
+def set_active_academic_year(actor, pk: int, force: bool = False, reason: str = '') -> dict:
     """
     // [Service] Promote an Academic Year to the Single Current Active Term
+    //
+    // Refuses the switch while the outgoing term still has an OPEN attendance
+    // session: the session would keep accepting stamps into a term nobody is
+    // looking at. `force=True` with a written reason overrides, and the override
+    // is recorded in the audit trail.
     """
     ay = get_object_or_404(AcademicYear, pk=pk)
+    outgoing = AcademicYear.objects.filter(is_active=True).exclude(pk=ay.pk).first()
+
+    blockers = term_switch_blockers(outgoing)
+    # Only an OPEN session is actively writing attendance into the outgoing term.
+    # Active classes are reported for context but must not block: they stay marked
+    # active after a term ends, so blocking on them would make every ordinary
+    # rollover a forced one — and a guard that always fires is a guard nobody reads.
+    has_blockers = blockers['open_sessions'] > 0
+
+    if has_blockers and not force:
+        raise TermSwitchBlocked(
+            f'"{outgoing.name}" still has {blockers["open_sessions"]} open attendance '
+            f'session(s). Close them before switching; '
+            f'{blockers["active_classes"]} class(es) remain attached to it.',
+            blockers,
+        )
+    if has_blockers and not (reason or '').strip():
+        raise ValueError('A written reason is required to switch terms while data is live.')
+
     with transaction.atomic():
         AcademicYear.objects.exclude(pk=ay.pk).filter(is_active=True).update(is_active=False)
         ay.is_active = True
@@ -546,19 +684,58 @@ def set_active_academic_year(actor, pk: int) -> dict:
         action='SET_ACTIVE_ACADEMIC_YEAR',
         object_type='AcademicYear',
         object_id=str(ay.pk),
-        new_value=f'{ay.name} is now the active term',
+        old_value=outgoing.name if outgoing else 'none',
+        new_value=(
+            f'{ay.name} is now the active term'
+            + (' (forced with live data)' if has_blockers else '')
+        ),
+        reason=(reason or '').strip() or 'Administrative term switch',
     )
 
     return {'instance': ay, 'message': f'"{ay.name}" is now the active institutional academic term.'}
 
 
+def term_switch_blockers(academic_year):
+    """
+    // What still depends on this term being current.
+    // Pending registrations are deliberately not counted: Profile carries no
+    // academic-year FK, so a pending account is not attributable to a term and
+    // blocking on it would be guesswork.
+    """
+    if academic_year is None:
+        return {'open_sessions': 0, 'active_classes': 0}
+
+    return {
+        'open_sessions': ClassSession.objects.filter(
+            status=ClassSession.STATUS_OPEN,
+            slot__class_obj__academic_year=academic_year,
+        ).count(),
+        'active_classes': Class.objects.filter(
+            academic_year=academic_year,
+            is_active=True,
+        ).count(),
+    }
+
+
 def _advance_approved_students() -> int:
-    """Advances approved students one year level, capped at program duration."""
+    """
+    Advances approved students one year level, capped at program duration.
+
+    Only REGULAR (or unclassified) students are advanced. An irregular student's
+    standing is earned by subject credits, not by time served: bumping their
+    year_level silently moves them into the wrong cohort and every section
+    report then follows the wrong year. They need a per-student decision.
+    """
     promoted_count = 0
     students = (
         Profile.objects.filter(
             role=Profile.ROLE_STUDENT,
             approval_status=Profile.APPROVAL_APPROVED,
+        )
+        .filter(
+            Q(student_type=Profile.STUDENT_TYPE_REGULAR)
+            | Q(student_type__isnull=True)
+            | Q(student_type='')
         )
         .select_related('program')
     )
@@ -621,6 +798,16 @@ def rollover_academic_year(
         raise ValueError(f'Closing date ({ends_on}) must be after opening date ({starts_on}).')
     if AcademicYear.objects.filter(name__iexact=name).exists():
         raise ValueError(f'Academic Year term "{name}" already exists.')
+    clash = AcademicYear.objects.filter(
+        starts_on__lte=ends_on,
+        ends_on__gte=starts_on,
+    ).first()
+    if clash is not None:
+        raise ValueError(
+            f'The new term overlaps "{clash.name}" '
+            f'({clash.starts_on} to {clash.ends_on}). Rollover must start after the '
+            f'current term ends.'
+        )
 
     previous_actives = list(
         AcademicYear.objects.filter(is_active=True)

@@ -20,7 +20,8 @@
     step1Key: '',
     options: null,
     slots: [],
-    conflicts: []
+    conflicts: [],
+    codeStatus: { available: true, message: '' }
   };
 
   /* ── Utilities ───────────────────────────────────────────────── */
@@ -104,9 +105,18 @@
 
     document.querySelectorAll('[data-step-indicator]').forEach((el) => {
       const s = parseInt(el.dataset.stepIndicator, 10);
+      const clickable = s <= state.maxStep && s !== n;
       el.classList.toggle('is-active', s === n);
       el.classList.toggle('is-done', s < n);
-      el.classList.toggle('is-clickable', s <= state.maxStep && s !== n);
+      el.classList.toggle('is-clickable', clickable);
+      // Keyboard reachability mirrors the pointer affordance: a step you can
+      // click is a step you can tab to.
+      el.tabIndex = clickable ? 0 : -1;
+      if (s === n) {
+        el.setAttribute('aria-current', 'step');
+      } else {
+        el.removeAttribute('aria-current');
+      }
     });
 
     $('wiz-back').style.visibility = n === 1 ? 'hidden' : 'visible';
@@ -129,6 +139,15 @@
       const target = parseInt(this.dataset.stepIndicator, 10);
       if (target <= state.maxStep && target !== state.step) {
         setStep(target);
+      }
+    });
+    el.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+        // Stop the document-level "Enter advances the wizard" handler from
+        // also firing on the same keystroke.
+        event.preventDefault();
+        event.stopPropagation();
+        this.click();
       }
     });
   });
@@ -269,14 +288,100 @@
   function populateExistingCodes(data) {
     const el = $('wiz-existing-sections');
     if (!el) return;
-    const existing = data.existing_codes || [];
-    if (existing.length) {
-      el.style.display = 'block';
-      el.innerHTML = '<span class="text-muted">Existing sections in this term:</span> ' +
-        existing.map((c) => `<span class="badge badge--dark badge--xs" style="margin-right:4px;">${c}</span>`).join(' ');
-    } else {
-      el.style.display = 'block';
-      el.innerHTML = '<span class="text-muted">No sections created yet for this year level (starting with letter A).</span>';
+
+    const sections = data.existing_sections || [];
+    el.style.display = 'block';
+
+    if (!sections.length) {
+      const legacy = data.existing_codes || [];
+      el.innerHTML = legacy.length
+        ? '<span class="text-muted">Existing sections in this term:</span> ' +
+          legacy.map((c) => `<span class="badge badge--dark badge--xs" style="margin-right:4px;">${c}</span>`).join(' ')
+        : '<span class="text-muted">No sections created yet for this year level (starting with letter A).</span>';
+      return;
+    }
+
+    // One badge per SECTION, with the subject count — repeating the full
+    // class_code once per subject is what made the old list unreadable.
+    el.innerHTML = '<span class="text-muted">Existing sections in this term:</span> ' +
+      sections.map((s) => {
+        const subjects = (s.subjects || []).join(' · ');
+        const label = `${s.section_code} · ${s.subject_count} subject${s.subject_count === 1 ? '' : 's'}`;
+        return `<span class="badge badge--dark badge--xs" style="margin-right:4px;" title="${escapeHtml(subjects)}">${escapeHtml(label)}</span>`;
+      }).join(' ');
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ── Section-code availability (step 3) ─────────────────────── */
+  async function checkCodeAvailability() {
+    const codeInput = $('wiz-code');
+    if (!codeInput) return true;
+    const code = codeInput.value.trim().toUpperCase();
+    codeInput.value = code;
+
+    if (!code) {
+      state.codeStatus = { available: false, message: 'Section code is required.' };
+      renderCodeStatus();
+      return false;
+    }
+
+    const subjectSelect = $('wiz-subject');
+    const subjectCode = subjectSelect && subjectSelect.selectedOptions.length
+      ? (subjectSelect.selectedOptions[0].dataset.code || '')
+      : '';
+
+    const params = new URLSearchParams({
+      code: code,
+      ay: $('wiz-ay') ? $('wiz-ay').value : '',
+      subject: subjectCode,
+    });
+
+    try {
+      const res = await fetch(boot.dataset.codeCheckUrl + '?' + params.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      state.codeStatus = await res.json();
+    } catch (err) {
+      // A failed check must not block the wizard; the server still enforces the
+      // unique constraint at save time.
+      state.codeStatus = { available: true, message: '' };
+    }
+
+    renderCodeStatus();
+    return !!state.codeStatus.available;
+  }
+
+  function renderCodeStatus() {
+    const el = $('wiz-code-status');
+    if (!el) return;
+
+    const status = state.codeStatus || {};
+    if (status.available) {
+      el.style.display = 'none';
+      el.innerHTML = '';
+      return;
+    }
+
+    el.style.display = 'block';
+    let html = `<span class="text-danger text-xs"><i class="fas fa-circle-exclamation"></i> ${escapeHtml(status.message || 'That code is already taken.')}</span>`;
+    if (status.suggestion) {
+      html += ` <button type="button" class="btn btn-outline btn-xs" id="wiz-code-suggest" style="margin-left:6px;">Use ${escapeHtml(status.suggestion)}</button>`;
+    }
+    el.innerHTML = html;
+
+    const btn = $('wiz-code-suggest');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        $('wiz-code').value = status.suggestion;
+        checkCodeAvailability();
+      });
     }
   }
 
@@ -698,6 +803,11 @@
     }
     if (state.step === 3) {
       if (!$('wiz-code').value.trim()) return showError('Section code is required.');
+      const free = await checkCodeAvailability();
+      if (!free) {
+        showError((state.codeStatus && state.codeStatus.message) || 'That section code is already taken.');
+        return;
+      }
       setStep(4);
       return;
     }
@@ -739,6 +849,16 @@
       updateUnitsHint();
       autoSuggestEndTime();
     });
+
+    const codeInput = $('wiz-code');
+    if (codeInput) {
+      codeInput.addEventListener('blur', checkCodeAvailability);
+      codeInput.addEventListener('input', () => {
+        // Typing invalidates the previous verdict; the check re-runs on blur.
+        state.codeStatus = { available: true, message: '' };
+        renderCodeStatus();
+      });
+    }
 
     $('wiz-next').addEventListener('click', onNext);
     $('wiz-back').addEventListener('click', () => {

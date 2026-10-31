@@ -22,6 +22,24 @@
   </div>
 </div>
 
+{% if not active_term %}
+<div class="card mb-4" style="padding: 14px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-color: rgba(239, 68, 68, 0.4);">
+  <i class="fas fa-triangle-exclamation" style="color: var(--danger);"></i>
+  <span class="text-sm">
+    <strong>No active academic term.</strong> Class sections cannot be created, and every dashboard
+    reads zero until one term is marked active below.
+  </span>
+</div>
+{% elif active_term_ended %}
+<div class="card mb-4" style="padding: 14px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-color: rgba(245, 158, 11, 0.4);">
+  <i class="fas fa-hourglass-end" style="color: var(--accent-gold);"></i>
+  <span class="text-sm">
+    <strong>{{ active_term.name }}</strong> ended on {{ active_term.ends_on|date:"M j, Y" }} but is still
+    marked active — new attendance keeps landing in a closed term. Roll the term over to move on.
+  </span>
+</div>
+{% endif %}
+
 <!-- KPI Cards -->
 <div class="stat-grid mb-6">
   <div class="stat-card" style="border-left: 3px solid var(--accent-gold);">
@@ -78,14 +96,14 @@
     <table class="table" id="ayTable">
       <thead>
         <tr>
-          <th style="width: 44px;">#</th>
-          <th>Term Name</th>
-          <th>Opening Date</th>
-          <th>Closing Date</th>
-          <th>Duration</th>
-          <th>Classes</th>
-          <th>Status</th>
-          <th style="text-align: right; width: 200px;">Actions</th>
+          <th scope="col" style="width: 44px;">#</th>
+          <th scope="col">Term Name</th>
+          <th scope="col">Opening Date</th>
+          <th scope="col">Closing Date</th>
+          <th scope="col">Duration</th>
+          <th scope="col">Classes</th>
+          <th scope="col">Status</th>
+          <th scope="col" style="text-align: right; width: 200px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -113,12 +131,12 @@
           <td style="text-align: right; overflow: visible; position: relative;">
             <div class="flex justify-end items-center gap-1">
               <!-- Edit (primary) -->
-              <button class="btn btn-outline btn-sm js-edit-ay" data-id="{{ ay.id }}" title="Edit">
+              <button class="btn btn-outline btn-sm js-edit-ay" data-id="{{ ay.id }}" title="Edit" aria-label="Edit">
                 <i class="fas fa-pen"></i>
               </button>
               <!-- More Actions Dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding:5px 9px;" title="More">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding:5px 9px;" title="More" aria-label="More">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

@@ -209,6 +209,11 @@
   z-index: 1;
 }
 .wizard-step.is-clickable { cursor: pointer; }
+.wizard-step:focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
 .wizard-step.is-clickable:hover .wizard-step-dot {
   transform: scale(1.08);
   border-color: rgba(99, 102, 241, 0.8);
@@ -383,6 +388,7 @@
   data-options-url="{% url 'class_wizard_options' %}"
   data-save-url="{% url 'class_wizard_save' %}"
   data-check-url="{% url 'class_wizard_slots_check' %}"
+  data-code-check-url="{% url 'class_wizard_code_check' %}"
   data-classes-url="{% url 'class_list' %}"></div>
 <script id="wizard-programs" type="application/json">{{ programs_json|safe }}</script>
 <script id="wizard-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
@@ -415,18 +421,21 @@
 </div>
 
 <!-- ── Progress stepper ──────────────────────────────────────── -->
-<div id="wizard-progress" class="wizard-stepper mb-4">
-  <div class="wizard-stepper-track"></div>
+<nav id="wizard-progress" class="wizard-stepper mb-4" aria-label="Section builder steps">
+  <div class="wizard-stepper-track" aria-hidden="true"></div>
   {% for step_num, step_label in wizard_steps %}
-  <div class="wizard-step" data-step-indicator="{{ step_num }}" title="Go to step {{ step_num }}">
+  <div class="wizard-step" data-step-indicator="{{ step_num }}" role="button" tabindex="-1"
+       aria-label="Step {{ step_num }} of 5: {{ step_label }}"
+       {% if step_num == 1 %}aria-current="step"{% endif %}
+       title="Go to step {{ step_num }}">
     <div class="wizard-step-dot">
       <span class="wizard-step-num">{{ step_num }}</span>
-      <i class="fas fa-check wizard-step-check"></i>
+      <i class="fas fa-check wizard-step-check" aria-hidden="true"></i>
     </div>
     <span class="wizard-step-label">{{ step_label }}</span>
   </div>
   {% endfor %}
-</div>
+</nav>
 
 <div id="wizard-card" class="card wiz-card">
 
@@ -513,6 +522,7 @@
         <input type="text" id="wiz-code" class="form-control" style="text-transform:uppercase;" placeholder="e.g. BSIT-3A">
         <span class="form-hint">Next free code suggested automatically.</span>
         <div id="wiz-existing-sections" class="mt-1" style="display:none;"></div>
+        <div id="wiz-code-status" class="mt-1" style="display:none;"></div>
       </div>
       <div class="form-group">
         <label class="form-label" for="wiz-capacity">Capacity</label>

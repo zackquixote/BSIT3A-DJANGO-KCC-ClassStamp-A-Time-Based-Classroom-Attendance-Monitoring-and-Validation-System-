@@ -22,6 +22,7 @@ from apps.core.decorators import role_required
 from apps.core.models import AcademicYear, Profile
 from apps.core.serializers.academic_serializers import serialize_academic_year
 from apps.core.services import (
+    TermSwitchBlocked,
     create_or_update_academic_year,
     delete_or_deactivate_academic_year,
     rollover_academic_year,
@@ -65,9 +66,16 @@ def academic_year_list(request):
         delta = active_term.ends_on - today
         days_remaining = max(delta.days, 0)
 
+    # Drives the "nothing is current" banner: either no term is active, or the
+    # active one has already closed while still flagged active.
+    active_term_ended = bool(
+        active_term and active_term.ends_on and active_term.ends_on < today
+    )
+
     return render(request, 'core/admin/academic_years.html', {
         'academic_years': academic_years,
         'active_term': active_term,
+        'active_term_ended': active_term_ended,
         'total_count': total_count,
         'active_class_count': active_class_count,
         'days_remaining': days_remaining,
@@ -121,12 +129,24 @@ def academic_year_set_active(request, pk: int):
     // Atomically deactivates all other terms in the same transaction.
     """
     try:
-        result = set_active_academic_year(actor=request.user, pk=pk)
+        result = set_active_academic_year(
+            actor=request.user,
+            pk=pk,
+            force=request.POST.get('force') == '1',
+            reason=request.POST.get('reason', ''),
+        )
         return JsonResponse({
             'ok': True,
             'message': result['message'],
             'academic_year': serialize_academic_year(result['instance']),
         })
+    except TermSwitchBlocked as blocked:
+        return JsonResponse({
+            'ok': False,
+            'error': blocked.message,
+            'blockers': blocked.blockers,
+            'requires_force': True,
+        }, status=409)
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 

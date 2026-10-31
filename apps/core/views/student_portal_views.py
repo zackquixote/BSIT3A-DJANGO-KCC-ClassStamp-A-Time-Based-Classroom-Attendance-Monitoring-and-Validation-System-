@@ -34,6 +34,7 @@ from apps.core.services.qr_service import (
     current_token,
     qr_png_data_uri,
 )
+from apps.core.services.section_service import student_section_summary
 
 
 def _seconds_remaining():
@@ -367,6 +368,9 @@ def student_profile(request):
         'profile_form': profile_form,
         'avatar_form': avatar_form,
         'password_form': password_form,
+        # Section membership is derived from active enrollments, never stored on
+        # the profile: an irregular student legitimately has more than one.
+        'section_summary': student_section_summary(profile),
         'student_number': profile.student_number or user.get_username(),
         'is_approved': profile.approval_status == Profile.APPROVAL_APPROVED,
     })

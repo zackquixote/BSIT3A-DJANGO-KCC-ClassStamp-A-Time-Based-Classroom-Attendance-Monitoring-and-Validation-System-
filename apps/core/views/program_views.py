@@ -45,6 +45,9 @@ def program_list(request):
     programs_qs = (
         Program.objects.select_related('department')
         .annotate(
+            # Curriculum coverage: the section wizard draws its subject list from
+            # these rows, so a program with zero entries cannot build a section.
+            curriculum_count=Count('curriculum_entries', distinct=True),
             student_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT), distinct=True),
             y1_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=1), distinct=True),
             y2_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=2), distinct=True),
@@ -176,7 +179,13 @@ def program_delete(request, pk):
 # Safeguard: If student profiles exist under program, soft-deactivates to prevent FK collision.
     """
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
-    result = delete_or_deactivate_program(actor=request.user, pk=pk)
+    try:
+        result = delete_or_deactivate_program(actor=request.user, pk=pk)
+    except ValueError as exc:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'error': str(exc)}, status=400)
+        messages.error(request, str(exc))
+        return redirect('program_list')
 
     if is_ajax:
         return JsonResponse({'status': 'success', 'message': result['message'], 'type': result['type']})

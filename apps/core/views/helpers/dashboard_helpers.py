@@ -36,6 +36,7 @@ from apps.core.models import (
     Profile,
     Program,
 )
+from apps.core.services.attendance_policy import absence_threshold_percent
 from apps.core.views.helpers.absence_radar import (
     BAND_CRITICAL,
     BAND_WATCH,
@@ -191,7 +192,23 @@ def _admin_dashboard_stats():
             'is_all_day': evt['is_all_day'],
         })
 
+    # Approved students with no active section in the current term. They can sign
+    # in and render a badge, but every scan is refused as INELIGIBLE until someone
+    # enlists them — so the count belongs on the dashboard, not in a filter nobody
+    # thinks to open.
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+    unassigned_qs = Profile.objects.filter(
+        role=Profile.ROLE_STUDENT,
+        approval_status=Profile.APPROVAL_APPROVED,
+        user__is_active=True,
+    )
+    active_enrolment = Q(enrollments__status=Enrollment.STATUS_ACTIVE)
+    if active_year is not None:
+        active_enrolment &= Q(enrollments__class_obj__academic_year=active_year)
+    unassigned_count = unassigned_qs.exclude(active_enrolment).distinct().count()
+
     return {
+        'unassigned_count': unassigned_count,
         'pending_count': pending_count,
         'student_count': student_count,
         'teacher_count': teacher_count,
@@ -498,15 +515,18 @@ def _student_dashboard_stats(profile):
         attended = agg['present'] + agg['late']
         compliance = round((attended / agg['total'] * 100), 1) if agg['total'] else None
 
-        # S-04: CHED 20% early-warning sentinel (4-stage, unexcused absences only)
+        # S-04: CHED early-warning sentinel (unexcused absences only).
+        # Stages are ratios of the institutional threshold, so raising it in
+        # System Policy moves every edge at once instead of only the red band.
         absence_rate = round((agg['absent'] / agg['total'] * 100), 1) if agg['total'] else None
+        threshold = absence_threshold_percent()
         if absence_rate is None:
             sentinel = {'stage': 'none', 'label': 'No meetings yet'}
-        elif absence_rate < 10:
+        elif absence_rate < threshold * 0.5:
             sentinel = {'stage': 'green', 'label': 'Excellent Attendance'}
-        elif absence_rate < 16:
+        elif absence_rate < threshold * 0.8:
             sentinel = {'stage': 'amber', 'label': 'Caution'}
-        elif absence_rate < 20:
+        elif absence_rate < threshold:
             sentinel = {'stage': 'orange', 'label': 'Warning'}
         else:
             sentinel = {'stage': 'red', 'label': 'Exceeded threshold — Contact Instructor/Dean'}

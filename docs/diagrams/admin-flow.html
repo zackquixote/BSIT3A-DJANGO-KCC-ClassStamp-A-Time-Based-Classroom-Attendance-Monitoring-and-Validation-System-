@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Portal Flow — KCC ClassStamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f7f8fa;
+    --paper-2: #ffffff;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --soft: #94a3b8;
+    --rule: rgba(15, 23, 42, 0.12);
+    --accent: #b45309;
+    --accent-tint: rgba(245, 158, 11, 0.16);
+    --link: #1d4ed8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 56px 32px 72px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    font-size: 34px;
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+    margin: 0 0 12px;
+    max-width: 22ch;
+    color: var(--ink);
+  }
+
+  .subtitle {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0 0 8px;
+    max-width: 62ch;
+  }
+
+  .meta {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--soft);
+    margin: 0 0 34px;
+  }
+
+  .diagram { margin: 0 0 8px; }
+  svg { display: block; width: 100%; height: auto; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr 0.85fr;
+    gap: 16px;
+    margin: 40px 0 0;
+  }
+
+  .card {
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 20px;
+  }
+
+  .card .label {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+
+  .card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+  .dot--ink { background: var(--ink); }
+  .dot--accent { background: var(--accent); }
+  .dot--muted { background: var(--soft); }
+
+  .card ul { margin: 0; padding-left: 16px; }
+  .card li {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .card li:last-child { margin-bottom: 0; }
+  .card code {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink);
+    background: rgba(15, 23, 42, 0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  footer {
+    margin-top: 44px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--soft);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 760px) {
+    .cards { grid-template-columns: 1fr; }
+    h1 { font-size: 26px; }
+    body { padding: 36px 20px 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p class="eyebrow">KCC ClassStamp · Admin portal</p>
+  <h1>What an administrator gates, from sign-in to term close</h1>
+  <p class="subtitle">
+    The admin console is not a settings panel: every branch below decides who can attend a class,
+    or whether an attendance record survives. Two decisions are consequential enough to be called out —
+    registration approval and the irreversible term close.
+  </p>
+  <p class="meta">10 routes traced · 4 decision surfaces · 1 irreversible action</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1000 1000" role="img" aria-labelledby="admin-flow-title admin-flow-desc">
+      <title id="admin-flow-title">Admin portal flow from sign-in through term close</title>
+      <desc id="admin-flow-desc">
+        Flowchart of the administrator journey: signing in with password and optional two-factor code,
+        building the academic term, approving or rejecting registrations, enlisting students,
+        monitoring live attendance, adjudicating anomalies, and closing the term by promoting or rolling over.
+      </desc>
+
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#64748b"/>
+        </marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#b45309"/>
+        </marker>
+      </defs>
+
+      <!-- background -->
+      <rect width="1000" height="1000" fill="#f7f8fa"/>
+
+      <!-- ============ connectors (drawn before boxes) ============ -->
+
+      <!-- 1 -> 2 -->
+      <line x1="430" y1="144" x2="430" y2="188" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- 2 -> 3 -->
+      <line x1="430" y1="264" x2="430" y2="300" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- 3 -> 4b (YES, continue) -->
+      <line x1="430" y1="400" x2="430" y2="444" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- 3 -> 4a (NO, reject) -->
+      <line x1="530" y1="352" x2="716" y2="352" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- 4b -> 5 -->
+      <line x1="430" y1="520" x2="430" y2="564" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- 5 -> 6 -->
+      <line x1="430" y1="640" x2="430" y2="676" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <!-- 6 -> 7 (YES, adjudicate) -->
+      <line x1="530" y1="728" x2="716" y2="728" stroke="#b45309" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <!-- 6 -> 8 (NO, close term) -->
+      <line x1="430" y1="776" x2="430" y2="820" stroke="#b45309" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+
+      <!-- ============ arrow labels ============ -->
+
+      <!-- 3 -> 4b : YES (vertical, label to the right) -->
+      <rect x="438" y="412" width="32" height="12" rx="2" fill="#f7f8fa"/>
+      <text x="454" y="421" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">YES</text>
+
+      <!-- 3 -> 4a : NO (horizontal, label above) -->
+      <rect x="611" y="330" width="28" height="12" rx="2" fill="#f7f8fa"/>
+      <text x="625" y="339" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">NO</text>
+
+      <!-- 6 -> 7 : YES -->
+      <rect x="611" y="706" width="32" height="12" rx="2" fill="#f7f8fa"/>
+      <text x="627" y="715" fill="#b45309" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">YES</text>
+
+      <!-- 6 -> 8 : NO -->
+      <rect x="438" y="790" width="28" height="12" rx="2" fill="#f7f8fa"/>
+      <text x="452" y="799" fill="#b45309" font-size="8" font-family="'Geist Mono', monospace"
+            text-anchor="middle" letter-spacing="0.08em">NO</text>
+
+      <!-- ============ nodes ============ -->
+
+      <!-- 1 · START (oval) -->
+      <rect x="310" y="88" width="240" height="56" rx="28" fill="rgba(100,116,139,0.10)" stroke="#94a3b8" stroke-width="1"/>
+      <text x="430" y="112" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Admin signs in</text>
+      <text x="430" y="128" fill="#64748b" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">password · optional TOTP</text>
+
+      <!-- 2 · configure term -->
+      <rect x="280" y="192" width="300" height="72" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+      <text x="430" y="222" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Build the academic term</text>
+      <text x="430" y="240" fill="#64748b" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">department → program → curriculum → year</text>
+
+      <!-- 3 · DECISION approve registration -->
+      <path d="M430 304 L530 352 L430 400 L330 352 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+      <text x="430" y="349" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Approve the</text>
+      <text x="430" y="363" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">registration?</text>
+
+      <!-- 4a · reject -->
+      <rect x="720" y="320" width="240" height="64" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+      <text x="840" y="346" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Reject with a reason</text>
+      <text x="840" y="364" fill="#64748b" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">note required · student notified</text>
+
+      <!-- 4b · enlist -->
+      <rect x="280" y="448" width="300" height="72" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+      <text x="430" y="478" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Enlist students into sections</text>
+      <text x="430" y="496" fill="#64748b" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">roster · CSV import · section_code</text>
+
+      <!-- 5 · monitor -->
+      <rect x="280" y="568" width="300" height="72" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+      <text x="430" y="598" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Monitor attendance</text>
+      <text x="430" y="616" fill="#64748b" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">live feed · matrix · absence radar</text>
+
+      <!-- 6 · DECISION anomaly -->
+      <path d="M430 680 L530 728 L430 776 L330 728 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+      <text x="430" y="725" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Anomaly</text>
+      <text x="430" y="739" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">flagged?</text>
+
+      <!-- 7 · adjudicate -->
+      <rect x="720" y="696" width="240" height="64" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+      <text x="840" y="722" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Adjudicate the stamp</text>
+      <text x="840" y="740" fill="#64748b" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">dismiss · confirm proxy · excuse</text>
+
+      <!-- 8 · close term (focal) -->
+      <rect x="280" y="824" width="300" height="88" rx="6" fill="rgba(245,158,11,0.16)" stroke="#b45309" stroke-width="1.2"/>
+      <text x="430" y="856" fill="#0f172a" font-size="12" font-weight="600" font-family="'Geist', sans-serif"
+            text-anchor="middle">Close the term</text>
+      <text x="430" y="874" fill="#b45309" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">promote students · roll over academic year</text>
+      <text x="430" y="892" fill="#b45309" font-size="9" font-family="'Geist Mono', monospace"
+            text-anchor="middle">irreversible — one click, whole cohort</text>
+
+      <!-- ============ legend ============ -->
+      <line x1="40" y1="948" x2="960" y2="948" stroke="rgba(15,23,42,0.12)" stroke-width="0.8"/>
+
+      <text x="40" y="972" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            letter-spacing="0.14em">LEGEND</text>
+
+      <rect x="112" y="962" width="26" height="12" rx="6" fill="rgba(100,116,139,0.10)" stroke="#94a3b8" stroke-width="1"/>
+      <text x="146" y="972" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            letter-spacing="0.06em">START</text>
+
+      <rect x="204" y="962" width="26" height="12" rx="3" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+      <text x="238" y="972" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            letter-spacing="0.06em">STEP</text>
+
+      <path d="M330 968 L342 962 L354 968 L342 974 Z" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+      <text x="362" y="972" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            letter-spacing="0.06em">DECISION</text>
+
+      <rect x="448" y="962" width="26" height="12" rx="3" fill="rgba(245,158,11,0.16)" stroke="#b45309" stroke-width="1.2"/>
+      <text x="482" y="972" fill="#64748b" font-size="8" font-family="'Geist Mono', monospace"
+            letter-spacing="0.06em">IRREVERSIBLE</text>
+    </svg>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <p class="label">Decision surface 01</p>
+      <h3><span class="dot dot--ink"></span> Registration approval</h3>
+      <ul>
+        <li>Gate between <code>PENDING</code> and <code>APPROVED</code> — an unapproved account cannot sign in.</li>
+        <li>Approval also mints the student's QR seed, so no badge exists before it.</li>
+        <li>Rejection requires a written note; both directions are audited.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <p class="label">Decision surface 02</p>
+      <h3><span class="dot dot--muted"></span> Anomaly adjudication</h3>
+      <ul>
+        <li>The only path that can void an already-recorded stamp.</li>
+        <li>Rules arrive from the scan engine: replay, duplicate, rapid scan, off-window.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <p class="label">Irreversible</p>
+      <h3><span class="dot dot--accent"></span> Term close</h3>
+      <ul>
+        <li>Promotion advances every regular student one year level.</li>
+        <li>No preview, no undo — the one action worth a confirmation gate.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    <span>KCC ClassStamp · admin flow</span>
+    <span>Source: apps/core/urls.py · admin routes</span>
+  </footer>
+
+</div>
+</body>
+</html>

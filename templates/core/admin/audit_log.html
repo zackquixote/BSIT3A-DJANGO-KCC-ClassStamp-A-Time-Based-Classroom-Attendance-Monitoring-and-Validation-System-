@@ -168,11 +168,11 @@
     <table class="table" style="margin-bottom: 0;">
       <thead>
         <tr>
-          <th style="width: 160px;">Timestamp</th>
-          <th>Action</th>
-          <th>Actor</th>
-          <th>Object</th>
-          <th>Detail</th>
+          <th scope="col" style="width: 160px;">Timestamp</th>
+          <th scope="col">Action</th>
+          <th scope="col">Actor</th>
+          <th scope="col">Object</th>
+          <th scope="col">Detail</th>
         </tr>
       </thead>
       <tbody>
@@ -225,7 +225,7 @@
         <a href="?page=1{% if base_query_string %}&{{ base_query_string }}{% endif %}"
            class="btn btn-outline btn-sm"
            title="First Page"
-           style="padding: 5px 9px; font-size: 0.74rem;">
+           style="padding: 5px 9px; font-size: 0.74rem;" aria-label="First Page">
           <i class="fas fa-angles-left"></i>
         </a>
         <a href="?page={{ events.previous_page_number }}{% if base_query_string %}&{{ base_query_string }}{% endif %}"
@@ -262,7 +262,7 @@
         <a href="?page={{ events.paginator.num_pages }}{% if base_query_string %}&{{ base_query_string }}{% endif %}"
            class="btn btn-outline btn-sm"
            title="Last Page"
-           style="padding: 5px 9px; font-size: 0.74rem;">
+           style="padding: 5px 9px; font-size: 0.74rem;" aria-label="Last Page">
           <i class="fas fa-angles-right"></i>
         </a>
       {% endif %}

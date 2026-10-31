@@ -42,6 +42,24 @@
     var table = getEl('teacherTable');
     if (!bar || !table) return;
 
+    // Bulk mode is opt-in: the checkbox column only exists while it is on.
+    var modeToggle = getEl('bulkModeToggle');
+    if (modeToggle) {
+      modeToggle.addEventListener('click', function () {
+        var on = table.classList.toggle('bulk-mode');
+        modeToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        modeToggle.classList.toggle('btn-primary', on);
+        modeToggle.classList.toggle('btn-outline', !on);
+        if (!on) {
+          var boxes = table.querySelectorAll('.teacher-checkbox');
+          Array.prototype.forEach.call(boxes, function (cb) { cb.checked = false; });
+          var all = getEl('selectAllTeachers');
+          if (all) { all.checked = false; all.indeterminate = false; }
+          bar.style.display = 'none';
+        }
+      });
+    }
+
     var selectAll = getEl('selectAllTeachers');
     var actionSel = getEl('bulkAction');
     var countEl = getEl('bulkCount');

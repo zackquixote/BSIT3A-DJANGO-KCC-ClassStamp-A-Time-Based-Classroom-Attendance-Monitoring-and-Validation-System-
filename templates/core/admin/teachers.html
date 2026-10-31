@@ -1,6 +1,14 @@
 {% extends "theme/base.html" %}
 {% block title %}Teachers & Faculty — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Row selection is opt-in: the roster reads clean until bulk mode is on. */
+  .bulk-col { display: none; }
+  table.bulk-mode .bulk-col { display: table-cell; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div>
@@ -59,36 +67,6 @@
   </div>
 </div>
 
-<!-- Teacher Stats Quick Filters -->
-<div class="card mb-4" style="padding: 12px 18px; background: var(--bg-subtle);">
-  <div class="flex flex-wrap gap-3">
-    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
-      <div class="stat-info">
-        <span class="stat-value text-primary">{{ total_count }}</span>
-        <span class="stat-label text-xs text-muted">Total Teachers</span>
-      </div>
-    </div>
-    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
-      <div class="stat-info">
-        <span class="stat-value text-green">{{ active_count }}</span>
-        <span class="stat-label text-xs text-muted">Active</span>
-      </div>
-    </div>
-    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
-      <div class="stat-info">
-        <span class="stat-value text-red">{{ inactive_count }}</span>
-        <span class="stat-label text-xs text-muted">Inactive</span>
-      </div>
-    </div>
-    <div class="stat-card" style="padding: 8px 12px; min-width: 120px;">
-      <div class="stat-info">
-        <span class="stat-value text-blue">{{ dept_count }}</span>
-        <span class="stat-label text-xs text-muted">Departments</span>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Filter Bar -->
 <div class="card mb-4" style="padding: 14px 18px;">
   <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
@@ -117,6 +95,10 @@
     <a href="{% url 'teacher_list' %}" class="btn btn-outline">Clear</a>
     {% endif %}
     <button type="submit" class="btn btn-primary">Filter</button>
+    <button type="button" class="btn btn-outline" id="bulkModeToggle" aria-pressed="false"
+            title="Show row selection for activate / deactivate / reset-password">
+      <i class="fas fa-list-check"></i> Bulk actions
+    </button>
   </form>
 </div>
 
@@ -167,24 +149,24 @@
     <table class="table" id="teacherTable">
       <thead>
         <tr>
-          <th style="width: 40px; text-align: center;">
-            <input type="checkbox" id="selectAllTeachers" title="Select all faculty" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
+          <th scope="col" class="bulk-col" style="width: 40px; text-align: center;">
+            <input type="checkbox" id="selectAllTeachers" title="Select all faculty" aria-label="Select all faculty" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
           </th>
-          <th style="width: 44px;">#</th>
-          <th>Faculty Member</th>
-          <th>Username</th>
-          <th>Department</th>
-          <th>Teaching Load &amp; Subjects</th>
-          <th>Account Status</th>
-          <th>Joined</th>
-          <th style="text-align: right; width: 130px;">Actions</th>
+          <th scope="col" style="width: 44px;">#</th>
+          <th scope="col">Faculty Member</th>
+          <th scope="col">Username</th>
+          <th scope="col">Department</th>
+          <th scope="col">Teaching Load &amp; Subjects</th>
+          <th scope="col">Account Status</th>
+          <th scope="col">Joined</th>
+          <th scope="col" style="text-align: right; width: 130px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for t in teachers %}
         <tr data-teacher-id="{{ t.id }}">
-          <td style="text-align: center;">
-            <input type="checkbox" class="teacher-checkbox" value="{{ t.id }}" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
+          <td class="bulk-col" style="text-align: center;">
+            <input type="checkbox" class="teacher-checkbox" value="{{ t.id }}" aria-label="Select {{ t.user.get_full_name|default:t.user.username }}" style="width:15px;height:15px;accent-color:var(--accent-blue);cursor:pointer;">
           </td>
           <td class="text-muted">{{ t.id }}</td>
           <td>
@@ -230,16 +212,16 @@
           <td class="text-muted text-sm">{{ t.user.date_joined|date:"M d, Y" }}</td>
           <td style="text-align: right; width: 130px; overflow: visible; position: relative;">
             <div class="flex justify-end items-center gap-1">
-              <button type="button" class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Profile">
+              <button type="button" class="btn btn-outline btn-sm js-view-teacher" data-id="{{ t.id }}" title="View Profile" aria-label="View Profile">
                 <i class="fas fa-eye"></i>
               </button>
-              <button type="button" class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit Profile">
+              <button type="button" class="btn btn-outline btn-sm js-edit-teacher" data-id="{{ t.id }}" title="Edit Profile" aria-label="Edit Profile">
                 <i class="fas fa-pen"></i>
               </button>
               
               <!-- Clean Actions Dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;">
+                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;" aria-label="More Actions">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

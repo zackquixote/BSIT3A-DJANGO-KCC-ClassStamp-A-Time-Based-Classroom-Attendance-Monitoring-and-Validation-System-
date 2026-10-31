@@ -109,7 +109,10 @@ def export_student_directory_csv(filter_params=None):
     if status in [Profile.APPROVAL_APPROVED, Profile.APPROVAL_PENDING, Profile.APPROVAL_REJECTED]:
         students_qs = students_qs.filter(approval_status=status)
     if section:
-        students_qs = students_qs.filter(enrollments__class_obj__class_code__icontains=section).distinct()
+        students_qs = students_qs.filter(
+            Q(enrollments__class_obj__section_code__iexact=section)
+            | Q(enrollments__class_obj__class_code__iexact=section)
+        ).distinct()
     if q:
         students_qs = students_qs.filter(
             Q(student_number__icontains=q)

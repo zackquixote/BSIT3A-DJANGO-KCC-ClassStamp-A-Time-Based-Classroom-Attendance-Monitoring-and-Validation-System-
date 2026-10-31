@@ -255,8 +255,10 @@ class AbsenceRadarViewTests(TestCase):
 
         self.client.force_login(self.teacher_user)
 
-    def test_teacher_dashboard_renders_radar_chip(self):
-        res = self.client.get(reverse('teacher_dashboard'))
+    def test_classes_page_renders_radar_chip(self):
+        # The CHED radar moved from /dashboard/ to the My Classes workspace in
+        # f8becfe; the assertion belongs where the chip is actually rendered.
+        res = self.client.get(reverse('teacher_classes'))
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'FDA risk')
         self.assertContains(res, '1 FDA risk')

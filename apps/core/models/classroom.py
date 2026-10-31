@@ -11,12 +11,45 @@
 # // ==============================================================================
 """
 
+import re
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from .academic import AcademicYear, Program, Subject
 from .profile import Profile
+
+
+# // ==============================================================================
+# // SECTION KEY DERIVATION
+# // ==============================================================================
+# // A "section" is not a table in this system: it is the cohort prefix shared by
+# // every subject offering a block takes together (BSIT-1A). The offering code
+# // carries it, but three conventions exist in real data:
+# //     'BSIT-1A-IT103'   section + subject   -> BSIT-1A
+# //     'BSIT-3A WEBDEV'  space separator     -> BSIT-3A
+# //     'BSIT-3A'         section only        -> BSIT-3A
+# // Deriving it once, on write, keeps every query exact and indexable instead of
+# // re-parsing class_code with a substring match at read time.
+SECTION_CODE_RE = re.compile(r'^([A-Z]{2,8}-\d{1,2}[A-Z])')
+
+
+def derive_section_code(class_code):
+    """
+    // Return the section key for an offering code.
+    // Codes that do not follow the PROGRAM-YEAR+SECTION shape are returned whole
+    // so nothing is silently dropped from grouping or filtering.
+    """
+    code = (class_code or '').strip().upper()
+    if not code:
+        return ''
+
+    match = SECTION_CODE_RE.match(code)
+    if match:
+        return match.group(1)
+
+    return code
 
 
 class Class(models.Model):
@@ -33,6 +66,12 @@ class Class(models.Model):
     class_code = models.CharField(
         max_length=40,
         help_text="// Course section code, e.g. BSIT-3A-CS101"
+    )
+    section_code = models.CharField(
+        max_length=24,
+        blank=True,
+        db_index=True,
+        help_text="// Section key shared by every subject the block takes, e.g. BSIT-3A"
     )
     subject = models.ForeignKey(
         Subject,
@@ -75,6 +114,19 @@ class Class(models.Model):
         db_table = 'tblcs_class'
         unique_together = [('academic_year', 'class_code')]
         ordering = ['class_code']
+
+    def save(self, *args, **kwargs):
+        """
+        // Fill the section key from the offering code on first write.
+        // An explicit value always wins so a data repair can override a bad
+        // legacy code without fighting the model.
+        """
+        if not self.section_code:
+            self.section_code = derive_section_code(self.class_code)
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'section_code' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['section_code']
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.class_code} - {self.subject.code}'
