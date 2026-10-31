@@ -7,7 +7,7 @@
 # // ==============================================================================
 """
 
-from datetime import date, time
+from datetime import date, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -26,6 +26,7 @@ from apps.core.models import (
     Program,
     Subject,
 )
+from apps.core.services.attendance_service import build_attendance_matrix
 
 User = get_user_model()
 
@@ -191,3 +192,16 @@ class TeacherAttendanceMatrixTests(TestCase):
         self.assertEqual(payload['summary']['total_sessions'], 1)
         self.assertEqual(payload['students'][0]['present'], 1)
         self.assertEqual(payload['students'][0]['rate'], 100.0)
+
+    def test_cancelled_sessions_do_not_dilute_attendance_rate(self):
+        ClassSession.objects.create(
+            slot=self.slot,
+            session_date=timezone.localdate() + timedelta(days=1),
+            status=ClassSession.STATUS_CANCELED,
+        )
+
+        matrix = build_attendance_matrix(self.class_obj)
+
+        self.assertEqual(matrix['total_sessions'], 1)
+        self.assertEqual(matrix['student_rows'][0]['rate'], 100.0)
+        self.assertEqual(matrix['overall_rate'], 100.0)

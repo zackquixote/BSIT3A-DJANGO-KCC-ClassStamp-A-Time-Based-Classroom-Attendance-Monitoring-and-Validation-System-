@@ -26,21 +26,6 @@ def serialize_department(department) -> dict:
     }
 
 
-def serialize_department_summary(department) -> dict:
-    """
-    // Minimal Department serialization for dropdowns and lookup references.
-    """
-    if not department:
-        return {}
-
-    return {
-        'id': department.id,
-        'code': department.code,
-        'name': department.name,
-        'is_active': department.is_active,
-    }
-
-
 def serialize_program(program) -> dict:
     """
     // Serializes a Program model instance including nested department information.
@@ -53,22 +38,6 @@ def serialize_program(program) -> dict:
         'department_id': program.department_id,
         'department_code': program.department.code if program.department else None,
         'department_name': program.department.name if program.department else None,
-        'code': program.code,
-        'name': program.name,
-        'years_total': program.years_total,
-        'is_active': program.is_active,
-    }
-
-
-def serialize_program_summary(program) -> dict:
-    """
-    // Minimal Program serialization for dropdowns and filter selectors.
-    """
-    if not program:
-        return {}
-
-    return {
-        'id': program.id,
         'code': program.code,
         'name': program.name,
         'years_total': program.years_total,
@@ -145,19 +114,5 @@ def serialize_academic_year(academic_year) -> dict:
         'ends_on': academic_year.ends_on.isoformat() if academic_year.ends_on else None,
         'is_active': academic_year.is_active,
         'class_count': getattr(academic_year, 'class_count', academic_year.classes.count() if hasattr(academic_year, 'classes') else 0),
-    }
-
-
-def serialize_academic_year_summary(academic_year) -> dict:
-    """
-    // Minimal AcademicYear serialization for dropdown selectors.
-    """
-    if not academic_year:
-        return {}
-
-    return {
-        'id': academic_year.id,
-        'name': academic_year.name,
-        'is_active': academic_year.is_active,
     }
 

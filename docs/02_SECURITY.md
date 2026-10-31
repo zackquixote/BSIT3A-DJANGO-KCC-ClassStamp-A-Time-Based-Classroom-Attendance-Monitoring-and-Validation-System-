@@ -90,8 +90,10 @@ def student_dashboard(request): ...
 ## 3. QR Code & TOTP Security
 
 ### QR Secret
-- `Profile.qr_secret` is a 32-character base32 secret — **never expose this in any API response or template**
-- Generate on account approval only: `pyotp.random_base32()`
+- `Profile.qr_secret` is a 64-character hex secret (32 random bytes) — **never expose this in any API response or template**
+- Generate with `secrets.token_hex(32)`; `qr_service.secret_to_base32()` converts it for pyotp
+- Rotate only through `apps/core/services/credential_service.py::rotate_student_credentials()`
+- That service also stamps `qr_rotated_at`, deletes every unconsumed `OfflineBadge` derived from the old secret, and writes an `AuditEvent`
 - Store encrypted at rest (consider Django's encrypted fields for production)
 
 ### TOTP Validation
@@ -151,12 +153,27 @@ cursor.execute("SELECT * FROM table WHERE id = %s", [user_id])
 
 ---
 
-## 7. File Upload Security (if needed in future)
+## 7. File Upload Security
 
-- Restrict allowed file types (whitelist, not blacklist)
-- Never serve uploaded files from the web root directly
-- Validate file content (not just extension)
-- Store uploads outside `MEDIA_ROOT` if they contain sensitive data
+### Accepted document types
+- Registration proofs and excuse attachments accept only PDF, JPG/JPEG, PNG, and WEBP
+- Maximum size: **5 MB**
+- Validation runs at four layers: model field validators, registration form,
+  provisioning service, and excuse-slip view
+- Content is checked, not just the filename:
+  - PDFs must begin with the `%PDF-` signature
+  - Images must decode through Pillow (`Image.verify()`)
+- Executables, SVG, HTML, and renamed fake files are rejected
+
+### Private document delivery
+- Uploaded identity documents are **never** served through `MEDIA_URL`
+- `mysite/urls.py` does not route `/media/`; the web server must not serve it either
+- Access goes through permission-checked views:
+  - `registration_proof_document` — owning student or ADMIN only
+  - `excuse_slip_attachment_document` — owning student, assigned TEACHER, or ADMIN
+- Responses are `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`
+- Store the media directory outside the web root in production and never add a
+  direct nginx/Apache alias for it
 
 ---
 

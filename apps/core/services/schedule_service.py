@@ -33,7 +33,7 @@ def validate_slot_times(starts_at, ends_at):
 
 def detect_slot_conflicts(
     *, teacher_profile_id, weekday, starts_at, ends_at,
-    room=None, exclude_slot_ids=(),
+    room=None, exclude_slot_ids=(), academic_year=None,
 ):
     """
     // [Service] Returns a list of conflict dicts for a proposed weekly slot.
@@ -41,8 +41,10 @@ def detect_slot_conflicts(
     // Each dict: {type: 'teacher'|'room', class_code, weekday, starts_at,
     //             ends_at, room, teacher_name}
     // Teacher clashes are detected unconditionally; room clashes only when a
-    // real room is proposed (empty or 'TBA' rooms never clash). Inactive slots
-    // and slots in exclude_slot_ids are ignored.
+    // real room is proposed (empty or 'TBA' rooms never clash). Inactive slots,
+    // inactive classes, and slots in exclude_slot_ids are ignored. When an
+    // academic year is supplied, only that year's timetable is considered so a
+    // prior or future term cannot produce a false conflict.
     """
     validate_slot_times(starts_at, ends_at)
 
@@ -51,12 +53,15 @@ def detect_slot_conflicts(
         .filter(
             weekday=weekday,
             is_active=True,
+            class_obj__is_active=True,
             starts_at__lt=ends_at,
             ends_at__gt=starts_at,
         )
         .exclude(id__in=list(exclude_slot_ids))
         .select_related('class_obj__teacher_profile__user')
     )
+    if academic_year is not None:
+        overlapping = overlapping.filter(class_obj__academic_year=academic_year)
 
     proposed_room = (room or '').strip().lower()
     check_room = bool(proposed_room) and proposed_room != 'tba'

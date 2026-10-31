@@ -39,7 +39,7 @@
     var container = document.querySelector('[data-review-url-prefix]');
     if (container) {
       var raw = container.getAttribute('data-review-url-prefix');
-      if (raw) prefix = raw.replace(/0\/?$/, '');
+      if (raw) prefix = raw.replace(/0\/review\/?$/, '');
     }
     return fetch(prefix + slipId + '/review/', {
       method: 'POST',

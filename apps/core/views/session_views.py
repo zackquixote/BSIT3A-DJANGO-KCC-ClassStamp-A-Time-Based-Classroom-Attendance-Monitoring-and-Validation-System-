@@ -14,7 +14,6 @@
 """
 
 from datetime import datetime, time, timedelta
-import csv
 import hashlib
 from io import BytesIO
 import logging
@@ -58,6 +57,7 @@ from apps.core.services.anomaly_service import (
     detect_token_replay,
 )
 from apps.core.services.attendance_service import build_attendance_matrix
+from apps.core.services.export_service import SafeCsvWriter, safe_spreadsheet_cell
 from apps.core.services.qr_service import token_details, verify_token
 from apps.core.views.helpers.absence_radar import (
     BAND_SAFE,
@@ -200,6 +200,26 @@ def teacher_session_open(request):
     slot = None
     if slot_id:
         slot = get_object_or_404(ClassSlot, pk=slot_id, class_obj=class_obj)
+
+        # // [Integrity Guard] A caller-supplied slot must describe a meeting that
+        # // actually falls on this session date. Without this check a teacher (or
+        # // a replayed request) can open Tuesday's 08:00 slot on a Friday
+        # // afternoon, and every scan is then scored against the wrong window.
+        if not slot.is_active:
+            messages.error(
+                request,
+                f"The selected schedule slot for {class_obj.class_code} is inactive. "
+                f"Reactivate it before opening an attendance session.",
+            )
+            return redirect('teacher_dashboard')
+        if slot.weekday != today.weekday():
+            messages.error(
+                request,
+                f"{class_obj.class_code} does not meet today. The selected slot is "
+                f"scheduled for {slot.get_weekday_display()}, but today is "
+                f"{today.strftime('%A')}. No session was opened.",
+            )
+            return redirect('teacher_dashboard')
     else:
         # Use only today's scheduled slot; otherwise create an ad-hoc slot for today.
         # Falling back to another weekday slot would violate the session-date trigger.
@@ -471,6 +491,27 @@ def teacher_session_roster_json(request, session_id):
 # // ==============================================================================
 # // API / AJAX: Real-Time Attendance QR Scan Endpoint
 # // ==============================================================================
+def _duplicate_stamp_response(existing_record, student_profile, student_number):
+    """
+    // [Shared Response] A stamp that is already on record for this session.
+    // Used by both the pre-check and the insert race so the scanner UI always
+    // receives the same idempotent "already recorded" answer.
+    """
+    stamped_time_str = (
+        existing_record.stamped_at.strftime('%I:%M %p')
+        if existing_record.stamped_at else 'earlier'
+    )
+    display_name = student_profile.user.get_full_name() or student_number
+    return JsonResponse({
+        'error': f"{display_name} was ALREADY stamped as "
+                 f"{existing_record.status} at {stamped_time_str}.",
+        'outcome': StampAttempt.OUTCOME_DUPLICATE,
+        'existing_status': existing_record.status,
+        'stamped_at': stamped_time_str,
+        'student_name': display_name,
+    }, status=400)
+
+
 @login_required(login_url='login')
 @role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
 @require_POST
@@ -642,14 +683,7 @@ def attendance_scan_api(request):
             token_age_s=token_age_s,
         )
         _safe_detect(lambda: detect_duplicate_stamp(existing_record))
-        stamped_time_str = existing_record.stamped_at.strftime('%I:%M %p') if existing_record.stamped_at else 'earlier'
-        return JsonResponse({
-            'error': f"{student_profile.user.get_full_name() or student_number} was ALREADY stamped as {existing_record.status} at {stamped_time_str}.",
-            'outcome': StampAttempt.OUTCOME_DUPLICATE,
-            'existing_status': existing_record.status,
-            'stamped_at': stamped_time_str,
-            'student_name': student_profile.user.get_full_name() or student_number
-        }, status=400)
+        return _duplicate_stamp_response(existing_record, student_profile, student_number)
 
     # 6b. Global anti-replay: consume the (student, token) pair exactly once
     # across every session so a captured code cannot be reused in another class
@@ -680,25 +714,38 @@ def attendance_scan_api(request):
     now, final_status, late_minutes = _grace_status(session, class_obj)
 
     # 8. Atomic Record Persistence
+    #    get_or_create closes the check-then-create race: two terminals (or a
+    #    student who refreshed their badge mid-flight) can clear the duplicate
+    #    pre-check at the same instant, and the loser of the insert must be told
+    #    the stamp is already recorded instead of receiving a 500.
     with transaction.atomic():
-        record = AttendanceRecord.objects.create(
+        record, created = AttendanceRecord.objects.get_or_create(
             session=session,
             student_profile=student_profile,
-            status=final_status,
-            method=AttendanceRecord.METHOD_QR,
-            stamped_at=now,
-            late_minutes=late_minutes,
-            marked_by=request.user,
+            defaults={
+                'status': final_status,
+                'method': AttendanceRecord.METHOD_QR,
+                'stamped_at': now,
+                'late_minutes': late_minutes,
+                'marked_by': request.user,
+            },
         )
         StampAttempt.objects.create(
             session=session,
             student_profile=student_profile,
             scanned_by=request.user,
             method=StampAttempt.METHOD_QR,
-            outcome=StampAttempt.OUTCOME_ACCEPTED,
+            outcome=(
+                StampAttempt.OUTCOME_ACCEPTED if created
+                else StampAttempt.OUTCOME_DUPLICATE
+            ),
             token_bucket=token_bucket,
             token_age_s=token_age_s,
         )
+
+    if not created:
+        _safe_detect(lambda: detect_duplicate_stamp(record))
+        return _duplicate_stamp_response(record, student_profile, student_number)
 
     # 9. Anomaly detection sweep (fail-open; never blocks the scan response)
     _safe_detect(lambda: detect_off_window(record, session))
@@ -1225,7 +1272,7 @@ def teacher_session_history_export(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="attendance_session_history.csv"'
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
     writer.writerow([
         'Meeting Date', 'Start Time', 'End Time', 'Class Code', 'Subject Code',
         'Subject Name', 'Room', 'Status', 'Present', 'Late', 'Absent', 'Excused',
@@ -1288,7 +1335,7 @@ def teacher_session_export(request, session_id):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
     writer.writerow([
         'Student Number', 'Last Name', 'First Name', 'Program', 'Year Level',
         'Status', 'Method', 'Late Minutes', 'Stamped At', 'Correction Reason',
@@ -1429,7 +1476,7 @@ def teacher_class_term_export(request, class_id):
         row_values += [present, late, absent, attendance_pct if attendance_pct is not None else '']
 
         for col, value in enumerate(row_values, start=1):
-            ws.cell(row=r, column=col, value=value)
+            ws.cell(row=r, column=col, value=safe_spreadsheet_cell(value))
 
         # CHED 20% rule: red conditional formatting for high-absence students
         if total_records and absence_pct >= 20:
@@ -1480,7 +1527,7 @@ def teacher_attendance_matrix(request, class_id):
         filename = f"attendance_matrix_{class_obj.class_code}_{timezone.localdate().strftime('%Y%m%d')}.csv"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-        writer = csv.writer(response)
+        writer = SafeCsvWriter(response)
         headers = ['Student ID', 'Student Name', 'Program']
         for session in matrix['session_list']:
             headers.append(f"{session['display_date']} ({session['weekday']})")

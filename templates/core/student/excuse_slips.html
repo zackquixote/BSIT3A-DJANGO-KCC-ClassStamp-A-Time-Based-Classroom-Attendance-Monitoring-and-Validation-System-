@@ -83,7 +83,7 @@
           <div class="text-warning text-xs mt-1"><i class="fas fa-comment-dots"></i> Instructor: {{ slip.review_note|truncatechars:160 }}</div>
           {% endif %}
           {% if slip.attachment %}
-          <a href="{{ slip.attachment.url }}" target="_blank" rel="noopener" class="text-xs text-gold mt-1 d-inline-block">
+          <a href="{% url 'excuse_slip_attachment_document' slip.pk %}" target="_blank" rel="noopener" class="text-xs text-gold mt-1 d-inline-block">
             <i class="fas fa-paperclip"></i> View attachment
           </a>
           {% endif %}

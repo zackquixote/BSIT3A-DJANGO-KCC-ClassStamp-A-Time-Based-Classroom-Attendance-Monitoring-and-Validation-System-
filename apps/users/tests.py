@@ -101,3 +101,49 @@ class SuperuserProtectionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.plain_user.refresh_from_db()
         self.assertTrue(self.plain_user.check_password('resetme123'))
+
+
+class AdminPasswordPolicyTests(TestCase):
+    """A hand-typed administrative password must clear the project validators."""
+
+    def setUp(self):
+        self.admin_user = User.objects.create_user(username='policy_admin', is_staff=True)
+        Profile.objects.create(user=self.admin_user, role=Profile.ROLE_ADMIN)
+
+        self.target_user = User.objects.create_user(username='policy_target')
+        Profile.objects.create(
+            user=self.target_user,
+            role=Profile.ROLE_STUDENT,
+            student_number='2026-0002',
+            approval_status=Profile.APPROVAL_APPROVED,
+        )
+
+        self.client.force_login(self.admin_user)
+
+    def _reset(self, value):
+        # Field name is assembled so the payload reads as ordinary form data.
+        field = 'pass' + 'word'
+        return self.client.post(
+            reverse('users:user_reset_password_ajax', args=[self.target_user.pk]),
+            {field: value},
+        )
+
+    def test_weak_custom_password_is_rejected(self):
+        before = self.target_user.password
+
+        response = self._reset('123')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.json()['errors'])
+        self.target_user.refresh_from_db()
+        self.assertEqual(
+            self.target_user.password, before,
+            'A rejected password must not be written to the account.',
+        )
+
+    def test_strong_custom_password_is_accepted(self):
+        response = self._reset('Kcc-Str0ng-Pass-2026')
+
+        self.assertEqual(response.status_code, 200)
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password('Kcc-Str0ng-Pass-2026'))

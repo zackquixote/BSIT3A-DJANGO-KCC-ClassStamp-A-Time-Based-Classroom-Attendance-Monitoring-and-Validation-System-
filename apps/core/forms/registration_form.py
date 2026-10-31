@@ -16,6 +16,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
 from apps.core.models import Profile, Program
+from apps.core.validators import validate_uploaded_document
 
 User = get_user_model()
 
@@ -68,6 +69,7 @@ class RegistrationForm(forms.Form):
     )
     registration_proof = forms.FileField(
         required=False,
+        validators=[validate_uploaded_document],
         widget=forms.FileInput(attrs={'class': 'form-file-input', 'accept': 'image/*,.pdf'}),
     )
 

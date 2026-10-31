@@ -14,6 +14,7 @@ import secrets
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -213,7 +214,15 @@ def register_view(request):
             'form_data': form_data,
         })
 
-    provision_student_account(form_data, proof_file)
+    try:
+        provision_student_account(form_data, proof_file)
+    except ValidationError as exc:
+        return render(request, 'auth/register.html', {
+            'departments': departments,
+            'programs': programs,
+            'errors': {'registration_proof': ' '.join(exc.messages)},
+            'form_data': form_data,
+        })
 
     messages.success(
         request,

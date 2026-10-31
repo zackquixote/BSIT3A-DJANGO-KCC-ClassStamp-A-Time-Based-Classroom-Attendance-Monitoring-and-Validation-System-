@@ -450,19 +450,19 @@
         <span class="text-muted text-xs">Certificate of Registration (COR) / School ID</span>
       </div>
       {% if student_profile.registration_proof %}
-        <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="btn btn-outline btn-sm" title="Open full resolution in new tab">
+        <a href="{% url 'registration_proof_document' student_profile.pk %}" target="_blank" class="btn btn-outline btn-sm" title="Open full resolution in new tab">
           <i class="fas fa-arrow-up-right-from-square"></i> Open High-Res
         </a>
       {% endif %}
     </div>
 
     {% if student_profile.registration_proof %}
-      {% if ".pdf" in student_profile.registration_proof.url|lower %}
+      {% if ".pdf" in student_profile.registration_proof.name|lower %}
         <div style="padding: 40px 20px; text-align: center; background: rgba(10, 18, 36, 0.8); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
           <i class="fas fa-file-pdf text-danger" style="font-size: 3.5rem; margin-bottom: 12px;"></i>
           <h4 class="text-primary font-bold text-base mb-1">Official PDF Document Attached</h4>
           <p class="text-secondary text-xs mb-4">Electronic PDF Certificate of Registration uploaded by student.</p>
-          <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="btn btn-primary btn-sm">
+          <a href="{% url 'registration_proof_document' student_profile.pk %}" target="_blank" class="btn btn-primary btn-sm">
             <i class="fas fa-file-pdf"></i> Inspect PDF in Reader
           </a>
         </div>
@@ -470,15 +470,15 @@
         <!-- Document Image Inspector Box -->
         <div style="background: rgba(6, 11, 23, 0.9); border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden; text-align: center; max-height: 520px; display: flex; align-items: center; justify-content: center; position: relative;">
           <a
-            href="{{ student_profile.registration_proof.url }}"
+            href="{% url 'registration_proof_document' student_profile.pk %}"
             class="js-lightbox-trigger"
-            data-lightbox="{{ student_profile.registration_proof.url }}"
+            data-lightbox="{% url 'registration_proof_document' student_profile.pk %}"
             data-caption="ID Proof / COR: {{ student_profile.user.get_full_name|default:student_profile.student_number }} ({{ student_profile.student_number }})"
             style="display: block; width: 100%; height: 100%; cursor: zoom-in;"
             title="Click to inspect in fullscreen lightbox"
           >
             <img
-              src="{{ student_profile.registration_proof.url }}"
+              src="{% url 'registration_proof_document' student_profile.pk %}"
               alt="Attached School ID / COR Proof"
               style="max-height: 520px; width: 100%; object-fit: contain; margin: 0 auto; display: block;"
             >
@@ -486,7 +486,7 @@
         </div>
         <div class="text-center mt-2 flex items-center justify-center gap-3">
           <span class="text-muted text-xs"><i class="fas fa-magnifying-glass-plus text-gold"></i> Click to open interactive inspector (Zoom, Rotate 90°)</span>
-          <a href="{{ student_profile.registration_proof.url }}" target="_blank" class="text-xs text-muted" style="text-decoration: underline;">
+          <a href="{% url 'registration_proof_document' student_profile.pk %}" target="_blank" class="text-xs text-muted" style="text-decoration: underline;">
             <i class="fas fa-arrow-up-right-from-square"></i> New tab
           </a>
         </div>

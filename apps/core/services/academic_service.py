@@ -23,7 +23,6 @@ from django.shortcuts import get_object_or_404
 from apps.core.models import (
     AcademicYear,
     AuditEvent,
-    Class,
     Curriculum,
     Department,
     Profile,

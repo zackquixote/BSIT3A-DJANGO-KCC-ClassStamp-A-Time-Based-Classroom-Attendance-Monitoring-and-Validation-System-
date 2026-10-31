@@ -10,12 +10,12 @@
 """
 
 import datetime
-import secrets
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.core.models import AuditEvent, Profile
+from apps.core.models import Profile
+from apps.core.services.credential_service import rotate_student_credentials
 
 
 class Command(BaseCommand):
@@ -53,27 +53,19 @@ class Command(BaseCommand):
             return
 
         rotated_count = 0
-        now = timezone.now()
+        revoked_badges = 0
 
         for profile in qs:
-            old_secret_preview = f"...{profile.qr_secret[-8:]}" if profile.qr_secret else "None"
-            new_secret = secrets.token_hex(32)
-
-            profile.qr_secret = new_secret
-            profile.qr_rotated_at = now
-            profile.save(update_fields=['qr_secret', 'qr_rotated_at'])
-
-            AuditEvent.objects.create(
+            result = rotate_student_credentials(
+                profile,
                 actor=None,  # Automated cron/management command
-                action='ROTATE_QR_SECRET',
-                object_type='Profile',
-                object_id=str(profile.pk),
-                old_value=f"Seed rotated from {old_secret_preview}",
-                new_value=f"New 64-char seed provisioned at {now.isoformat()}",
                 reason=f"Scheduled security seed rotation policy ({days} days)",
+                audit_action='ROTATE_QR_SECRET',
             )
             rotated_count += 1
+            revoked_badges += result['revoked_offline_badges']
 
         self.stdout.write(self.style.SUCCESS(
-            f"[SUCCESS] Rotated QR seeds for {rotated_count} approved student profile(s)."
+            f"[SUCCESS] Rotated QR seeds for {rotated_count} approved student profile(s); "
+            f"revoked {revoked_badges} unconsumed offline badge(s)."
         ))

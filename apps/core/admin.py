@@ -1,10 +1,6 @@
 from django.contrib import admin
-from django.db.models import Count
-from django.urls import path
-from django.contrib.auth.decorators import login_required
-from apps.core.decorators.rbac import role_required
 
-from apps.core.models.academic import Program, Department
+from apps.core.models.academic import Program
 from apps.core.models.profile import Profile
 
 
@@ -28,37 +24,3 @@ class ProgramAdmin(admin.ModelAdmin):
         ).count()
     student_count.short_description = 'Approved Students'
     student_count.admin_order_field = 'profile_count'
-
-
-@login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
-def program_students_per_year(request, program_id):
-    """
-    Returns a list of students grouped by year level for the given program.
-    Used by the admin detail view when clicking on a program name.
-    """
-    program = Program.objects.get(id=program_id)
-
-    # Group approved students by year level
-    students_by_year = (
-        Profile.objects
-        .filter(role=Profile.ROLE_STUDENT, program=program, approval_status=Profile.APPROVAL_APPROVED)
-        .values('year_level')
-        .annotate(count=Count('id'))
-        .order_by('year_level')
-    )
-
-    # Get student names per year for display
-    students_detail = (
-        Profile.objects
-        .filter(role=Profile.ROLE_STUDENT, program=program, approval_status=Profile.APPROVAL_APPROVED, year_level__isnull=False)
-        .values('year_level', 'user__first_name', 'user__last_name', 'user__username', 'student_number')
-        .order_by('year_level', 'user__first_name')
-    )
-
-    return {
-        'program': program,
-        'students_by_year': students_by_year,
-        'students_detail': students_detail,
-        'total_students': sum(s['count'] for s in students_by_year),
-    }

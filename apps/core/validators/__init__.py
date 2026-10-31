@@ -30,9 +30,11 @@ from .identity_validators import (
     ALLOWED_PROOF_EXTENSIONS,
     MAX_PROOF_FILE_SIZE_BYTES,
     MAX_PROOF_FILE_SIZE_MB,
+    validate_proof_file_content,
     validate_proof_file_extension,
     validate_proof_file_size,
     validate_student_id,
+    validate_uploaded_document,
 )
 
 __all__ = [
@@ -42,6 +44,8 @@ __all__ = [
     'validate_student_id',
     'validate_proof_file_size',
     'validate_proof_file_extension',
+    'validate_proof_file_content',
+    'validate_uploaded_document',
     'validate_academic_year_code',
     'validate_program_duration',
     'validate_class_section_code',

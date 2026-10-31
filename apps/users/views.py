@@ -9,12 +9,13 @@
 // ==============================================================================
 """
 
-import csv
 import secrets
 import string
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import Count, Q
@@ -25,6 +26,7 @@ from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Department, Profile, Program
+from apps.core.services.export_service import SafeCsvWriter
 
 
 def _superuser_target_guard(request, target_user):
@@ -501,6 +503,17 @@ def user_reset_password_ajax(request, pk):
     custom_pwd = request.POST.get('password', '').strip()
 
     if custom_pwd:
+        # // [Policy Gate] An administrator typing a password by hand must clear
+        # // the same validators as self-service registration. Without this an
+        # // admin could set a trivially guessable password on any account.
+        try:
+            validate_password(custom_pwd, target_user)
+        except ValidationError as exc:
+            return JsonResponse({
+                'status': 'error',
+                'errors': list(exc.messages),
+                'message': ' '.join(exc.messages),
+            }, status=400)
         new_password = custom_pwd
     else:
         # Generate 10-char high-entropy temporary password
@@ -579,7 +592,7 @@ def user_export_csv(request):
     timestamp = timezone.now().strftime('%Y%m%d_%H%M')
     response['Content-Disposition'] = f'attachment; filename="kcc_{role_tab}_users_{timestamp}.csv"'
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
 
     if role_tab == 'teachers':
         writer.writerow([

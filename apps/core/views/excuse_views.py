@@ -12,6 +12,7 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,6 +26,7 @@ from apps.core.models import (
     ExcuseSlip,
     Profile,
 )
+from apps.core.validators import validate_uploaded_document
 
 
 def _can_review_excuse(request, class_obj) -> bool:
@@ -81,11 +83,19 @@ def student_excuse_slips(request):
             messages.error(request, 'That session is not an absently-marked meeting for you.')
             return redirect('student_excuse_slips')
 
+        attachment = request.FILES.get('attachment')
+        if attachment is not None:
+            try:
+                validate_uploaded_document(attachment)
+            except ValidationError as exc:
+                messages.error(request, ' '.join(exc.messages))
+                return redirect('student_excuse_slips')
+
         slip = ExcuseSlip(
             student_profile=profile,
             session=record.session,
             reason=reason,
-            attachment=request.FILES.get('attachment'),
+            attachment=attachment,
         )
         try:
             with transaction.atomic():

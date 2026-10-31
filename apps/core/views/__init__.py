@@ -66,6 +66,14 @@ from .student_portal_views import (
 )
 
 # // ------------------------------------------------------------------------------
+# // 2c. Protected Document Delivery (identity proofs & excuse attachments)
+# // ------------------------------------------------------------------------------
+from .document_views import (
+    excuse_slip_attachment_document,
+    registration_proof_document,
+)
+
+# // ------------------------------------------------------------------------------
 # // 3. Account Validation & Registrar Dossier Subsystem
 # // ------------------------------------------------------------------------------
 from .validation_views import (
@@ -280,6 +288,8 @@ __all__ = [
     'student_qr_token_api',
     'student_offline_badge_issue',
     'student_attendance_log',
+    'registration_proof_document',
+    'excuse_slip_attachment_document',
     '_admin_dashboard_stats',
     '_teacher_dashboard_stats',
     '_student_dashboard_stats',
@@ -300,8 +310,7 @@ __all__ = [
     'department_delete',
 
     # Programs
-    program_students_csv_export,
-    program_students_csv_export,
+    'program_students_csv_export',
     'program_list',
     'program_save',
     'program_delete',

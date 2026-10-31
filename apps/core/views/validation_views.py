@@ -10,7 +10,7 @@
 # // ==============================================================================
 """
 
-import secrets
+from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -20,7 +20,7 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
@@ -47,6 +47,24 @@ def _check_validation_rate_limit(request, max_requests=120, window_seconds=60) -
     except Exception:
         pass
     return True
+
+
+def _redirect_after_validation(request, fallback='validation_pending_queue'):
+    """
+    // Return to the validation workspace only when the Referer is a local
+    // /validation/ path. External hosts and paths are ignored to prevent an
+    // open redirect after an administrative decision.
+    """
+    referer = request.META.get('HTTP_REFERER', '')
+    if referer:
+        parsed = urlparse(referer)
+        if parsed.path.startswith('/validation/') and url_has_allowed_host_and_scheme(
+            referer,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(referer)
+    return redirect(fallback)
 
 
 # // ==============================================================================
@@ -413,10 +431,7 @@ def approve_student(request, student_number):
     next_url = request.POST.get('next')
     if next_url == 'detail':
         return redirect('validation_detail', student_number=profile.pk)
-    referer = request.META.get('HTTP_REFERER')
-    if referer and '/validation/' in referer:
-        return redirect(referer)
-    return redirect('validation_pending_queue')
+    return _redirect_after_validation(request)
 
 
 # // ==============================================================================
@@ -455,20 +470,14 @@ def reject_student(request, student_number):
         messages.error(request, 'A rejection reason is required.')
         if next_url == 'detail':
             return redirect('validation_detail', student_number=profile.student_number)
-        referer = request.META.get('HTTP_REFERER')
-        if referer and '/validation/' in referer:
-            return redirect(referer)
-        return redirect('validation_pending_queue')
+        return _redirect_after_validation(request)
 
     reject_student_registration(profile, request.user, reason)
 
     messages.success(request, f'{profile.user.get_full_name() or profile.user.get_username()} has been rejected.')
     if next_url == 'detail':
         return redirect('validation_detail', student_number=profile.student_number)
-    referer = request.META.get('HTTP_REFERER')
-    if referer and '/validation/' in referer:
-        return redirect(referer)
-    return redirect('validation_pending_queue')
+    return _redirect_after_validation(request)
 
 
 # // ==============================================================================
@@ -543,7 +552,6 @@ def batch_validation_action(request):
     if not _check_validation_rate_limit(request, max_requests=30, window_seconds=60):
         return JsonResponse({'error': 'Rate limit exceeded. Please wait a moment before sending more batch actions.'}, status=429)
 
-    import json as _json
     action = request.POST.get('action', '').strip()
     raw_ids = request.POST.getlist('ids[]') or request.POST.getlist('ids')
     reason = request.POST.get('reason', '').strip()

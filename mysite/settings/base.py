@@ -151,6 +151,9 @@ STATICFILES_DIRS = [
 # Collect target for production (populated by `manage.py collectstatic`).
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Uploaded identity documents (COR/ID proofs, excuse attachments) live here.
+# This directory must never be served directly by Django or the web server;
+# access goes through the permission-checked document views instead.
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 

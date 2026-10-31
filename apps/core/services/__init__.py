@@ -35,6 +35,7 @@ from .approval_service import (
 )
 from .auth_service import provision_student_account
 from .backup_service import stream_database_backup
+from .credential_service import revoke_user_sessions, rotate_student_credentials
 from .storage_optimizer import optimize_proof_upload
 from .attendance_service import build_attendance_matrix
 from .class_service import ClassAssignmentError, assign_class
@@ -117,6 +118,9 @@ __all__ = [
     'reject_student_registration',
     # Auth provisioning
     'provision_student_account',
+    # Credential lifecycle
+    'rotate_student_credentials',
+    'revoke_user_sessions',
     # Backup & storage optimization
     'stream_database_backup',
     'optimize_proof_upload',

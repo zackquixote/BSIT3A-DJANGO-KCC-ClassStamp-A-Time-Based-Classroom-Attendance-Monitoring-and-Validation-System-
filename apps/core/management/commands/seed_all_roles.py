@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from apps.core.models import (
-    Department, Program, Subject, AcademicYear, Profile, Class, ClassSlot
+    Department, Program, Subject, AcademicYear, Profile, Class
 )
 
 User = get_user_model()

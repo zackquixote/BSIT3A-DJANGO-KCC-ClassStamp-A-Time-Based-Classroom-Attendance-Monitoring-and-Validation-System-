@@ -189,6 +189,8 @@
   data-check-url="{% url 'class_wizard_slots_check' %}"
   data-classes-url="{% url 'class_list' %}"></div>
 <script id="wizard-programs" type="application/json">{{ programs_json|safe }}</script>
+<script id="wizard-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
+<script id="wizard-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
 
 <div class="wiz-head">
   <div>
@@ -217,14 +219,19 @@
   </div>
 </div>
 
-<!-- ── Step indicator ─────────────────────────────────────────── -->
-<ol id="wizard-progress">
-  <li data-step-indicator="1"><span class="step-num">1</span><span class="step-label">Curriculum</span></li>
-  <li data-step-indicator="2"><span class="step-num">2</span><span class="step-label">Subject &amp; Teacher</span></li>
-  <li data-step-indicator="3"><span class="step-num">3</span><span class="step-label">Section</span></li>
-  <li data-step-indicator="4"><span class="step-num">4</span><span class="step-label">Schedule</span></li>
-  <li data-step-indicator="5"><span class="step-num">5</span><span class="step-label">Review</span></li>
-</ol>
+<!-- ── Progress stepper ──────────────────────────────────────── -->
+<div id="wizard-progress" class="wizard-stepper mb-4">
+  <div class="wizard-stepper-track"></div>
+  {% for step_num, step_label in wizard_steps %}
+  <div class="wizard-step" data-step-indicator="{{ step_num }}" title="Go to step {{ step_num }}">
+    <div class="wizard-step-dot">
+      <span class="wizard-step-num">{{ step_num }}</span>
+      <i class="fas fa-check wizard-step-check"></i>
+    </div>
+    <span class="wizard-step-label">{{ step_label }}</span>
+  </div>
+  {% endfor %}
+</div>
 
 <div id="wizard-card" class="card wiz-card">
 
@@ -237,7 +244,7 @@
         <select id="wiz-program" class="form-control">
           <option value="">Select Program</option>
           {% for p in programs %}
-          <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+          <option value="{{ p.id }}">{{ p.code }} &middot; {{ p.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -275,6 +282,18 @@
   <!-- STEP 2: Subject & Teacher -->
   <section id="wizard-step-2" style="display:none;">
     <h2 class="wiz-h2"><i class="fas fa-book-open"></i> Pick the subject and instructor</h2>
+    <div id="wiz-empty-subjects" class="card p-3 mb-3" style="display:none; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25);">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-triangle-exclamation text-danger" style="font-size: 1.25rem;"></i>
+        <div>
+          <div class="font-semibold text-danger" style="font-size: 0.9rem;">No Curriculum Subjects Found</div>
+          <div class="text-xs text-muted" id="wiz-empty-subjects-desc">No active subjects mapped to this curriculum slot yet.</div>
+        </div>
+        <a id="wiz-curriculum-link" href="{% url 'program_list' %}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: auto;">
+          <i class="fas fa-arrow-up-right-from-square"></i> Open Curriculum Matrix
+        </a>
+      </div>
+    </div>
     <div class="wiz-grid-2">
       <div class="form-group">
         <label class="form-label" for="wiz-subject">Subject <span class="text-danger">*</span></label>
@@ -292,11 +311,13 @@
   <!-- STEP 3: Section details -->
   <section id="wizard-step-3" style="display:none;">
     <h2 class="wiz-h2"><i class="fas fa-chalkboard"></i> Section details</h2>
+    <p class="text-muted text-xs mb-3">A suggested section code is pre-filled based on your selections.</p>
     <div class="wiz-grid-3">
       <div class="form-group">
         <label class="form-label" for="wiz-code">Section Code <span class="text-danger">*</span></label>
         <input type="text" id="wiz-code" class="form-control" style="text-transform:uppercase;" placeholder="e.g. BSIT-3A">
         <span class="form-hint">Next free code suggested automatically.</span>
+        <div id="wiz-existing-sections" class="mt-1" style="display:none;"></div>
       </div>
       <div class="form-group">
         <label class="form-label" for="wiz-capacity">Capacity</label>
@@ -315,7 +336,29 @@
   <section id="wizard-step-4" style="display:none;">
     <h2 class="wiz-h2"><i class="fas fa-calendar-week"></i> Weekly schedule</h2>
     <div id="hours-tally" class="badge badge--gold mb-3" style="padding:8px 14px;font-size:0.85rem;"></div>
-    <div class="wiz-slot-row">
+    <!-- ── Quick Presets (1-Click) ────────────────────────── -->
+    <div class="wizard-presets-bar mb-3">
+      <div class="text-xs text-muted font-bold uppercase mb-1.5" style="letter-spacing: 0.05em;">
+        <i class="fas fa-bolt text-gold"></i> 1-Click Schedule Presets
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button type="button" class="wizard-preset-btn js-preset-slot" data-pattern="MWF" data-duration="60" title="Auto-fill Monday, Wednesday, Friday (1.0 hr each)">
+          <i class="fas fa-calendar-days text-primary"></i> MWF (3 &times; 1.0 hr)
+        </button>
+        <button type="button" class="wizard-preset-btn js-preset-slot" data-pattern="TTH" data-duration="90" title="Auto-fill Tuesday, Thursday (1.5 hr each)">
+          <i class="fas fa-calendar-days text-primary"></i> TTh (2 &times; 1.5 hr)
+        </button>
+        <button type="button" class="wizard-preset-btn js-preset-slot" data-pattern="SAT" data-duration="180" title="Auto-fill Saturday (3.0 hr block)">
+          <i class="fas fa-calendar-days text-primary"></i> Saturday (1 &times; 3.0 hr)
+        </button>
+        <button type="button" class="btn btn-ghost btn-xs text-muted" id="slot-clear-all" style="margin-left: auto;">
+          <i class="fas fa-rotate-left"></i> Reset Slots
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Slot Input Form ─────────────────────────────────── -->
+    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1.2fr auto;gap:10px;align-items:end;background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);" class="p-3 mb-3">
       <div class="form-group" style="margin:0;">
         <label class="form-label" for="slot-weekday">Day</label>
         <select id="slot-weekday" class="form-control">
@@ -329,33 +372,48 @@
         <input type="time" id="slot-start" class="form-control" value="08:00">
       </div>
       <div class="form-group" style="margin:0;">
-        <label class="form-label" for="slot-end">End</label>
+        <label class="form-label" for="slot-end">End <span class="text-muted text-xs" id="slot-end-hint"></span></label>
         <input type="time" id="slot-end" class="form-control" value="09:00">
       </div>
       <div class="form-group" style="margin:0;">
         <label class="form-label" for="slot-room">Room</label>
-        <input type="text" id="slot-room" class="form-control" placeholder="TBA">
+        <input type="text" id="slot-room" class="form-control" placeholder="TBA" list="room-suggestions" autocomplete="off">
+        <datalist id="room-suggestions"></datalist>
       </div>
-      <button type="button" class="btn btn-outline" id="slot-add"><i class="fas fa-plus"></i> Add</button>
+      <button type="button" class="btn btn-primary" id="slot-add" style="padding:9px 14px;"><i class="fas fa-plus"></i> Add</button>
     </div>
     <p class="form-hint" style="margin-top:8px;">Teacher clashes block saving; room clashes only warn. Overlapping slots in this list are not allowed.</p>
+
+    <!-- ── Visual Weekly Timetable Grid Preview ────────────── -->
+    <div class="wizard-timetable-box mb-3">
+      <div class="text-xs text-muted font-bold uppercase mb-1.5" style="letter-spacing: 0.05em;">
+        <i class="fas fa-table-columns text-primary"></i> Weekly Timetable Grid Preview
+      </div>
+      <div id="wizard-timetable-grid" class="wizard-timetable-grid">
+        <!-- Mon to Sun columns rendered by JS -->
+      </div>
+    </div>
+
     <div id="slot-list" style="margin-top:14px;"></div>
   </section>
 
   <!-- STEP 5: Review -->
   <section id="wizard-step-5" style="display:none;">
     <h2 class="wiz-h2"><i class="fas fa-clipboard-check"></i> Review &amp; create</h2>
+    <p class="text-muted text-xs mb-3">Everything looks good? Click <strong>Create Section</strong> to finalise.</p>
     <div id="review-summary"></div>
     <div id="review-warnings"></div>
   </section>
 
-  {# Not using .toast classes: app_toasts.js sweeps and removes .toast elements from the DOM after 5s #}
   <div id="wiz-error" style="display:none;margin-top:14px;padding:10px 14px;border:1px solid rgba(239,68,68,0.5);border-radius:10px;background:rgba(239,68,68,0.12);color:#fca5a5;font-size:0.9rem;"></div>
 
   <div class="wiz-actions">
     <button type="button" class="btn btn-outline" id="wiz-back" style="visibility:hidden;"><i class="fas fa-arrow-left"></i> Back</button>
     <div class="flex items-center gap-2">
-      <button type="button" class="btn btn-primary" id="wiz-next">Continue <i class="fas fa-arrow-right"></i></button>
+      <button type="button" class="btn btn-primary" id="wiz-next">
+        Continue <i class="fas fa-arrow-right" id="wiz-next-icon"></i>
+        <i class="fas fa-spinner fa-spin" id="wiz-next-spinner" style="display:none;"></i>
+      </button>
       <button type="button" class="btn btn-primary" id="wiz-create" style="display:none;"><i class="fas fa-check"></i> Create Section</button>
     </div>
   </div>
@@ -365,15 +423,216 @@
 <div id="wizard-success" class="card wiz-card" style="display:none;">
   <h2 class="wiz-h2"><i class="fas fa-circle-check" style="color:#22c55e;background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.25);"></i> Section created</h2>
   <p id="success-code" class="mb-2"></p>
+  <div id="success-summary" style="background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:16px 20px;margin-bottom:16px;"></div>
   <div id="success-warnings"></div>
-  <div class="flex items-center gap-2 mt-3">
+  <div class="flex items-center gap-2 mt-4" style="justify-content:center;">
     <a id="success-goto" class="btn btn-primary" href="{% url 'class_list' %}"><i class="fas fa-chalkboard"></i> Open Class Sections</a>
     <a class="btn btn-outline" href="{% url 'class_wizard_setup' %}"><i class="fas fa-plus"></i> Build Another Section</a>
   </div>
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* ── Wizard Stepper ───────────────────────────────────────────── */
+.wizard-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+  max-width: 880px;
+  gap: 0;
+}
+.wizard-stepper-track {
+  position: absolute;
+  top: 18px;
+  left: calc(10% + 18px);
+  right: calc(10% + 18px);
+  height: 2px;
+  background: rgba(255,255,255,0.08);
+  z-index: 0;
+}
+.wizard-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+  position: relative;
+  z-index: 1;
+}
+.wizard-step.is-clickable { cursor: pointer; }
+.wizard-step.is-clickable:hover .wizard-step-dot {
+  transform: scale(1.08);
+  border-color: rgba(99, 102, 241, 0.8);
+}
+.wizard-step-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(30, 41, 59, 0.9);
+  border: 2px solid rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+  position: relative;
+}
+.wizard-step-num { display: block; }
+.wizard-step-check { display: none; }
+.wizard-step-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.25s ease;
+}
+
+/* Active step */
+.wizard-step.is-active .wizard-step-dot {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.7);
+  color: #a5b4fc;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+.wizard-step.is-active .wizard-step-label { color: #a5b4fc; }
+
+/* Completed step */
+.wizard-step.is-done .wizard-step-dot {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.6);
+  color: #4ade80;
+}
+.wizard-step.is-done .wizard-step-num { display: none; }
+.wizard-step.is-done .wizard-step-check { display: block; }
+.wizard-step.is-done .wizard-step-label { color: #4ade80; }
+
+/* ── Quick Schedule Presets ──────────────────────────────────── */
+.wizard-presets-bar {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.wizard-preset-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.wizard-preset-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #a5b4fc;
+}
+
+/* ── Weekly Timetable Mini-Grid ───────────────────────────────── */
+.wizard-timetable-box {
+  background: rgba(14, 24, 46, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.wizard-timetable-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.wizard-day-col {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 6px 5px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+.wizard-day-col.has-slots {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+.wizard-day-head {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 5px;
+}
+.wizard-day-col.has-slots .wizard-day-head {
+  color: #a5b4fc;
+  font-weight: 800;
+}
+.wizard-slot-pill {
+  background: rgba(99, 102, 241, 0.22);
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  border-radius: 4px;
+  padding: 3px 5px;
+  margin-bottom: 4px;
+  font-size: 0.64rem;
+  color: #e0e7ff;
+  line-height: 1.2;
+}
+.wizard-slot-pill-time {
+  font-weight: 700;
+}
+.wizard-slot-pill-room {
+  font-size: 0.58rem;
+  color: var(--accent-gold);
+}
+.wizard-day-empty {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.18);
+  text-align: center;
+  margin: auto 0;
+}
+
+/* ── Review Summary Grid ─────────────────────────────────────── */
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 20px;
+}
+.review-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.review-item-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.review-item-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.review-item--full { grid-column: 1 / -1; }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/classes/section_wizard.js' %}?v=20261029_wiz1"></script>
+<script src="{% static 'js/classes/section_wizard.js' %}?v=20261029_v3"></script>
 {% endblock %}

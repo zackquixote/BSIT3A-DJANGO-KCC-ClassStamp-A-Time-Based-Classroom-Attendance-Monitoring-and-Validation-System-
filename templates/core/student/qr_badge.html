@@ -21,7 +21,7 @@
   <div class="mb-4">
     {% if proof and proof_is_image %}
       <div class="badge-id-photo" title="Watermarked identity photo — proxy sharing deterrent">
-        <img src="{{ proof.url }}" alt="Student ID photo" loading="lazy">
+        <img src="{% url 'registration_proof_document' profile.pk %}" alt="Student ID photo" loading="lazy">
         <span class="badge-id-photo__watermark" aria-hidden="true">{{ student_number }}</span>
       </div>
     {% endif %}

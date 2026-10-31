@@ -11,8 +11,6 @@
 # // ==============================================================================
 """
 
-import csv
-
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -22,6 +20,7 @@ from django.utils import timezone
 
 from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Profile
+from apps.core.services.export_service import SafeCsvWriter
 from apps.core.views.helpers.dashboard_helpers import (
     get_activity_feed,
     get_pending_count,
@@ -202,7 +201,7 @@ def admin_audit_log_export_csv(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
     writer.writerow([
         'Log ID', 'Timestamp (PST)', 'Actor Username', 'Actor Full Name',
         'Action Keyword', 'Object Type', 'Object ID', 'Reason / Remarks', 'New State Snapshot'

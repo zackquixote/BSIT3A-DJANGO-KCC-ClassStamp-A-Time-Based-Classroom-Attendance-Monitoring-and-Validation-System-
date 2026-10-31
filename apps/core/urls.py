@@ -27,6 +27,10 @@ urlpatterns = [
     path('api/student/qr-token/', views.student_qr_token_api, name='student_qr_token_api'),
     path('api/student/offline-badge/issue/', views.student_offline_badge_issue, name='student_offline_badge_issue'),
 
+    # // Protected document delivery (never expose MEDIA_URL directly)
+    path('documents/registration-proof/<int:profile_id>/', views.registration_proof_document, name='registration_proof_document'),
+    path('documents/excuse-slip/<int:slip_id>/attachment/', views.excuse_slip_attachment_document, name='excuse_slip_attachment_document'),
+
     # // Admin: account validation hub & dedicated pending/reviewed pages
     path('validation/', views.validation_hub, name='validation_queue'),
     path('validation/hub/', views.validation_hub, name='validation_hub'),

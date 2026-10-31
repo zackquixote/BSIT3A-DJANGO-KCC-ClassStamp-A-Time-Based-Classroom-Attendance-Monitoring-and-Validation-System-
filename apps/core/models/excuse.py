@@ -12,6 +12,8 @@
 from django.conf import settings
 from django.db import models
 
+from apps.core.validators import validate_uploaded_document
+
 from .attendance import ClassSession
 from .profile import Profile
 
@@ -45,6 +47,7 @@ class ExcuseSlip(models.Model):
     attachment = models.FileField(
         upload_to='excuse_slips/',
         null=True, blank=True,
+        validators=[validate_uploaded_document],
         help_text="// Optional supporting document (medical certificate, letter)"
     )
     status = models.CharField(

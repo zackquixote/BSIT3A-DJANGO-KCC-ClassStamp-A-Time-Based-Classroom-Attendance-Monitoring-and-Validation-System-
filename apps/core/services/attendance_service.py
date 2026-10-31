@@ -24,9 +24,12 @@ def build_attendance_matrix(class_obj):
         .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
 
+    # Cancelled meetings never happened, so they must not inflate the
+    # denominator used for per-student and overall attendance rates.
     sessions = list(
         ClassSession.objects
         .filter(slot__class_obj=class_obj)
+        .exclude(status=ClassSession.STATUS_CANCELED)
         .select_related('slot')
         .order_by('session_date', 'opened_at')
     )

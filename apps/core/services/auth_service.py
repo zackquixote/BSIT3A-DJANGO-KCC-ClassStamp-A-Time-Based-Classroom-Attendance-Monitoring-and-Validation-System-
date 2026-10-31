@@ -26,6 +26,7 @@ from django.contrib.auth import get_user_model
 
 from apps.core.models import Profile, Program
 from apps.core.services.storage_optimizer import optimize_proof_upload
+from apps.core.validators import validate_uploaded_document
 
 User = get_user_model()
 
@@ -47,6 +48,11 @@ def provision_student_account(form_data: dict, proof_file=None):
     //   ValueError  — if program_id is missing or program not found.
     //   IntegrityError — if username / student_number is already taken (DB constraint).
     """
+    # Validate before creating either the User or Profile so a bad upload can
+    # never leave a half-provisioned account behind.
+    if proof_file is not None:
+        validate_uploaded_document(proof_file)
+
     program = Program.objects.get(pk=int(form_data['program_id']))
 
     username = (form_data.get('username') or '').strip() or form_data['student_number']

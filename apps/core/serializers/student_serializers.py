@@ -8,6 +8,8 @@
 # // ==============================================================================
 """
 
+from django.urls import reverse
+
 
 def serialize_student_summary(profile) -> dict:
     """
@@ -44,7 +46,10 @@ def serialize_student_detail(profile) -> dict:
         'approved_by': profile.approved_by.get_full_name() or profile.approved_by.username if profile.approved_by else None,
         'approved_at': profile.approved_at.isoformat() if profile.approved_at else None,
         'approval_note': profile.approval_note,
-        'registration_proof_url': profile.registration_proof.url if profile.registration_proof else None,
+        'registration_proof_url': (
+            reverse('registration_proof_document', args=[profile.pk])
+            if profile.registration_proof else None
+        ),
         'qr_rotated_at': profile.qr_rotated_at.isoformat() if profile.qr_rotated_at else None,
         'created_at': profile.created_at.isoformat() if hasattr(profile, 'created_at') and profile.created_at else None,
     })

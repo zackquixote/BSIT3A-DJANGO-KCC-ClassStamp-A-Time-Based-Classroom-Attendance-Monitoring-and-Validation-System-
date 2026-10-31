@@ -26,7 +26,6 @@ from apps.core.models import (
     AuditEvent,
     Class,
     ClassSession,
-    ClassSlot,
     Department,
     Enrollment,
     Profile,

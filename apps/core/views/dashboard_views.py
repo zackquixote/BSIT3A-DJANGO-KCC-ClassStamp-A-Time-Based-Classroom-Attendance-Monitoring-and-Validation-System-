@@ -16,7 +16,7 @@ import json
 import time
 
 from django.http import JsonResponse, StreamingHttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 
 from apps.core.decorators import approved_required, role_required
 from apps.core.models import AcademicYear, ClassSlot, Profile

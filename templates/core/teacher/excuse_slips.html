@@ -51,7 +51,7 @@
           <td class="text-sm text-secondary" style="max-width: 260px;">{{ slip.reason }}</td>
           <td>
             {% if slip.attachment %}
-              <a href="{{ slip.attachment.url }}" target="_blank" rel="noopener" class="text-xs text-gold"><i class="fas fa-paperclip"></i> View</a>
+              <a href="{% url 'excuse_slip_attachment_document' slip.pk %}" target="_blank" rel="noopener" class="text-xs text-gold"><i class="fas fa-paperclip"></i> View</a>
             {% else %}
               <span class="text-muted text-xs">—</span>
             {% endif %}

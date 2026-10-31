@@ -12,16 +12,13 @@
 """
 
 import csv
-import secrets
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
@@ -32,6 +29,7 @@ from apps.core.services import (
     export_student_import_sample_csv,
     import_students_from_csv,
     promote_students,
+    rotate_student_credentials,
 )
 
 User = get_user_model()
@@ -225,20 +223,16 @@ def student_profile_update_ajax(request):
     if year is not None:
         profile.year_level = year
 
+    profile.save(update_fields=['student_number', 'department', 'program', 'year_level'])
+
     qr_reset = False
     if reset_qr:
-        profile.qr_secret = secrets.token_hex(32)
-        qr_reset = True
-        AuditEvent.objects.create(
+        rotate_student_credentials(
+            profile,
             actor=request.user,
-            action='STUDENT_QR_RESET',
-            object_type='Profile',
-            object_id=str(profile.pk),
-            new_value=f'TOTP QR secret rotated for {student_number}',
             reason='Security reset requested by administrator via student directory',
         )
-
-    profile.save(update_fields=['student_number', 'department', 'program', 'year_level', 'qr_secret'])
+        qr_reset = True
 
     AuditEvent.objects.create(
         actor=request.user,
@@ -302,22 +296,16 @@ def student_qr_reset_ajax(request):
     except (Profile.DoesNotExist, ValueError, TypeError):
         return JsonResponse({'status': 'error', 'error': 'Student not found.'}, status=404)
 
-    profile.qr_secret = secrets.token_hex(32)
-    profile.save(update_fields=['qr_secret', 'updated_at'])
-    profile.offline_badges.filter(consumed_at__isnull=True).delete()
-
-    AuditEvent.objects.create(
+    result = rotate_student_credentials(
+        profile,
         actor=request.user,
-        action='STUDENT_QR_RESET',
-        object_type='Profile',
-        object_id=str(profile.pk),
-        new_value=f'TOTP QR secret rotated for {profile.student_number}',
         reason='Security reset requested by administrator (A-13)',
     )
 
     return JsonResponse({
         'status': 'success',
         'message': f'QR secret rotated for {profile.student_number}. The old badge is now invalid.',
+        'revoked_offline_badges': result['revoked_offline_badges'],
     })
 
 

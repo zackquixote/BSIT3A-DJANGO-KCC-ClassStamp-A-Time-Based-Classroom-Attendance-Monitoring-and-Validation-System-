@@ -6,6 +6,14 @@
   var lastRosterClassId = null;
 
   function getEl(id) { return document.getElementById(id); }
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
   function getCSRF() {
     var App = window.ClassesApp;
     if (App && App.CSRF) return App.CSRF;
@@ -112,7 +120,7 @@
         // Render available dropdown
         var optHtml = '<option value="">Choose an approved student to enlist...</option>';
         data.available.forEach(function (s) {
-          optHtml += '<option value="' + s.profile_id + '">' + s.student_name + ' (' + s.student_id + ' \u00b7 ' + s.program + ')</option>';
+          optHtml += '<option value="' + escapeHtml(s.profile_id) + '">' + escapeHtml(s.student_name) + ' (' + escapeHtml(s.student_id) + ' \u00b7 ' + escapeHtml(s.program) + ')</option>';
         });
         if (availableStudentsSelect) availableStudentsSelect.innerHTML = optHtml;
 
@@ -125,10 +133,10 @@
             listHtml +=
               '<div class="p-2 flex items-center justify-between" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px;">' +
               '  <div>' +
-              '    <div class="font-semibold text-xs text-primary">' + en.student_name + '</div>' +
-              '    <div class="text-xs text-muted" style="font-size: 0.68rem;">' + en.student_id + ' \u00b7 ' + en.program + ' \u00b7 Enrolled ' + en.enrolled_at + '</div>' +
+              '    <div class="font-semibold text-xs text-primary">' + escapeHtml(en.student_name) + '</div>' +
+              '    <div class="text-xs text-muted" style="font-size: 0.68rem;">' + escapeHtml(en.student_id) + ' \u00b7 ' + escapeHtml(en.program) + ' \u00b7 Enrolled ' + escapeHtml(en.enrolled_at) + '</div>' +
               '  </div>' +
-              '  <button type="button" class="btn btn-ghost btn-xs text-error btn-remove-enrollment" data-id="' + en.enrollment_id + '" title="Withdraw student from section">' +
+              '  <button type="button" class="btn btn-ghost btn-xs text-error btn-remove-enrollment" data-id="' + escapeHtml(en.enrollment_id) + '" title="Withdraw student from section">' +
               '    <i class="fas fa-user-minus"></i> Remove' +
               '  </button>' +
               '</div>';
@@ -138,7 +146,7 @@
         }
       })
       .catch(function (err) {
-        if (rosterStudentsList) rosterStudentsList.innerHTML = '<p class="text-error text-xs">Failed to load roster: ' + err + '</p>';
+        if (rosterStudentsList) rosterStudentsList.innerHTML = '<p class="text-error text-xs">Failed to load roster: ' + escapeHtml(err) + '</p>';
       });
   }
 

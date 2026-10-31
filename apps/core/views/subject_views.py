@@ -19,7 +19,16 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import AcademicYear, Class, Curriculum, Department, Profile, Program, Subject
+from apps.core.models import (
+    AcademicYear,
+    AuditEvent,
+    Class,
+    Curriculum,
+    Department,
+    Profile,
+    Program,
+    Subject,
+)
 from apps.core.serializers import serialize_subject, serialize_subject_summary
 from apps.core.serializers.academic_serializers import serialize_curriculum_entry
 from apps.core.services import (
@@ -199,14 +208,43 @@ def subject_delete(request, pk: int):
 def subject_toggle(request, pk: int):
     """
     // [AJAX] Flips the is_active flag of a subject.
-    // Safe: can always re-activate; deactivation is blocked if classes are live.
+    // Safe: can always re-activate; deactivation is blocked while the subject
+    // still has active classes in the active academic year. Every state change
+    // is written to the audit trail with the previous and new state.
     """
     try:
         subject = get_object_or_404(Subject, pk=pk)
         new_state = not subject.is_active
+
+        if not new_state:
+            live_classes = Class.objects.filter(
+                subject=subject,
+                is_active=True,
+                academic_year__is_active=True,
+            ).count()
+            if live_classes:
+                return JsonResponse({
+                    'ok': False,
+                    'error': (
+                        f'{subject.code} still has {live_classes} active class section(s) '
+                        'in the active academic year. Deactivate or reassign those sections '
+                        'before deactivating the subject.'
+                    ),
+                }, status=400)
+
+        previous_state = subject.is_active
         subject.is_active = new_state
         subject.save(update_fields=['is_active'])
         action = 'activated' if new_state else 'deactivated'
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='SUBJECT_ACTIVATED' if new_state else 'SUBJECT_DEACTIVATED',
+            object_type='Subject',
+            object_id=str(subject.pk),
+            old_value=f'is_active={previous_state}',
+            new_value=f'is_active={new_state}',
+            reason=f'Subject {subject.code} {action} by administrator',
+        )
         return JsonResponse({
             'ok': True,
             'is_active': new_state,

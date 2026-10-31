@@ -263,6 +263,35 @@ class ScheduleServiceTests(BaseWeek5FixtureMixin, TestCase):
         conflicts = self._detect(self.teacher_a, start_h=8, end_h=9)
         self.assertEqual(conflicts, [])
 
+    def test_slots_of_inactive_classes_are_ignored(self):
+        self._slot(self.class_a, weekday=0, start_h=8, end_h=9)
+        self.class_a.is_active = False
+        self.class_a.save(update_fields=['is_active'])
+        conflicts = self._detect(self.teacher_a, start_h=8, end_h=9)
+        self.assertEqual(conflicts, [])
+
+    def test_conflicts_are_scoped_to_supplied_academic_year(self):
+        other_year = AcademicYear.objects.create(
+            name='2024-2025', starts_on=date(2024, 6, 1),
+            ends_on=date(2025, 3, 31), is_active=False,
+        )
+        old_class = Class.objects.create(
+            academic_year=other_year, class_code='W7-OLD',
+            subject=self.class_a.subject, teacher_profile=self.teacher_a,
+        )
+        self._slot(old_class, weekday=0, start_h=8, end_h=9)
+        self._slot(self.class_a, weekday=0, start_h=8, end_h=9)
+
+        scoped = detect_slot_conflicts(
+            teacher_profile_id=self.teacher_a.pk, weekday=0,
+            starts_at=time(8, 0), ends_at=time(9, 0),
+            academic_year=self.academic_year,
+        )
+        self.assertEqual([c['class_code'] for c in scoped], ['W7-A'])
+
+        unscoped = self._detect(self.teacher_a, start_h=8, end_h=9)
+        self.assertEqual(len(unscoped), 2)
+
     def test_suggest_first_letter(self):
         code = suggest_section_letter(
             academic_year=self.academic_year, program=self.program, year_level=3,

@@ -86,16 +86,24 @@ class AutoCloseSessionsTests(TestCase):
     def _make_session(self, ends_delta, starts_delta=None, weekday=None, session_date=None):
         if starts_delta is None:
             starts_delta = ends_delta - timedelta(hours=1)
+        # Derive the calendar date from the computed instants instead of assuming
+        # "today": a negative delta near midnight wraps into the previous day, and
+        # reusing today's date would make the slot look like it ends in the future
+        # (which silently keeps the session OPEN and fails these tests after 22:00).
+        start_dt = self.local_now + starts_delta
+        end_dt = self.local_now + ends_delta
+        if session_date is None:
+            session_date = end_dt.date()
         slot = ClassSlot.objects.create(
             class_obj=self.class_obj,
-            weekday=self.today.weekday() if weekday is None else weekday,
-            starts_at=(self.local_now + starts_delta).time(),
-            ends_at=(self.local_now + ends_delta).time(),
+            weekday=session_date.weekday() if weekday is None else weekday,
+            starts_at=start_dt.time(),
+            ends_at=end_dt.time(),
             room='Room X',
         )
         return ClassSession.objects.create(
             slot=slot,
-            session_date=self.today if session_date is None else session_date,
+            session_date=session_date,
             status=ClassSession.STATUS_OPEN,
             opened_at=self.now - timedelta(hours=2),
             opened_by=self.teacher_user,

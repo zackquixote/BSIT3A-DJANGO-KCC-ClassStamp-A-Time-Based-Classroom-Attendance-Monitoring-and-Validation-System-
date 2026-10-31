@@ -22,6 +22,8 @@
 from django.conf import settings
 from django.db import models
 
+from apps.core.validators import validate_uploaded_document
+
 from .academic import Department, Program
 
 
@@ -138,6 +140,7 @@ class Profile(models.Model):
     registration_proof = models.FileField(
         upload_to='registration_proofs/',
         null=True, blank=True,
+        validators=[validate_uploaded_document],
         help_text="// Uploaded Certificate of Registration (COR) or ID badge proof"
     )
     approval_status = models.CharField(

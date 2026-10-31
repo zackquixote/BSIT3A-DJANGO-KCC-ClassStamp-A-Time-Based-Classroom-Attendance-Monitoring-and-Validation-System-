@@ -10,7 +10,6 @@
 # // ==============================================================================
 """
 
-import csv
 import json
 from datetime import time
 from django.contrib import messages
@@ -45,6 +44,7 @@ from apps.core.services import (
     validate_slot_times,
 )
 from apps.core.services.attendance_service import build_attendance_matrix
+from apps.core.services.export_service import SafeCsvWriter
 
 
 # // ==============================================================================
@@ -298,6 +298,7 @@ def class_slot_save(request, class_id):
         starts_at=starts_t,
         ends_at=ends_t,
         room=room,
+        academic_year=class_obj.academic_year,
     )
     teacher_conflicts = [c for c in conflicts if c['type'] == 'teacher']
     if teacher_conflicts:
@@ -688,7 +689,7 @@ def _parse_wizard_slots(slots_json):
     return parsed_slots, None
 
 
-def _collect_wizard_conflicts(teacher_profile_id, parsed_slots):
+def _collect_wizard_conflicts(teacher_profile_id, parsed_slots, academic_year=None):
     """
     // Per-slot timetable conflicts for the proposed teacher:
     // [{'index', 'teacher': [labels], 'room': [labels]}, ...]
@@ -701,6 +702,7 @@ def _collect_wizard_conflicts(teacher_profile_id, parsed_slots):
             starts_at=slot['starts_at'],
             ends_at=slot['ends_at'],
             room=slot['room'],
+            academic_year=academic_year,
         )
         teacher_labels = []
         room_labels = []
@@ -800,6 +802,12 @@ def class_wizard_options(request):
             program=program,
             year_level=year_level,
         )
+        existing_codes = list(
+            Class.objects.filter(
+                academic_year=academic_year,
+                class_code__istartswith=f"{program.code}-{year_level}",
+            ).values_list('class_code', flat=True).distinct().order_by('class_code')
+        )
     except ValueError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
 
@@ -809,6 +817,7 @@ def class_wizard_options(request):
         'subjects': subjects_data,
         'teachers': teachers,
         'suggested_code': suggested_code,
+        'existing_codes': existing_codes,
     })
 
 
@@ -875,7 +884,7 @@ def class_wizard_save(request):
             ),
         }, status=400)
 
-    slot_conflicts = _collect_wizard_conflicts(teacher.id, parsed_slots)
+    slot_conflicts = _collect_wizard_conflicts(teacher.id, parsed_slots, academic_year=academic_year)
     teacher_conflicts = [label for sc in slot_conflicts for label in sc['teacher']]
     room_warnings = [label for sc in slot_conflicts for label in sc['room']]
 
@@ -954,13 +963,16 @@ def class_wizard_slots_check(request):
         return JsonResponse({'success': False, 'message': 'Teacher is required.'}, status=400)
     teacher = get_object_or_404(Profile, pk=teacher_profile_id_int, role=Profile.ROLE_TEACHER)
 
+    ay_id = request.POST.get('ay_id', '').strip()
+    academic_year = get_object_or_404(AcademicYear, pk=int(ay_id)) if ay_id.isdigit() else None
+
     parsed_slots, parse_error = _parse_wizard_slots(request.POST.get('slots', '[]'))
     if parse_error:
         return JsonResponse({'success': False, 'message': parse_error}, status=400)
 
     return JsonResponse({
         'success': True,
-        'slots': _collect_wizard_conflicts(teacher.id, parsed_slots),
+        'slots': _collect_wizard_conflicts(teacher.id, parsed_slots, academic_year=academic_year),
         'total_minutes': _wizard_slot_minutes(parsed_slots),
     })
 
@@ -983,6 +995,12 @@ def class_wizard_setup(request):
         {'id': p.id, 'code': p.code, 'name': p.name, 'years_total': p.years_total}
         for p in programs
     ])
+    # Distinct rooms already used in existing slots (for autocomplete)
+    existing_rooms = list(
+        ClassSlot.objects.exclude(room__isnull=True).exclude(room='')
+        .values_list('room', flat=True).distinct().order_by('room')
+    )
+    wizard_steps = [(1, 'Curriculum'), (2, 'Subject & Teacher'), (3, 'Section'), (4, 'Schedule'), (5, 'Review')]
     return render(request, 'core/admin/class_wizard.html', {
         'programs': programs,
         'programs_json': programs_json,
@@ -990,6 +1008,8 @@ def class_wizard_setup(request):
         'active_ay': active_ay,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
         'semester_choices': Curriculum.SEMESTER_CHOICES,
+        'existing_rooms_json': json.dumps(existing_rooms),
+        'wizard_steps': wizard_steps,
     })
 
 
@@ -1021,7 +1041,7 @@ def class_attendance_matrix(request, class_id):
         filename = f"attendance_matrix_{class_obj.class_code}_{timezone.localdate().strftime('%Y%m%d')}.csv"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-        writer = csv.writer(response)
+        writer = SafeCsvWriter(response)
         headers = ['Student ID', 'Student Name', 'Program']
         for s in session_list:
             headers.append(f"{s['display_date']} ({s['weekday']})")

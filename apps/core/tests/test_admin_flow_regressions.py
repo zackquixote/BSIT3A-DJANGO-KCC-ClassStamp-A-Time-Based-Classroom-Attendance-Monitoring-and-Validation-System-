@@ -262,3 +262,39 @@ class AdminTeacherFlowRegressionTests(TestCase):
 
         self.assertEqual([item.class_code for item in stats['classes']], ['BSIT-1A'])
         self.assertEqual(stats['class_count'], 1)
+
+    def test_subject_deactivation_blocked_with_live_class(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse('subject_toggle', args=[self.subject.pk]))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+        self.subject.refresh_from_db()
+        self.assertTrue(self.subject.is_active)
+        self.assertFalse(
+            AuditEvent.objects.filter(action='SUBJECT_DEACTIVATED').exists()
+        )
+
+    def test_subject_toggle_writes_audit_when_no_live_class(self):
+        self.class_obj.is_active = False
+        self.class_obj.save(update_fields=['is_active'])
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse('subject_toggle', args=[self.subject.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.subject.refresh_from_db()
+        self.assertFalse(self.subject.is_active)
+        event = AuditEvent.objects.get(action='SUBJECT_DEACTIVATED')
+        self.assertEqual(event.object_type, 'Subject')
+        self.assertEqual(event.object_id, str(self.subject.pk))
+        self.assertEqual(event.old_value, 'is_active=True')
+        self.assertEqual(event.new_value, 'is_active=False')
+
+        response = self.client.post(reverse('subject_toggle', args=[self.subject.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.subject.refresh_from_db()
+        self.assertTrue(self.subject.is_active)
+        self.assertTrue(AuditEvent.objects.filter(action='SUBJECT_ACTIVATED').exists())

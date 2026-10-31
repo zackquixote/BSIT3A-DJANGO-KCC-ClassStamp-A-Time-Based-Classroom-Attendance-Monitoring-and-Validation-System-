@@ -10,11 +10,71 @@
 """
 
 import csv
+from decimal import Decimal, InvalidOperation
+
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 
 from apps.core.models import Profile
+
+
+# // ==============================================================================
+# // SPREADSHEET FORMULA-INJECTION GUARD (OWASP CSV Injection)
+# // ==============================================================================
+# // A student can register with a first name of "=HYPERLINK(...)". Written to a
+# // CSV verbatim, Excel evaluates that cell the moment a registrar opens the
+# // export. Every value handed to a CSV or XLSX writer passes through here.
+FORMULA_TRIGGER_PREFIXES = ('=', '+', '@', '\t', '\r', '\n')
+
+
+def safe_spreadsheet_cell(value):
+    """
+    // Neutralise a single cell against spreadsheet formula injection.
+    // Numbers are returned untouched so numeric columns stay numeric; text that
+    // would be parsed as a formula is prefixed with an apostrophe.
+    """
+    if value is None:
+        return ''
+    if isinstance(value, (int, float, Decimal)):
+        return value
+
+    text = str(value)
+    if not text:
+        return text
+
+    if text[0] in FORMULA_TRIGGER_PREFIXES:
+        return "'" + text
+
+    if text[0] == '-':
+        # A plain negative number is data, not a formula.
+        try:
+            Decimal(text)
+        except (InvalidOperation, ValueError):
+            return "'" + text
+
+    return text
+
+
+def safe_spreadsheet_row(values):
+    """Apply the injection guard to an entire row."""
+    return [safe_spreadsheet_cell(value) for value in values]
+
+
+class SafeCsvWriter:
+    """
+    // Drop-in proxy for ``csv.writer(response)``.
+    // Sanitises every row so a single exporter cannot forget the guard.
+    """
+
+    def __init__(self, response):
+        self._writer = csv.writer(response)
+
+    def writerow(self, row):
+        return self._writer.writerow(safe_spreadsheet_row(row))
+
+    def writerows(self, rows):
+        return self._writer.writerows(safe_spreadsheet_row(row) for row in rows)
 
 
 def export_student_directory_csv(filter_params=None):
@@ -70,7 +130,7 @@ def export_student_directory_csv(filter_params=None):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = f'attachment; filename="KCC_Student_Masterlist_{timestamp}.csv"'
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
     writer.writerow([
         'Student ID Number',
         'Last Name',
@@ -131,7 +191,7 @@ def export_program_students_csv(program):
         f'attachment; filename="program_{program.code}_students_{timezone.now().strftime("%Y%m%d")}.csv"'
     )
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
     writer.writerow([
         'Student ID',
         'Student Number',
@@ -167,7 +227,7 @@ def export_student_import_sample_csv():
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="KCC_Student_Import_Template.csv"'
 
-    writer = csv.writer(response)
+    writer = SafeCsvWriter(response)
     writer.writerow([
         'student_number',
         'first_name',

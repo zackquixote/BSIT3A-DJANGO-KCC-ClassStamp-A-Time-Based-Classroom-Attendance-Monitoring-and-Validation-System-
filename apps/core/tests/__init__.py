@@ -25,6 +25,11 @@ from .test_dashboard import DashboardDispatchTests
 from .test_departments import DepartmentProgramCrudTests
 from .test_middleware import CacheControlMiddlewareTests
 from .test_students import StudentDirectoryViewTests
+from .test_security_hardening import (
+    CredentialLifecycleTests,
+    ProtectedDocumentTests,
+    UploadValidationTests,
+)
 
 __all__ = [
     'HomeViewTests',
@@ -35,4 +40,7 @@ __all__ = [
     'DepartmentProgramCrudTests',
     'CacheControlMiddlewareTests',
     'StudentDirectoryViewTests',
+    'CredentialLifecycleTests',
+    'ProtectedDocumentTests',
+    'UploadValidationTests',
 ]
