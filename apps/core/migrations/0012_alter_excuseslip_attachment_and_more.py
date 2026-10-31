@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0010_subject_units'),
+        ('core', '0011_profile_avatar'),
     ]
 
     operations = [
