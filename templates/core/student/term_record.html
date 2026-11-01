@@ -1,0 +1,124 @@
+{% extends "theme/base.html" %}
+{% block title %}Term Attendance Record — KCC ClassStamp{% endblock %}
+
+{% block extra_css %}
+<style>
+  .record-wrap { max-width: 900px; margin: 0 auto; }
+  .record-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .record-table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 0.82rem; }
+  .record-table th, .record-table td { border: 1px solid var(--glass-border); padding: 8px 10px; text-align: left; }
+  .record-table th { background: rgba(255, 255, 255, 0.04); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .record-table tfoot td { font-weight: 700; }
+  .record-meta { font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; }
+  .record-summary { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; font-size: 0.82rem; }
+  .record-summary span strong { color: var(--text-primary); }
+
+  @media print {
+    /* Hide the whole app shell, then reveal only the record. */
+    body * { visibility: hidden !important; }
+    .print-area, .print-area * { visibility: visible !important; }
+    .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+    .no-print { display: none !important; }
+    .print-area, .card { background: #fff !important; color: #000 !important; box-shadow: none !important; border-color: #bbb !important; }
+    .record-table th, .record-table td { border-color: #999 !important; color: #000 !important; }
+    .record-table th { background: #eee !important; }
+    .text-muted, .record-meta { color: #333 !important; }
+    .badge { border: 1px solid #999 !important; color: #000 !important; background: none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="record-wrap">
+  <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px;">
+    <div>
+      <h1 class="page-title" style="margin: 0;">Term Attendance Record</h1>
+      <p class="page-subtitle" style="margin: 4px 0 0;">
+        Your official attendance for the current term. Print or save as PDF to submit it anywhere.
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'student_attendance_log' %}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Attendance log
+      </a>
+      <button type="button" class="btn btn-primary btn-sm" onclick="window.print()">
+        <i class="fas fa-print"></i> Print / Save as PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="card print-area" style="padding: 28px;">
+    <div class="record-head">
+      <div>
+        <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">
+          Kabankalan Catholic College — ClassStamp
+        </div>
+        <div class="record-meta">
+          Student: <strong>{{ profile.user.get_full_name|default:profile.user.get_username }}</strong><br>
+          Student No: {{ profile.student_number|default:"—" }} &nbsp;·&nbsp;
+          Program: {{ profile.program.code|default:"—" }} &nbsp;·&nbsp;
+          Year: {{ profile.year_level|default:"—" }}
+        </div>
+      </div>
+      <div class="record-meta" style="text-align: right;">
+        Term: <strong>{{ active_year.name|default:"No active term" }}</strong><br>
+        Generated: {{ generated_on|date:"F j, Y" }}
+      </div>
+    </div>
+
+    {% if rows %}
+      <table class="record-table">
+        <thead>
+          <tr>
+            <th scope="col">Subject</th>
+            <th scope="col">Section</th>
+            <th scope="col">Instructor</th>
+            <th scope="col" style="text-align: center;">Meetings</th>
+            <th scope="col" style="text-align: center;">Present</th>
+            <th scope="col" style="text-align: center;">Late</th>
+            <th scope="col" style="text-align: center;">Absent</th>
+            <th scope="col" style="text-align: center;">Excused</th>
+            <th scope="col" style="text-align: center;">Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ r.subject_code }}{% if r.subject_name %} — {{ r.subject_name }}{% endif %}</td>
+              <td>{{ r.section_code }}</td>
+              <td>{{ r.teacher }}</td>
+              <td style="text-align: center;">{{ r.meetings }}</td>
+              <td style="text-align: center;">{{ r.present }}</td>
+              <td style="text-align: center;">{{ r.late }}</td>
+              <td style="text-align: center;">{{ r.absent }}</td>
+              <td style="text-align: center;">{{ r.excused }}</td>
+              <td style="text-align: center;">{% if r.rate is not None %}{{ r.rate }}%{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3">Overall</td>
+            <td style="text-align: center;">{{ totals.meetings }}</td>
+            <td style="text-align: center;">{{ totals.present }}</td>
+            <td style="text-align: center;">{{ totals.late }}</td>
+            <td style="text-align: center;">{{ totals.absent }}</td>
+            <td style="text-align: center;">{{ totals.excused }}</td>
+            <td style="text-align: center;">{% if overall is not None %}{{ overall }}%{% else %}—{% endif %}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="record-summary">
+        <span>Attendance rate: <strong>{% if overall is not None %}{{ overall }}%{% else %}—{% endif %}</strong></span>
+        <span>Unexcused absences: <strong>{{ totals.absent }}</strong></span>
+        <span>Meetings held: <strong>{{ totals.meetings }}</strong></span>
+      </div>
+    {% else %}
+      <p class="text-muted" style="padding: 24px 0; text-align: center;">
+        No active class enrollments for this term, so there is nothing to report yet.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

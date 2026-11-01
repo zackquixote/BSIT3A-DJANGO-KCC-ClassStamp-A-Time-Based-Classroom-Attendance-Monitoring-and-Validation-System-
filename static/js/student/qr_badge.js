@@ -31,6 +31,8 @@
   function render() {
     if (countdownEl) {
       countdownEl.textContent = remaining > 0 ? remaining : '—';
+      // Dim while there is nothing to count: reads as "loading", not "broken".
+      countdownEl.style.opacity = remaining > 0 ? '1' : '0.35';
     }
     if (ringProgress) {
       var pct = interval > 0 ? Math.max(0, Math.min(1, remaining / interval)) : 0;

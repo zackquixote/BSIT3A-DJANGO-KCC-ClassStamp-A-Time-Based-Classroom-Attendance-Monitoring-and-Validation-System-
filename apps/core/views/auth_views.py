@@ -14,6 +14,7 @@ import secrets
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
@@ -22,14 +23,23 @@ from django.views.decorators.http import require_http_methods
 
 from apps.core.models import AuditEvent, Department, Profile, Program
 from apps.core.services import provision_student_account
+from apps.core.services.password_reset_service import (
+    read_reset_token,
+    request_reset,
+    reset_password,
+)
 from apps.core.services.two_factor_service import (
+    generate_recovery_codes,
     is_privileged,
     new_secret,
     provisioning_uri,
     qr_data_uri,
+    remaining_recovery_codes,
+    reset_two_factor,
     two_factor_required,
     verify_code,
     verify_code_for_secret,
+    verify_second_factor,
 )
 from apps.core.views.helpers import (
     INVALID_LOGIN_MESSAGE,
@@ -365,6 +375,75 @@ def _clear_pending_2fa(request):
         request.session.pop(key, None)
 
 
+# // ==============================================================================
+# // SELF-SERVICE PASSWORD RESET
+# // ==============================================================================
+PASSWORD_RESET_MAX_PER_WINDOW = 5
+PASSWORD_RESET_WINDOW_SECONDS = 900
+
+
+def _reset_request_throttled(request) -> bool:
+    """Fixed-window throttle per client address, to stop reset-mail floods."""
+    ip = request.META.get('REMOTE_ADDR', '0.0.0.0')
+    key = f'classstamp:pwreset:{ip}'
+    try:
+        hits = cache.incr(key)
+    except ValueError:
+        cache.add(key, 1, PASSWORD_RESET_WINDOW_SECONDS)
+        hits = 1
+    return hits > PASSWORD_RESET_MAX_PER_WINDOW
+
+
+@require_http_methods(['GET', 'POST'])
+def password_reset_request(request):
+    """
+    // [Public] Ask for a reset link.
+    // The response is identical whether or not the account exists — the reset flow
+    // must not become a directory of who studies here.
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        if _reset_request_throttled(request):
+            messages.error(request, 'Too many reset requests. Please wait a few minutes.')
+            return render(request, 'auth/password_reset_request.html')
+
+        identifier = request.POST.get('identifier', '').strip()
+        request_reset(identifier, request)
+        return render(request, 'auth/password_reset_request.html', {'submitted': True})
+
+    return render(request, 'auth/password_reset_request.html')
+
+
+@require_http_methods(['GET', 'POST'])
+def password_reset_confirm(request, token):
+    """[Public] Set a new password using the emailed token."""
+    user = read_reset_token(token)
+    if user is None:
+        messages.error(request, 'This reset link is invalid or has expired. Request a new one.')
+        return redirect('password_reset_request')
+
+    context = {'token': token, 'account': user.get_username()}
+
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        if new_password != confirm_password:
+            messages.error(request, 'The two passwords do not match.')
+            return render(request, 'auth/password_reset_confirm.html', context)
+        try:
+            reset_password(token, new_password)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return render(request, 'auth/password_reset_confirm.html', context)
+
+        messages.success(request, 'Password updated. Sign in with your new password.')
+        return redirect('login')
+
+    return render(request, 'auth/password_reset_confirm.html', context)
+
+
 @require_http_methods(['GET', 'POST'])
 def two_factor_verify(request):
     """
@@ -406,7 +485,11 @@ def two_factor_verify(request):
         messages.error(request, 'Too many incorrect codes. Please sign in again.')
         return redirect('login')
 
-    if not verify_code(profile, request.POST.get('code', '')):
+    # A recovery code is accepted here too — a lost phone must not lock an
+    # administrator out of their own institution.
+    outcome = verify_second_factor(profile, request.POST.get('code', ''))
+
+    if not outcome['ok']:
         AuditEvent.objects.create(
             actor=profile.user,
             action='TWO_FACTOR_FAILED',
@@ -429,8 +512,18 @@ def two_factor_verify(request):
         action='TWO_FACTOR_SUCCESS',
         object_type='Profile',
         object_id=str(profile.pk),
-        reason='Signed in with password and authenticator code',
+        reason=(
+            'Signed in with a recovery code'
+            if outcome['method'] == 'RECOVERY'
+            else 'Signed in with password and authenticator code'
+        ),
     )
+    if outcome['method'] == 'RECOVERY':
+        messages.warning(
+            request,
+            f'Recovery code accepted — {outcome["remaining"]} remaining. '
+            f'Generate a fresh set from Account Security when you can.',
+        )
     return redirect('dashboard')
 
 
@@ -463,6 +556,9 @@ def two_factor_setup(request):
             profile.totp_secret = ''
             profile.totp_confirmed_at = None
             profile.save(update_fields=['totp_enabled', 'totp_secret', 'totp_confirmed_at'])
+            # Retire the backup codes with the factor: they are a second door to
+            # the same account and must not outlive it.
+            reset_two_factor(profile)
             AuditEvent.objects.create(
                 actor=request.user,
                 action='TWO_FACTOR_DISABLED',
@@ -486,6 +582,10 @@ def two_factor_setup(request):
         profile.totp_confirmed_at = timezone.now()
         profile.save(update_fields=['totp_secret', 'totp_enabled', 'totp_confirmed_at'])
         request.session.pop(PENDING_2FA_SECRET_KEY, None)
+
+        # Shown once, on the next page load, then dropped from the session.
+        # The plaintext never touches the database.
+        request.session['new_recovery_codes'] = generate_recovery_codes(profile)
         AuditEvent.objects.create(
             actor=request.user,
             action='TWO_FACTOR_ENABLED',
@@ -497,6 +597,15 @@ def two_factor_setup(request):
         return redirect('two_factor_setup')
 
     context = {'profile': profile, 'enabled': profile.totp_enabled}
+
+    if profile.totp_enabled:
+        context['recovery_remaining'] = remaining_recovery_codes(profile)
+
+    # One-shot display of freshly generated backup codes.
+    new_codes = request.session.pop('new_recovery_codes', None)
+    if new_codes:
+        context['new_recovery_codes'] = new_codes
+
     if not profile.totp_enabled:
         secret = request.session.get(PENDING_2FA_SECRET_KEY)
         if not secret:

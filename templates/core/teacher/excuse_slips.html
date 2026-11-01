@@ -153,6 +153,51 @@
     </div>
   </div>
 </div>
+
+{% if pending_disputes %}
+<div class="card mt-4" style="padding: 20px;">
+  <h2 class="font-semibold text-primary mb-2" style="font-size: 1rem;">
+    <i class="fas fa-scale-balanced text-gold"></i> Attendance disputes
+    <span class="badge badge--warning badge--xs">{{ pending_disputes|length }} pending</span>
+  </h2>
+  <p class="text-muted text-xs mb-3">
+    Students contesting a recorded status. Correcting rewrites the record and is recorded in the audit log.
+  </p>
+
+  {% for d in pending_disputes %}
+  <div style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+      <div>
+        <span class="font-semibold text-primary">{{ d.student_profile.user.get_full_name|default:d.student_profile.student_number }}</span>
+        <span class="badge badge--primary badge--xs font-mono ml-1">{{ d.record.session.slot.class_obj.class_code }}</span>
+        <span class="text-muted text-xs ml-1">
+          {{ d.record.session.session_date|date:"M d, Y" }} · recorded as {{ d.record.get_status_display }}
+        </span>
+      </div>
+      <span class="text-muted text-xs">filed {{ d.created_at|date:"M d, H:i" }}</span>
+    </div>
+    <p class="text-sm mb-2">{{ d.reason }}</p>
+    <form method="POST" action="{% url 'dispute_resolve' d.pk %}" class="flex items-center gap-2 flex-wrap">
+      {% csrf_token %}
+      <select name="status" class="form-control" style="width: auto; font-size: 0.8rem;"
+              aria-label="Corrected status">
+        <option value="PRESENT">Correct to Present</option>
+        <option value="LATE">Correct to Late</option>
+        <option value="EXCUSED">Correct to Excused</option>
+      </select>
+      <input name="note" class="form-control" style="flex: 1; min-width: 180px; font-size: 0.8rem;"
+             placeholder="Note for the student (optional)">
+      <button type="submit" name="action" value="correct" class="btn btn-primary btn-sm">
+        <i class="fas fa-pen-to-square"></i> Correct record
+      </button>
+      <button type="submit" name="action" value="uphold" class="btn btn-outline btn-sm">
+        <i class="fas fa-check"></i> Uphold
+      </button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

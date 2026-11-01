@@ -127,36 +127,18 @@ class TeacherRetirementGuardTests(TeacherPageBase):
         self.teacher_user.refresh_from_db()
         self.assertFalse(self.teacher_user.is_active)
 
-    def test_bulk_deactivate_reports_the_blocked_teacher(self):
-        _, slot = self._class_in(self.current_year, 'BSIT-2A-IT311')
-        ClassSession.objects.create(
-            slot=slot, session_date=timezone.localdate(), status=ClassSession.STATUS_OPEN,
-            opened_by=self.teacher_user, created_by=self.teacher_user,
-        )
 
-        response = self.client.post(reverse('bulk_teacher_operation'), {
-            'action': 'deactivate',
-            'teacher_ids[]': [self.teacher.pk],
-        })
-
-        payload = response.json()
-        self.assertEqual(payload['success_count'], 0)
-        self.assertIn('failed', payload['message'])
-        self.assertIn('open attendance session', payload['message'])
-        self.teacher_user.refresh_from_db()
-        self.assertTrue(self.teacher_user.is_active)
-
-
-class BulkModeToggleTests(TeacherPageBase):
-    def test_checkbox_column_is_hidden_by_default(self):
+class NoBulkSelectionTests(TeacherPageBase):
+    def test_roster_has_no_bulk_selection_ui(self):
         self._class_in(self.current_year, 'BSIT-2A-IT311')
 
         response = self.client.get(reverse('teacher_list'))
         body = response.content.decode('utf-8')
 
-        self.assertIn('bulk-col', body)
-        self.assertIn('bulkModeToggle', body)
-        self.assertIn('.bulk-col { display: none; }', body)
+        self.assertNotIn('teacher-checkbox', body)
+        self.assertNotIn('selectAllTeachers', body)
+        self.assertNotIn('bulkActionsBar', body)
+        self.assertNotIn('bulk_teacher_actions.js', body)
 
     def test_duplicate_stats_strip_is_gone(self):
         response = self.client.get(reverse('teacher_list'))

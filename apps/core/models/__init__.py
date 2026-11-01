@@ -41,6 +41,7 @@ from .classroom import (
 
 # // Time-Based Attendance Engine
 from .attendance import (
+    AttendanceDispute,
     AttendanceRecord,
     ClassSession,
     OfflineBadge,
@@ -63,6 +64,9 @@ from .calendar import AcademicEvent
 # // Administrative Policy (singleton overrides)
 from .policy import SystemPolicy
 
+# // Two-factor recovery codes
+from .two_factor import RecoveryCode
+
 __all__ = [
     # Academic
     'AcademicYear',
@@ -78,6 +82,7 @@ __all__ = [
     'ClassSlot',
     'Enrollment',
     # Attendance
+    'AttendanceDispute',
     'AttendanceRecord',
     'ClassSession',
     'OfflineBadge',
@@ -85,6 +90,8 @@ __all__ = [
     'ExcuseSlip',
     # Policy
     'SystemPolicy',
+    # Two-factor recovery
+    'RecoveryCode',
     # Audit
     'AnomalyFlag',
     'AuditEvent',

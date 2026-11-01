@@ -221,40 +221,6 @@ def toggle_teacher_active(actor, profile_id: int) -> dict:
     }
 
 
-def set_teacher_active(actor, profile_id: int, is_active: bool) -> dict:
-    """
-    // [Service] Explicitly set a faculty account's active status.
-    // Unlike toggle_teacher_active, this is idempotent and safe for bulk actions.
-    """
-    profile = get_object_or_404(
-        Profile.objects.select_related('user'), pk=profile_id, role=Profile.ROLE_TEACHER
-    )
-    user = profile.user
-    changed = user.is_active != is_active
-
-    if changed and not is_active:
-        _assert_no_open_sessions(profile)
-
-    if changed:
-        user.is_active = is_active
-        user.save(update_fields=['is_active'])
-        AuditEvent.objects.create(
-            actor=actor,
-            action='SET_TEACHER_STATUS',
-            object_type='Profile',
-            object_id=str(profile.pk),
-            new_value=f'is_active={is_active}',
-        )
-
-    state_str = 'activated' if user.is_active else 'deactivated'
-    return {
-        'profile': profile,
-        'is_active': user.is_active,
-        'changed': changed,
-        'message': f'Faculty member "{user.get_full_name() or user.username}" was {state_str}.',
-    }
-
-
 def reset_teacher_password(actor, profile_id: int, custom_password: str = None) -> dict:
     """
     // [Service] Reset a faculty account password and return the temporary credential.

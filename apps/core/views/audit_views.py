@@ -207,7 +207,7 @@ def admin_audit_log_export_csv(request):
         'Action Keyword', 'Object Type', 'Object ID', 'Reason / Remarks', 'New State Snapshot'
     ])
 
-    for ev in events_qs[:5000]:
+    for ev in events_qs.iterator(chunk_size=2000):
         actor_username = ev.actor.username if ev.actor else 'SYSTEM'
         actor_fullname = ev.actor.get_full_name() if ev.actor else 'Automated Daemon'
         pst_time = timezone.localtime(ev.created_at).strftime('%Y-%m-%d %I:%M:%S %p')

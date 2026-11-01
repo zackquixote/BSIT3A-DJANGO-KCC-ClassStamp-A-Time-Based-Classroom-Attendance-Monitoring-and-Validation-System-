@@ -54,7 +54,6 @@ from .teacher_service import (
     update_teacher_profile,
     reassign_teacher_department,
     toggle_teacher_active,
-    set_teacher_active,
     reset_teacher_password,
     delete_or_deactivate_teacher,
 )
@@ -112,7 +111,6 @@ __all__ = [
     'update_teacher_profile',
     'reassign_teacher_department',
     'toggle_teacher_active',
-    'set_teacher_active',
     'reset_teacher_password',
     'delete_or_deactivate_teacher',
     # Approval workflow

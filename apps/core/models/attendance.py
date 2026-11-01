@@ -274,3 +274,53 @@ class OfflineBadge(models.Model):
     def is_expired(self) -> bool:
         from django.utils import timezone
         return self.expires_at <= timezone.now()
+
+
+class AttendanceDispute(models.Model):
+    """
+    // [Model] Student-Initiated Dispute of a Recorded Status
+    // Excuse slips cover "I was absent for a reason". This covers the other half:
+    // "the record itself is wrong" — a scan that never registered, a late mark on
+    // an early arrival. One dispute per record; the instructor upholds or corrects.
+    """
+
+    STATUS_PENDING = 'PENDING'
+    STATUS_UPHELD = 'UPHELD'
+    STATUS_CORRECTED = 'CORRECTED'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending review'),
+        (STATUS_UPHELD, 'Upheld (record stands)'),
+        (STATUS_CORRECTED, 'Corrected'),
+    ]
+
+    record = models.OneToOneField(
+        AttendanceRecord,
+        on_delete=models.CASCADE,
+        related_name='dispute',
+        help_text='// The stamped record being contested',
+    )
+    student_profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name='disputes',
+        help_text='// Student who filed the dispute',
+    )
+    reason = models.TextField(help_text='// Why the recorded status is wrong')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    resolution_note = models.TextField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='resolved_disputes',
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'core'
+        db_table = 'tblcs_attendance_dispute'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Dispute #{self.pk} on record {self.record_id} ({self.status})'

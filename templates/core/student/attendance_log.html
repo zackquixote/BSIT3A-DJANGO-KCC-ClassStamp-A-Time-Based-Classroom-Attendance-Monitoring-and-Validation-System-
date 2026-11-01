@@ -116,7 +116,16 @@
     <div class="font-semibold text-primary flex items-center gap-2">
       <i class="fas fa-clock-rotate-left text-gold"></i> Attendance Records
     </div>
+    <a href="{% url 'student_term_record' %}" class="btn btn-outline btn-sm" title="Printable term record">
+      <i class="fas fa-file-lines"></i> Term record
+    </a>
     <form method="GET" action="{% url 'student_attendance_log' %}" class="flex items-center gap-2 flex-wrap">
+      <label class="text-muted text-xs" for="attFrom" style="margin: 0;">From</label>
+      <input type="date" id="attFrom" name="from" value="{{ date_from }}" class="form-control"
+             style="width: auto; padding: 6px 10px; font-size: 0.8rem;" aria-label="Show records from this date">
+      <label class="text-muted text-xs" for="attTo" style="margin: 0;">To</label>
+      <input type="date" id="attTo" name="to" value="{{ date_to }}" class="form-control"
+             style="width: auto; padding: 6px 10px; font-size: 0.8rem;" aria-label="Show records up to this date">
       <select name="status" class="form-control" style="width: auto; padding: 6px 28px 6px 10px; font-size: 0.8rem;">
         <option value="">All Statuses</option>
         <option value="PRESENT" {% if selected_status == 'PRESENT' %}selected{% endif %}>Present</option>
@@ -132,10 +141,19 @@
           </option>
         {% endfor %}
       </select>
+      <label class="text-muted text-xs" for="filterFrom" style="position:absolute;left:-9999px;">From date</label>
+      <input type="date" id="filterFrom" name="from" value="{{ date_from }}"
+             class="form-control" title="Show records from this date"
+             style="width: auto; padding: 6px 10px; font-size: 0.8rem;">
+      <span class="text-muted text-xs">to</span>
+      <label class="text-muted text-xs" for="filterTo" style="position:absolute;left:-9999px;">To date</label>
+      <input type="date" id="filterTo" name="to" value="{{ date_to }}"
+             class="form-control" title="Show records up to this date"
+             style="width: auto; padding: 6px 10px; font-size: 0.8rem;">
       <button type="submit" class="btn btn-primary btn-xs" style="padding: 6px 10px; font-size: 0.78rem;">
         <i class="fas fa-filter"></i> Filter
       </button>
-      {% if selected_status or selected_class_id %}
+      {% if selected_status or selected_class_id or date_from or date_to %}
         <a href="{% url 'student_attendance_log' %}" class="btn btn-outline btn-xs" style="padding: 6px 10px; font-size: 0.78rem;">
           <i class="fas fa-rotate-left"></i> Reset
         </a>
@@ -208,6 +226,61 @@
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- Dispute a recorded status -->
+<div class="card mt-4" style="padding: 20px;">
+  <h2 class="font-semibold text-primary mb-2" style="font-size: 1rem;">
+    <i class="fas fa-scale-balanced text-gold"></i> Dispute a record
+  </h2>
+  <p class="text-muted text-xs mb-3">
+    Wrong status? A scan that never registered, or a late mark on an early arrival, can be reviewed
+    by your instructor. This is not for explaining an absence — use
+    <a href="{% url 'student_excuse_slips' %}" style="color: var(--accent-gold);">Excuse Slips</a> for that.
+  </p>
+
+  {% if disputable_records %}
+  <form method="POST" action="{% url 'student_dispute_open' %}" class="flex items-end gap-2 flex-wrap">
+    {% csrf_token %}
+    <div class="form-group" style="flex: 1; min-width: 240px; margin: 0;">
+      <label class="form-label" for="disputeRecord">Record</label>
+      <select id="disputeRecord" name="record_id" class="form-control" required>
+        {% for r in disputable_records %}
+          <option value="{{ r.id }}">
+            {{ r.session.session_date|date:"M d" }} · {{ r.session.slot.class_obj.subject.code }} · {{ r.get_status_display }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="flex: 2; min-width: 260px; margin: 0;">
+      <label class="form-label" for="disputeReason">What went wrong?</label>
+      <input id="disputeReason" name="reason" class="form-control" required minlength="10"
+             placeholder="e.g. I scanned at 7:55 AM but the record shows absent">
+    </div>
+    <button type="submit" class="btn btn-outline btn-sm">
+      <i class="fas fa-paper-plane"></i> File dispute
+    </button>
+  </form>
+  {% else %}
+    <p class="text-muted text-sm mb-0">No records available to dispute.</p>
+  {% endif %}
+
+  {% if disputes %}
+  <div style="margin-top: 16px; border-top: 1px solid var(--glass-border); padding-top: 14px;">
+    <div class="text-muted text-xs uppercase font-semibold mb-2" style="letter-spacing: .06em;">Your disputes</div>
+    {% for d in disputes %}
+      <div class="text-sm" style="padding: 6px 0;">
+        {{ d.record.session.session_date|date:"M d, Y" }} · {{ d.record.session.slot.class_obj.subject.code }} ·
+        <span class="badge badge--xs {% if d.status == 'PENDING' %}badge--warning{% elif d.status == 'CORRECTED' %}badge--success{% else %}badge--muted{% endif %}">
+          {{ d.get_status_display }}
+        </span>
+        {% if d.resolution_note %}
+          <div class="text-muted text-xs mt-1">Instructor: {{ d.resolution_note|truncatechars:140 }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 

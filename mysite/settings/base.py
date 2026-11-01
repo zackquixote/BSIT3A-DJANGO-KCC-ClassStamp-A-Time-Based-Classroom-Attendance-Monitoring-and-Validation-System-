@@ -166,5 +166,45 @@ LOGOUT_REDIRECT_URL = '/'
 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@classstamp.local')
 
+# // Outbound mail transport.
+# // Empty in development, where the console backend is used. Point these at Gmail
+# // (or any SMTP relay) to deliver real password-reset links:
+# //   EMAIL_HOST=smtp.gmail.com  EMAIL_PORT=587  EMAIL_USE_TLS=True
+# //   EMAIL_HOST_USER=<full gmail address>  EMAIL_HOST_PASSWORD=<16-char app password>
+# // Gmail requires 2-Step Verification before it will issue an App Password, and
+# // rewrites the From address unless it matches the authenticated account.
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+
 # Campus Kiosk Security: Inactivity timeout in seconds (30 minutes)
 SESSION_INACTIVITY_TIMEOUT = 1800
+
+
+# Cache
+# Anti-replay token consumption and scan throttling are stored in the cache, so
+# production must point every worker at the same backend. Development defaults to
+# the in-process cache, which is only correct for a single process.
+_CACHE_BACKEND = os.environ.get('DJANGO_CACHE_BACKEND', '').strip()
+_CACHE_LOCATION = os.environ.get('DJANGO_CACHE_LOCATION', 'classstamp').strip() or 'classstamp'
+
+if _CACHE_BACKEND:
+    CACHES = {
+        'default': {
+            'BACKEND': _CACHE_BACKEND,
+            'LOCATION': _CACHE_LOCATION,
+            'TIMEOUT': 300,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': _CACHE_LOCATION,
+            'TIMEOUT': 300,
+        }
+    }

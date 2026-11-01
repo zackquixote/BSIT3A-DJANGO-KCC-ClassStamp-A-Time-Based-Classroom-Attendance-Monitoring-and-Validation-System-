@@ -48,3 +48,16 @@ EMAIL_BACKEND = os.environ.get(
     'DJANGO_EMAIL_BACKEND',
     'django.core.mail.backends.smtp.EmailBackend',
 )
+
+# Anti-replay and scan throttling live in the cache. LocMem is per-process, which
+# silently weakens both as soon as the app runs more than one worker — so
+# production defaults to the shared database cache unless a real backend is set.
+# Run `python manage.py createcachetable` once per environment.
+if not os.environ.get('DJANGO_CACHE_BACKEND', '').strip():
+    CACHES = {  # noqa: F405
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'classstamp_cache',
+            'TIMEOUT': 300,
+        }
+    }

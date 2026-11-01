@@ -14,6 +14,7 @@
 import hashlib
 import secrets
 import time
+from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -27,7 +28,16 @@ from django.views.decorators.http import require_POST
 
 from apps.core.decorators import approved_required, role_required
 from apps.core.forms import StudentAvatarForm, StudentProfileForm
-from apps.core.models import AttendanceRecord, AuditEvent, Enrollment, OfflineBadge, Profile
+from apps.core.models import (
+    AcademicYear,
+    AttendanceDispute,
+    AttendanceRecord,
+    AuditEvent,
+    ClassSession,
+    Enrollment,
+    OfflineBadge,
+    Profile,
+)
 from apps.core.services.qr_service import (
     TOTP_INTERVAL,
     build_payload,
@@ -193,6 +203,23 @@ def student_attendance_log(request):
         except (ValueError, TypeError):
             selected_class_id = ''
 
+    # Inclusive date range. Malformed input is ignored rather than erroring —
+    # a half-typed date in the URL should not blank the ledger.
+    def _parse_date(raw):
+        try:
+            return date.fromisoformat((raw or '').strip())
+        except (ValueError, TypeError):
+            return None
+
+    date_from = _parse_date(request.GET.get('from'))
+    date_to = _parse_date(request.GET.get('to'))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+    if date_from:
+        records = records.filter(session__session_date__gte=date_from)
+    if date_to:
+        records = records.filter(session__session_date__lte=date_to)
+
     summary_map = {}
     for enr in Enrollment.objects.filter(
         student_profile=profile, status=Enrollment.STATUS_ACTIVE
@@ -248,7 +275,22 @@ def student_attendance_log(request):
         'total_records': total_records,
         'selected_status': selected_status,
         'selected_class_id': selected_class_id,
+        'date_from': date_from.isoformat() if date_from else '',
+        'date_to': date_to.isoformat() if date_to else '',
         'filter_classes': filter_classes,
+        'disputable_records': list(
+            records.exclude(status=AttendanceRecord.STATUS_EXCUSED)
+            .select_related('session', 'session__slot', 'session__slot__class_obj__subject')
+            [:50]
+        ),
+        'disputes': list(
+            AttendanceDispute.objects.filter(student_profile=profile)
+            .select_related(
+                'record', 'record__session', 'record__session__slot',
+                'record__session__slot__class_obj__subject', 'resolved_by',
+            )
+            .order_by('-created_at')[:20]
+        ),
     })
 
 
@@ -374,3 +416,247 @@ def student_profile(request):
         'student_number': profile.student_number or user.get_username(),
         'is_approved': profile.approval_status == Profile.APPROVAL_APPROVED,
     })
+
+
+# // ==============================================================================
+# // VIEW: Printable Term Attendance Record (/student/record/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_STUDENT)
+@approved_required
+def student_term_record(request):
+    """
+    // [Student Portal] A document, not a dashboard: per-subject totals plus the
+    // full ledger for the active term, laid out for paper and for the browser's
+    // own "Save as PDF". Deliberately light-themed so it does not print as a wall
+    // of dark ink.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    term = AcademicYear.objects.filter(is_active=True).first()
+
+    enrolments = (
+        Enrollment.objects.filter(student_profile=profile, status=Enrollment.STATUS_ACTIVE)
+        .select_related('class_obj', 'class_obj__subject', 'class_obj__teacher_profile__user')
+        .order_by('class_obj__subject__code')
+    )
+    if term is not None:
+        enrolments = enrolments.filter(class_obj__academic_year=term)
+    enrolments = list(enrolments)
+    class_ids = [e.class_obj_id for e in enrolments]
+
+    records = (
+        AttendanceRecord.objects.filter(
+            student_profile=profile, session__slot__class_obj_id__in=class_ids,
+        )
+        .exclude(session__status=ClassSession.STATUS_CANCELED)
+        .select_related('session', 'session__slot', 'session__slot__class_obj',
+                        'session__slot__class_obj__subject')
+        .order_by('session__session_date', 'session__slot__starts_at')
+    )
+
+    per_class = {}
+    for enrolment in enrolments:
+        per_class[enrolment.class_obj_id] = {
+            'class_obj': enrolment.class_obj,
+            'present': 0, 'late': 0, 'absent': 0, 'excused': 0, 'total': 0,
+        }
+
+    ledger = []
+    for record in records:
+        bucket = per_class.get(record.session.slot.class_obj_id)
+        if bucket is not None:
+            bucket['total'] += 1
+            key = record.status.lower()
+            if key in bucket:
+                bucket[key] += 1
+        ledger.append(record)
+
+    rows = []
+    for bucket in per_class.values():
+        attended = bucket['present'] + bucket['late']
+        bucket['rate'] = round((attended / bucket['total']) * 100, 1) if bucket['total'] else 0.0
+        rows.append(bucket)
+
+    overall_total = sum(r['total'] for r in rows)
+    overall_attended = sum(r['present'] + r['late'] for r in rows)
+
+    return render(request, 'core/student/term_record.html', {
+        'profile': profile,
+        'term': term,
+        'rows': rows,
+        'ledger': ledger,
+        'overall_rate': round((overall_attended / overall_total) * 100, 1) if overall_total else 0.0,
+        'overall_total': overall_total,
+        'generated_at': timezone.now(),
+    })
+
+
+# // ==============================================================================
+# // VIEW: Printable Term Attendance Record (/student/record/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_STUDENT)
+@approved_required
+def student_term_record(request):
+    """
+    // A student's own attendance record for the active term, built for paper.
+    // The screen version is readable; @media print drops the app chrome so it can
+    // be filed as a PDF without adding a PDF library.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+
+    enrollments = (
+        Enrollment.objects
+        .filter(student_profile=profile, status=Enrollment.STATUS_ACTIVE)
+        .select_related(
+            'class_obj', 'class_obj__subject',
+            'class_obj__teacher_profile__user', 'class_obj__academic_year',
+        )
+        .order_by('class_obj__subject__code')
+    )
+    if active_year is not None:
+        enrollments = enrollments.filter(class_obj__academic_year=active_year)
+    enrollments = list(enrollments)
+
+    class_ids = [enrollment.class_obj_id for enrollment in enrollments]
+
+    status_counts = {}
+    session_counts = {}
+    if class_ids:
+        for row in (
+            AttendanceRecord.objects
+            .filter(student_profile=profile, session__slot__class_obj_id__in=class_ids)
+            .exclude(session__status=ClassSession.STATUS_CANCELED)
+            .values('session__slot__class_obj_id', 'status')
+            .annotate(n=Count('id'))
+        ):
+            status_counts.setdefault(row['session__slot__class_obj_id'], {})[row['status']] = row['n']
+
+        session_counts = dict(
+            ClassSession.objects
+            .filter(slot__class_obj_id__in=class_ids)
+            .exclude(status=ClassSession.STATUS_CANCELED)
+            .values('slot__class_obj_id')
+            .annotate(n=Count('id'))
+            .values_list('slot__class_obj_id', 'n')
+        )
+
+    rows = []
+    totals = {'present': 0, 'late': 0, 'absent': 0, 'excused': 0, 'meetings': 0, 'attended': 0}
+
+    for enrollment in enrollments:
+        class_obj = enrollment.class_obj
+        counts = status_counts.get(class_obj.id, {})
+        present = counts.get(AttendanceRecord.STATUS_PRESENT, 0)
+        late = counts.get(AttendanceRecord.STATUS_LATE, 0)
+        absent = counts.get(AttendanceRecord.STATUS_ABSENT, 0)
+        excused = counts.get(AttendanceRecord.STATUS_EXCUSED, 0)
+        meetings = session_counts.get(class_obj.id, 0)
+        attended = present + late
+
+        rows.append({
+            'subject_code': class_obj.subject.code if class_obj.subject_id else '—',
+            'subject_name': class_obj.subject.name if class_obj.subject_id else '',
+            'section_code': class_obj.section_code or class_obj.class_code,
+            'teacher': (
+                class_obj.teacher_profile.user.get_full_name()
+                or class_obj.teacher_profile.user.get_username()
+            ) if class_obj.teacher_profile_id else 'Unassigned',
+            'meetings': meetings,
+            'present': present,
+            'late': late,
+            'absent': absent,
+            'excused': excused,
+            'attended': attended,
+            'rate': round((attended / meetings) * 100, 1) if meetings else None,
+        })
+
+        totals['present'] += present
+        totals['late'] += late
+        totals['absent'] += absent
+        totals['excused'] += excused
+        totals['meetings'] += meetings
+        totals['attended'] += attended
+
+    overall = (
+        round((totals['attended'] / totals['meetings']) * 100, 1)
+        if totals['meetings'] else None
+    )
+
+    return render(request, 'core/student/term_record.html', {
+        'profile': profile,
+        'rows': rows,
+        'totals': totals,
+        'overall': overall,
+        'active_year': active_year,
+        'generated_on': timezone.localdate(),
+    })
+
+
+# // ==============================================================================
+# // ACTION: File an Attendance Dispute (/student/attendance/dispute/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_STUDENT)
+@approved_required
+@require_POST
+def student_dispute_open(request):
+    """
+    // "The record itself is wrong." Excuse slips explain an absence; a dispute
+    // contests the stamped status (a scan that never registered, a late mark on an
+    // early arrival). One dispute per record, reviewed by the instructor.
+    """
+    from django.db import IntegrityError, transaction
+
+    profile = getattr(request.user, 'classstamp_profile', None)
+    record_id = request.POST.get('record_id', '').strip()
+    reason = request.POST.get('reason', '').strip()
+
+    if not record_id.isdigit():
+        messages.error(request, 'Choose the record you want to dispute.')
+        return redirect('student_attendance_log')
+    if len(reason) < 10:
+        messages.error(request, 'Please describe what went wrong (at least 10 characters).')
+        return redirect('student_attendance_log')
+
+    record = (
+        AttendanceRecord.objects
+        .filter(pk=int(record_id), student_profile=profile)
+        .select_related('session__slot__class_obj')
+        .first()
+    )
+    if record is None:
+        messages.error(request, 'That record does not belong to your account.')
+        return redirect('student_attendance_log')
+
+    if record.status == AttendanceRecord.STATUS_EXCUSED:
+        messages.error(request, 'That meeting is already marked excused — nothing to dispute.')
+        return redirect('student_attendance_log')
+
+    try:
+        # Nested atomic: a duplicate-key failure must roll back only the insert,
+        # not poison the surrounding request transaction.
+        with transaction.atomic():
+            dispute = AttendanceDispute.objects.create(
+                record=record,
+                student_profile=profile,
+                reason=reason,
+            )
+    except IntegrityError:
+        messages.error(request, 'You already filed a dispute for that record.')
+        return redirect('student_attendance_log')
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='ATTENDANCE_DISPUTE_FILED',
+        object_type='AttendanceDispute',
+        object_id=str(dispute.pk),
+        new_value=(
+            f'{profile.student_number} disputed {record.status} for '
+            f'{record.session.slot.class_obj.class_code} on {record.session.session_date}'
+        ),
+        reason=reason[:200],
+    )
+    messages.success(request, 'Dispute submitted — your instructor will review it.')
+    return redirect('student_attendance_log')

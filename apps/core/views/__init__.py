@@ -34,6 +34,8 @@ from .auth_views import (
     check_registration_availability,
     login_view,
     logout_view,
+    password_reset_confirm,
+    password_reset_request,
     register_view,
     session_keepalive,
     two_factor_setup,
@@ -61,6 +63,8 @@ from .dashboard_views import (
 # // ------------------------------------------------------------------------------
 from .student_portal_views import (
     student_attendance_log,
+    student_dispute_open,
+    student_term_record,
     student_profile,
     student_qr_badge,
     student_qr_token_api,
@@ -104,6 +108,7 @@ from .department_views import (
 # // 5b. Excuse Slip Workflow Subsystem
 # // ------------------------------------------------------------------------------
 from .excuse_views import (
+    dispute_resolve,
     excuse_slip_review_ajax,
     student_excuse_slips,
     teacher_excuse_slips,
@@ -172,7 +177,6 @@ from .subject_views import (
 # // ------------------------------------------------------------------------------
 from .teacher_views import (
     admin_reset_teacher_password,
-    bulk_teacher_operation,
     teacher_analytics_json,
     teacher_assign_class_ajax,
     teacher_create,
@@ -280,6 +284,8 @@ __all__ = [
     '_validate_registration_data',
     'login_view',
     'logout_view',
+    'password_reset_confirm',
+    'password_reset_request',
     'register_view',
     'two_factor_setup',
     'two_factor_verify',
@@ -297,6 +303,7 @@ __all__ = [
     'student_qr_token_api',
     'student_offline_badge_issue',
     'student_attendance_log',
+    'student_term_record',
     'registration_proof_document',
     'excuse_slip_attachment_document',
     '_admin_dashboard_stats',
@@ -328,6 +335,7 @@ __all__ = [
     'student_excuse_slips',
     'teacher_excuse_slips',
     'excuse_slip_review_ajax',
+    'dispute_resolve',
     'program_curriculum_list',
 
     # Student Masterlist & Ingestion
@@ -363,7 +371,6 @@ __all__ = [
     'teacher_delete',
     'teacher_get',
     'teacher_analytics_json',
-    'bulk_teacher_operation',
     'admin_reset_teacher_password',
 
     # Disaster Recovery

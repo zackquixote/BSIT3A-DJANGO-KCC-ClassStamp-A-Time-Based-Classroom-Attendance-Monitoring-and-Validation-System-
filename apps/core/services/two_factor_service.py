@@ -18,11 +18,15 @@
 
 import base64
 from io import BytesIO
+import re
+import secrets
 
 import pyotp
 import qrcode
+from django.utils import timezone
 
-from apps.core.models import Profile
+from apps.core.models import Profile, RecoveryCode
+from apps.core.models.two_factor import hash_recovery_code
 
 TOTP_INTERVAL = 30
 TOTP_VALID_WINDOW = 1
@@ -100,3 +104,80 @@ def two_factor_required(profile):
         and profile.totp_enabled
         and bool((profile.totp_secret or '').strip())
     )
+
+
+# // ==============================================================================
+# // RECOVERY CODES
+# // ==============================================================================
+# // A lost phone must not mean a dead account. Each administrator gets a fixed
+# // set of single-use codes; only their hashes are stored, and a spent code is
+# // marked rather than removed so the audit trail can still name it.
+RECOVERY_CODE_COUNT = 10
+RECOVERY_CODE_RE = re.compile(r'^[A-Za-z0-9]{4,8}-[A-Za-z0-9]{4,8}$')
+
+
+def _new_raw_code():
+    return f'{secrets.token_hex(3).upper()}-{secrets.token_hex(3).upper()}'
+
+
+def generate_recovery_codes(profile, count=RECOVERY_CODE_COUNT):
+    """
+    // Replace any unused codes with a fresh set and return the plaintext ONCE.
+    // The caller is expected to show them to the account holder immediately; they
+    // are unrecoverable afterwards.
+    """
+    RecoveryCode.objects.filter(profile=profile, used_at__isnull=True).delete()
+
+    codes = []
+    for _ in range(count):
+        raw = _new_raw_code()
+        RecoveryCode.objects.create(profile=profile, code_hash=hash_recovery_code(raw))
+        codes.append(raw)
+    return codes
+
+
+def is_recovery_code_format(code):
+    return bool(RECOVERY_CODE_RE.match((code or '').strip()))
+
+
+def consume_recovery_code(profile, code):
+    """Spend a code atomically. True only for the request that wins the update."""
+    digest = hash_recovery_code(code)
+    return RecoveryCode.objects.filter(
+        profile=profile,
+        code_hash=digest,
+        used_at__isnull=True,
+    ).update(used_at=timezone.now()) == 1
+
+
+def remaining_recovery_codes(profile):
+    return RecoveryCode.objects.filter(profile=profile, used_at__isnull=True).count()
+
+
+def verify_second_factor(profile, code):
+    """
+    // Accept either a live 6-digit TOTP or an unused recovery code.
+    // Returns {'ok', 'method', 'remaining'} so the caller can tell the user which
+    // one was used and how many backups are left.
+    """
+    if verify_code(profile, code):
+        return {'ok': True, 'method': 'TOTP', 'remaining': remaining_recovery_codes(profile)}
+
+    if is_recovery_code_format(code) and consume_recovery_code(profile, code):
+        return {
+            'ok': True,
+            'method': 'RECOVERY',
+            'remaining': remaining_recovery_codes(profile),
+        }
+
+    return {'ok': False, 'method': '', 'remaining': None}
+
+
+def reset_two_factor(profile):
+    """Break-glass: remove the second factor and every backup code."""
+    profile.totp_enabled = False
+    profile.totp_secret = ''
+    profile.totp_confirmed_at = None
+    profile.save(update_fields=['totp_enabled', 'totp_secret', 'totp_confirmed_at'])
+    deleted, _ = RecoveryCode.objects.filter(profile=profile).delete()
+    return deleted

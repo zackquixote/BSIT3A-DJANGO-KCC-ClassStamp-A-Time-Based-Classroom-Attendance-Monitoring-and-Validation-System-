@@ -143,7 +143,7 @@
               <input type="checkbox" name="remember_me" id="id_remember_me" class="kcc-checkbox" checked>
               <span>Remember me</span>
             </label>
-            <a href="#" class="kcc-forgot-link" onclick="alert('For account recovery, please reach out to the KCC Registrar or IT Department.'); return false;">Forgot password?</a>
+            <a href="{% url 'password_reset_request' %}" class="kcc-forgot-link">Forgot password?</a>
           </div>
 
           <button type="submit" class="btn kcc-btn-gold btn-full" {% if locked %}disabled{% endif %} id="login-btn">

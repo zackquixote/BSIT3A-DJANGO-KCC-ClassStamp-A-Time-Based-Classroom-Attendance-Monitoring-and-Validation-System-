@@ -39,7 +39,6 @@ from apps.core.services import (
     provision_teacher_account,
     reassign_teacher_department,
     reset_teacher_password,
-    set_teacher_active,
     toggle_teacher_active,
     update_teacher_profile,
 )
@@ -243,83 +242,6 @@ def teacher_create(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
-
-
-# // ==============================================================================
-# // AJAX: Bulk Teacher Operation (/teachers/bulk-operation/)
-# // ==============================================================================
-@login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
-@require_http_methods(['POST'])
-def bulk_teacher_operation(request):
-    """
-    // [AJAX] Perform bulk operations on teachers.
-    // POST params: action (activate|deactivate|reset-pw), teacher_ids[] (repeated)
-    //
-    // activate/deactivate are explicit and idempotent (they set the desired state,
-    // they do NOT flip it). reset-pw returns one temporary credential per teacher.
-    """
-    action = request.POST.get('action', '').strip()
-    ids = request.POST.getlist('teacher_ids[]') or request.POST.getlist('teacher_ids')
-
-    if not action or not ids:
-        return JsonResponse({'ok': False, 'error': 'Invalid action or teacher IDs.'}, status=400)
-    if action not in ('activate', 'deactivate', 'reset-pw'):
-        return JsonResponse({'ok': False, 'error': 'Unsupported bulk action.'}, status=400)
-
-    success_count = 0
-    error_ids = []
-    first_error = ''
-    credentials = []
-
-    for raw_id in ids:
-        try:
-            teacher_id = int(raw_id)
-        except (ValueError, TypeError):
-            error_ids.append(raw_id)
-            continue
-
-        try:
-            if action == 'activate':
-                set_teacher_active(actor=request.user, profile_id=teacher_id, is_active=True)
-            elif action == 'deactivate':
-                set_teacher_active(actor=request.user, profile_id=teacher_id, is_active=False)
-            else:
-                result = reset_teacher_password(actor=request.user, profile_id=teacher_id)
-                credentials.append({
-                    'id': teacher_id,
-                    'username': result['username'],
-                    'display_name': result['display_name'],
-                    'temporary_password': result['temporary_password'],
-                })
-            success_count += 1
-        except Exception as exc:
-            import traceback
-            traceback.print_exc()
-            error_ids.append(teacher_id)
-            if not first_error:
-                first_error = str(exc)
-
-    verb = {
-        'activate': 'activated',
-        'deactivate': 'deactivated',
-        'reset-pw': 'password-reset',
-    }[action]
-    message = f'Successfully {verb} {success_count} teacher(s).'
-    if error_ids:
-        message += f' {len(error_ids)} failed.'
-        if first_error:
-            message += f' First reason: {first_error}'
-
-    return JsonResponse({
-        'ok': True,
-        'action': action,
-        'message': message,
-        'success_count': success_count,
-        'error_count': len(error_ids),
-        'error_ids': error_ids,
-        'credentials': credentials,
-    })
 
 
 # // ==============================================================================

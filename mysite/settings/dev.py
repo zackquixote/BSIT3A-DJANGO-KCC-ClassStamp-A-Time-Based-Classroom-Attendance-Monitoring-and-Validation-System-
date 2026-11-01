@@ -14,8 +14,12 @@ DEBUG = True
 if not SECRET_KEY:  # noqa: F405
     SECRET_KEY = 'django-insecure-development-only-key-do-not-use-in-production'
 
-# Print emails to the console during development.
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Print emails to the console during development — unless a real transport is
+# configured in .env (e.g. Gmail SMTP), in which case deliver for real.
+EMAIL_BACKEND = os.environ.get(
+    'DJANGO_EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend',
+)
 
 # Allow local test runner and development hosts
 ALLOWED_HOSTS = ['*']
