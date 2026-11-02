@@ -11,11 +11,9 @@
     try { localStorage.removeItem('kcc_theme'); document.documentElement.removeAttribute('data-theme'); } catch(e){}
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261030_v10_student">
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261102_fast">
   {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if request.user.is_authenticated and request.user.classstamp_profile.role == 'STUDENT' %}role-student{% endif %}">
@@ -53,7 +51,7 @@
               <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
             {% endif %}
               {% if request.user.classstamp_profile.role == 'STUDENT' and request.user.classstamp_profile.avatar %}
-                <img src="{{ request.user.classstamp_profile.avatar.url }}" alt="Profile photo">
+                <img src="{% url 'student_avatar_document' request.user.classstamp_profile.pk %}" alt="Profile photo">
               {% elif request.user.first_name and request.user.last_name %}
                 {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
               {% else %}

@@ -3,8 +3,8 @@
    Pure Vanilla CSS · Dark Glassmorphism Design System
    ============================================================= */
 
-/* ── Google Fonts ────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* ── Fonts ───────────────────────────────────────────────────── */
+/* Inter is served locally by css/fonts.css — no Google Fonts request. */
 
 /* ── CSS Custom Properties ───────────────────────────────────── */
 :root {

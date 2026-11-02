@@ -4,7 +4,7 @@
    ============================================================= */
 
 /* ── 1. Design Tokens & CSS Custom Properties ────────────────── */
-@import url('variables.css?v=20261029_v2_crossbrowser');
+@import url('variables.css?v=20261102_local');
 
 /* ── 2. Reset, Base Elements & Core Layout ───────────────────── */
 @import url('base.css?v=20261030_v5_avatar');
@@ -13,10 +13,10 @@
 @import url('sidebar.css?v=20261030_v8_avatar');
 
 /* ── 4. UI Components (Cards, Buttons, Forms, Modals, Tables) ── */
-@import url('components.css?v=20261030_excuse');
+@import url('components.css?v=20261102_hint');
 
 /* ── 5. Shared Authentication Layout & Ambient Orbs ──────────── */
-@import url('auth.css?v=20261030_pill');
+@import url('auth.css?v=20261102_icons');
 
 /* ── 6. Dedicated Sign-In / Login Page ───────────────────────── */
 @import url('login.css?v=20261029_v2_crossbrowser');
@@ -28,7 +28,7 @@
 @import url('validation.css?v=20261029_v2_crossbrowser');
 
 /* ── 9. Admin Command Center Dashboard ───────────────────────── */
-@import url('dashboard.css?v=20261029_v2_crossbrowser');
+@import url('dashboard.css?v=20261102_strip');
 
 /* ── 10. In-Page Anchor Targets (Teacher Dashboard) ──────────── */
 #today-schedule,

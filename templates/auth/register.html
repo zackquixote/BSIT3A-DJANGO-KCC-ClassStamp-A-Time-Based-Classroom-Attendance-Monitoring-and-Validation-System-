@@ -7,11 +7,9 @@
   <meta name="description" content="KCC ClassStamp — Student Account Registration & Verification">
   <title>Student Registration — KCC ClassStamp</title>
   {% include "theme/favicons.html" %}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261102_local">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
   <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261030_pill">
@@ -46,7 +44,7 @@
       <!-- Center Hero Headline & Tagline -->
       <div class="kcc-hero-body">
         <div class="kcc-tag-pill">
-          <span class="kcc-pill-dot">✨</span>
+          <span class="kcc-pill-dot" aria-hidden="true"></span>
           <span>STUDENT ADMISSIONS · VERIFIED ATTENDANCE</span>
         </div>
 

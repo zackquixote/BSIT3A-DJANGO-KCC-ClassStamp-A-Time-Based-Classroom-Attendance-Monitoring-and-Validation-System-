@@ -18,6 +18,24 @@ import zlib
 from django.conf import settings
 
 
+def _find_mysqldump():
+    """Locate mysqldump even when XAMPP's bin folder is not on PATH."""
+    found = shutil.which('mysqldump')
+    if found:
+        return found
+    configured = os.environ.get('MYSQLDUMP_PATH', '').strip()
+    if configured and os.path.isfile(configured):
+        return configured
+    for candidate in (
+        r'C:\xampp\mysql\bin\mysqldump.exe',
+        '/usr/bin/mysqldump',
+        '/usr/local/mysql/bin/mysqldump',
+    ):
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 def stream_database_backup():
     """
     // Generator yielding gzip-compressed mysqldump output in chunks.
@@ -26,7 +44,7 @@ def stream_database_backup():
     //   FileNotFoundError — mysqldump binary is not on PATH.
     //   RuntimeError — mysqldump exited with a non-zero status (stderr included).
     """
-    mysqldump = shutil.which('mysqldump')
+    mysqldump = _find_mysqldump()
     if not mysqldump:
         raise FileNotFoundError(
             'mysqldump was not found on this server. Backups require the MySQL '

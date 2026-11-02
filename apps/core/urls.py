@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/student/offline-badge/issue/', views.student_offline_badge_issue, name='student_offline_badge_issue'),
 
     # // Protected document delivery (never expose MEDIA_URL directly)
+    path('documents/avatar/<int:profile_id>/', views.student_avatar_document, name='student_avatar_document'),
     path('documents/registration-proof/<int:profile_id>/', views.registration_proof_document, name='registration_proof_document'),
     path('documents/excuse-slip/<int:slip_id>/attachment/', views.excuse_slip_attachment_document, name='excuse_slip_attachment_document'),
 

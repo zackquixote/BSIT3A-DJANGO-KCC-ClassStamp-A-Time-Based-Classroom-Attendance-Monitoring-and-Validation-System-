@@ -188,7 +188,7 @@
     <div class="sidebar-user">
       <div class="sidebar-user-avatar">
         {% if profile.role == 'STUDENT' and profile.avatar %}
-          <img src="{{ profile.avatar.url }}" alt="Profile photo">
+          <img src="{% url 'student_avatar_document' profile.pk %}" alt="Profile photo">
         {% elif request.user.first_name and request.user.last_name %}
           {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
         {% else %}

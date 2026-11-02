@@ -241,6 +241,11 @@
     gap: 10px;
     margin-top: 6px;
   }
+  /* Laptops already carry the sidebar footer logout, so the card is only the
+     exit on phones — students have no hamburger for the sidebar drawer. */
+  @media (min-width: 901px) {
+    .profile-signout-card { display: none; }
+  }
   @media (max-width: 980px) {
     .profile-layout { grid-template-columns: 1fr; }
   }
@@ -249,6 +254,7 @@
     .profile-section-title { padding-left: 14px; padding-right: 14px; }
     .profile-actions { justify-content: stretch; }
     .profile-actions .btn { flex: 1 1 auto; justify-content: center; }
+    .profile-signout-card .btn { flex: 1 1 100%; justify-content: center; }
   }
 </style>
 {% endblock %}
@@ -288,7 +294,7 @@
                   aria-haspopup="true" aria-expanded="false" aria-controls="avatarMenu"
                   aria-label="Change profile photo">
             {% if profile.avatar %}
-              <img src="{{ profile.avatar.url }}" alt="Profile photo of {{ request.user.get_full_name }}">
+              <img src="{% url 'student_avatar_document' profile.pk %}" alt="Profile photo of {{ request.user.get_full_name }}">
             {% else %}
               {{ profile.initials|default:"ST" }}
             {% endif %}
@@ -485,7 +491,7 @@
       </div>
     </div>
 
-    <div class="card profile-card">
+    <div class="card profile-card profile-signout-card">
       <div class="profile-body profile-signout">
         <div>
           <div class="profile-signout-title">Sign out</div>
