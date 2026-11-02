@@ -308,7 +308,7 @@
           <div class="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
             <i class="fas fa-table-cells text-gold"></i> Weekly Class Grid
           </div>
-          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;">
             {% regroup timetable_slots by weekday as slot_days %}
             {% for day in slot_days %}
               <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid {% if day.grouper == today_weekday %}rgba(245, 158, 11, 0.6){% else %}var(--glass-border){% endif %}; border-radius: 8px; padding: 8px; min-height: 90px;">
@@ -318,9 +318,11 @@
                 </div>
                 {% for s in day.list %}
                   <div class="mb-1" style="border-left: 3px solid {{ s.color }}; background: rgba(255, 255, 255, 0.03); border-radius: 4px; padding: 4px 6px;">
-                    <div class="font-bold text-xs text-primary font-mono">{{ s.starts_at|time:"h:i A" }}–{{ s.ends_at|time:"h:i A" }}</div>
-                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }} · {{ s.class_code }}</div>
-                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.room }}</div>
+                    <div class="font-mono text-primary" style="font-size: 0.68rem; line-height: 1.25;">
+                      <span class="font-bold">{{ s.starts_at|time:"g:i A" }}</span><br>
+                      <span class="text-muted">– {{ s.ends_at|time:"g:i A" }}</span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }}{% if s.room %} · {{ s.room }}{% endif %}</div>
                   </div>
                 {% endfor %}
               </div>

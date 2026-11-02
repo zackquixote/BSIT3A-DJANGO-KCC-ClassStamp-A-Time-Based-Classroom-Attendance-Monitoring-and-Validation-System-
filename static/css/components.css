@@ -1039,6 +1039,16 @@ select.form-control option:hover {
      absolutely-positioned action dropdowns can escape the container */
 }
 
+/* Wide admin tables must scroll inside their card on phones instead of
+   pushing the whole page sideways (the inline overflow:visible exists so
+   action dropdowns can escape on desktop). */
+@media (max-width: 900px) {
+  .table-responsive--scroll-sm {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ── #11/#3 Batch-Action Floating Bar ────────────────────── */
 .batch-action-bar {
   position: fixed;

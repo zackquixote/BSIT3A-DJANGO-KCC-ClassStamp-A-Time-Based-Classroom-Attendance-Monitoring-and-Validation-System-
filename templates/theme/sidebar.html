@@ -14,6 +14,9 @@
         <span class="sidebar-brand-tag">{% if request.user.is_superuser or profile.role == 'ADMIN' %}Admin Console{% elif profile.role == 'TEACHER' %}Teacher Portal{% else %}Student Portal{% endif %}</span>
       </div>
     </div>
+    <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">
+      <i class="fas fa-angles-left"></i>
+    </button>
     <button type="button" class="sidebar-close-btn" id="sidebar-close" aria-label="Close Sidebar">
       <i class="fas fa-xmark"></i>
     </button>
