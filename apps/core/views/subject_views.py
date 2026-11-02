@@ -13,7 +13,7 @@
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Min, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
@@ -56,6 +56,9 @@ def subject_list(request):
     dept_filter = request.GET.get('department', '').strip()
     program_filter = request.GET.get('program', '').strip()
     usage_filter = request.GET.get('usage', '').strip()
+    semester_filter = request.GET.get('semester', '').strip()
+    year_filter = request.GET.get('year_level', '').strip()
+    sort_mode = request.GET.get('sort', '').strip()
 
     subjects_qs = (
         Subject.objects.annotate(
@@ -90,9 +93,46 @@ def subject_list(request):
             curriculum_entries__program_id=program_filter
         ).distinct()
 
+    # Semester and year level are placement attributes, not subject attributes:
+    # a subject is only "1st semester, Year 2" because a curriculum row says so.
+    if semester_filter.isdigit():
+        subjects_qs = subjects_qs.filter(
+            curriculum_entries__semester=int(semester_filter)
+        ).distinct()
+
+    if year_filter.isdigit():
+        subjects_qs = subjects_qs.filter(
+            curriculum_entries__year_level=int(year_filter)
+        ).distinct()
+
+    # Curriculum order (program -> year -> semester) is how a registrar reads the
+    # catalogue; alphabetical order is how you look up a code you already know.
+    # Aggregates must live in annotate() before order_by() can reference them.
+    if sort_mode == 'placement':
+        subjects_qs = subjects_qs.annotate(
+            _program_code=Min('curriculum_entries__program__code'),
+            _year_level=Min('curriculum_entries__year_level'),
+            _semester=Min('curriculum_entries__semester'),
+        ).order_by('_program_code', '_year_level', '_semester', 'code')
+
     paginator = Paginator(subjects_qs, 15)
     page_number = request.GET.get('page', 1)
     subjects = paginator.get_page(page_number)
+
+    # Where each subject on this page sits in the curriculum (program / year /
+    # semester). One query for the whole page, not one per row.
+    page_subjects = list(subjects)
+    placements = {}
+    if page_subjects:
+        for row in (
+            Curriculum.objects
+            .filter(subject_id__in=[s.pk for s in page_subjects])
+            .values('subject_id', 'program__code', 'year_level', 'semester')
+            .order_by('program__code', 'year_level', 'semester')
+        ):
+            placements.setdefault(row['subject_id'], []).append(row)
+    for subject_obj in page_subjects:
+        subject_obj.placements = placements.get(subject_obj.pk, [])
 
     total_count = Subject.objects.count()
     active_count = Subject.objects.filter(is_active=True).count()
@@ -138,6 +178,10 @@ def subject_list(request):
         'dept_filter': dept_filter,
         'program_filter': program_filter,
         'usage_filter': usage_filter,
+        'semester_filter': semester_filter,
+        'year_filter': year_filter,
+        'sort': sort_mode,
+        'placements': placements,
         'total_count': total_count,
         'active_count': active_count,
         'inactive_count': inactive_count,
