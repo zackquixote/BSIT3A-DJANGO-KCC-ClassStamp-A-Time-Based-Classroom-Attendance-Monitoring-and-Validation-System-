@@ -85,6 +85,22 @@ class Class(models.Model):
         related_name='taught_classes',
         help_text="// Instructor responsible for class delivery"
     )
+    join_code_digest = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text="// SHA-256 digest of the active student enrollment code",
+    )
+    join_code_active = models.BooleanField(
+        default=False,
+        help_text="// Whether students may use the current enrollment code",
+    )
+    join_code_created_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="// When the current enrollment code was generated",
+    )
     program = models.ForeignKey(
         Program,
         on_delete=models.SET_NULL,

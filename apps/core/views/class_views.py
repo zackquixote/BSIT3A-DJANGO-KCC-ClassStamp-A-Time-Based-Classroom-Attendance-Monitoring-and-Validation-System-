@@ -48,6 +48,7 @@ from apps.core.services import (
 from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.models.classroom import derive_section_code
 from apps.core.services.export_service import SafeCsvWriter
+from apps.core.services.class_join_service import generate_join_code
 
 
 # // ==============================================================================
@@ -450,6 +451,11 @@ def class_roster_get(request, class_id):
         .select_related('student_profile__user', 'student_profile__program')
         .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
+    pending_enrollments = (
+        Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_PENDING)
+        .select_related('student_profile__user', 'student_profile__program')
+        .order_by('created_at')
+    )
 
     enrolled_data = []
     enrolled_profile_ids = []
@@ -461,6 +467,19 @@ def class_roster_get(request, class_id):
             'student_name': en.student_profile.user.get_full_name() or en.student_profile.user.username,
             'program': en.student_profile.program.code if en.student_profile.program else '—',
             'enrolled_at': timezone.localtime(en.created_at).strftime('%b %d, %Y') if en.created_at else '—',
+        })
+
+    pending_data = []
+    pending_profile_ids = []
+    for en in pending_enrollments:
+        pending_profile_ids.append(en.student_profile_id)
+        pending_data.append({
+            'enrollment_id': en.id,
+            'profile_id': en.student_profile_id,
+            'student_id': en.student_profile.student_number or '—',
+            'student_name': en.student_profile.user.get_full_name() or en.student_profile.user.username,
+            'program': en.student_profile.program.code if en.student_profile.program else '—',
+            'requested_at': timezone.localtime(en.created_at).strftime('%b %d, %Y') if en.created_at else '—',
         })
 
     # Available approved students not yet in this class (limit 100).
@@ -480,6 +499,7 @@ def class_roster_get(request, class_id):
             approval_status=Profile.APPROVAL_APPROVED,
         )
         .exclude(id__in=enrolled_profile_ids)
+        .exclude(id__in=pending_profile_ids)
         .select_related('user', 'program')
     )
     if prog_filter:
@@ -500,19 +520,22 @@ def class_roster_get(request, class_id):
             'program': s.program.code if s.program else '—',
         })
 
+    reserved_count = len(enrolled_data) + len(pending_data)
     return JsonResponse({
         'success': True,
         'class_code': class_obj.class_code,
         'capacity': class_obj.capacity,
         'enrolled_count': len(enrolled_data),
+        'pending_count': len(pending_data),
+        'reserved_count': reserved_count,
         'remaining_capacity': (
-            None if not class_obj.capacity
-            else max(class_obj.capacity - len(enrolled_data), 0)
+            None if not class_obj.capacity else max(class_obj.capacity - reserved_count, 0)
         ),
         'class_program_id': class_obj.program_id,
         'class_program_code': class_obj.program.code if class_obj.program else None,
         'class_year_level': class_obj.year_level,
         'enrolled': enrolled_data,
+        'pending': pending_data,
         'available': available_data,
     })
 
@@ -551,27 +574,43 @@ def class_roster_enroll(request, class_id):
             ),
         }, status=400)
 
-    # Check capacity limit
-    current_enrolled = Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE).count()
-    if class_obj.capacity and current_enrolled >= class_obj.capacity:
-        return JsonResponse({'success': False, 'message': f"Class has reached its maximum capacity of {class_obj.capacity} students."}, status=400)
+    with transaction.atomic():
+        class_obj = Class.objects.select_for_update().get(pk=class_obj.pk)
+        enrollment = Enrollment.objects.select_for_update().filter(
+            class_obj=class_obj, student_profile=student,
+        ).first()
+        active_count = Enrollment.objects.filter(
+            class_obj=class_obj, status=Enrollment.STATUS_ACTIVE,
+        ).count()
+        pending_count = Enrollment.objects.filter(
+            class_obj=class_obj, status=Enrollment.STATUS_PENDING,
+        ).count()
+        is_pending_request = enrollment and enrollment.status == Enrollment.STATUS_PENDING
+        reserved_count = active_count + pending_count
+        if class_obj.capacity and not (
+            enrollment and enrollment.status == Enrollment.STATUS_ACTIVE
+        ) and (
+            active_count >= class_obj.capacity
+            or (not is_pending_request and reserved_count >= class_obj.capacity)
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': f"Class has reached its maximum capacity of {class_obj.capacity} students.",
+            }, status=400)
 
-    # Check if existing enrollment
-    enrollment, created = Enrollment.objects.get_or_create(
-        class_obj=class_obj,
-        student_profile=student,
-        defaults={
-            'status': Enrollment.STATUS_ACTIVE,
-            'approved_by': request.user,
-            'approved_at': timezone.now(),
-        }
-    )
-
-    if not created and enrollment.status != Enrollment.STATUS_ACTIVE:
-        enrollment.status = Enrollment.STATUS_ACTIVE
-        enrollment.approved_by = request.user
-        enrollment.approved_at = timezone.now()
-        enrollment.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+        if enrollment is None:
+            enrollment = Enrollment.objects.create(
+                class_obj=class_obj,
+                student_profile=student,
+                status=Enrollment.STATUS_ACTIVE,
+                approved_by=request.user,
+                approved_at=timezone.now(),
+            )
+        elif enrollment.status != Enrollment.STATUS_ACTIVE:
+            enrollment.status = Enrollment.STATUS_ACTIVE
+            enrollment.approved_by = request.user
+            enrollment.approved_at = timezone.now()
+            enrollment.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
 
     AuditEvent.objects.create(
         actor=request.user,
@@ -590,6 +629,59 @@ def class_roster_enroll(request, class_id):
             'program': student.program.code if student.program else '—',
             'enrolled_at': timezone.localtime(timezone.now()).strftime('%b %d, %Y'),
         }
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def class_join_code_manage(request, class_id):
+    """Generate/rotate or revoke the student join code for one class offering."""
+    action = request.POST.get('action', '').strip().lower()
+    if action not in {'rotate', 'revoke'}:
+        return JsonResponse({'success': False, 'message': 'Choose rotate or revoke.'}, status=400)
+
+    with transaction.atomic():
+        class_obj = get_object_or_404(Class.objects.select_for_update(), pk=class_id)
+        if not class_obj.is_active:
+            return JsonResponse({
+                'success': False,
+                'message': 'Activate this class before managing its join code.',
+            }, status=400)
+
+        if action == 'rotate':
+            join_code, digest = generate_join_code()
+            while Class.objects.filter(join_code_digest=digest).exclude(pk=class_obj.pk).exists():
+                join_code, digest = generate_join_code()
+            class_obj.join_code_digest = digest
+            class_obj.join_code_active = True
+            class_obj.join_code_created_at = timezone.now()
+            class_obj.save(update_fields=[
+                'join_code_digest', 'join_code_active', 'join_code_created_at', 'updated_at',
+            ])
+        else:
+            class_obj.join_code_digest = ''
+            class_obj.join_code_active = False
+            class_obj.join_code_created_at = None
+            class_obj.save(update_fields=[
+                'join_code_digest', 'join_code_active', 'join_code_created_at', 'updated_at',
+            ])
+            join_code = ''
+
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='CLASS_JOIN_CODE_' + action.upper(),
+            object_type='Class',
+            object_id=str(class_obj.pk),
+            reason=f'{action.title()}d student join code for {class_obj.class_code}',
+        )
+
+    return JsonResponse({
+        'success': True,
+        'action': action,
+        'class_code': class_obj.class_code,
+        'join_code': join_code,
+        'message': 'Join code rotated.' if action == 'rotate' else 'Join code disabled.',
     })
 
 
@@ -633,10 +725,24 @@ def class_roster_enroll_batch(request, class_id):
     skipped_conflicts = 0
     with transaction.atomic():
         for student in candidates.iterator():
+            existing_enrollment = Enrollment.objects.filter(
+                class_obj=class_obj,
+                student_profile=student,
+            ).first()
             current_enrolled = Enrollment.objects.filter(
                 class_obj=class_obj, status=Enrollment.STATUS_ACTIVE,
             ).count()
-            if class_obj.capacity and current_enrolled >= class_obj.capacity:
+            pending_count = Enrollment.objects.filter(
+                class_obj=class_obj, status=Enrollment.STATUS_PENDING,
+            ).count()
+            is_pending_request = (
+                existing_enrollment
+                and existing_enrollment.status == Enrollment.STATUS_PENDING
+            )
+            if class_obj.capacity and (
+                current_enrolled >= class_obj.capacity
+                or (not is_pending_request and current_enrolled + pending_count >= class_obj.capacity)
+            ):
                 skipped_full = True
                 break
 
@@ -1224,4 +1330,3 @@ def class_attendance_matrix(request, class_id):
             'overall_rate': overall_rate,
         },
     })
-

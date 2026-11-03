@@ -69,6 +69,56 @@
     });
   }
 
+  function bindPendingRequestButtons() {
+    document.querySelectorAll('.btn-approve-join-request').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var body = new FormData();
+        body.append('csrfmiddlewaretoken', getCSRF());
+        body.append('profile_id', btn.dataset.profileId);
+        fetch(btn.dataset.approveUrl, { method: 'POST', body: body })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            if (!result.success) throw new Error(result.message || 'Unable to approve request.');
+            if (window.App && window.App.toast) window.App.toast('success', 'Enrollment request approved.');
+            loadRosterData(currentRosterClassId);
+          })
+          .catch(function (error) {
+            if (window.App && window.App.toast) window.App.toast('error', error.message);
+            else alert(error.message);
+          });
+      });
+    });
+
+    document.querySelectorAll('.btn-reject-join-request').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var confirmed = window.App && window.App.confirm
+          ? await window.App.confirm({
+              title: 'Decline Join Request',
+              message: 'Decline this student request? The student will need a new request to join later.',
+              confirmText: 'Decline Request',
+              confirmClass: 'btn-danger',
+              type: 'danger'
+            })
+          : confirm('Decline this student request?');
+        if (!confirmed) return;
+
+        var body = new FormData();
+        body.append('csrfmiddlewaretoken', getCSRF());
+        fetch(btn.dataset.rejectUrl, { method: 'POST', body: body })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            if (!result.success) throw new Error(result.message || 'Unable to decline request.');
+            if (window.App && window.App.toast) window.App.toast('success', 'Join request declined.');
+            loadRosterData(currentRosterClassId);
+          })
+          .catch(function (error) {
+            if (window.App && window.App.toast) window.App.toast('error', error.message);
+            else alert(error.message);
+          });
+      });
+    });
+  }
+
   function loadRosterData(classId) {
     var rosterStudentsList      = getEl('rosterStudentsList');
     var rosterCountBadge        = getEl('rosterCountBadge');
@@ -94,7 +144,7 @@
         if (rosterCountBadge) rosterCountBadge.textContent = data.enrolled_count;
         if (rosterCapacityText) {
           rosterCapacityText.textContent = data.capacity
-            ? ('Seats: ' + data.enrolled_count + ' / ' + data.capacity)
+            ? ('Seats reserved: ' + data.reserved_count + ' / ' + data.capacity)
             : (data.enrolled_count + ' enrolled \u00b7 no capacity limit');
         }
 
@@ -124,11 +174,34 @@
         });
         if (availableStudentsSelect) availableStudentsSelect.innerHTML = optHtml;
 
+        // Render requests separately so an admin can explicitly approve or decline them.
+        var listHtml = '';
+        if (data.pending.length) {
+          listHtml += '<div class="font-bold text-xs text-gold mt-1">Join Requests (' + escapeHtml(data.pending.length) + ')</div>';
+          data.pending.forEach(function (request) {
+            listHtml +=
+              '<div class="p-2" style="background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); border-radius: 4px;">' +
+              '  <div class="flex items-center justify-between gap-2">' +
+              '    <div>' +
+              '      <div class="font-semibold text-xs text-primary">' + escapeHtml(request.student_name) + '</div>' +
+              '      <div class="text-xs text-muted" style="font-size: 0.68rem;">' + escapeHtml(request.student_id) + ' · ' + escapeHtml(request.program) + ' · Requested ' + escapeHtml(request.requested_at) + '</div>' +
+              '    </div>' +
+              '    <div class="flex items-center gap-1">' +
+              '      <button type="button" class="btn btn-primary btn-xs btn-approve-join-request" data-profile-id="' + escapeHtml(request.profile_id) + '" data-approve-url="/classes/' + escapeHtml(classId) + '/roster/enroll/">Approve</button>' +
+              '      <button type="button" class="btn btn-outline btn-xs btn-reject-join-request" data-reject-url="/classes/roster/remove/' + escapeHtml(request.enrollment_id) + '/">Decline</button>' +
+              '    </div>' +
+              '  </div>' +
+              '</div>';
+          });
+        }
+
         // Render enrolled list
-        if (data.enrolled.length === 0) {
+        if (data.enrolled.length === 0 && !data.pending.length) {
           if (rosterStudentsList) rosterStudentsList.innerHTML = '<p class="text-muted text-xs p-3 text-center">No students currently enrolled in this section.</p>';
         } else {
-          var listHtml = '';
+          if (data.enrolled.length) {
+            listHtml += '<div class="font-bold text-xs text-primary mt-2">Enrolled Students</div>';
+          }
           data.enrolled.forEach(function (en) {
             listHtml +=
               '<div class="p-2 flex items-center justify-between" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px;">' +
@@ -143,6 +216,7 @@
           });
           if (rosterStudentsList) rosterStudentsList.innerHTML = listHtml;
           bindRemoveEnrollmentButtons();
+          bindPendingRequestButtons();
         }
       })
       .catch(function (err) {

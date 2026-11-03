@@ -20,11 +20,13 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
+from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.core.decorators import approved_required, role_required
 from apps.core.forms import StudentAvatarForm, StudentProfileForm
@@ -33,11 +35,14 @@ from apps.core.models import (
     AttendanceDispute,
     AttendanceRecord,
     AuditEvent,
+    Class,
     ClassSession,
     Enrollment,
     OfflineBadge,
     Profile,
 )
+from apps.core.services.class_join_service import hash_join_code, normalize_join_code
+from apps.core.services.schedule_service import student_overlap_conflicts
 from apps.core.services.qr_service import (
     TOTP_INTERVAL,
     build_payload,
@@ -50,6 +55,146 @@ from apps.core.services.section_service import student_section_summary
 def _seconds_remaining():
     """Seconds left in the current TOTP window."""
     return TOTP_INTERVAL - (int(time.time()) % TOTP_INTERVAL)
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_STUDENT)
+@approved_required
+@require_http_methods(['GET', 'POST'])
+def student_join_class(request):
+    """Request enrollment in an active class using its private join code."""
+    profile = request.user.classstamp_profile
+    error_message = ''
+
+    if request.method == 'POST':
+        throttle_key = f'class-join-attempts:{profile.pk}'
+        attempts = cache.get(throttle_key, 0)
+        request_created = False
+        if attempts >= 8:
+            error_message = 'Too many attempts. Please wait 15 minutes before trying again.'
+        else:
+            try:
+                if not cache.add(throttle_key, 1, timeout=900):
+                    cache.incr(throttle_key)
+            except ValueError:
+                cache.set(throttle_key, attempts + 1, timeout=900)
+
+            submitted_code = normalize_join_code(request.POST.get('join_code', ''))
+            allowed_characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+            if len(submitted_code) != 12 or any(
+                character not in allowed_characters for character in submitted_code
+            ):
+                error_message = 'That code could not be used. Check it with your teacher or contact an administrator.'
+            else:
+                digest = hash_join_code(submitted_code)
+                class_obj = (
+                    Class.objects.filter(
+                        join_code_digest=digest,
+                        join_code_active=True,
+                        is_active=True,
+                        academic_year__is_active=True,
+                    )
+                    .select_related('academic_year', 'subject', 'program', 'teacher_profile__user')
+                    .first()
+                )
+                if class_obj is None:
+                    error_message = 'That code could not be used. Check it with your teacher or contact an administrator.'
+                elif class_obj.program_id and class_obj.program_id != profile.program_id:
+                    error_message = 'That code could not be used. Check it with your teacher or contact an administrator.'
+                else:
+                    with transaction.atomic():
+                        class_obj = Class.objects.select_for_update().get(pk=class_obj.pk)
+                        existing = Enrollment.objects.select_for_update().filter(
+                            class_obj=class_obj,
+                            student_profile=profile,
+                        ).first()
+                        if (
+                            not class_obj.is_active
+                            or not class_obj.academic_year.is_active
+                            or not class_obj.join_code_active
+                            or class_obj.join_code_digest != digest
+                        ):
+                            error_message = 'That code could not be used. Check it with your teacher or contact an administrator.'
+                        elif existing and existing.status == Enrollment.STATUS_ACTIVE:
+                            error_message = 'You are already enrolled in this class.'
+                        elif existing and existing.status == Enrollment.STATUS_PENDING:
+                            error_message = 'Your request to join this class is already awaiting review.'
+                        elif existing and existing.status == Enrollment.STATUS_COMPLETED:
+                            error_message = 'Contact an administrator to restore access to this class.'
+                        else:
+                            reserved = Enrollment.objects.filter(
+                                class_obj=class_obj,
+                                status__in=[Enrollment.STATUS_ACTIVE, Enrollment.STATUS_PENDING],
+                            ).count()
+                            if class_obj.capacity and reserved >= class_obj.capacity:
+                                error_message = 'This class has no remaining seats.'
+                            else:
+                                conflicts = student_overlap_conflicts(profile, class_obj)
+                                if conflicts:
+                                    error_message = (
+                                        'Your schedule conflicts with another enrolled class. '
+                                        'Contact an administrator for help.'
+                                    )
+                                else:
+                                    if existing and existing.status == Enrollment.STATUS_WITHDRAWN:
+                                        enrollment = existing
+                                        enrollment.status = Enrollment.STATUS_PENDING
+                                        enrollment.approved_by = None
+                                        enrollment.approved_at = None
+                                        enrollment.save(update_fields=[
+                                            'status', 'approved_by', 'approved_at', 'updated_at',
+                                        ])
+                                        request_created = True
+                                    else:
+                                        enrollment, request_created = Enrollment.objects.get_or_create(
+                                            class_obj=class_obj,
+                                            student_profile=profile,
+                                            defaults={'status': Enrollment.STATUS_PENDING},
+                                        )
+                                    if request_created:
+                                        AuditEvent.objects.create(
+                                            actor=request.user,
+                                            action='CLASS_JOIN_REQUEST',
+                                            object_type='Enrollment',
+                                            object_id=str(enrollment.pk),
+                                            reason='Student requested class enrollment with join code.',
+                                        )
+                                    else:
+                                        error_message = 'Your enrollment status changed. Refresh and check your class list.'
+
+                if not error_message:
+                    if request_created:
+                        cache.delete(throttle_key)
+                        messages.success(
+                            request,
+                            'Join request sent. You will be enrolled after your teacher or administrator approves it.',
+                        )
+                    else:
+                        messages.success(request, 'Your class enrollment request was processed.')
+                    return redirect('student_join_class')
+
+        if error_message:
+            messages.error(request, error_message)
+            return redirect('student_join_class')
+
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+    enrollments = Enrollment.objects.filter(
+        student_profile=profile,
+        status__in=[Enrollment.STATUS_ACTIVE, Enrollment.STATUS_PENDING],
+        class_obj__is_active=True,
+    )
+    if active_year:
+        enrollments = enrollments.filter(class_obj__academic_year=active_year)
+    else:
+        enrollments = enrollments.none()
+    enrollments = enrollments.select_related(
+        'class_obj__subject', 'class_obj__teacher_profile__user', 'class_obj__academic_year',
+    ).order_by('class_obj__subject__code')
+
+    return render(request, 'core/student/join_class.html', {
+        'enrollments': enrollments,
+        'active_year': active_year,
+    })
 
 
 # // ==============================================================================

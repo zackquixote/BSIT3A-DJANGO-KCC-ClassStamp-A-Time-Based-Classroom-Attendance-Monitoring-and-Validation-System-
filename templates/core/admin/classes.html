@@ -270,6 +270,21 @@
                     <i class="fas fa-pen text-gold"></i>
                     <span>Edit Section</span>
                   </button>
+                  <button type="button" class="action-dropdown-item js-manage-join-code"
+                          data-class-code="{{ c.class_code }}"
+                          data-code-active="{{ c.join_code_active|yesno:'true,false' }}"
+                          data-code-url="{% url 'class_join_code_manage' c.id %}">
+                    <i class="fas fa-key text-gold"></i>
+                    <span>{% if c.join_code_active %}Rotate Student Join Code{% else %}Generate Student Join Code{% endif %}</span>
+                  </button>
+                  {% if c.join_code_active %}
+                  <button type="button" class="action-dropdown-item action-dropdown-item--warning js-revoke-join-code"
+                          data-class-code="{{ c.class_code }}"
+                          data-code-url="{% url 'class_join_code_manage' c.id %}">
+                    <i class="fas fa-ban"></i>
+                    <span>Disable Student Join Code</span>
+                  </button>
+                  {% endif %}
                   <div class="action-dropdown-divider"></div>
                   <button type="button"
                           class="action-dropdown-item {% if c.is_active %}action-dropdown-item--warning{% else %}action-dropdown-item--success{% endif %} js-toggle-class"
@@ -509,6 +524,7 @@
           <span class="font-bold text-xs text-primary">Enrolled Students (<span id="rosterCountBadge">0</span>)</span>
           <span class="text-xs text-muted" id="rosterCapacityText"></span>
         </div>
+        <p class="text-xs text-muted mb-2">Pending join requests appear here for approval.</p>
         <div id="rosterStudentsList" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
           <p class="text-muted text-xs">Loading roster...</p>
         </div>
@@ -584,6 +600,7 @@
 <script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/join_codes.js' %}?v=20261103_v1"></script>
 
 <script>
   /* ── Action Dropdown toggle ───────────────────────────── */
@@ -650,5 +667,4 @@
   });
 </script>
 {% endblock %}
-
 

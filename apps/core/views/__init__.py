@@ -62,6 +62,7 @@ from .dashboard_views import (
 # // 2b. Student Self-Service Portal (QR badge & personal attendance ledger)
 # // ------------------------------------------------------------------------------
 from .student_portal_views import (
+    student_join_class,
     student_attendance_log,
     student_dispute_open,
     student_term_record,
@@ -214,6 +215,7 @@ from .academic_year_views import (
 from .class_views import (
     class_attendance_matrix,
     class_list,
+    class_join_code_manage,
     class_roster_enroll,
     class_roster_enroll_batch,
     class_roster_get,
@@ -416,4 +418,3 @@ __all__ = [
     'teacher_manual_override_ajax',
     'attendance_scan_api',
 ]
-
