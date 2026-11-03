@@ -591,32 +591,39 @@
 }
 .btn-icon-xs,
 .table-actions-cluster .btn:not(.btn-has-text) {
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
+  min-width: 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  max-width: 32px !important;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 0.78rem !important;
-  border-radius: var(--radius-xs, 6px) !important;
+  font-size: 0.82rem !important;
+  border-radius: 7px !important;
   flex-shrink: 0 !important;
   gap: 0 !important;
+  line-height: 1 !important;
 }
 
 .table-actions-cluster .btn.btn-has-text {
+  min-height: 32px !important;
+  height: 32px !important;
   width: auto !important;
   max-width: none !important;
-  padding: 4px 8px !important;
-  gap: 4px !important;
+  padding: 5px 10px !important;
+  font-size: 0.8rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  border-radius: 7px !important;
 }
 
 .table-actions-cluster {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 3px;
+  gap: 6px;
   white-space: nowrap;
 }
 
@@ -1265,11 +1272,20 @@ kbd {
 /* ── Page Header ─────────────────────────────────────────────── */
 .page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center; /* Lower button so it sits level with the Title and Subtitle */
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-self: flex-end;
+  margin-bottom: 2px;
 }
 
 .page-title {
@@ -1941,4 +1957,14 @@ th:has(.action-dropdown) {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
+}
+
+/* ── Mobile Avatar Menu Hover & Animation ───────────────────── */
+.mobile-avatar-menu-item:hover,
+.mobile-avatar-menu-item:active {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.mobile-avatar-menu-item:last-child:hover,
+.mobile-avatar-menu-item:last-child:active {
+  background: rgba(239, 68, 68, 0.15) !important;
 }

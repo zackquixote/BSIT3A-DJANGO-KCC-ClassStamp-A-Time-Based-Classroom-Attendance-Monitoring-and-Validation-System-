@@ -55,6 +55,26 @@
       }
     });
 
+    // Mobile Topbar Avatar Dropdown Menu
+    var avatarBtn = document.getElementById('mobileAvatarBtn');
+    var avatarMenu = document.getElementById('mobileAvatarMenu');
+
+    if (avatarBtn && avatarMenu) {
+      avatarBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = avatarMenu.style.display === 'block';
+        avatarMenu.style.display = isOpen ? 'none' : 'block';
+        avatarBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!avatarMenu.contains(e.target) && !avatarBtn.contains(e.target)) {
+          avatarMenu.style.display = 'none';
+          avatarBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
     /* Desktop collapsible rail (drawer stays untouched at 900px and below) */
     var collapseBtn = document.getElementById('sidebar-collapse');
     var navTip = null;

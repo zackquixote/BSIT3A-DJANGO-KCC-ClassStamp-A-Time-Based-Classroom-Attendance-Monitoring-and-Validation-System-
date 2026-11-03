@@ -2,17 +2,18 @@
 {% block title %}College Programs — KCC ClassStamp{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <div class="breadcrumb-nav">
+<div class="breadcrumb-nav">
       <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
       <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
       <span class="breadcrumb-current">Degree Programs</span>
     </div>
+<div class="page-header">
+  <div>
+    
     <h1 class="page-title">College Programs</h1>
     <p class="page-subtitle">Configure degree offerings, academic tracks, and curriculum duration</p>
   </div>
-  <div>
+  <div class="page-header-actions">
     <button type="button" class="btn btn-primary" data-modal-target="editProgModal" data-mode="create" id="addProgBtn">
       <i class="fas fa-plus-circle"></i> Add Program
     </button>
@@ -107,7 +108,7 @@
           <th scope="col">Duration</th>
           <th scope="col">Students</th>
           <th scope="col">Status</th>
-          <th scope="col" style="text-align: right; width: 140px;">Actions</th>
+          <th scope="col" class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -182,17 +183,15 @@
               <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right;">
-            <div class="flex items-center gap-2" style="justify-content: flex-end;">
+          <td class="col-actions">
+            <div class="table-actions-cluster">
               <a href="{% url 'student_directory' %}?program={{ p.id }}"
-                 class="btn btn-outline"
-                 style="padding: 6px 10px;"
+                 class="btn btn-outline btn-icon-xs"
                  title="View Students Roster ({{ p.code }})" aria-label="View Students Roster ({{ p.code }})">
                 <i class="fas fa-users-viewfinder text-primary"></i>
               </a>
               <button type="button"
-                      class="btn btn-outline"
-                      style="padding: 6px 10px;"
+                      class="btn btn-outline btn-icon-xs"
                       data-modal-target="editProgModal"
                       data-mode="edit"
                       data-id="{{ p.id }}"
@@ -205,8 +204,7 @@
                 <i class="fas fa-pen-to-square"></i>
               </button>
               <button type="button"
-                      class="btn btn-outline js-curriculum-matrix-btn"
-                      style="padding: 6px 10px;"
+                      class="btn btn-outline btn-icon-xs js-curriculum-matrix-btn"
                       data-program-id="{{ p.id }}"
                       data-program-code="{{ p.code }}"
                       data-curriculum-url="{% url 'program_curriculum_list' p.id %}"
@@ -214,8 +212,7 @@
                 <i class="fas fa-table-cells text-gold"></i>
               </button>
               <button type="button"
-                      class="btn btn-danger"
-                      style="padding: 6px 10px;"
+                      class="btn btn-danger btn-icon-xs"
                       data-modal-target="deleteProgModal"
                       data-id="{{ p.id }}"
                       data-code="{{ p.code }}"
