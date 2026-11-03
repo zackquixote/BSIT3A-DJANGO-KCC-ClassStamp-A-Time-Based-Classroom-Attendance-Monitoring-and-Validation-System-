@@ -45,6 +45,7 @@
 
   .tfa-qr {
     padding: 16px; border-radius: 16px; text-align: center;
+    display: flex; flex-direction: column; align-items: center;
     border: 1px solid var(--glass-border);
     background: rgba(255, 255, 255, 0.04);
   }
@@ -54,6 +55,7 @@
   }
   .tfa-secret {
     margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    width: 100%;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.72rem; letter-spacing: 0.08em; word-break: break-all;
     background: rgba(0, 0, 0, 0.3);
@@ -87,7 +89,9 @@
     padding-top: 20px; border-top: 1px solid var(--glass-border);
     display: grid; gap: 14px; max-width: 460px;
   }
-  .tfa-confirm .tfa-form { padding-top: 0; border-top: 0; max-width: none; }
+  .tfa-confirm .tfa-form { padding-top: 0; border-top: 0; max-width: none; text-align: center; }
+  .tfa-confirm .tfa-form .form-group { width: 100%; }
+  .tfa-confirm .tfa-form .btn { justify-self: center; }
   .tfa-code-input {
     width: 100%; letter-spacing: 0.35em; text-align: center;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem;
