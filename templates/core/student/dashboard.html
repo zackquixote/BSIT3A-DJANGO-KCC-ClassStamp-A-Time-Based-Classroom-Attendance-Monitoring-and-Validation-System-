@@ -141,7 +141,13 @@
   </div>
   <div style="padding: 12px 16px;">
     {% for slip in excuse_slips %}
-      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {% if slip.status == 'APPROVED' %}#22c55e{% elif slip.status == 'REJECTED' %}#ef4444{% else %}#f59e0b{% endif %}; border-radius: 6px; margin-bottom: 8px;">
+      {% if slip.status == 'APPROVED' %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #22c55e; border-radius: 6px; margin-bottom: 8px;">
+      {% elif slip.status == 'REJECTED' %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #ef4444; border-radius: 6px; margin-bottom: 8px;">
+      {% else %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #f59e0b; border-radius: 6px; margin-bottom: 8px;">
+      {% endif %}
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div>
             <span class="font-bold text-primary text-sm">{{ slip.session.slot.class_obj.subject.code }} — {{ slip.session.slot.class_obj.class_code }}</span>
@@ -311,7 +317,11 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;">
             {% regroup timetable_slots by weekday as slot_days %}
             {% for day in slot_days %}
-              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid {% if day.grouper == today_weekday %}rgba(245, 158, 11, 0.6){% else %}var(--glass-border){% endif %}; border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% if day.grouper == today_weekday %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% else %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% endif %}
                 <div class="text-xs font-bold mb-1 {% if day.grouper == today_weekday %}text-gold{% else %}text-muted{% endif %}">
                   {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% endif %}
                   {% if day.grouper == today_weekday %}<span class="badge badge--warning badge--xs" style="margin-left: 4px;">TODAY</span>{% endif %}

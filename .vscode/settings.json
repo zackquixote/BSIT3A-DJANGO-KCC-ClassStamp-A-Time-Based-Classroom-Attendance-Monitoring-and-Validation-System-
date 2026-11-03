@@ -4,5 +4,7 @@
     "python.analysis.extraPaths": [],
     "python.analysis.useLibraryCodeForTypes": true,
     "python.analysis.diagnosticMode": "openFilesOnly",
-    "python.analysis.typeCheckingMode": "off"
+    "python.analysis.typeCheckingMode": "off",
+    "html.validate.styles": false,
+    "html.validate.scripts": false
 }
