@@ -1,0 +1,325 @@
+{% extends "theme/base.html" %}
+{% block title %}Curriculum &amp; Term Readiness — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <a href="{% url 'academic_year_list' %}">Academic Terms</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Readiness Report</span>
+    </div>
+    <h1 class="page-title">Curriculum &amp; Term Readiness</h1>
+    <p class="page-subtitle">
+      Read-only audit generated {{ report.generated_at|date:"M j, Y g:i A" }}.
+      Review this report before publishing a new semester.
+    </p>
+  </div>
+  <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+    <a href="{% url 'curriculum_readiness_export' 'coverage' %}{% if selected_program_id %}?program={{ selected_program_id }}{% endif %}"
+       class="btn btn-outline">
+      <i class="fas fa-file-csv"></i> Export Coverage CSV
+    </a>
+    <a href="{% url 'curriculum_readiness_export' 'issues' %}{% if selected_program_id %}?program={{ selected_program_id }}{% endif %}"
+       class="btn btn-outline">
+      <i class="fas fa-triangle-exclamation"></i> Export Issues CSV
+    </a>
+    <a href="{% url 'academic_year_list' %}" class="btn btn-primary">
+      <i class="fas fa-calendar-days"></i> Manage Terms
+    </a>
+  </div>
+</div>
+
+<div class="card mb-4" style="padding: 12px 16px; border-color: rgba(59, 130, 246, 0.35);">
+  <div class="flex items-center gap-2 text-sm">
+    <i class="fas fa-circle-info" style="color: var(--info);"></i>
+    <span>
+      This page only reads data. It does not create, change, or deactivate curriculum,
+      terms, classes, teachers, schedules, or enrollments.
+    </span>
+  </div>
+</div>
+
+<div class="stat-grid mb-6">
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--green">
+      <i class="fas fa-circle-check"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ report.totals.complete_programs }}</span>
+      <span class="stat-label">Complete Programs</span>
+      <span class="text-muted text-xs">of {{ report.totals.programs }} reviewed</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--gold">
+      <i class="fas fa-table-cells-large"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ report.totals.empty_slots }}</span>
+      <span class="stat-label">Empty Curriculum Slots</span>
+      <span class="text-muted text-xs">of {{ report.totals.expected_slots }} expected</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--blue">
+      <i class="fas fa-calendar-days"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ report.totals.terms }}</span>
+      <span class="stat-label">Academic Terms</span>
+      <span class="text-muted text-xs">
+        {% if report.active_term %}Active: {{ report.active_term.name }}{% else %}No active term{% endif %}
+      </span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon stat-icon--purple">
+      <i class="fas fa-triangle-exclamation"></i>
+    </div>
+    <div class="stat-info">
+      <span class="stat-value">{{ report.totals.classes_with_issues }}</span>
+      <span class="stat-label">Classes Needing Attention</span>
+      <span class="text-muted text-xs">of {{ report.totals.classes }} classes</span>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4" style="padding: 14px 18px;">
+  <form method="get" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div style="min-width: 300px; flex: 1;">
+      <label class="form-label" for="readinessProgram">Program</label>
+      <select id="readinessProgram" name="program" class="form-control" onchange="this.form.submit()">
+        <option value="">All programs</option>
+        {% for program in program_options %}
+          <option value="{{ program.pk }}" {% if selected_program_id == program.pk %}selected{% endif %}>
+            {{ program.department.code }} — {{ program.code }} — {{ program.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex items-center gap-2" style="align-self: flex-end;">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+      {% if selected_program_id %}
+        <a href="{% url 'curriculum_readiness_report' %}" class="btn btn-outline">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<div class="card mb-4" style="padding: 0;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+    <div>
+      <div class="font-semibold text-primary">Curriculum Coverage by Program, Year, and Semester</div>
+      <p class="text-muted text-xs mt-1 mb-0">
+        Every program year includes 1st Semester, 2nd Semester, and Summer. “No mappings” means
+        the curriculum matrix has no subject for that slot; review it before term activation.
+      </p>
+    </div>
+    <span class="text-muted text-xs">{{ report.totals.inactive_mappings }} inactive mapping{{ report.totals.inactive_mappings|pluralize }}</span>
+  </div>
+
+  {% if not report.program_rows %}
+    <p class="text-muted text-sm" style="padding: 18px 20px;">No programs match this filter.</p>
+  {% else %}
+    {% for row in report.program_rows %}
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border);">
+        <div class="flex items-center justify-between gap-3" style="flex-wrap: wrap;">
+          <div>
+            <span class="badge badge--gold font-semibold">{{ row.program.code }}</span>
+            <span class="font-semibold text-primary">{{ row.program.name }}</span>
+            <span class="text-muted text-xs">{{ row.program.department.code }}</span>
+            {% if not row.program.is_active %}
+              <span class="badge badge--muted">Inactive program</span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+            <span class="badge {{ row.status_badge }}">{{ row.status_label }}</span>
+            <span class="text-muted text-xs">
+              {{ row.mapped_count }} mapped ·
+              {{ row.empty_slots }} empty slot{{ row.empty_slots|pluralize }} ·
+              {{ row.inactive_count }} inactive mapping{{ row.inactive_count|pluralize }}
+            </span>
+          </div>
+        </div>
+
+        <div class="table-responsive mt-3">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col" style="width: 90px;">Year</th>
+                <th scope="col" style="width: 140px;">Semester</th>
+                <th scope="col">Mapped Subjects</th>
+                <th scope="col" style="width: 190px;">Slot Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for year in row.years %}
+                {% for semester in year.semesters %}
+                  <tr>
+                    <td class="text-muted">Year {{ year.year_level }}</td>
+                    <td class="text-muted">{{ semester.label }}</td>
+                    <td>
+                      {% if semester.subjects %}
+                        <div class="flex items-center gap-1" style="flex-wrap: wrap;">
+                          {% for subject in semester.subjects %}
+                            <span class="badge {% if subject.is_active %}badge--success{% else %}badge--danger{% endif %}"
+                                  title="{% if subject.is_active %}Active subject{% else %}Inactive subject — review before scheduling{% endif %}">
+                              {{ subject.code }} — {{ subject.name }}{% if not subject.is_active %} (inactive){% endif %}
+                            </span>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <span class="text-muted text-xs">No mappings</span>
+                      {% endif %}
+                    </td>
+                    <td><span class="badge {{ semester.status_badge }}">{{ semester.status_label }}</span></td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<div class="card mb-4" style="padding: 0;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+    <div>
+      <div class="font-semibold text-primary">Existing Terms</div>
+      <p class="text-muted text-xs mt-1 mb-0">
+        Class counts and gaps are scoped to the selected program.
+      </p>
+    </div>
+    <span class="text-muted text-xs">{{ report.totals.terms }} term{{ report.totals.terms|pluralize }}</span>
+  </div>
+
+  {% if not report.term_rows %}
+    <p class="text-muted text-sm" style="padding: 18px 20px;">No academic terms have been created.</p>
+  {% else %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Term</th>
+            <th scope="col">Dates</th>
+            <th scope="col">Status</th>
+            <th scope="col">Classes</th>
+            <th scope="col">Missing Schedule</th>
+            <th scope="col">Missing Roster</th>
+            <th scope="col">Inactive Teacher</th>
+            <th scope="col">Classes with Issues</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.term_rows %}
+            <tr>
+              <td>
+                <span class="font-semibold text-primary">{{ row.term.name }}</span>
+              </td>
+              <td class="text-muted text-sm">
+                {{ row.term.starts_on|date:"M j, Y" }} – {{ row.term.ends_on|date:"M j, Y" }}
+              </td>
+              <td>
+                {% if row.term.is_active %}
+                  <span class="badge badge--success">Active</span>
+                {% else %}
+                  <span class="badge badge--muted">Inactive</span>
+                {% endif %}
+              </td>
+              <td><span class="badge badge--blue">{{ row.class_count }}</span></td>
+              <td>
+                <span class="badge {% if row.missing_schedule_count %}badge--danger{% else %}badge--success{% endif %}">
+                  {{ row.missing_schedule_count }}
+                </span>
+              </td>
+              <td>
+                <span class="badge {% if row.missing_roster_count %}badge--warning{% else %}badge--success{% endif %}">
+                  {{ row.missing_roster_count }}
+                </span>
+              </td>
+              <td>
+                <span class="badge {% if row.inactive_teacher_count %}badge--danger{% else %}badge--success{% endif %}">
+                  {{ row.inactive_teacher_count }}
+                </span>
+              </td>
+              <td>
+                <span class="badge {% if row.issue_count %}badge--warning{% else %}badge--success{% endif %}">
+                  {{ row.issue_count }}
+                </span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card" style="padding: 0;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+    <div>
+      <div class="font-semibold text-primary">Classes Needing Attention</div>
+      <p class="text-muted text-xs mt-1 mb-0">
+        Includes missing schedules or rosters, inactive teachers, unmapped subjects,
+        malformed section codes, and duplicate section/subject offerings.
+      </p>
+    </div>
+    <span class="badge {% if report.class_issues %}badge--warning{% else %}badge--success{% endif %}">
+      {{ report.class_issues|length }} class{{ report.class_issues|length|pluralize:"es" }}
+    </span>
+  </div>
+
+  {% if report.class_issues %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Term</th>
+            <th scope="col">Class</th>
+            <th scope="col">Subject</th>
+            <th scope="col">Teacher</th>
+            <th scope="col">Issues</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.class_issues %}
+            <tr>
+              <td>
+                <span class="text-primary">{{ row.term.name }}</span>
+                {% if row.term.is_active %}<span class="badge badge--success">Active</span>{% endif %}
+              </td>
+              <td>
+                <span class="font-semibold text-primary">{{ row.class_obj.class_code }}</span>
+                <div class="text-muted text-xs">{{ row.program|default:"No program" }} · {{ row.class_obj.section_code|default:"No section" }}</div>
+              </td>
+              <td>
+                <span class="badge badge--blue">{{ row.class_obj.subject.code }}</span>
+                <div class="text-muted text-xs">{{ row.class_obj.subject.name }}</div>
+              </td>
+              <td class="text-muted text-sm">
+                {{ row.class_obj.teacher_profile.user.get_full_name|default:row.class_obj.teacher_profile.user.username }}
+              </td>
+              <td>
+                <div class="flex items-center gap-1" style="flex-wrap: wrap;">
+                  {% for issue in row.issues %}
+                    <span class="badge badge--danger">{{ issue }}</span>
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted text-sm" style="padding: 18px 20px;">
+      No class-level readiness issues were found for this filter.
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

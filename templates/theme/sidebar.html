@@ -35,6 +35,11 @@
         <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
         <span>Academic Terms</span>
       </a>
+      <a href="{% url 'curriculum_readiness_report' %}" class="sidebar-link {% if request.resolver_match.url_name == 'curriculum_readiness_report' %}active{% endif %}" title="Curriculum & Term Readiness">
+        <i data-lucide="clipboard-check" class="sidebar-link-icon"></i>
+        <i class="fas fa-clipboard-check sidebar-link-icon lucide-fallback"></i>
+        <span>Readiness Report</span>
+      </a>
       <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}" title="Academic Colleges & Departments">
         <i data-lucide="building-2" class="sidebar-link-icon"></i>
         <i class="fas fa-building sidebar-link-icon lucide-fallback"></i>

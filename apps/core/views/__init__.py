@@ -208,6 +208,10 @@ from .academic_year_views import (
     academic_year_get,
     academic_year_rollover,
 )
+from .readiness_views import (
+    curriculum_readiness_export,
+    curriculum_readiness_report,
+)
 
 # // ------------------------------------------------------------------------------
 # // 11. Class Section, Schedule & Enrollment Subsystem
@@ -385,6 +389,8 @@ __all__ = [
     'academic_year_delete',
     'academic_year_get',
     'academic_year_rollover',
+    'curriculum_readiness_report',
+    'curriculum_readiness_export',
 
     # Class Sections & Schedules
     'class_list',

@@ -45,6 +45,11 @@ from .export_service import (
     export_student_directory_csv,
     export_student_import_sample_csv,
 )
+from .readiness_service import (
+    build_curriculum_readiness_report,
+    export_readiness_coverage_csv,
+    export_readiness_issues_csv,
+)
 from .student_service import (
     build_student_queryset,
     import_students_from_csv,
@@ -136,6 +141,10 @@ __all__ = [
     'export_program_students_csv',
     'export_student_directory_csv',
     'export_student_import_sample_csv',
+    # Curriculum & term readiness
+    'build_curriculum_readiness_report',
+    'export_readiness_coverage_csv',
+    'export_readiness_issues_csv',
     # Holiday Calendar
     'calculate_easter_sunday',
     'get_philippine_holidays',
