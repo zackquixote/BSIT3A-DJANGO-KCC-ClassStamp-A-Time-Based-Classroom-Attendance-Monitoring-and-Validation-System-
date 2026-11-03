@@ -17,7 +17,7 @@
     } catch(e){}
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261103_solar_boost">
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
   {% comment %}
     Modules are linked directly instead of @import-ing them from app.css. Imported
@@ -25,16 +25,16 @@
     sidebar before sidebar.css arrived (unstyled blue links flashing on navigation).
     Links in <head> are render-blocking, so first paint always has the full theme.
   {% endcomment %}
-  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261102_local">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261030_v5_avatar">
-  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}?v=20261102_rail2">
-  <link rel="stylesheet" href="{% static 'css/components.css' %}?v=20261102_hint">
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261102_img">
-  <link rel="stylesheet" href="{% static 'css/login.css' %}?v=20261029_v2_crossbrowser">
-  <link rel="stylesheet" href="{% static 'css/register.css' %}?v=20261029_v2_crossbrowser">
-  <link rel="stylesheet" href="{% static 'css/validation.css' %}?v=20261029_v2_crossbrowser">
-  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261102_strip">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261102_direct">
+  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/login.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/register.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/validation.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261103_solar_boost">
   {% comment %}
     Loaded in <head>, not between the sidebar and the main content. A synchronous
     script there paused the parser mid-body, so Chrome painted the sidebar while

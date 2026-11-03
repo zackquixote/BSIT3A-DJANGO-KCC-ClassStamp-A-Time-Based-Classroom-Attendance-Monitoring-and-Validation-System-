@@ -229,9 +229,9 @@
   }
   .profile-body { padding: 18px 20px 20px; }
   .profile-help {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    line-height: 1.45;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
   }
   .profile-help ul { margin: 4px 0 0; padding-left: 18px; }
   .profile-actions {
@@ -491,17 +491,7 @@
       </div>
     </div>
 
-    <div class="card profile-card profile-signout-card">
-      <div class="profile-body profile-signout">
-        <div>
-          <div class="profile-signout-title">Sign out</div>
-          <p class="profile-help" style="margin: 2px 0 0;">End your session on this device.</p>
-        </div>
-        <a href="{% url 'logout' %}" class="btn btn-outline btn-sm">
-          <i class="fas fa-right-from-bracket"></i> Log out
-        </a>
-      </div>
-    </div>
+
   </div>
 </div>
 {% endblock %}
