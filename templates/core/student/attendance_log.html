@@ -195,7 +195,11 @@
         </div>
       </div>
     {% empty %}
-      <p class="text-muted text-xs" style="padding: 8px 0;">No active class enrollments on record.</p>
+      <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+        <div class="empty-state-title">No Active Enrollments</div>
+        <p class="empty-state-text">You are not enrolled in any active class sections for the current academic term.</p>
+      </div>
     {% endfor %}
   </div>
 </div>
@@ -304,12 +308,18 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="7" style="padding: 28px 14px; text-align: center;" class="text-muted text-sm">
-              {% if selected_status or selected_class_id %}
-                No records match the selected filters.
-              {% else %}
-                No attendance records yet. Attend a class and have your instructor scan your QR badge.
-              {% endif %}
+            <td colspan="7" style="padding: 20px 14px;">
+              <div class="empty-state" style="border: 0; background: transparent; padding: 16px 0;">
+                <div class="empty-state-icon"><i class="fas fa-calendar-check"></i></div>
+                <div class="empty-state-title">No Attendance Records Found</div>
+                <p class="empty-state-text">
+                  {% if selected_status or selected_class_id or date_from or date_to %}
+                    No records match your selected filter criteria. Try clearing filters or picking another date range.
+                  {% else %}
+                    No attendance records logged yet. Attend a class session and have your instructor scan your dynamic QR badge.
+                  {% endif %}
+                </p>
+              </div>
             </td>
           </tr>
         {% endfor %}

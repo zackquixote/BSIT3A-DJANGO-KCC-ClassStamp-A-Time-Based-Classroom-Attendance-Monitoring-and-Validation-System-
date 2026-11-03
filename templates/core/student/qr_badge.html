@@ -34,6 +34,13 @@
   </div>
 
   {% if has_qr_secret %}
+    <div class="qr-scan-tip">
+      <span class="qr-scan-tip-icon"><i class="fas fa-sun"></i></span>
+      <span class="qr-scan-tip-text">
+        <strong>Fast Scan:</strong> Set screen brightness to high for instant 0.2s camera detection.
+      </span>
+    </div>
+
     <div class="qr-badge-frame">
       <img id="qrImage" alt="Dynamic attendance QR code" width="280" height="280" />
       <div id="qrLoading" class="qr-badge-loading">

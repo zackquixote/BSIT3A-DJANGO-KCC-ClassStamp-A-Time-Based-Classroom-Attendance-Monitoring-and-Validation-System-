@@ -1968,3 +1968,71 @@ th:has(.action-dropdown) {
 .mobile-avatar-menu-item:last-child:active {
   background: rgba(239, 68, 68, 0.15) !important;
 }
+
+/* ── Modern Empty States ─────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 18px;
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.015);
+  margin: 8px 0;
+}
+.empty-state-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-gold);
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+.empty-state-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.empty-state-text {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  max-width: 290px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ── QR Fast Scanning Tip Pill ──────────────────────────────── */
+.qr-scan-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.09);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  max-width: 92%;
+  margin: 0 auto 14px;
+  text-align: left;
+}
+.qr-scan-tip-icon {
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  animation: pulse-sun 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+@keyframes pulse-sun {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.15); opacity: 1; }
+}

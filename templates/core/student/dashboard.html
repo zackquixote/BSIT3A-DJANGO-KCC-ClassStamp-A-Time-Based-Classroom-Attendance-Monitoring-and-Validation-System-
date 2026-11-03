@@ -200,7 +200,11 @@
           {% endif %}
         </div>
       {% empty %}
-        <p class="text-muted text-xs" style="text-align: center; padding: 16px 0;">No upcoming milestones currently scheduled.</p>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-calendar-day"></i></div>
+          <div class="empty-state-title">No Milestones Scheduled</div>
+          <p class="empty-state-text">There are no upcoming institutional calendar milestones scheduled at this time.</p>
+        </div>
       {% endfor %}
     </div>
   </div>
@@ -379,7 +383,11 @@
           {% endif %}
         </div>
       {% empty %}
-        <p class="text-muted text-xs" style="text-align: center; padding: 12px 0;">No active class enrollments on record.</p>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+          <div class="empty-state-title">No Enrolled Classes</div>
+          <p class="empty-state-text">You are not currently enrolled in any active class sections.</p>
+        </div>
       {% endfor %}
     </div>
   </div>
