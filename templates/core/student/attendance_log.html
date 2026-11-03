@@ -3,11 +3,89 @@
 
 {% block extra_css %}
 <style>
-  @media (max-width: 600px) {
-    .att-filter-form { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .att-filter-form > label { display: none; }
-    .att-filter-form .form-control { width: 100% !important; max-width: none !important; }
-    .att-filter-form .btn { width: 100%; justify-content: center; }
+  .att-filter-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .att-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 135px;
+  }
+  .att-filter-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+  }
+  .att-filter-label i {
+    color: var(--accent-gold);
+    font-size: 0.7rem;
+  }
+  .att-date-input,
+  .att-select {
+    padding: 7px 10px;
+    font-size: 0.82rem;
+    color-scheme: dark;
+    background: #0e172a !important;
+    border: 1.5px solid #2e3e5c !important;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary) !important;
+    min-height: 36px;
+  }
+  .att-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.85) sepia(100%) saturate(400%) hue-rotate(5deg);
+    cursor: pointer;
+    opacity: 0.9;
+  }
+  .att-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-end;
+  }
+  .att-filter-actions .btn {
+    height: 36px;
+    padding: 0 14px;
+    font-size: 0.82rem;
+  }
+  @media (max-width: 768px) {
+    .att-filter-form {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 12px 14px;
+    }
+    .att-filter-field {
+      width: 100%;
+      min-width: 0;
+    }
+    .att-filter-field select,
+    .att-filter-field input {
+      width: 100% !important;
+      max-width: none !important;
+    }
+    .att-filter-actions {
+      grid-column: 1 / -1;
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .att-filter-actions .btn {
+      flex: 1;
+      justify-content: center;
+    }
   }
 </style>
 {% endblock %}
@@ -130,21 +208,29 @@
     <a href="{% url 'student_term_record' %}" class="btn btn-outline btn-sm" title="Printable term record">
       <i class="fas fa-file-lines"></i> Term record
     </a>
-    <form method="GET" action="{% url 'student_attendance_log' %}" class="att-filter-form flex items-center gap-2 flex-wrap">
-      <label class="text-muted text-xs" for="attFrom" style="margin: 0;">From</label>
-      <input type="date" id="attFrom" name="from" value="{{ date_from }}" class="form-control"
-             style="width: auto; padding: 6px 10px; font-size: 0.8rem;" aria-label="Show records from this date">
-      <label class="text-muted text-xs" for="attTo" style="margin: 0;">To</label>
-      <input type="date" id="attTo" name="to" value="{{ date_to }}" class="form-control"
-             style="width: auto; padding: 6px 10px; font-size: 0.8rem;" aria-label="Show records up to this date">
-      <select name="status" class="form-control" style="width: auto; padding: 6px 28px 6px 10px; font-size: 0.8rem;">
+  </div>
+  <form method="GET" action="{% url 'student_attendance_log' %}" class="att-filter-form">
+    <div class="att-filter-field">
+      <label class="att-filter-label" for="attFrom"><i class="fas fa-calendar-day"></i> From Date</label>
+      <input type="date" id="attFrom" name="from" value="{{ date_from }}" class="form-control att-date-input" aria-label="Show records from this date">
+    </div>
+    <div class="att-filter-field">
+      <label class="att-filter-label" for="attTo"><i class="fas fa-calendar-day"></i> To Date</label>
+      <input type="date" id="attTo" name="to" value="{{ date_to }}" class="form-control att-date-input" aria-label="Show records up to this date">
+    </div>
+    <div class="att-filter-field">
+      <label class="att-filter-label" for="attStatus"><i class="fas fa-tag"></i> Status</label>
+      <select id="attStatus" name="status" class="form-control att-select">
         <option value="">All Statuses</option>
         <option value="PRESENT" {% if selected_status == 'PRESENT' %}selected{% endif %}>Present</option>
         <option value="LATE" {% if selected_status == 'LATE' %}selected{% endif %}>Late</option>
         <option value="ABSENT" {% if selected_status == 'ABSENT' %}selected{% endif %}>Absent</option>
         <option value="EXCUSED" {% if selected_status == 'EXCUSED' %}selected{% endif %}>Excused</option>
       </select>
-      <select name="class_id" class="form-control" style="width: auto; max-width: 220px; padding: 6px 28px 6px 10px; font-size: 0.8rem;">
+    </div>
+    <div class="att-filter-field">
+      <label class="att-filter-label" for="attClass"><i class="fas fa-book-open"></i> Class Section</label>
+      <select id="attClass" name="class_id" class="form-control att-select">
         <option value="">All Classes</option>
         {% for fc in filter_classes %}
           <option value="{{ fc.class_obj.id }}" {% if selected_class_id == fc.class_obj.id %}selected{% endif %}>
@@ -152,16 +238,18 @@
           </option>
         {% endfor %}
       </select>
-      <button type="submit" class="btn btn-primary btn-xs" style="padding: 6px 10px; font-size: 0.78rem;">
+    </div>
+    <div class="att-filter-actions">
+      <button type="submit" class="btn btn-primary btn-sm">
         <i class="fas fa-filter"></i> Filter
       </button>
       {% if selected_status or selected_class_id or date_from or date_to %}
-        <a href="{% url 'student_attendance_log' %}" class="btn btn-outline btn-xs" style="padding: 6px 10px; font-size: 0.78rem;">
+        <a href="{% url 'student_attendance_log' %}" class="btn btn-outline btn-sm">
           <i class="fas fa-rotate-left"></i> Reset
         </a>
       {% endif %}
-    </form>
-  </div>
+    </div>
+  </form>
   <div style="overflow-x: auto;">
     <table class="data-table" style="width: 100%; border-collapse: collapse;">
       <thead>
