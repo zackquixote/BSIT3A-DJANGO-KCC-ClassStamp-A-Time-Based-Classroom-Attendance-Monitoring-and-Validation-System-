@@ -32,6 +32,11 @@ from apps.core.models import (
     Program,
     Subject,
 )
+from apps.core.services.curriculum_version_service import (
+    assert_entry_editable,
+    current_draft_version,
+    ensure_draft_version,
+)
 
 
 class TermSwitchBlocked(Exception):
@@ -504,8 +509,19 @@ def assign_curriculum_subject(
     if semester not in dict(Curriculum.SEMESTER_CHOICES):
         raise ValueError(f'Semester {semester} is invalid. Use 1 (1st Sem), 2 (2nd Sem), or 3 (Summer).')
 
+    draft = current_draft_version(program)
+    if draft is None:
+        if program.curriculum_versions.exists():
+            raise ValueError(
+                'This curriculum is approved and read-only. '
+                'Create a draft before changing the subject matrix.'
+            )
+        # Programs created before versioning (or in tests) still work without an
+        # explicit version; the first edit starts draft v1.
+        draft = ensure_draft_version(actor, program)
+
     if Curriculum.objects.filter(
-        program=program, year_level=year_level, semester=semester, subject=subject,
+        version=draft, year_level=year_level, semester=semester, subject=subject,
     ).exists():
         sem_label = dict(Curriculum.SEMESTER_CHOICES).get(semester, f'Sem {semester}')
         raise ValueError(
@@ -514,6 +530,7 @@ def assign_curriculum_subject(
 
     entry = Curriculum.objects.create(
         program=program,
+        version=draft,
         year_level=year_level,
         semester=semester,
         subject=subject,
@@ -524,21 +541,30 @@ def assign_curriculum_subject(
         action='ASSIGN_CURRICULUM',
         object_type='Curriculum',
         object_id=str(entry.pk),
-        new_value=f'{program.code} Y{year_level} S{semester} <- {subject.code}',
+        new_value=(
+            f'{program.code} Y{year_level} S{semester} <- {subject.code} '
+            f'(draft v{draft.version_number})'
+        ),
     )
 
     return {
         'instance': entry,
         'action': 'ASSIGN_CURRICULUM',
-        'message': f'Subject "{subject.code}" assigned to {program.code} Year {year_level} Sem {semester}.',
+        'message': (
+            f'Subject "{subject.code}" added to {program.code} draft '
+            f'v{draft.version_number}, Year {year_level} Sem {semester}.'
+        ),
     }
 
 
 def remove_curriculum_entry(actor, pk: int) -> dict:
     """
     // [Service] Remove Subject from Program Curriculum Matrix
+    //
+    // Approved versions are immutable; the caller must create a draft first.
     """
     entry = get_object_or_404(Curriculum, pk=pk)
+    assert_entry_editable(entry)
     summary = f'{entry.program.code} Y{entry.year_level} S{entry.semester} - {entry.subject.code}'
     entry_id = str(entry.pk)
     entry.delete()

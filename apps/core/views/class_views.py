@@ -41,6 +41,7 @@ from apps.core.services import (
     assign_class,
     detect_slot_conflicts,
     eligible_teachers_for,
+    resolve_curriculum_version,
     student_overlap_conflicts,
     suggest_section_letter,
     validate_slot_times,
@@ -909,6 +910,24 @@ def _wizard_hours_label(minutes):
     return f'{h}h' if not m else f'{h}h {m}m'
 
 
+def _wizard_curriculum_entries(program, academic_year, year_level, semester):
+    """
+    // Return the curriculum rows that drive the wizard: the approved version
+    // effective for the selected term, falling back to legacy unversioned rows.
+    """
+    base = Curriculum.objects.filter(
+        program=program,
+        year_level=year_level,
+        semester=semester,
+    ).select_related('subject')
+    version = resolve_curriculum_version(program, academic_year)
+    if version is not None:
+        version_rows = base.filter(version=version)
+        if version_rows.exists():
+            return version_rows
+    return base.filter(version__isnull=True)
+
+
 @login_required(login_url='login')
 @role_required(Profile.ROLE_ADMIN)
 @require_GET
@@ -959,18 +978,12 @@ def class_wizard_options(request):
             'name': entry.subject.name,
             'units': entry.subject.units,
         }
-        for entry in (
-            Curriculum.objects
-            .filter(
-                program=program,
-                year_level=year_level,
-                semester=semester,
-                subject__is_active=True,
-            )
-            .select_related('subject')
-            .order_by('subject__code')
-        )
+        for entry in _wizard_curriculum_entries(
+            program, academic_year, year_level, semester,
+        ).filter(subject__is_active=True).order_by('subject__code')
     ]
+
+    resolved_version = resolve_curriculum_version(program, academic_year)
 
     try:
         teachers = eligible_teachers_for(program)
@@ -1013,6 +1026,14 @@ def class_wizard_options(request):
     return JsonResponse({
         'success': True,
         'academic_year': {'id': academic_year.id, 'name': academic_year.name},
+        'curriculum_version': (
+            {
+                'id': resolved_version.id,
+                'version_number': resolved_version.version_number,
+                'status': resolved_version.status,
+            }
+            if resolved_version is not None else None
+        ),
         'subjects': subjects_data,
         'teachers': teachers,
         'suggested_code': suggested_code,
@@ -1092,6 +1113,7 @@ def class_wizard_save(request):
     subject_id = request.POST.get('subject_id', '').strip()
     teacher_profile_id = request.POST.get('teacher_profile_id', '').strip()
     ay_id = request.POST.get('ay_id', '').strip()
+    semester_str = request.POST.get('semester', '').strip()
     class_code = request.POST.get('class_code', '').strip().upper()
     capacity_str = request.POST.get('capacity', '').strip()
     grace_minutes_str = request.POST.get('grace_minutes', '10').strip()
@@ -1123,6 +1145,25 @@ def class_wizard_save(request):
     subject = get_object_or_404(Subject, pk=subject_id_int, is_active=True)
     teacher = get_object_or_404(Profile, pk=teacher_profile_id_int, role=Profile.ROLE_TEACHER)
     academic_year = get_object_or_404(AcademicYear, pk=ay_id_int)
+
+    semester_value = int(semester_str) if semester_str.isdigit() else None
+    if semester_value is not None:
+        if semester_value not in dict(Curriculum.SEMESTER_CHOICES):
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid semester selected.',
+            }, status=400)
+        curriculum_rows = _wizard_curriculum_entries(
+            program, academic_year, year_level, semester_value,
+        )
+        if not curriculum_rows.filter(subject=subject).exists():
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    f'{subject.code} is not part of the approved curriculum for '
+                    f'{program.code} Year {year_level} in the selected term and semester.'
+                ),
+            }, status=400)
 
     parsed_slots, parse_error = _parse_wizard_slots(slots_json)
     if parse_error:

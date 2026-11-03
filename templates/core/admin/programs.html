@@ -140,6 +140,11 @@
                   <i class="fas fa-triangle-exclamation"></i> Not configured
                 </span>
               {% endif %}
+              {% if p.draft_version_count %}
+                <span class="badge badge--warning" title="A draft curriculum is waiting for review">
+                  <i class="fas fa-pen-ruler"></i> Draft pending
+                </span>
+              {% endif %}
             </div>
           </td>
           <td>
@@ -370,7 +375,9 @@
 <!-- Curriculum Matrix Modal -->
 <div class="modal" id="curriculumMatrixModal"
      data-assign-url="{% url 'program_curriculum_assign' %}"
-     data-remove-url-prefix="/programs/curriculum/remove/">
+     data-remove-url-prefix="/programs/curriculum/remove/"
+     data-draft-url-template="{% url 'program_curriculum_draft_create' 999999 %}"
+     data-approve-url-template="{% url 'program_curriculum_approve' 999999 %}">
   <div class="modal-dialog" style="max-width: 860px; width: 94%;">
     <div class="modal-header">
       <h3 class="modal-title" id="curriculumMatrixTitle">Curriculum Matrix</h3>
@@ -383,6 +390,28 @@
         <i class="fas fa-circle-xmark"></i>
         <span id="curriculumMatrixErrorMsg"></span>
       </div>
+
+      <div id="curriculumVersionBar"
+           style="display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--glass-border); border-radius: 10px; margin-bottom: 16px;">
+        <div id="curriculumVersionSummary" class="flex items-center gap-2" style="flex-wrap: wrap;"></div>
+        <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline" id="curriculumCreateDraftBtn" style="display: none;">
+            <i class="fas fa-code-branch"></i> Create Draft
+          </button>
+          <div id="curriculumApproveWrap" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <select id="curriculumEffectiveTerm" class="form-control" style="min-width: 210px;"></select>
+            <button type="button" class="btn btn-primary" id="curriculumApproveBtn">
+              <i class="fas fa-circle-check"></i> Approve Draft
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="curriculumReadOnlyNote" class="auth-alert auth-alert--warning mb-4" style="display: none;">
+        <i class="fas fa-lock"></i>
+        <span>This approved curriculum is read-only. Create a draft to change the subject matrix.</span>
+      </div>
+
       <div id="curriculumGrid" style="overflow-x: auto;"></div>
 
       <hr style="border-color: var(--glass-border); margin: 20px 0;">
@@ -425,7 +454,7 @@
 <script src="{% static 'js/programs/programs_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261026_v1"></script>
+<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261103_v1"></script>
 
 <style>
 .year-chip {

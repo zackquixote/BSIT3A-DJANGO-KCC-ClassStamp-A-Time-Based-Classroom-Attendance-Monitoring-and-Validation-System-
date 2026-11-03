@@ -13,10 +13,18 @@
 
   var state = {
     programId: null,
+    programCode: '',
+    matrixUrl: '',
     yearsTotal: 0,
     semesters: [],
     entries: [],
-    subjects: []
+    subjects: [],
+    version: null,
+    draftVersion: null,
+    approvedVersion: null,
+    canEdit: false,
+    isLegacy: false,
+    terms: []
   };
 
   function toast(type, message) {
@@ -62,15 +70,17 @@
 
     chip.appendChild(document.createTextNode(' ' + (entry.subject_name || '')));
 
-    var removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'curriculum-chip-remove';
-    removeBtn.title = 'Remove ' + (entry.subject_code || '') + ' from this year/semester';
-    removeBtn.setAttribute('data-entry-id', entry.id);
-    var icon = document.createElement('i');
-    icon.className = 'fas fa-xmark';
-    removeBtn.appendChild(icon);
-    chip.appendChild(removeBtn);
+    if (state.canEdit) {
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'curriculum-chip-remove';
+      removeBtn.title = 'Remove ' + (entry.subject_code || '') + ' from this year/semester';
+      removeBtn.setAttribute('data-entry-id', entry.id);
+      var icon = document.createElement('i');
+      icon.className = 'fas fa-xmark';
+      removeBtn.appendChild(icon);
+      chip.appendChild(removeBtn);
+    }
 
     return chip;
   }
@@ -114,7 +124,7 @@
 
         if (cellEntries.length === 0) {
           cell.classList.add('curriculum-cell-empty');
-          cell.textContent = '\u2014';
+          cell.textContent = '—';
         } else {
           var list = document.createElement('div');
           list.className = 'curriculum-chip-list';
@@ -130,6 +140,84 @@
     }
     table.appendChild(tbody);
     grid.appendChild(table);
+  }
+
+  function setFormEnabled(enabled) {
+    var addForm = getEl('curriculumAddForm');
+    if (!addForm) return;
+    addForm.querySelectorAll('select, button').forEach(function (el) {
+      el.disabled = !enabled;
+    });
+    var note = getEl('curriculumReadOnlyNote');
+    if (note) note.style.display = enabled ? 'none' : 'flex';
+  }
+
+  function versionBadge(label, tone) {
+    var badge = document.createElement('span');
+    badge.className = 'badge badge--' + tone;
+    badge.textContent = label;
+    return badge;
+  }
+
+  function renderVersionBar() {
+    var bar = getEl('curriculumVersionBar');
+    var summary = getEl('curriculumVersionSummary');
+    var createBtn = getEl('curriculumCreateDraftBtn');
+    var approveWrap = getEl('curriculumApproveWrap');
+    if (!bar || !summary) return;
+
+    bar.style.display = 'flex';
+    summary.innerHTML = '';
+
+    if (state.draftVersion) {
+      summary.appendChild(versionBadge('Draft v' + state.draftVersion.version_number, 'warning'));
+      var text = document.createElement('span');
+      text.className = 'text-sm';
+      text.textContent = state.approvedVersion
+        ? 'Editing the draft. Approved v' + state.approvedVersion.version_number +
+          ' stays in force until you approve this draft.'
+        : 'Editing the first draft. It becomes official when approved.';
+      summary.appendChild(text);
+    } else if (state.approvedVersion) {
+      summary.appendChild(versionBadge('Approved v' + state.approvedVersion.version_number, 'success'));
+      var approvedText = document.createElement('span');
+      approvedText.className = 'text-sm';
+      approvedText.textContent = 'This approved curriculum is read-only.';
+      summary.appendChild(approvedText);
+    } else {
+      summary.appendChild(versionBadge('No version yet', 'muted'));
+      var legacyText = document.createElement('span');
+      legacyText.className = 'text-sm';
+      legacyText.textContent = state.isLegacy
+        ? 'Legacy mappings are shown. Create a draft to start version control.'
+        : 'Create the first draft to start building this curriculum.';
+      summary.appendChild(legacyText);
+    }
+
+    if (createBtn) {
+      createBtn.style.display = state.draftVersion ? 'none' : 'inline-flex';
+    }
+    if (approveWrap) {
+      var select = getEl('curriculumEffectiveTerm');
+      if (state.draftVersion) {
+        approveWrap.style.display = 'flex';
+        if (select && select.options.length === 0) {
+          var allOption = document.createElement('option');
+          allOption.value = '';
+          allOption.textContent = 'No effective term (applies to all)';
+          select.appendChild(allOption);
+          state.terms.forEach(function (term) {
+            var opt = document.createElement('option');
+            opt.value = term.id;
+            opt.textContent = term.name + (term.is_active ? ' (active)' : '');
+            select.appendChild(opt);
+          });
+        }
+      } else {
+        approveWrap.style.display = 'none';
+      }
+    }
+    setFormEnabled(state.canEdit);
   }
 
   function populateSelects() {
@@ -150,38 +238,30 @@
     if (semSelect) {
       semSelect.innerHTML = '<option value="">Select Semester</option>';
       state.semesters.forEach(function (sem) {
-        var opt = document.createElement('option');
-        opt.value = sem.value;
-        opt.textContent = sem.label;
-        semSelect.appendChild(opt);
+        var sOpt = document.createElement('option');
+        sOpt.value = sem.value;
+        sOpt.textContent = sem.label;
+        semSelect.appendChild(sOpt);
       });
     }
 
     if (subjSelect) {
       subjSelect.innerHTML = '<option value="">Select Subject</option>';
       state.subjects.forEach(function (s) {
-        var opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = s.code + ' — ' + s.name;
-        subjSelect.appendChild(opt);
+        var subOpt = document.createElement('option');
+        subOpt.value = s.id;
+        subOpt.textContent = s.code + ' — ' + s.name;
+        subjSelect.appendChild(subOpt);
       });
     }
   }
 
-  function loadMatrix(button) {
-    var url = button.getAttribute('data-curriculum-url');
-    state.programId = button.getAttribute('data-program-id');
-    var code = button.getAttribute('data-program-code') || '';
-
-    var title = getEl('curriculumMatrixTitle');
-    if (title) title.textContent = 'Curriculum Matrix — ' + code;
-
+  function fetchMatrix() {
     var grid = getEl('curriculumGrid');
     if (grid) grid.innerHTML = '<p class="text-muted text-sm"><i class="fas fa-spinner fa-spin"></i> Loading curriculum…</p>';
     hideError();
-    showModal('curriculumMatrixModal');
 
-    fetch(url, {
+    return fetch(state.matrixUrl, {
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
         'X-CSRFToken': getCSRF()
@@ -200,13 +280,36 @@
       state.semesters = result.data.semesters || [];
       state.entries = result.data.entries || [];
       state.subjects = result.data.subjects || [];
+      state.version = result.data.version || null;
+      state.draftVersion = result.data.draft_version || null;
+      state.approvedVersion = result.data.approved_version || null;
+      state.canEdit = !!result.data.can_edit;
+      state.isLegacy = !!result.data.is_legacy;
+      state.terms = result.data.terms || [];
+
+      var filter = getEl('curriculumEffectiveTerm');
+      if (filter) filter.innerHTML = '';
+
       populateSelects();
       renderGrid();
+      renderVersionBar();
     })
     .catch(function (err) {
       if (grid) grid.innerHTML = '';
       showError(err && err.message ? err.message : 'Unable to load curriculum matrix.');
     });
+  }
+
+  function loadMatrix(button) {
+    state.matrixUrl = button.getAttribute('data-curriculum-url');
+    state.programId = button.getAttribute('data-program-id');
+    state.programCode = button.getAttribute('data-program-code') || '';
+
+    var title = getEl('curriculumMatrixTitle');
+    if (title) title.textContent = 'Curriculum Matrix — ' + state.programCode;
+
+    showModal('curriculumMatrixModal');
+    return fetchMatrix();
   }
 
   function postJSON(url, body) {
@@ -229,6 +332,11 @@
     return Object.keys(params).map(function (key) {
       return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
     }).join('&');
+  }
+
+  function templateUrl(modal, attribute, fallback) {
+    var template = modal.getAttribute(attribute) || fallback;
+    return template.replace('999999', state.programId);
   }
 
   function initCurriculumMatrix() {
@@ -266,6 +374,65 @@
           showError(err && err.message ? err.message : 'Unable to remove curriculum entry.');
           if (err && err.message) toast('error', err.message);
         });
+        return;
+      }
+
+      var draftBtn = e.target.closest('#curriculumCreateDraftBtn');
+      if (draftBtn) {
+        e.preventDefault();
+        draftBtn.disabled = true;
+        var draftUrl = templateUrl(
+          modal,
+          'data-draft-url-template',
+          '/programs/999999/curriculum/draft/'
+        );
+        postJSON(draftUrl, '')
+        .then(function (result) {
+          draftBtn.disabled = false;
+          if (!result.data.ok) {
+            throw new Error(result.data.error || 'Unable to create a draft.');
+          }
+          toast('success', result.data.message || 'Draft created.');
+          return fetchMatrix();
+        })
+        .catch(function (err) {
+          draftBtn.disabled = false;
+          var message = err && err.message ? err.message : 'Unable to create a draft.';
+          showError(message);
+          if (err && err.message) toast('error', message);
+        });
+        return;
+      }
+
+      var approveBtn = e.target.closest('#curriculumApproveBtn');
+      if (approveBtn) {
+        e.preventDefault();
+        if (!state.draftVersion) return;
+        approveBtn.disabled = true;
+        var approveUrl = templateUrl(
+          modal,
+          'data-approve-url-template',
+          '/programs/999999/curriculum/approve/'
+        );
+        var termSelect = getEl('curriculumEffectiveTerm');
+        postJSON(approveUrl, toFormBody({
+          version_id: state.draftVersion.id,
+          effective_from: termSelect ? termSelect.value : ''
+        }))
+        .then(function (result) {
+          approveBtn.disabled = false;
+          if (!result.data.ok) {
+            throw new Error(result.data.error || 'Unable to approve the draft.');
+          }
+          toast('success', result.data.message || 'Curriculum approved.');
+          return fetchMatrix();
+        })
+        .catch(function (err) {
+          approveBtn.disabled = false;
+          var message = err && err.message ? err.message : 'Unable to approve the draft.';
+          showError(message);
+          if (err && err.message) toast('error', message);
+        });
       }
     });
 
@@ -274,6 +441,11 @@
       addForm.addEventListener('submit', function (e) {
         e.preventDefault();
         hideError();
+
+        if (!state.canEdit) {
+          showError('This curriculum version is read-only. Create a draft to make changes.');
+          return;
+        }
 
         var subjectId = getEl('curriculumSubjectSelect').value;
         var yearLevel = getEl('curriculumYearSelect').value;
@@ -301,6 +473,11 @@
           if (result.data.entry) {
             state.entries.push(result.data.entry);
             renderGrid();
+          }
+          if (!state.draftVersion) {
+            return fetchMatrix().then(function () {
+              toast('success', result.data.message || 'Subject assigned to curriculum.');
+            });
           }
           toast('success', result.data.message || 'Subject assigned to curriculum.');
         })

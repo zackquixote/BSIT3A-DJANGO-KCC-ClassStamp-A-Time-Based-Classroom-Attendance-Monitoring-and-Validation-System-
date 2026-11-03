@@ -80,6 +80,39 @@ def serialize_subject_summary(subject) -> dict:
     }
 
 
+def serialize_curriculum_version(version) -> dict:
+    """
+    // Serializes a CurriculumVersion with reviewer metadata for the matrix UI.
+    """
+    if not version:
+        return {}
+
+    def _user_label(user):
+        if not user:
+            return ''
+        return user.get_full_name() or user.username
+
+    return {
+        'id': version.id,
+        'program_id': version.program_id,
+        'program_code': version.program.code if version.program else None,
+        'version_number': version.version_number,
+        'label': f'v{version.version_number}',
+        'status': version.status,
+        'status_label': version.get_status_display(),
+        'effective_from_id': version.effective_from_id,
+        'effective_from': (
+            version.effective_from.name if version.effective_from else None
+        ),
+        'notes': version.notes or '',
+        'created_by': _user_label(version.created_by),
+        'approved_by': _user_label(version.approved_by),
+        'approved_at': (
+            version.approved_at.isoformat() if version.approved_at else None
+        ),
+    }
+
+
 def serialize_curriculum_entry(entry) -> dict:
     """
     // Serializes a Curriculum matrix entry mapping a program, year level, and subject.
@@ -87,11 +120,15 @@ def serialize_curriculum_entry(entry) -> dict:
     if not entry:
         return {}
 
+    version = entry.version if entry.version_id else None
     return {
         'id': entry.id,
         'program_id': entry.program_id,
         'program_code': entry.program.code if entry.program else None,
         'program_name': entry.program.name if entry.program else None,
+        'version_id': entry.version_id,
+        'version_number': version.version_number if version else None,
+        'version_status': version.status if version else None,
         'year_level': entry.year_level,
         'semester': entry.semester,
         'subject_id': entry.subject_id,

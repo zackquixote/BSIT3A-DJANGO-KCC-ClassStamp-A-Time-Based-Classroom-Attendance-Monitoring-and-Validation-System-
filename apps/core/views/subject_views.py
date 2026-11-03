@@ -35,6 +35,7 @@ from apps.core.services import (
     assign_curriculum_subject,
     create_or_update_subject,
     delete_or_deactivate_subject,
+    official_curriculum_filter,
     remove_curriculum_entry,
 )
 
@@ -63,7 +64,11 @@ def subject_list(request):
     subjects_qs = (
         Subject.objects.annotate(
             class_count=Count('classes', distinct=True),
-            curriculum_count=Count('curriculum_entries', distinct=True),
+            curriculum_count=Count(
+                'curriculum_entries',
+                filter=official_curriculum_filter('curriculum_entries__'),
+                distinct=True,
+            ),
         )
         .order_by('code')
     )
@@ -85,24 +90,29 @@ def subject_list(request):
 
     if dept_filter:
         subjects_qs = subjects_qs.filter(
-            curriculum_entries__program__department_id=dept_filter
+            official_curriculum_filter('curriculum_entries__')
+            & Q(curriculum_entries__program__department_id=dept_filter)
         ).distinct()
 
     if program_filter:
         subjects_qs = subjects_qs.filter(
-            curriculum_entries__program_id=program_filter
+            official_curriculum_filter('curriculum_entries__')
+            & Q(curriculum_entries__program_id=program_filter)
         ).distinct()
 
     # Semester and year level are placement attributes, not subject attributes:
     # a subject is only "1st semester, Year 2" because a curriculum row says so.
+    # Drafts and archived snapshots do not describe the official catalogue.
     if semester_filter.isdigit():
         subjects_qs = subjects_qs.filter(
-            curriculum_entries__semester=int(semester_filter)
+            official_curriculum_filter('curriculum_entries__')
+            & Q(curriculum_entries__semester=int(semester_filter))
         ).distinct()
 
     if year_filter.isdigit():
         subjects_qs = subjects_qs.filter(
-            curriculum_entries__year_level=int(year_filter)
+            official_curriculum_filter('curriculum_entries__')
+            & Q(curriculum_entries__year_level=int(year_filter))
         ).distinct()
 
     # Curriculum order (program -> year -> semester) is how a registrar reads the
@@ -110,9 +120,18 @@ def subject_list(request):
     # Aggregates must live in annotate() before order_by() can reference them.
     if sort_mode == 'placement':
         subjects_qs = subjects_qs.annotate(
-            _program_code=Min('curriculum_entries__program__code'),
-            _year_level=Min('curriculum_entries__year_level'),
-            _semester=Min('curriculum_entries__semester'),
+            _program_code=Min(
+                'curriculum_entries__program__code',
+                filter=official_curriculum_filter('curriculum_entries__'),
+            ),
+            _year_level=Min(
+                'curriculum_entries__year_level',
+                filter=official_curriculum_filter('curriculum_entries__'),
+            ),
+            _semester=Min(
+                'curriculum_entries__semester',
+                filter=official_curriculum_filter('curriculum_entries__'),
+            ),
         ).order_by('_program_code', '_year_level', '_semester', 'code')
 
     paginator = Paginator(subjects_qs, 15)
@@ -126,6 +145,7 @@ def subject_list(request):
     if page_subjects:
         for row in (
             Curriculum.objects
+            .filter(official_curriculum_filter())
             .filter(subject_id__in=[s.pk for s in page_subjects])
             .values('subject_id', 'program__code', 'year_level', 'semester')
             .order_by('program__code', 'year_level', 'semester')
@@ -137,7 +157,7 @@ def subject_list(request):
     total_count = Subject.objects.count()
     active_count = Subject.objects.filter(is_active=True).count()
     inactive_count = total_count - active_count
-    curriculum_count = Curriculum.objects.count()
+    curriculum_count = Curriculum.objects.filter(official_curriculum_filter()).count()
 
     departments = Department.objects.filter(is_active=True).order_by('name')
     programs = (
@@ -320,7 +340,11 @@ def subject_get(request, pk: int):
     subject = get_object_or_404(
         Subject.objects.annotate(
             class_count=Count('classes', distinct=True),
-            curriculum_count=Count('curriculum_entries', distinct=True),
+            curriculum_count=Count(
+                'curriculum_entries',
+                filter=official_curriculum_filter('curriculum_entries__'),
+                distinct=True,
+            ),
         ),
         pk=pk
     )

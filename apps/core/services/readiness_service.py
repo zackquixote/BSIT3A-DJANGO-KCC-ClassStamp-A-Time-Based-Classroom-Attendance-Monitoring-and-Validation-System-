@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from apps.core.models import AcademicYear, Class, ClassSlot, Curriculum, Enrollment, Program
 from apps.core.models.classroom import derive_section_code
+from apps.core.services.curriculum_version_service import official_curriculum_filter
 from apps.core.services.export_service import SafeCsvWriter
 
 
@@ -124,7 +125,7 @@ def build_curriculum_readiness_report(program_id=None):
         .prefetch_related(
             Prefetch(
                 'curriculum_entries',
-                queryset=Curriculum.objects.select_related('subject').order_by(
+                queryset=Curriculum.objects.filter(official_curriculum_filter()).select_related('subject').order_by(
                     'year_level', 'semester', 'subject__code',
                 ),
             ),
@@ -235,7 +236,8 @@ def build_curriculum_readiness_report(program_id=None):
         })
 
     curriculum_map = set(
-        Curriculum.objects.values_list('program_id', 'year_level', 'subject_id')
+        Curriculum.objects.filter(official_curriculum_filter())
+        .values_list('program_id', 'year_level', 'subject_id')
     )
 
     classes_qs = (

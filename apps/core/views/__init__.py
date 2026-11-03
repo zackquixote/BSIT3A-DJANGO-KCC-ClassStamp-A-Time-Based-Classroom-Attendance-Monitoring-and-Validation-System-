@@ -119,6 +119,8 @@ from .excuse_views import (
 # // 5. Degree Program & Curriculum Subsystem
 # // ------------------------------------------------------------------------------
 from .program_views import (
+    program_curriculum_approve,
+    program_curriculum_draft_create,
     program_curriculum_list,
     program_delete,
     program_list,
@@ -343,6 +345,8 @@ __all__ = [
     'excuse_slip_review_ajax',
     'dispute_resolve',
     'program_curriculum_list',
+    'program_curriculum_draft_create',
+    'program_curriculum_approve',
 
     # Student Masterlist & Ingestion
     'student_directory',

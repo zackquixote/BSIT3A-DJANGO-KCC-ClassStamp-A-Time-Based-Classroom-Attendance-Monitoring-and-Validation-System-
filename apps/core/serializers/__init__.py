@@ -12,6 +12,7 @@
 from .academic_serializers import (
     serialize_academic_year,
     serialize_curriculum_entry,
+    serialize_curriculum_version,
     serialize_department,
     serialize_program,
     serialize_subject,
@@ -33,6 +34,7 @@ __all__ = [
     'serialize_subject',
     'serialize_subject_summary',
     'serialize_curriculum_entry',
+    'serialize_curriculum_version',
     'serialize_academic_year',
     # Teacher
     'serialize_teacher',

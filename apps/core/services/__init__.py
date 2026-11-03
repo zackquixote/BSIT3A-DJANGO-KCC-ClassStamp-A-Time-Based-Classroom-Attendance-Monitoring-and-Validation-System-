@@ -50,6 +50,18 @@ from .readiness_service import (
     export_readiness_coverage_csv,
     export_readiness_issues_csv,
 )
+from .curriculum_version_service import (
+    approve_curriculum_draft,
+    assert_entry_editable,
+    create_curriculum_draft,
+    current_draft_version,
+    curriculum_version_state,
+    ensure_draft_version,
+    latest_curriculum_version,
+    official_curriculum_entries,
+    official_curriculum_filter,
+    resolve_curriculum_version,
+)
 from .student_service import (
     build_student_queryset,
     import_students_from_csv,
@@ -145,6 +157,17 @@ __all__ = [
     'build_curriculum_readiness_report',
     'export_readiness_coverage_csv',
     'export_readiness_issues_csv',
+    # Curriculum versioning
+    'approve_curriculum_draft',
+    'assert_entry_editable',
+    'create_curriculum_draft',
+    'current_draft_version',
+    'curriculum_version_state',
+    'ensure_draft_version',
+    'latest_curriculum_version',
+    'official_curriculum_entries',
+    'official_curriculum_filter',
+    'resolve_curriculum_version',
     # Holiday Calendar
     'calculate_easter_sunday',
     'get_philippine_holidays',

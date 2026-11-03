@@ -19,12 +19,29 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import Curriculum, Department, Profile, Program, Subject
-from apps.core.serializers import serialize_curriculum_entry, serialize_program
+from apps.core.models import (
+    AcademicYear,
+    Curriculum,
+    CurriculumVersion,
+    Department,
+    Profile,
+    Program,
+    Subject,
+)
+from apps.core.serializers import (
+    serialize_curriculum_entry,
+    serialize_curriculum_version,
+    serialize_program,
+)
 from apps.core.services import (
+    approve_curriculum_draft,
+    create_curriculum_draft,
     create_or_update_program,
+    curriculum_version_state,
     delete_or_deactivate_program,
     export_program_students_csv,
+    latest_curriculum_version,
+    official_curriculum_filter,
 )
 from apps.core.views.helpers import get_program_student_stats
 
@@ -46,8 +63,18 @@ def program_list(request):
         Program.objects.select_related('department')
         .annotate(
             # Curriculum coverage: the section wizard draws its subject list from
-            # these rows, so a program with zero entries cannot build a section.
-            curriculum_count=Count('curriculum_entries', distinct=True),
+            # the approved (or legacy) curriculum, so a program with zero official
+            # entries cannot build a section.
+            curriculum_count=Count(
+                'curriculum_entries',
+                filter=official_curriculum_filter('curriculum_entries__'),
+                distinct=True,
+            ),
+            draft_version_count=Count(
+                'curriculum_versions',
+                filter=Q(curriculum_versions__status='DRAFT'),
+                distinct=True,
+            ),
             student_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT), distinct=True),
             y1_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=1), distinct=True),
             y2_count=Count('profiles', filter=Q(profiles__role=Profile.ROLE_STUDENT, profiles__year_level=2), distinct=True),
@@ -276,19 +303,38 @@ def program_curriculum_list(request, program_id):
     """
     // [Admin AJAX Controller] A-07 Program-Centric Curriculum Matrix
     // Returns the full Year x Semester curriculum grid for one program plus the
-    // pool of active subjects available for assignment.
+    // pool of active subjects available for assignment. The grid shows the
+    // current draft when one exists, otherwise the newest approved version.
     """
     program = get_object_or_404(Program.objects.select_related('department'), pk=program_id)
 
+    version_state = curriculum_version_state(program)
+    display_version = version_state['display']
+    is_legacy = display_version is None
+
+    entries_qs = Curriculum.objects.filter(program=program)
+    if display_version is not None:
+        entries_qs = entries_qs.filter(version=display_version)
+        # A partially migrated program may have official rows without a version
+        # while its version snapshot is empty. Treat those as the grid source.
+        if not entries_qs.exists():
+            legacy_qs = Curriculum.objects.filter(
+                program=program,
+                version__isnull=True,
+            )
+            if legacy_qs.exists():
+                entries_qs = legacy_qs
+                is_legacy = True
+
     entries = (
-        Curriculum.objects.filter(program=program)
-        .select_related('subject', 'program')
+        entries_qs.select_related('subject', 'program', 'version')
         .order_by('year_level', 'semester', 'subject__code')
     )
     subjects = (
         Subject.objects.filter(is_active=True)
         .order_by('code')
     )
+    terms = AcademicYear.objects.order_by('-starts_on')
 
     return JsonResponse({
         'ok': True,
@@ -300,4 +346,98 @@ def program_curriculum_list(request, program_id):
             {'id': s.id, 'code': s.code, 'name': s.name}
             for s in subjects
         ],
+        'version': (
+            serialize_curriculum_version(display_version)
+            if display_version is not None else None
+        ),
+        'draft_version': (
+            serialize_curriculum_version(version_state['draft'])
+            if version_state['draft'] is not None else None
+        ),
+        'approved_version': (
+            serialize_curriculum_version(version_state['approved'])
+            if version_state['approved'] is not None else None
+        ),
+        'can_edit': display_version is None or display_version.status == CurriculumVersion.STATUS_DRAFT,
+        'is_legacy': is_legacy,
+        'terms': [
+            {'id': term.id, 'name': term.name, 'is_active': term.is_active}
+            for term in terms
+        ],
+    })
+
+
+# // ==============================================================================
+# // AJAX: Create Curriculum Draft (/programs/<id>/curriculum/draft/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def program_curriculum_draft_create(request, program_id):
+    """Clone the latest approved curriculum into a new editable draft."""
+    program = get_object_or_404(Program.objects.select_related('department'), pk=program_id)
+    try:
+        result = create_curriculum_draft(request.user, program)
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+
+    return JsonResponse({
+        'ok': True,
+        'created': result['created'],
+        'message': result['message'],
+        'version': serialize_curriculum_version(result['instance']),
+    })
+
+
+# // ==============================================================================
+# // AJAX: Approve Curriculum Draft (/programs/<id>/curriculum/approve/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def program_curriculum_approve(request, program_id):
+    """Approve the program's draft and archive the outgoing approved version."""
+    program = get_object_or_404(Program.objects.select_related('department'), pk=program_id)
+    version_id = request.POST.get('version_id', '').strip()
+    effective_from = request.POST.get('effective_from', '').strip()
+
+    version = latest_curriculum_version(
+        program,
+        statuses=(CurriculumVersion.STATUS_DRAFT,),
+    )
+    if version_id:
+        version = get_object_or_404(
+            CurriculumVersion,
+            pk=version_id,
+            program=program,
+            status=CurriculumVersion.STATUS_DRAFT,
+        )
+    if version is None:
+        return JsonResponse(
+            {'ok': False, 'error': 'This program has no draft curriculum to approve.'},
+            status=400,
+        )
+
+    effective_from_id = None
+    if effective_from:
+        if not effective_from.isdigit():
+            return JsonResponse(
+                {'ok': False, 'error': 'Select a valid effective academic term.'},
+                status=400,
+            )
+        effective_from_id = int(effective_from)
+
+    try:
+        result = approve_curriculum_draft(
+            request.user,
+            version,
+            effective_from=effective_from_id,
+        )
+    except (ValueError, AcademicYear.DoesNotExist) as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+
+    return JsonResponse({
+        'ok': True,
+        'message': result['message'],
+        'version': serialize_curriculum_version(result['instance']),
     })

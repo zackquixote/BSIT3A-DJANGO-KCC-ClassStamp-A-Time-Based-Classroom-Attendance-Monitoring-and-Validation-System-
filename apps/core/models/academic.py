@@ -13,6 +13,7 @@
 # // ==============================================================================
 """
 
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -96,6 +97,84 @@ class Subject(models.Model):
         return f'{self.code} - {self.name}'
 
 
+class CurriculumVersion(models.Model):
+    """
+    // [Model] Curriculum Version
+    // A reviewable snapshot of a program's curriculum. Only a DRAFT version may
+    // be edited; exactly one APPROVED version should be effective at a time.
+    """
+    STATUS_DRAFT = 'DRAFT'
+    STATUS_APPROVED = 'APPROVED'
+    STATUS_ARCHIVED = 'ARCHIVED'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_ARCHIVED, 'Archived'),
+    ]
+
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.RESTRICT,
+        related_name='curriculum_versions',
+        help_text="// Program whose curriculum this version describes",
+    )
+    version_number = models.PositiveIntegerField(
+        help_text="// Incrementing version number within the program",
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_DRAFT,
+        db_index=True,
+        help_text="// Draft versions are editable; approved versions are read-only",
+    )
+    effective_from = models.ForeignKey(
+        'AcademicYear',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='curriculum_versions',
+        help_text="// First term in which this approved version applies",
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+        help_text="// Reviewer notes describing what changed in this version",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_curriculum_versions',
+        help_text="// User who created this draft",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_curriculum_versions',
+        help_text="// User who approved this curriculum version",
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="// When this version was approved",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'core'
+        db_table = 'tblcs_curriculum_version'
+        unique_together = [('program', 'version_number')]
+        ordering = ['program__code', '-version_number']
+
+    def __str__(self):
+        return f'{self.program.code} curriculum v{self.version_number} ({self.status})'
+
+
 class Curriculum(models.Model):
     """
     // [Model] Curriculum Matrix
@@ -113,6 +192,14 @@ class Curriculum(models.Model):
         on_delete=models.RESTRICT,
         related_name='curriculum_entries',
         help_text="// Program this curriculum belongs to"
+    )
+    version = models.ForeignKey(
+        CurriculumVersion,
+        on_delete=models.CASCADE,
+        related_name='entries',
+        null=True,
+        blank=True,
+        help_text="// Version snapshot this entry belongs to (legacy rows may be blank)",
     )
     year_level = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)],
@@ -134,7 +221,7 @@ class Curriculum(models.Model):
     class Meta:
         app_label = 'core'
         db_table = 'tblcs_curriculum'
-        unique_together = [('program', 'year_level', 'semester', 'subject')]
+        unique_together = [('version', 'year_level', 'semester', 'subject')]
 
     def __str__(self):
         return f'{self.program.code} Y{self.year_level} S{self.semester} - {self.subject.code}'

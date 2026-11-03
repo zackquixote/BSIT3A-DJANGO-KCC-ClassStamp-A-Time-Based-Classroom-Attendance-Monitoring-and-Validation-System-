@@ -24,6 +24,7 @@
 from .academic import (
     AcademicYear,
     Curriculum,
+    CurriculumVersion,
     Department,
     Program,
     Subject,
@@ -71,6 +72,7 @@ __all__ = [
     # Academic
     'AcademicYear',
     'Curriculum',
+    'CurriculumVersion',
     'Department',
     'Program',
     'Subject',

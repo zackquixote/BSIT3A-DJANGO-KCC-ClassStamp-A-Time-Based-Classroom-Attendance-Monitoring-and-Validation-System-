@@ -732,6 +732,7 @@
       const body = new URLSearchParams();
       body.set('program_id', $('wiz-program').value);
       body.set('year_level', $('wiz-year').value);
+      body.set('semester', $('wiz-semester').value);
       body.set('subject_id', $('wiz-subject').value);
       body.set('teacher_profile_id', $('wiz-teacher').value);
       body.set('ay_id', $('wiz-ay').value);
