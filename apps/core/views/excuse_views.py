@@ -32,6 +32,7 @@ from apps.core.models import (
     Profile,
 )
 from apps.core.services.notification_service import notify_excuse_decision
+from apps.core.services.in_app_notification_service import create_notification
 from apps.core.validators import validate_uploaded_document
 
 # A student can file ahead of a meeting (medical appointment known in advance) or
@@ -164,6 +165,19 @@ def student_excuse_slips(request):
                         f'{session.session_date}'
                     ),
                 )
+                class_obj = session.slot.class_obj
+                if class_obj.teacher_profile_id:
+                    create_notification(
+                        class_obj.teacher_profile.user,
+                        'excuse_slip',
+                        'New excuse slip submitted',
+                        (
+                            f'{profile.user.get_full_name() or profile.student_number} '
+                            f'submitted an excuse slip for {class_obj.class_code} '
+                            f'on {session.session_date}.'
+                        ),
+                        '/teacher/excuse-slips/',
+                    )
         except IntegrityError:
             messages.error(request, 'An excuse slip already exists for that session.')
             return redirect('student_excuse_slips')
@@ -440,5 +454,12 @@ def dispute_resolve(request, dispute_id):
             reason=note or 'No note provided',
         )
 
+    create_notification(
+        dispute.student_profile.user,
+        'attendance_dispute',
+        'Attendance dispute resolved',
+        f'Your dispute for {class_obj.class_code} on {dispute.record.session.session_date} was {outcome}.',
+        '/student/attendance/',
+    )
     messages.success(request, f'Dispute {outcome}.')
     return redirect('teacher_excuse_slips')
