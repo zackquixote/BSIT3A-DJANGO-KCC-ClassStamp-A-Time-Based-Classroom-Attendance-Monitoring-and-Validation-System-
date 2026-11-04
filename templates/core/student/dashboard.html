@@ -44,7 +44,7 @@
         <i class="fas fa-flag-checkered lucide-fallback"></i>
       </div>
       <div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" style="flex-wrap: wrap; row-gap: 4px;">
           <span class="badge badge--warning text-xs font-bold">{{ today_holiday.get_category_display|upper }}</span>
           <span class="font-bold text-primary text-base">{{ today_holiday.title }}</span>
         </div>
@@ -83,7 +83,7 @@
   </svg>
 </button>
 
-<!-- Telemetry KPI Stat Cards (Collapsible on Mobile, 4-col on Desktop) -->
+<!-- Summary KPI Stat Cards (Collapsible on Mobile, 4-col on Desktop) -->
 <div class="student-kpi-collapsible" id="studentKpiCollapsible">
   <div class="stat-grid student-stat-grid mb-6">
     <div class="stat-card">
@@ -144,7 +144,13 @@
   </div>
   <div style="padding: 12px 16px;">
     {% for slip in excuse_slips %}
-      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {% if slip.status == 'APPROVED' %}#22c55e{% elif slip.status == 'REJECTED' %}#ef4444{% else %}#f59e0b{% endif %}; border-radius: 6px; margin-bottom: 8px;">
+      {% if slip.status == 'APPROVED' %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #22c55e; border-radius: 6px; margin-bottom: 8px;">
+      {% elif slip.status == 'REJECTED' %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #ef4444; border-radius: 6px; margin-bottom: 8px;">
+      {% else %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #f59e0b; border-radius: 6px; margin-bottom: 8px;">
+      {% endif %}
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div>
             <span class="font-bold text-primary text-sm">{{ slip.session.slot.class_obj.subject.code }} — {{ slip.session.slot.class_obj.class_code }}</span>
@@ -176,11 +182,11 @@
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
   <!-- Upcoming Term Milestones & Published Calendar -->
   <div class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
-      <div class="font-semibold text-primary flex items-center gap-2">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
         <i class="fas fa-calendar-days text-gold"></i> College Academic Calendar
       </div>
-      <span class="text-muted text-xs">Official Dates</span>
+      <span class="text-muted text-xs" style="white-space: nowrap;">Official Dates</span>
     </div>
     <div style="padding: 12px 16px;">
       {% for evt in upcoming_calendar_events %}
@@ -197,18 +203,22 @@
           {% endif %}
         </div>
       {% empty %}
-        <p class="text-muted text-xs" style="text-align: center; padding: 16px 0;">No upcoming milestones currently scheduled.</p>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-calendar-day"></i></div>
+          <div class="empty-state-title">No Milestones Scheduled</div>
+          <p class="empty-state-text">There are no upcoming institutional calendar milestones scheduled at this time.</p>
+        </div>
       {% endfor %}
     </div>
   </div>
 
   <!-- Per-Subject Attendance Breakdown Cards (S-03) -->
   <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 16px;">
-    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
-      <div class="font-semibold text-primary flex items-center gap-2">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
         <i class="fas fa-chart-simple text-gold"></i> Attendance Breakdown by Subject
       </div>
-      <span class="text-muted text-xs">Present + Late ÷ Meetings</span>
+      <span class="text-muted text-xs" style="white-space: nowrap;">Present + Late ÷ Meetings</span>
     </div>
     <div style="padding: 12px 16px;">
       {% for b in class_breakdowns %}
@@ -298,11 +308,11 @@
 
   <!-- Examination Schedules & Active Course Timetable -->
   <div class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
-      <div class="font-semibold text-primary flex items-center gap-2">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
         <i class="fas fa-file-pen text-gold"></i> Examination Windows &amp; Timetable
       </div>
-      <span class="text-muted text-xs">Institutional Schedule</span>
+      <span class="text-muted text-xs" style="white-space: nowrap;">Institutional Schedule</span>
     </div>
     <div style="padding: 12px 16px;">
       <!-- S-05: Visual Weekly Timetable Grid -->
@@ -311,19 +321,25 @@
           <div class="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
             <i class="fas fa-table-cells text-gold"></i> Weekly Class Grid
           </div>
-          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;">
             {% regroup timetable_slots by weekday as slot_days %}
             {% for day in slot_days %}
-              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid {% if day.grouper == today_weekday %}rgba(245, 158, 11, 0.6){% else %}var(--glass-border){% endif %}; border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% if day.grouper == today_weekday %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% else %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% endif %}
                 <div class="text-xs font-bold mb-1 {% if day.grouper == today_weekday %}text-gold{% else %}text-muted{% endif %}">
                   {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% endif %}
                   {% if day.grouper == today_weekday %}<span class="badge badge--warning badge--xs" style="margin-left: 4px;">TODAY</span>{% endif %}
                 </div>
                 {% for s in day.list %}
                   <div class="mb-1" style="border-left: 3px solid {{ s.color }}; background: rgba(255, 255, 255, 0.03); border-radius: 4px; padding: 4px 6px;">
-                    <div class="font-bold text-xs text-primary font-mono">{{ s.starts_at|time:"h:i A" }}–{{ s.ends_at|time:"h:i A" }}</div>
-                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }} · {{ s.class_code }}</div>
-                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.room }}</div>
+                    <div class="font-mono text-primary" style="font-size: 0.68rem; line-height: 1.25;">
+                      <span class="font-bold">{{ s.starts_at|time:"g:i A" }}</span><br>
+                      <span class="text-muted">– {{ s.ends_at|time:"g:i A" }}</span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }}{% if s.room %} · {{ s.room }}{% endif %}</div>
                   </div>
                 {% endfor %}
               </div>
@@ -370,7 +386,11 @@
           {% endif %}
         </div>
       {% empty %}
-        <p class="text-muted text-xs" style="text-align: center; padding: 12px 0;">No active class enrollments on record.</p>
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+          <div class="empty-state-title">No Enrolled Classes</div>
+          <p class="empty-state-text">You are not currently enrolled in any active class sections.</p>
+        </div>
       {% endfor %}
     </div>
   </div>

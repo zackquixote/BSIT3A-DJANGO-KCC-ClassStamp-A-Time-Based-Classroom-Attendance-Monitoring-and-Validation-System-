@@ -7,6 +7,7 @@
 # //   views instead of exposing MEDIA_URL directly. Access rules:
 # //     - Registration proof: owning student or ADMIN only.
 # //     - Excuse attachment: owning student, assigned TEACHER, or ADMIN.
+# //     - Student avatar: owning student only (portal-only photo).
 # //   Responses are marked private/no-store so browsers and proxies do not cache
 # //   sensitive identity documents.
 # // ==============================================================================
@@ -57,6 +58,25 @@ def _serve_private_file(field_file):
     response['X-Content-Type-Options'] = 'nosniff'
     response['Cache-Control'] = 'private, no-store, max-age=0'
     return response
+
+
+@login_required(login_url='login')
+def student_avatar_document(request, profile_id):
+    """
+    // [Protected File] Student profile photo (self-service, portal-only).
+    // The owning student is the only reader; teachers and admins keep initials.
+    // Reached through this view because MEDIA_URL is deliberately not routed.
+    """
+    profile = get_object_or_404(
+        Profile.objects.select_related('user'),
+        pk=profile_id,
+        role=Profile.ROLE_STUDENT,
+    )
+
+    if profile.user_id != request.user.pk:
+        return HttpResponseForbidden('You are not authorized to view this photo.')
+
+    return _serve_private_file(profile.avatar)
 
 
 @login_required(login_url='login')

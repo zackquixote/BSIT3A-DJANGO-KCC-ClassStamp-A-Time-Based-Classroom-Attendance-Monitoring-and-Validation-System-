@@ -30,14 +30,6 @@
       Immutable forensic trail of administrative and security events &mdash; {{ total_count }} matching event(s)
     </p>
   </div>
-  <div class="flex items-center gap-2">
-    <a href="{% url 'admin_audit_log_export_csv' %}?{{ base_query_string }}" class="btn btn-primary" style="padding: 10px 18px;" title="Export currently filtered audit logs to CSV">
-      <i class="fas fa-file-csv"></i> Export CSV
-    </a>
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline" style="padding: 10px 18px;">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
-  </div>
 </div>
 
 <!-- ── Category Selector Pills ─────────────────────────────────── -->
@@ -63,18 +55,23 @@
     </a>
   </div>
 
-  <div class="text-xs text-muted">
-    Showing <strong>{{ events.start_index|default:0 }}</strong>&ndash;<strong>{{ events.end_index|default:0 }}</strong> of <strong>{{ total_count }}</strong>
+  <div class="page-header-actions">
+    <span class="text-xs text-muted">
+      Showing <strong>{{ events.start_index|default:0 }}</strong>&ndash;<strong>{{ events.end_index|default:0 }}</strong> of <strong>{{ total_count }}</strong>
+    </span>
+    <a href="{% url 'admin_audit_log_export_csv' %}?{{ base_query_string }}" class="btn btn-primary btn-sm" title="Export currently filtered audit logs to CSV">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </a>
   </div>
 </div>
 
 <!-- ── Enhanced Filter Card ────────────────────────────────────── -->
-<div class="card mb-4" style="padding: 14px 18px;">
-  <form method="GET" class="flex items-center gap-3 flex-wrap">
+<div class="card mb-4" style="padding: 12px 16px;">
+  <form method="GET" class="flex items-center gap-2 flex-wrap">
     <input type="hidden" name="category" value="{{ category }}">
 
     <!-- Search Query -->
-    <div class="input-wrap" style="flex: 1; min-width: 220px;">
+    <div class="input-wrap" style="flex: 1.5; min-width: 180px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
       <input type="text"
              name="q"
@@ -84,7 +81,7 @@
     </div>
 
     <!-- Action Filter Dropdown -->
-    <div class="input-wrap" style="min-width: 180px;">
+    <div class="input-wrap" style="width: 155px; min-width: 135px;">
       <i class="fas fa-filter input-icon"></i>
       <select name="action" class="form-control" onchange="this.form.submit()">
         <option value="">All Action Types</option>
@@ -95,7 +92,7 @@
     </div>
 
     <!-- Actor Filter Dropdown -->
-    <div class="input-wrap" style="min-width: 180px;">
+    <div class="input-wrap" style="width: 145px; min-width: 125px;">
       <i class="fas fa-user-shield input-icon"></i>
       <select name="actor" class="form-control" onchange="this.form.submit()">
         <option value="">All Actors</option>
@@ -108,7 +105,7 @@
     </div>
 
     <!-- Date Picker -->
-    <div class="input-wrap" style="min-width: 150px;">
+    <div class="input-wrap" style="width: 140px; min-width: 125px;">
       <i class="fas fa-calendar-day input-icon"></i>
       <input type="date"
              name="date"
@@ -119,7 +116,7 @@
     </div>
 
     <!-- Page Size Selector -->
-    <div class="input-wrap" style="min-width: 130px;">
+    <div class="input-wrap" style="width: 125px; min-width: 105px;">
       <i class="fas fa-list-ol input-icon"></i>
       <select name="per_page" class="form-control" onchange="this.form.submit()">
         <option value="25" {% if per_page == '25' %}selected{% endif %}>25 per page</option>
@@ -129,15 +126,18 @@
       </select>
     </div>
 
-    <button type="submit" class="btn btn-primary btn-sm" style="padding: 9px 15px;">
-      <i class="fas fa-search"></i> Filter
-    </button>
+    <!-- Action Buttons (Stay on same row) -->
+    <div class="flex items-center gap-2" style="flex-shrink: 0;">
+      <button type="submit" class="btn btn-primary" style="padding: 7px 16px; height: 38px; font-size: 0.82rem;">
+        <i class="fas fa-search"></i> Filter
+      </button>
 
-    {% if action_filter or actor_filter or search_q or date_filter or per_page != '25' or category != 'all' %}
-      <a href="{% url 'admin_audit_log' %}" class="btn btn-outline btn-sm" style="padding: 9px 14px;" title="Reset all filters">
-        <i class="fas fa-rotate-left"></i> Reset
-      </a>
-    {% endif %}
+      {% if action_filter or actor_filter or search_q or date_filter or per_page != '25' or category != 'all' %}
+        <a href="{% url 'admin_audit_log' %}" class="btn btn-outline" style="padding: 7px 12px; height: 38px; font-size: 0.82rem;" title="Reset all filters">
+          <i class="fas fa-rotate-left"></i> Reset
+        </a>
+      {% endif %}
+    </div>
   </form>
 </div>
 

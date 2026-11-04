@@ -4,14 +4,57 @@
 
 {% block extra_css %}
 <style>
-  .policy-wrap { max-width: 820px; margin: 0 auto; }
-  .policy-field { margin-bottom: 22px; }
-  .policy-field .form-label { display: block; margin-bottom: 6px; }
-  .policy-hint { display: block; margin-top: 6px; font-size: 0.76rem; color: var(--text-muted); }
+  .policy-page { display: grid; gap: 18px; }
+
+  .policy-hero {
+    padding: 18px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .policy-hero-title { display: flex; align-items: center; gap: 14px; }
+  .policy-hero-icon {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 1.05rem;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    color: var(--accent-gold, #d4af37);
+  }
+  .policy-hero h2 { font-size: 1.05rem; margin: 0; }
+  .policy-hero p { margin: 4px 0 0; font-size: 0.78rem; }
+
+  .policy-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: stretch;
+  }
+  @media (max-width: 900px) { .policy-grid { grid-template-columns: 1fr; } }
+
+  .policy-panel {
+    padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .policy-panel-label {
+    margin: 0; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .policy-panel .form-label { margin: 0; font-size: 0.9rem; color: var(--text-primary); }
+  .policy-panel .form-control { max-width: 220px; }
+  .policy-hint {
+    display: block; margin: 0; font-size: 0.78rem; line-height: 1.6;
+    color: var(--text-muted); max-width: 62ch;
+  }
   .policy-default { color: var(--gold, #d4af37); font-weight: 600; }
+
+  .policy-actions {
+    padding: 16px 22px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .policy-actions .btn { margin-right: 2px; }
+
   .policy-current {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+    padding: 4px 11px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
     background: rgba(148, 163, 184, 0.14);
     border: 1px solid rgba(148, 163, 184, 0.3);
     color: #cbd5e1;
@@ -20,67 +63,75 @@
 {% endblock %}
 
 {% block content %}
-<div class="policy-wrap">
-  <div class="card mb-4" style="padding: 22px 24px;">
-    <h2 class="font-semibold text-primary" style="font-size: 1.05rem; margin: 0;">
-      <i class="fas fa-sliders text-gold"></i> Attendance Policy
-    </h2>
-    <p class="text-muted text-xs" style="margin: 6px 0 0;">
-      Institution-wide thresholds. Leave a field blank to keep the built-in default.
-      Changes are audited and take effect immediately.
-    </p>
+<div class="policy-page">
+  <div class="card policy-hero">
+    <div class="policy-hero-title">
+      <div class="policy-hero-icon"><i class="fas fa-sliders"></i></div>
+      <div>
+        <h2 class="font-semibold text-primary">Attendance Policy</h2>
+        <p class="text-muted">
+          Institution-wide thresholds. Leave a field blank to keep the built-in default.
+          Changes are audited and take effect immediately.
+        </p>
+      </div>
+    </div>
+    {% if policy %}
+      <span class="policy-current"><i class="fas fa-clock"></i> Last updated {{ policy.updated_at|date:"M j, Y H:i" }}</span>
+    {% else %}
+      <span class="policy-current"><i class="fas fa-circle-info"></i> Running on defaults</span>
+    {% endif %}
   </div>
 
   {% if messages %}
     {% for message in messages %}
-      <div class="card mb-3" style="padding: 12px 16px; border-color: rgba(212, 175, 55, 0.35);">
+      <div class="card" style="padding: 12px 16px; border-color: rgba(212, 175, 55, 0.35);">
         <span class="text-sm">{{ message }}</span>
       </div>
     {% endfor %}
   {% endif %}
 
-  <form method="POST" class="card" style="padding: 24px;">
+  <form method="POST">
     {% csrf_token %}
 
-    <div class="policy-field">
-      <label class="form-label" for="id_scan_close_tolerance">Scan window tolerance (minutes)</label>
-      <input
-        class="form-control" id="id_scan_close_tolerance" type="number" min="0" max="180"
-        name="scan_close_tolerance_minutes"
-        value="{% if submitted.scan_close_tolerance_minutes %}{{ submitted.scan_close_tolerance_minutes }}{% elif policy and policy.scan_close_tolerance_minutes is not None %}{{ policy.scan_close_tolerance_minutes }}{% endif %}"
-        placeholder="{{ defaults.scan_close_tolerance_minutes }}" style="max-width: 180px;">
-      <span class="policy-hint">
-        How long after the scheduled class end a QR scan is still accepted. Past this,
-        the scan is refused as <code>WINDOW_CLOSED</code> and the instructor must override manually.
-        Built-in default: <span class="policy-default">{{ defaults.scan_close_tolerance_minutes }} min</span>.
-      </span>
+    <div class="policy-grid">
+      <div class="card policy-panel">
+        <p class="policy-panel-label">Scan window</p>
+        <label class="form-label" for="id_scan_close_tolerance">Scan window tolerance (minutes)</label>
+        <input
+          class="form-control" id="id_scan_close_tolerance" type="number" min="0" max="180"
+          name="scan_close_tolerance_minutes"
+          value="{% if submitted.scan_close_tolerance_minutes %}{{ submitted.scan_close_tolerance_minutes }}{% elif policy and policy.scan_close_tolerance_minutes is not None %}{{ policy.scan_close_tolerance_minutes }}{% endif %}"
+          placeholder="{{ defaults.scan_close_tolerance_minutes }}">
+        <span class="policy-hint">
+          How long after the scheduled class end a QR scan is still accepted. Past this,
+          the scan is refused as <code>WINDOW_CLOSED</code> and the instructor must override manually.
+          Built-in default: <span class="policy-default">{{ defaults.scan_close_tolerance_minutes }} min</span>.
+        </span>
+      </div>
+
+      <div class="card policy-panel">
+        <p class="policy-panel-label">Risk band</p>
+        <label class="form-label" for="id_absence_threshold">Absence threshold (%)</label>
+        <input
+          class="form-control" id="id_absence_threshold" type="number" min="1" max="100" step="0.01"
+          name="absence_threshold_percent"
+          value="{% if submitted.absence_threshold_percent %}{{ submitted.absence_threshold_percent }}{% elif policy and policy.absence_threshold_percent is not None %}{{ policy.absence_threshold_percent }}{% endif %}"
+          placeholder="{{ defaults.absence_threshold_percent }}">
+        <span class="policy-hint">
+          Unexcused absence rate that triggers the CHED failure-risk band. The watchlist
+          starts at half this value, and the student portal warning stages scale with it.
+          Built-in default: <span class="policy-default">{{ defaults.absence_threshold_percent }}%</span>.
+        </span>
+      </div>
     </div>
 
-    <div class="policy-field">
-      <label class="form-label" for="id_absence_threshold">Absence threshold (%)</label>
-      <input
-        class="form-control" id="id_absence_threshold" type="number" min="1" max="100" step="0.01"
-        name="absence_threshold_percent"
-        value="{% if submitted.absence_threshold_percent %}{{ submitted.absence_threshold_percent }}{% elif policy and policy.absence_threshold_percent is not None %}{{ policy.absence_threshold_percent }}{% endif %}"
-        placeholder="{{ defaults.absence_threshold_percent }}" style="max-width: 180px;">
-      <span class="policy-hint">
-        Unexcused absence rate that triggers the CHED failure-risk band. The watchlist
-        starts at half this value, and the student portal warning stages scale with it.
-        Built-in default: <span class="policy-default">{{ defaults.absence_threshold_percent }}%</span>.
-      </span>
-    </div>
-
-    <div class="flex items-center gap-3 flex-wrap">
+    <div class="card policy-actions" style="margin-top: 18px;">
       <button type="submit" class="btn btn-primary">
         <i class="fas fa-floppy-disk"></i> Save policy
       </button>
-      {% if policy %}
-        <span class="policy-current">
-          <i class="fas fa-clock"></i> Last updated {{ policy.updated_at|date:"M j, Y H:i" }}
-        </span>
-      {% else %}
-        <span class="policy-current"><i class="fas fa-circle-info"></i> Running on defaults</span>
-      {% endif %}
+      <span class="text-muted" style="font-size: 0.76rem;">
+        Blank fields fall back to the built-in values shown above.
+      </span>
     </div>
   </form>
 </div>

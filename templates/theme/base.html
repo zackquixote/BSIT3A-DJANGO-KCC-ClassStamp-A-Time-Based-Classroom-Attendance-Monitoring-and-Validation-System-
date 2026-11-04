@@ -8,14 +8,39 @@
   {% include "theme/favicons.html" %}
   <meta name="csrf-token" content="{{ csrf_token }}">
   <script>
-    try { localStorage.removeItem('kcc_theme'); document.documentElement.removeAttribute('data-theme'); } catch(e){}
+    try {
+      localStorage.removeItem('kcc_theme');
+      document.documentElement.removeAttribute('data-theme');
+      if (localStorage.getItem('kcc_sidebar_collapsed') === '1') {
+        document.documentElement.classList.add('sidebar-collapsed');
+      }
+    } catch(e){}
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261030_v10_student">
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
+  {% comment %}
+    Modules are linked directly instead of @import-ing them from app.css. Imported
+    sheets are discovered only after app.css is parsed, so Chrome could paint the
+    sidebar before sidebar.css arrived (unstyled blue links flashing on navigation).
+    Links in <head> are render-blocking, so first paint always has the full theme.
+  {% endcomment %}
+  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/components.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/login.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/register.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/validation.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261103_solar_boost">
+  {% comment %}
+    Loaded in <head>, not between the sidebar and the main content. A synchronous
+    script there paused the parser mid-body, so Chrome painted the sidebar while
+    sidebar.css was still in flight (icons and layout missing for a moment).
+  {% endcomment %}
+  <script src="{% static 'js/vendor/lucide.min.js' %}?v=20261029b"></script>
   {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if request.user.is_authenticated and request.user.classstamp_profile.role == 'STUDENT' %}role-student{% endif %}">
@@ -24,8 +49,6 @@
     {% if request.user.is_authenticated %}
       <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
       {% include 'theme/sidebar.html' %}
-      {% comment %}Loaded inline so sidebar icons exist before first paint; a deferred pass makes the rail visibly re-render on every navigation.{% endcomment %}
-      <script src="{% static 'js/vendor/lucide.min.js' %}?v=20261029b"></script>
       <script>
         if (window.lucide && typeof window.lucide.createIcons === 'function') {
           window.lucide.createIcons();
@@ -41,29 +64,60 @@
               <i class="fas fa-bars"></i>
             </button>
             <div class="mobile-topbar-brand">
-              <img src="{% static 'img/kcc_logo.png' %}" alt="KCC Logo" class="mobile-topbar-logo" width="30" height="30" style="width: 30px; height: 30px; max-width: 30px; max-height: 30px; object-fit: contain;">
+              <img src="{% static 'img/kcc_logo.png' %}?v=20261102_opt" alt="KCC Logo" class="mobile-topbar-logo" width="30" height="30" style="width: 30px; height: 30px; max-width: 30px; max-height: 30px; object-fit: contain;">
               <span class="mobile-topbar-title">KCC <span class="text-gold">ClassStamp</span></span>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            {% if request.user.classstamp_profile.role == 'STUDENT' %}
-              <a href="{% url 'student_profile' %}" class="mobile-avatar" title="My Profile"
-                 style="width: 32px; height: 32px; min-width: 32px; text-decoration: none; color: inherit;">
-            {% else %}
-              <div class="mobile-avatar" style="width: 32px; height: 32px; min-width: 32px;">
-            {% endif %}
-              {% if request.user.classstamp_profile.role == 'STUDENT' and request.user.classstamp_profile.avatar %}
-                <img src="{{ request.user.classstamp_profile.avatar.url }}" alt="Profile photo">
-              {% elif request.user.first_name and request.user.last_name %}
-                {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
-              {% else %}
-                {{ request.user.username|slice:":2"|upper }}
-              {% endif %}
-            {% if request.user.classstamp_profile.role == 'STUDENT' %}
-              </a>
-            {% else %}
+          <div class="mobile-avatar-dropdown-wrap" style="position: relative;">
+            <button type="button" class="mobile-avatar-btn" id="mobileAvatarBtn" aria-expanded="false" aria-haspopup="true" aria-label="Account Menu"
+                    style="background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; -webkit-tap-highlight-color: transparent;">
+              <div class="mobile-avatar" style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; background: linear-gradient(135deg, #f59e0b 0%, #3b82f6 100%); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); overflow: hidden; border: 1.5px solid rgba(245, 158, 11, 0.5);">
+                {% if request.user.classstamp_profile.role == 'STUDENT' and request.user.classstamp_profile.avatar %}
+                  <img src="{% url 'student_avatar_document' request.user.classstamp_profile.pk %}" alt="Profile photo" style="width: 100%; height: 100%; object-fit: cover;">
+                {% elif request.user.first_name and request.user.last_name %}
+                  {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+                {% else %}
+                  {{ request.user.username|slice:":2"|upper }}
+                {% endif %}
               </div>
-            {% endif %}
+            </button>
+
+            <!-- Dropdown Popover Menu -->
+            <div class="mobile-avatar-menu" id="mobileAvatarMenu"
+                 style="display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 210px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.65); z-index: 1050; padding: 6px; overflow: hidden;">
+              <!-- User Info Header -->
+              <div style="padding: 10px 12px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px;">
+                <div style="font-weight: 700; font-size: 0.85rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ request.user.get_full_name|default:request.user.username }}
+                </div>
+                <div style="font-size: 0.72rem; color: var(--accent-gold); font-family: var(--font-mono, monospace); margin-top: 2px;">
+                  {% if request.user.classstamp_profile.role == 'STUDENT' %}
+                    {{ request.user.classstamp_profile.student_id|default:"Student" }}
+                  {% elif request.user.classstamp_profile.role == 'TEACHER' %}
+                    Faculty Instructor
+                  {% else %}
+                    System Administrator
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Menu Items -->
+              {% if request.user.classstamp_profile.role == 'STUDENT' %}
+                <a href="{% url 'student_profile' %}" class="mobile-avatar-menu-item"
+                   style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #e2e8f0; text-decoration: none; font-size: 0.84rem; font-weight: 500;">
+                  <i class="fas fa-user-circle text-primary" style="font-size: 0.95rem; width: 16px;"></i>
+                  <span>My Profile</span>
+                </a>
+              {% endif %}
+
+              <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 0;"></div>
+
+              <a href="{% url 'logout' %}" class="mobile-avatar-menu-item"
+                 style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #f87171; text-decoration: none; font-size: 0.84rem; font-weight: 600;">
+                <i class="fas fa-right-from-bracket" style="font-size: 0.95rem; width: 16px;"></i>
+                <span>Log out</span>
+              </a>
+            </div>
           </div>
         </header>
       {% endif %}
@@ -154,9 +208,9 @@
   <script src="{% static 'js/core/app_table_search.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/app_action_dropdowns.js' %}?v=20261029_v2"></script>
   <script src="{% static 'js/core/app_session_guard.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_navigation.js' %}?v=20261030_nav3"></script>
+  <script src="{% static 'js/core/app_navigation.js' %}?v=20261102_rail"></script>
   <script src="{% static 'js/core/app_shortcuts.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_password_reset.js' %}?v=20261020"></script>
+  <script src="{% static 'js/core/app_password_reset.js' %}?v=20261102"></script>
   <script src="{% static 'js/core/app_lightbox.js' %}?v=20261020"></script>
   {% block extra_js %}{% endblock %}
 </body>

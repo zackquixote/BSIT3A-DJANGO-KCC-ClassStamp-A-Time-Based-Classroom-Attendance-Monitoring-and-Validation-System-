@@ -1,57 +1,58 @@
 /* =============================================================
    KCC ClassStamp — Design Tokens & Variables
-   Pure Vanilla CSS · Dark Glassmorphism Design System
+   Solar-Boosted High-Contrast Obsidian Dark Design System
+   Optimized for Direct Outdoor Sunlight Visibility & Anti-Glare
    ============================================================= */
 
-/* ── Google Fonts ────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* ── Fonts ───────────────────────────────────────────────────── */
+/* Inter is served locally by css/fonts.css — no Google Fonts request. */
 
 /* ── CSS Custom Properties ───────────────────────────────────── */
 :root {
-  /* Backgrounds — Harmonized with Login/Register Obsidian Navy */
-  --bg-base:             #060b17;
-  --bg-surface:          #0a1224;
-  --bg-elevated:         #101b33;
-  --bg-card:             rgba(12, 21, 40, 0.72);
-  --bg-card-hover:       rgba(18, 30, 56, 0.85);
+  /* Backgrounds — Solar-Boosted Obsidian Navy (Solid, Anti-Glare in Sunlight) */
+  --bg-base:             #0b1220;
+  --bg-surface:          #101b2f;
+  --bg-elevated:         #1a2a46;
+  --bg-card:             #142036;
+  --bg-card-hover:       #192844;
 
-  /* Glassmorphism */
-  --glass-bg:            rgba(255, 255, 255, 0.04);
-  --glass-bg-hover:      rgba(255, 255, 255, 0.07);
-  --glass-border:        rgba(255, 255, 255, 0.08);
-  --glass-border-hover:  rgba(255, 255, 255, 0.16);
-  --glass-border-gold:   rgba(245, 158, 11, 0.35);
+  /* Crisp Structural Outlines & Visible Card Borders (Anti-Glare) */
+  --glass-bg:            rgba(255, 255, 255, 0.06);
+  --glass-bg-hover:      rgba(255, 255, 255, 0.10);
+  --glass-border:        rgba(255, 255, 255, 0.20);
+  --glass-border-hover:  rgba(255, 255, 255, 0.35);
+  --glass-border-gold:   rgba(245, 158, 11, 0.55);
   --glass-blur:          blur(16px);
 
-  /* Accents — KCC Gold & Royal Electric Blue */
+  /* Accents — Vibrant Sungold & Royal Electric Blue (High Sunlight Punch) */
   --accent-gold:         #f59e0b;
   --accent-gold-h:       #fbbf24;
   --accent-gold-dark:    #d97706;
-  --accent-gold-glow:    rgba(245, 158, 11, 0.22);
+  --accent-gold-glow:    rgba(245, 158, 11, 0.32);
   --accent-blue:         #3b82f6;
   --accent-blue-h:       #60a5fa;
-  --accent-blue-glow:    rgba(59, 130, 246, 0.22);
+  --accent-blue-glow:    rgba(59, 130, 246, 0.32);
 
-  /* Status Colors with Matching Translucent Tints */
+  /* Status Colors with Vibrant Daylight Saturation */
   --success:             #22c55e;
-  --success-glow:        rgba(34, 197, 94, 0.2);
+  --success-glow:        rgba(34, 197, 94, 0.28);
   --warning:             #f59e0b;
-  --warning-glow:        rgba(245, 158, 11, 0.2);
+  --warning-glow:        rgba(245, 158, 11, 0.28);
   --danger:              #ef4444;
-  --danger-glow:         rgba(239, 68, 68, 0.2);
-  --info:                #3b82f6;
-  --info-glow:           rgba(59, 130, 246, 0.2);
+  --danger-glow:         rgba(239, 68, 68, 0.28);
+  --info:                #38bdf8;
+  --info-glow:           rgba(56, 189, 248, 0.28);
 
-  /* Text Typography */
-  --text-primary:        #f8fafc;
-  --text-secondary:      #94a3b8;
-  --text-muted:          #64748b;
-  --text-dim:            #475569;
+  /* Text Typography — Solar High-Contrast Boost (Crisp, High Luminance) */
+  --text-primary:        #ffffff;
+  --text-secondary:      #e2e8f0;
+  --text-muted:          #94a3b8;
+  --text-dim:            #64748b;
 
   /* Role Badges */
-  --role-admin:          #a855f7;
-  --role-teacher:        #f59e0b;
-  --role-student:        #22c55e;
+  --role-admin:          #c084fc;
+  --role-teacher:        #fbbf24;
+  --role-student:        #4ade80;
 
   /* Sizing & Borders */
   --sidebar-w:           218px;
@@ -63,14 +64,12 @@
   --radius-full:         9999px;
 
   /* Shadows & Elevations */
-  --shadow-sm:           0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-md:           0 6px 20px rgba(0, 0, 0, 0.35);
-  --shadow-lg:           0 12px 32px rgba(0, 0, 0, 0.45);
-  --shadow-glow-gold:    0 0 24px rgba(245, 158, 11, 0.18);
-  --shadow-glow-blue:    0 0 24px rgba(59, 130, 246, 0.18);
+  --shadow-sm:           0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md:           0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg:           0 12px 40px rgba(0, 0, 0, 0.55);
+  --shadow-gold:         0 0 24px rgba(245, 158, 11, 0.30);
 
   /* Transitions */
-  --transition-fast:     all 0.15s ease;
-  --transition:          all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow:     all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition:          all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast:     all 0.12s ease;
 }

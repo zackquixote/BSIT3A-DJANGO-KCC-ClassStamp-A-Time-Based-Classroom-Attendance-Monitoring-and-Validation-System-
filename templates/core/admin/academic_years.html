@@ -103,7 +103,7 @@
           <th scope="col">Duration</th>
           <th scope="col">Classes</th>
           <th scope="col">Status</th>
-          <th scope="col" style="text-align: right; width: 200px;">Actions</th>
+          <th scope="col" class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -128,15 +128,15 @@
               <span class="badge badge--muted">Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right; overflow: visible; position: relative;">
-            <div class="flex justify-end items-center gap-1">
+          <td class="col-actions">
+            <div class="table-actions-cluster">
               <!-- Edit (primary) -->
-              <button class="btn btn-outline btn-sm js-edit-ay" data-id="{{ ay.id }}" title="Edit" aria-label="Edit">
+              <button class="btn btn-outline btn-icon-xs js-edit-ay" data-id="{{ ay.id }}" title="Edit" aria-label="Edit">
                 <i class="fas fa-pen"></i>
               </button>
               <!-- More Actions Dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding:5px 9px;" title="More" aria-label="More">
+                <button type="button" class="btn btn-outline btn-icon-xs action-dropdown-toggle" title="More" aria-label="More">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

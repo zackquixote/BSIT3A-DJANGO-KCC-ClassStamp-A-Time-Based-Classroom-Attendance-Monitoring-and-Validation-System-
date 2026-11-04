@@ -105,6 +105,11 @@ else:
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', 'localhost'),
             'PORT': os.environ.get('DB_PORT', '3306'),
+            # Each new MySQL connection costs ~2s locally because the XAMPP
+            # server reverse-resolves the client IP. Reuse connections instead
+            # of paying that on every request.
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '600')),
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 

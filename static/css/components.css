@@ -591,32 +591,39 @@
 }
 .btn-icon-xs,
 .table-actions-cluster .btn:not(.btn-has-text) {
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
+  min-width: 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  max-width: 32px !important;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 0.78rem !important;
-  border-radius: var(--radius-xs, 6px) !important;
+  font-size: 0.82rem !important;
+  border-radius: 7px !important;
   flex-shrink: 0 !important;
   gap: 0 !important;
+  line-height: 1 !important;
 }
 
 .table-actions-cluster .btn.btn-has-text {
+  min-height: 32px !important;
+  height: 32px !important;
   width: auto !important;
   max-width: none !important;
-  padding: 4px 8px !important;
-  gap: 4px !important;
+  padding: 5px 10px !important;
+  font-size: 0.8rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  border-radius: 7px !important;
 }
 
 .table-actions-cluster {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 3px;
+  gap: 6px;
   white-space: nowrap;
 }
 
@@ -640,10 +647,18 @@
   letter-spacing: 0.01em;
 }
 
+.form-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .form-control {
   width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--glass-border);
+  background: #0e172a;
+  border: 1.5px solid #2e3e5c;
   border-radius: var(--radius-md);
   padding: 10px 14px;
   color: var(--text-primary);
@@ -656,8 +671,8 @@
 
 .form-control:focus {
   border-color: var(--accent-gold);
-  background: rgba(245, 158, 11, 0.05);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+  background: #111d35;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
 }
 
 .form-control.is-invalid { border-color: var(--danger); }
@@ -1031,6 +1046,16 @@ select.form-control option:hover {
      absolutely-positioned action dropdowns can escape the container */
 }
 
+/* Wide admin tables must scroll inside their card on phones instead of
+   pushing the whole page sideways (the inline overflow:visible exists so
+   action dropdowns can escape on desktop). */
+@media (max-width: 900px) {
+  .table-responsive--scroll-sm {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ── #11/#3 Batch-Action Floating Bar ────────────────────── */
 .batch-action-bar {
   position: fixed;
@@ -1247,11 +1272,20 @@ kbd {
 /* ── Page Header ─────────────────────────────────────────────── */
 .page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center; /* Lower button so it sits level with the Title and Subtitle */
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-self: flex-end;
+  margin-bottom: 2px;
 }
 
 .page-title {
@@ -1923,4 +1957,82 @@ th:has(.action-dropdown) {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
+}
+
+/* ── Mobile Avatar Menu Hover & Animation ───────────────────── */
+.mobile-avatar-menu-item:hover,
+.mobile-avatar-menu-item:active {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.mobile-avatar-menu-item:last-child:hover,
+.mobile-avatar-menu-item:last-child:active {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+/* ── Modern Empty States ─────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 18px;
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.015);
+  margin: 8px 0;
+}
+.empty-state-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-gold);
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+.empty-state-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.empty-state-text {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  max-width: 290px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ── QR Fast Scanning Tip Pill ──────────────────────────────── */
+.qr-scan-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.09);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  max-width: 92%;
+  margin: 0 auto 14px;
+  text-align: left;
+}
+.qr-scan-tip-icon {
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  animation: pulse-sun 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+@keyframes pulse-sun {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.15); opacity: 1; }
 }

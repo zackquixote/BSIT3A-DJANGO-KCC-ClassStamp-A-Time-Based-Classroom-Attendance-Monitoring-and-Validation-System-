@@ -7,14 +7,12 @@
   <meta name="description" content="KCC ClassStamp — A Time-Based Classroom Attendance Monitoring and Validation System">
   <title>Sign In — KCC ClassStamp</title>
   {% include "theme/favicons.html" %}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
+  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261102_local">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/components.css' %}">
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261030_pill">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261102_img">
   <link rel="stylesheet" href="{% static 'css/login.css' %}">
 </head>
 <body class="kcc-auth-page">
@@ -35,7 +33,7 @@
       <!-- Header: Logo Badge & Institution Title -->
       <div class="kcc-hero-header">
         <div class="kcc-brand-badge" style="background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <img src="{% static 'img/kcc_logo.png' %}?v=sz2" alt="KCC Seal" class="kcc-brand-logo">
+          <img src="{% static 'img/kcc_logo.png' %}?v=20261102_opt" alt="KCC Seal" class="kcc-brand-logo">
         </div>
         <div class="kcc-brand-text">
           <span class="kcc-inst-title">KABANKALAN CATHOLIC COLLEGE, INC.</span>
@@ -46,7 +44,7 @@
       <!-- Center Hero Headline & Tagline -->
       <div class="kcc-hero-body">
         <div class="kcc-tag-pill">
-          <span class="kcc-pill-dot">✨</span>
+          <span class="kcc-pill-dot" aria-hidden="true"></span>
           <span>SMARTER ATTENDANCE · STRONGER ACCOUNTABILITY</span>
         </div>
 

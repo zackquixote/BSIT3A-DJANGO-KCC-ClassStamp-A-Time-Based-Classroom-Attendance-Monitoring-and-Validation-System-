@@ -55,6 +55,111 @@
       }
     });
 
+    // Mobile Topbar Avatar Dropdown Menu
+    var avatarBtn = document.getElementById('mobileAvatarBtn');
+    var avatarMenu = document.getElementById('mobileAvatarMenu');
+
+    if (avatarBtn && avatarMenu) {
+      avatarBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = avatarMenu.style.display === 'block';
+        avatarMenu.style.display = isOpen ? 'none' : 'block';
+        avatarBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!avatarMenu.contains(e.target) && !avatarBtn.contains(e.target)) {
+          avatarMenu.style.display = 'none';
+          avatarBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    /* Desktop collapsible rail (drawer stays untouched at 900px and below) */
+    var collapseBtn = document.getElementById('sidebar-collapse');
+    var navTip = null;
+    var COLLAPSE_KEY = 'kcc_sidebar_collapsed';
+
+    function isRailCollapsed() {
+      return document.documentElement.classList.contains('sidebar-collapsed');
+    }
+
+    function hideNavTip() {
+      if (navTip) navTip.classList.remove('is-visible');
+    }
+
+    function showNavTip(link) {
+      if (!isRailCollapsed() || window.innerWidth <= 900) return;
+      var label = link.querySelector('span:not(.sidebar-badge)');
+      var text = label ? (label.textContent || '').trim() : '';
+      if (!text) return;
+      if (!navTip) {
+        navTip = document.createElement('div');
+        navTip.className = 'kcc-nav-tip';
+        navTip.setAttribute('role', 'tooltip');
+        document.body.appendChild(navTip);
+      }
+      var rect = link.getBoundingClientRect();
+      navTip.textContent = text;
+      navTip.style.top = (rect.top + rect.height / 2) + 'px';
+      navTip.style.left = (rect.right + 10) + 'px';
+      navTip.classList.add('is-visible');
+    }
+
+    function muteNativeTitles() {
+      document.querySelectorAll('.sidebar-link[title]').forEach(function (link) {
+        link.setAttribute('data-kcc-title', link.getAttribute('title'));
+        link.removeAttribute('title');
+      });
+    }
+
+    function restoreNativeTitles() {
+      document.querySelectorAll('.sidebar-link[data-kcc-title]').forEach(function (link) {
+        link.setAttribute('title', link.getAttribute('data-kcc-title'));
+        link.removeAttribute('data-kcc-title');
+      });
+    }
+
+    function syncCollapseButton() {
+      if (!collapseBtn) return;
+      var collapsed = isRailCollapsed();
+      collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      collapseBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      collapseBtn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    }
+
+    function applyRailState(collapsed, persist) {
+      document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+      if (collapsed) {
+        muteNativeTitles();
+      } else {
+        restoreNativeTitles();
+      }
+      syncCollapseButton();
+      hideNavTip();
+      if (persist) {
+        try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0'); } catch (err) {}
+      }
+    }
+
+    if (collapseBtn) {
+      collapseBtn.addEventListener('click', function () {
+        applyRailState(!isRailCollapsed(), true);
+      });
+    }
+    applyRailState(isRailCollapsed(), false);
+
+    document.querySelectorAll('.sidebar-link').forEach(function (link) {
+      link.addEventListener('mouseenter', function () { showNavTip(link); });
+      link.addEventListener('mouseleave', hideNavTip);
+      link.addEventListener('focus', function () { showNavTip(link); });
+      link.addEventListener('blur', hideNavTip);
+    });
+
+    var sidebarNav = document.querySelector('.sidebar-nav');
+    if (sidebarNav) sidebarNav.addEventListener('scroll', hideNavTip, { passive: true });
+    window.addEventListener('resize', hideNavTip);
+
     // Active nav link highlight
     var currentPath = window.location.pathname;
     document.querySelectorAll('.sidebar-link').forEach(function (link) {

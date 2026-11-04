@@ -4,90 +4,162 @@
 
 {% block extra_css %}
 <style>
-  .tfa-wrap { max-width: 760px; margin: 0 auto; }
-  .tfa-grid { display: grid; grid-template-columns: 240px 1fr; gap: 26px; align-items: start; }
-  @media (max-width: 720px) { .tfa-grid { grid-template-columns: 1fr; } }
+  .tfa-page { display: grid; gap: 18px; }
+
+  .tfa-hero {
+    padding: 18px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .tfa-hero-title { display: flex; align-items: center; gap: 14px; }
+  .tfa-hero-icon {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 1.05rem;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    color: var(--accent-gold, #d4af37);
+  }
+  .tfa-hero h2 { font-size: 1.05rem; margin: 0; }
+  .tfa-hero p { margin: 4px 0 0; font-size: 0.78rem; }
+
+  .tfa-grid {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr) 400px;
+    gap: 18px;
+    align-items: stretch;
+  }
+  @media (max-width: 1300px) {
+    .tfa-grid { grid-template-columns: 340px minmax(0, 1fr); }
+    .tfa-confirm { grid-column: 1 / -1; }
+  }
+  @media (max-width: 900px) {
+    .tfa-grid { grid-template-columns: 1fr; }
+    .tfa-confirm { grid-column: auto; }
+  }
+
+  .tfa-panel { padding: 22px 24px; display: flex; flex-direction: column; }
+  .tfa-panel-label {
+    margin: 0 0 16px; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted);
+  }
+
   .tfa-qr {
-    padding: 14px; border-radius: 16px; text-align: center;
+    padding: 16px; border-radius: 16px; text-align: center;
+    display: flex; flex-direction: column; align-items: center;
     border: 1px solid var(--glass-border);
     background: rgba(255, 255, 255, 0.04);
   }
-  .tfa-qr img { width: 100%; max-width: 210px; border-radius: 10px; background: #fff; padding: 8px; }
+  .tfa-qr img {
+    width: 100%; max-width: 220px; border-radius: 10px;
+    background: #fff; padding: 8px;
+  }
   .tfa-secret {
-    margin-top: 10px; padding: 9px 10px; border-radius: 10px;
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    width: 100%;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.72rem; letter-spacing: 0.08em; word-break: break-all;
     background: rgba(0, 0, 0, 0.3);
     border: 1px dashed var(--glass-border);
     color: var(--text-primary);
   }
-  .tfa-steps { margin: 0; padding-left: 18px; font-size: 0.84rem; line-height: 1.9; color: var(--text-muted); }
-  .tfa-code-input {
-    max-width: 190px; letter-spacing: 0.35em; text-align: center;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem;
+  .tfa-key-caption { margin-top: 8px; font-size: 0.7rem; color: var(--text-muted); }
+
+  .tfa-tip {
+    margin-top: auto; padding: 12px 14px; border-radius: 12px;
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 0.76rem; line-height: 1.55; color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed var(--glass-border);
   }
+  .tfa-tip i { color: var(--accent-gold, #d4af37); margin-top: 2px; }
+
+  .tfa-steps { list-style: none; margin: 0 0 22px; padding: 0; display: grid; gap: 14px; }
+  .tfa-step { display: flex; gap: 12px; align-items: flex-start; }
+  .tfa-step-num {
+    flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 0.74rem; font-weight: 700;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--accent-gold, #d4af37);
+  }
+  .tfa-step-body { font-size: 0.86rem; line-height: 1.55; color: var(--text-primary); padding-top: 3px; }
+  .tfa-step-body span { display: block; font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
+
+  .tfa-form {
+    padding-top: 20px; border-top: 1px solid var(--glass-border);
+    display: grid; gap: 14px; max-width: 460px;
+  }
+  .tfa-confirm .tfa-form { padding-top: 0; border-top: 0; max-width: none; text-align: center; }
+  .tfa-confirm .tfa-form .form-group { width: 100%; }
+  .tfa-confirm .tfa-form .btn { justify-self: center; }
+  .tfa-code-input {
+    width: 100%; letter-spacing: 0.35em; text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem;
+  }
+  .tfa-form .btn { justify-self: start; }
+
   .tfa-status {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 600;
   }
   .tfa-status--on { background: rgba(34, 197, 94, 0.14); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); }
   .tfa-status--off { background: rgba(148, 163, 184, 0.14); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+  .tfa-enabled-note { max-width: 70ch; margin: 0; font-size: 0.86rem; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="tfa-wrap">
-  <div class="card mb-4" style="padding: 22px 24px;">
-    <div class="flex items-center justify-between flex-wrap gap-3">
+<div class="tfa-page">
+  <div class="card tfa-hero">
+    <div class="tfa-hero-title">
+      <div class="tfa-hero-icon"><i class="fas fa-shield-halved"></i></div>
       <div>
-        <h2 class="font-semibold text-primary" style="font-size: 1.05rem; margin: 0;">
-          <i class="fas fa-shield-halved text-gold"></i> Two-Factor Authentication
-        </h2>
-        <p class="text-muted text-xs" style="margin: 4px 0 0;">
-          Required for administrator and registrar accounts before deployment.
-        </p>
+        <h2 class="font-semibold text-primary">Two-Factor Authentication</h2>
+        <p class="text-muted">Required for administrator and registrar accounts before deployment.</p>
       </div>
-      {% if enabled %}
-        <span class="tfa-status tfa-status--on"><i class="fas fa-circle-check"></i> Active</span>
-      {% else %}
-        <span class="tfa-status tfa-status--off"><i class="fas fa-circle-minus"></i> Not enrolled</span>
-      {% endif %}
     </div>
+    {% if enabled %}
+      <span class="tfa-status tfa-status--on"><i class="fas fa-circle-check"></i> Active</span>
+    {% else %}
+      <span class="tfa-status tfa-status--off"><i class="fas fa-circle-minus"></i> Not enrolled</span>
+    {% endif %}
   </div>
 
   {% if messages %}
     {% for message in messages %}
-      <div class="card mb-3" style="padding: 12px 16px; border-color: rgba(212, 175, 55, 0.35);">
+      <div class="card" style="padding: 12px 16px; border-color: rgba(212, 175, 55, 0.35);">
         <span class="text-sm">{{ message }}</span>
       </div>
     {% endfor %}
   {% endif %}
 
   {% if new_recovery_codes %}
-  <div class="card mb-3" style="padding: 18px 20px; border-color: rgba(34, 197, 94, 0.45);">
+  <div class="card" style="padding: 18px 20px; border-color: rgba(34, 197, 94, 0.45);">
     <h3 class="font-semibold text-primary mb-1" style="font-size: 0.95rem;">
       <i class="fas fa-key" style="color: #4ade80;"></i> Your recovery codes
     </h3>
-    <p class="text-muted text-xs" style="margin: 0 0 12px;">
+    <p class="text-muted text-xs" style="margin: 0 0 12px; max-width: 70ch;">
       Save these now — this is the only time they are shown. Each works once if you lose your
       authenticator, so a lost phone does not lock you out of your own account.
     </p>
-    <div class="tfa-secret" style="letter-spacing: 0.14em; line-height: 2;">
+    <div class="tfa-secret" style="letter-spacing: 0.14em; line-height: 2; max-width: 420px;">
       {% for code in new_recovery_codes %}{{ code }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
     </div>
   </div>
   {% endif %}
 
   {% if enabled %}
-    <div class="card" style="padding: 24px;">
-      <p class="text-sm text-muted" style="margin-top: 0;">
+    <div class="card tfa-panel">
+      <p class="tfa-panel-label">Enrolment status</p>
+      <p class="tfa-enabled-note text-muted">
         This account requires a 6-digit authenticator code in addition to its password.
         Enrolled {% if profile.totp_confirmed_at %}on {{ profile.totp_confirmed_at|date:"M j, Y H:i" }}{% endif %}.
         {% if recovery_remaining is not None %}
           <br><strong class="text-primary">{{ recovery_remaining }}</strong> single-use recovery code{{ recovery_remaining|pluralize }} left.
         {% endif %}
       </p>
-      <form method="POST" autocomplete="off" style="margin-top: 18px;">
+      <form method="POST" autocomplete="off" class="tfa-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="disable">
         <div class="form-group">
@@ -99,13 +171,14 @@
         </div>
         <button type="submit" class="btn btn-outline"
                 style="border-color: rgba(239, 68, 68, 0.45); color: #f87171;">
-          <i class="fas fa-shield-slash"></i> Disable two-factor
+          <i class="fas fa-circle-xmark"></i> Disable two-factor
         </button>
       </form>
     </div>
   {% else %}
-    <div class="card" style="padding: 24px;">
-      <div class="tfa-grid">
+    <div class="tfa-grid">
+      <div class="card tfa-panel">
+        <p class="tfa-panel-label">Step 1 — Scan</p>
         <div class="tfa-qr">
           {% if qr_data_uri %}
             <img src="{{ qr_data_uri }}" alt="Authenticator QR code">
@@ -113,29 +186,62 @@
             <span class="text-muted text-xs">QR unavailable — use the key below.</span>
           {% endif %}
           <div class="tfa-secret" title="Manual entry key">{{ secret }}</div>
-          <div class="text-muted" style="font-size: 0.7rem; margin-top: 8px;">Manual entry key</div>
+          <div class="tfa-key-caption">Manual entry key</div>
         </div>
+      </div>
 
-        <div>
-          <ol class="tfa-steps">
-            <li>Open Google Authenticator, Authy, or 1Password.</li>
-            <li>Scan the QR code, or type the manual key.</li>
-            <li>Enter the 6-digit code it shows to confirm.</li>
-          </ol>
+      <div class="card tfa-panel">
+        <p class="tfa-panel-label">Step 2 — Add to your app</p>
+        <ol class="tfa-steps">
+          <li class="tfa-step">
+            <span class="tfa-step-num">1</span>
+            <span class="tfa-step-body">
+              Open Google Authenticator, Authy, or 1Password.
+              <span>Any TOTP-compatible app works.</span>
+            </span>
+          </li>
+          <li class="tfa-step">
+            <span class="tfa-step-num">2</span>
+            <span class="tfa-step-body">
+              Scan the QR code, or type the manual key beside it.
+              <span>The key is a one-time secret — keep it private.</span>
+            </span>
+          </li>
+        </ol>
+        <p class="tfa-key-caption">
+          Codes refresh every 30 seconds and each one is valid only once.
+        </p>
+        <div class="tfa-tip">
+          <i class="fas fa-life-ring"></i>
+          <span>
+            Single-use recovery codes are issued once you confirm. Keep them somewhere
+            safe — they are the only way back in if you lose the device.
+          </span>
+        </div>
+      </div>
 
-          <form method="POST" autocomplete="off" style="margin-top: 18px;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="enable">
-            <div class="form-group">
-              <label class="form-label" for="enable-code">Authenticator code</label>
-              <input class="form-control tfa-code-input" id="enable-code" type="text"
-                     name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-                     placeholder="000000" required>
-            </div>
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-circle-check"></i> Confirm &amp; enable
-            </button>
-          </form>
+      <div class="card tfa-panel tfa-confirm">
+        <p class="tfa-panel-label">Step 3 — Confirm</p>
+        <form method="POST" autocomplete="off" class="tfa-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="enable">
+          <div class="form-group">
+            <label class="form-label" for="enable-code">Enter the 6-digit code</label>
+            <input class="form-control tfa-code-input" id="enable-code" type="text"
+                   name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                   placeholder="000000" required>
+            <span class="form-hint">Taken from the app you just enrolled.</span>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-circle-check"></i> Confirm &amp; enable
+          </button>
+        </form>
+        <div class="tfa-tip">
+          <i class="fas fa-shield-halved"></i>
+          <span>
+            You can disable two-factor later from this page, as long as the enrolled
+            device is still with you.
+          </span>
         </div>
       </div>
     </div>

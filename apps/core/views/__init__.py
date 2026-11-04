@@ -78,6 +78,7 @@ from .student_portal_views import (
 from .document_views import (
     excuse_slip_attachment_document,
     registration_proof_document,
+    student_avatar_document,
 )
 
 # // ------------------------------------------------------------------------------
@@ -314,6 +315,7 @@ __all__ = [
     'student_term_record',
     'registration_proof_document',
     'excuse_slip_attachment_document',
+    'student_avatar_document',
     '_admin_dashboard_stats',
     '_teacher_dashboard_stats',
     '_student_dashboard_stats',

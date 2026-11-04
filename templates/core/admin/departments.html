@@ -2,17 +2,18 @@
 {% block title %}College Departments — KCC ClassStamp{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <div class="breadcrumb-nav">
+<div class="breadcrumb-nav">
       <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
       <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
       <span class="breadcrumb-current">Collegiate Departments</span>
     </div>
+<div class="page-header">
+  <div>
+    
     <h1 class="page-title">College Departments</h1>
     <p class="page-subtitle">Manage institutional academic divisions and collegiate units</p>
   </div>
-  <div>
+  <div class="page-header-actions">
     <button type="button" class="btn btn-primary" data-modal-target="editDeptModal" data-mode="create" id="addDeptBtn">
       <i class="fas fa-plus-circle"></i> Add Department
     </button>
@@ -62,8 +63,8 @@
 
 <!-- Search Bar -->
 <div class="card mb-4" style="padding: 14px 18px;">
-  <form method="GET" class="flex items-center gap-3" style="max-width: 540px;">
-    <div class="input-wrap w-full">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div class="input-wrap" style="flex: 1; min-width: 240px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
       <input type="text" name="q" value="{{ query }}" class="form-control"
         placeholder="Search by department code or name (e.g. CCS, Education)...">
@@ -96,7 +97,7 @@
           <th scope="col">Programs</th>
           <th scope="col">Faculty</th>
           <th scope="col">Status</th>
-          <th scope="col" style="text-align: right; width: 110px;">Actions</th>
+          <th scope="col" class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -126,12 +127,11 @@
             <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right; overflow: visible; position: relative;">
-            <div class="flex items-center gap-1" style="justify-content: flex-end;">
+          <td class="col-actions">
+            <div class="table-actions-cluster">
               <!-- Edit (primary) -->
               <button type="button"
-                      class="btn btn-outline btn-sm"
-                      style="padding: 6px 10px;"
+                      class="btn btn-outline btn-icon-xs"
                       data-modal-target="editDeptModal"
                       data-mode="edit"
                       data-id="{{ d.id }}"
@@ -143,7 +143,7 @@
               </button>
               <!-- More dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" style="padding: 5px 9px;" title="More" aria-label="More">
+                <button type="button" class="btn btn-outline btn-icon-xs action-dropdown-toggle" title="More" aria-label="More">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">

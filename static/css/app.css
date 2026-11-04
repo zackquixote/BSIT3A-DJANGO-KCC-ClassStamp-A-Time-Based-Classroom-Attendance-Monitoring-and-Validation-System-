@@ -1,36 +1,10 @@
 /* =============================================================
-   KCC ClassStamp — Master Stylesheet
-   Pure Vanilla CSS · Dark Glassmorphism · Modular Architecture
+   KCC ClassStamp — Global Extras
+   The module sheets are linked from templates/theme/base.html; this file
+   only carries rules that do not belong to a single module.
    ============================================================= */
 
-/* ── 1. Design Tokens & CSS Custom Properties ────────────────── */
-@import url('variables.css?v=20261029_v2_crossbrowser');
 
-/* ── 2. Reset, Base Elements & Core Layout ───────────────────── */
-@import url('base.css?v=20261030_v5_avatar');
-
-/* ── 3. Sidebar Navigation & Brand Layout ────────────────────── */
-@import url('sidebar.css?v=20261030_v8_avatar');
-
-/* ── 4. UI Components (Cards, Buttons, Forms, Modals, Tables) ── */
-@import url('components.css?v=20261030_excuse');
-
-/* ── 5. Shared Authentication Layout & Ambient Orbs ──────────── */
-@import url('auth.css?v=20261030_pill');
-
-/* ── 6. Dedicated Sign-In / Login Page ───────────────────────── */
-@import url('login.css?v=20261029_v2_crossbrowser');
-
-/* ── 7. Dedicated Student Registration Page ──────────────────── */
-@import url('register.css?v=20261029_v2_crossbrowser');
-
-/* ── 8. Account Validation Queue & Dossier Review ────────────── */
-@import url('validation.css?v=20261029_v2_crossbrowser');
-
-/* ── 9. Admin Command Center Dashboard ───────────────────────── */
-@import url('dashboard.css?v=20261029_v2_crossbrowser');
-
-/* ── 10. In-Page Anchor Targets (Teacher Dashboard) ──────────── */
 #today-schedule,
 #my-classes {
   scroll-margin-top: 20px;

@@ -23,17 +23,18 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <div class="breadcrumb-nav">
+<div class="breadcrumb-nav">
       <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
       <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
       <span class="breadcrumb-current">Subject Catalogue</span>
     </div>
+<div class="page-header">
+  <div>
+    
     <h1 class="page-title">Subject Catalogue</h1>
     <p class="page-subtitle">Manage the institutional course catalogue. Curriculum mappings live in <a href="{% url 'program_list' %}" class="text-primary">Programs &rarr; Curriculum Matrix</a>.</p>
   </div>
-  <div>
+  <div class="page-header-actions">
     <button type="button" class="btn btn-primary" id="addSubjectBtn">
       <i class="fas fa-plus-circle"></i> Add Subject
     </button>
@@ -136,7 +137,7 @@
           </th>
           <th scope="col" title="Curriculum program mappings">Curriculum</th>
           <th scope="col">Status</th>
-          <th scope="col" style="text-align: right; width: 120px;">Actions</th>
+          <th scope="col" class="col-actions">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -188,15 +189,15 @@
             <span class="badge badge--muted">Inactive</span>
             {% endif %}
           </td>
-          <td style="text-align: right; width: 120px; overflow: visible; position: relative;">
-            <div class="flex justify-end items-center gap-1">
+          <td class="col-actions">
+            <div class="table-actions-cluster">
               <!-- Edit -->
-              <button class="btn btn-outline btn-sm js-edit-subject" data-id="{{ s.id }}" title="Edit Subject" aria-label="Edit Subject">
+              <button class="btn btn-outline btn-icon-xs js-edit-subject" data-id="{{ s.id }}" title="Edit Subject" aria-label="Edit Subject">
                 <i class="fas fa-pen"></i>
               </button>
               <!-- More Actions Dropdown -->
               <div class="action-dropdown">
-                <button type="button" class="btn btn-outline btn-sm action-dropdown-toggle" title="More Actions" style="padding: 5px 9px;" aria-label="More Actions">
+                <button type="button" class="btn btn-outline btn-icon-xs action-dropdown-toggle" title="More Actions" aria-label="More Actions">
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">
