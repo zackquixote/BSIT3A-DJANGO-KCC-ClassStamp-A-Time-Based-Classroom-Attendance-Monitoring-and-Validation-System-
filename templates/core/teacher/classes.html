@@ -1,4 +1,5 @@
 {% extends "theme/base.html" %}
+{% load static %}
 
 {% block title %}My Classes &amp; Sections — KCC ClassStamp{% endblock %}
 
@@ -145,9 +146,28 @@
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
+    flex-wrap: wrap;
     padding: 12px 18px;
     border-top: 1px solid var(--glass-border);
     background: rgba(0, 0, 0, 0.16);
+  }
+  .class-join-requests {
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .class-join-requests summary {
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .class-join-request {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0 0;
   }
   .teacher-empty {
     display: flex;
@@ -257,6 +277,36 @@
           {% endfor %}
         </ul>
 
+        {% if c.pending_join_requests %}
+        <details class="class-join-requests">
+          <summary>{{ c.pending_join_requests|length }} pending join request{{ c.pending_join_requests|length|pluralize }}</summary>
+          {% for enrollment in c.pending_join_requests %}
+          <div class="class-join-request">
+            <div>
+              <div class="font-semibold text-sm text-primary">
+                {{ enrollment.student_profile.user.get_full_name|default:enrollment.student_profile.user.username }}
+              </div>
+              <div class="text-muted text-xs">
+                {{ enrollment.student_profile.student_number|default:"No ID" }} ·
+                {{ enrollment.student_profile.program.code|default:"No program" }}
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="btn btn-primary btn-sm js-approve-join-request"
+                      data-profile-id="{{ enrollment.student_profile_id }}"
+                      data-action-url="{% url 'class_roster_enroll' c.id %}">
+                Approve
+              </button>
+              <button type="button" class="btn btn-outline btn-sm js-reject-join-request"
+                      data-action-url="{% url 'class_roster_remove' enrollment.id %}">
+                Decline
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        </details>
+        {% endif %}
+
         {% if c.radar_critical or c.radar_watch or c.absent_streaks %}
         <div class="class-flags">
           {% if c.radar_critical %}
@@ -282,6 +332,20 @@
         <a href="{% url 'teacher_attendance_matrix' c.id %}" class="btn btn-outline btn-sm" style="padding: 6px 12px;">
           <i class="fas fa-table-cells text-gold"></i> Attendance Matrix
         </a>
+        <button type="button" class="btn btn-outline btn-sm js-manage-join-code"
+                data-class-code="{{ c.class_code }}"
+                data-code-active="{{ c.join_code_active|yesno:'true,false' }}"
+                data-code-url="{% url 'class_join_code_manage' c.id %}">
+          <i class="fas fa-key"></i>
+          {% if c.join_code_active %}Rotate Join Code{% else %}Generate Join Code{% endif %}
+        </button>
+        {% if c.join_code_active %}
+        <button type="button" class="btn btn-outline btn-sm js-revoke-join-code"
+                data-class-code="{{ c.class_code }}"
+                data-code-url="{% url 'class_join_code_manage' c.id %}">
+          <i class="fas fa-ban"></i> Disable Code
+        </button>
+        {% endif %}
         <form method="POST" action="{% url 'teacher_session_open' %}">
           {% csrf_token %}
           <input type="hidden" name="class_id" value="{{ c.id }}">
@@ -305,4 +369,8 @@
   </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/classes/join_codes.js' %}?v=20261104_teacher"></script>
 {% endblock %}
