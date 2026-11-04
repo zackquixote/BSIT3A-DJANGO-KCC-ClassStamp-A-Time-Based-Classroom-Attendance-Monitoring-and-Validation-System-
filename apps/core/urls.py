@@ -16,6 +16,9 @@ urlpatterns = [
 
     # // Smart role-aware dispatcher (redirects to correct role dashboard URL)
     path('dashboard/', views.dashboard_redirect, name='dashboard'),
+    path('notifications/', views.notification_list, name='notification_list'),
+    path('notifications/<int:notification_id>/read/', views.notification_mark_read, name='notification_mark_read'),
+    path('notifications/read-all/', views.notification_mark_all_read, name='notification_mark_all_read'),
 
     # // Role-specific dashboard pages
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -77,6 +80,7 @@ urlpatterns = [
     path('programs/<int:program_id>/curriculum/approve/', views.program_curriculum_approve, name='program_curriculum_approve'),
     path('programs/curriculum/assign/', views.subject_curriculum_assign, name='program_curriculum_assign'),
     path('programs/curriculum/remove/<int:pk>/', views.subject_curriculum_remove, name='program_curriculum_remove'),
+    path('programs/curriculum/major/<int:pk>/', views.subject_curriculum_major_update, name='program_curriculum_major_update'),
     path('programs/<int:program_id>/students/', views.program_students_per_year, name='program_students_per_year'),
     path('programs/export-csv/<int:program_id>/', views.program_students_csv_export, name='program_students_csv_export'),
 
