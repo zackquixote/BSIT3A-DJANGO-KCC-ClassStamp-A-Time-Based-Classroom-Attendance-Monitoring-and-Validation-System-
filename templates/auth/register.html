@@ -218,28 +218,8 @@
             </div>
           </div>
 
-          <!-- Student Classification & Standing (Regular, Irregular, Transferee) -->
-          <div class="form-group">
-            <label class="form-label" for="id_student_type">
-              Student Classification
-              <span class="text-xs text-gold" style="font-weight: 500;">(Academic Standing)</span>
-            </label>
-            <div class="input-wrap">
-              <i class="fas fa-user-tag input-icon"></i>
-              <select id="id_student_type" name="student_type" class="form-control kcc-input {% if errors.student_type %}is-invalid{% endif %}" required>
-                <option value="REGULAR" {% if form_data.student_type == 'REGULAR' or not form_data.student_type %}selected{% endif %}>Regular Student (Standard block schedule)</option>
-                <option value="IRREGULAR" {% if form_data.student_type == 'IRREGULAR' %}selected{% endif %}>Irregular / Returnee (With back-subjects or custom load)</option>
-                <option value="TRANSFEREE" {% if form_data.student_type == 'TRANSFEREE' %}selected{% endif %}>Transferee (From another college/institution)</option>
-              </select>
-            </div>
-            <div id="studentTypeNotice" class="text-xs mt-1" style="color: #94a3b8; display: flex; align-items: center; gap: 6px;">
-              <i class="fas fa-info-circle text-gold"></i>
-              <span id="studentTypeNoticeText">Regular students are enrolled into standard departmental block schedules.</span>
-            </div>
-            {% if errors.student_type %}
-              <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.student_type }}</span>
-            {% endif %}
-          </div>
+          <!-- Student Classification (Hidden: defaults to REGULAR since Irregular/Transferee are removed) -->
+          <input type="hidden" name="student_type" id="id_student_type" value="REGULAR">
 
           <!-- Cascading Department Selection -->
           <div class="form-group">
