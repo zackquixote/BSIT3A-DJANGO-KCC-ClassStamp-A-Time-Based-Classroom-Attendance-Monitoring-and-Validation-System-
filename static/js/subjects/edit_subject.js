@@ -44,6 +44,8 @@
 
         const titleEl = getEl('subjectModalTitle');
         if (titleEl) titleEl.textContent = 'Edit Subject';
+        const saveBtn = getEl('subjectModalSave');
+        if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Changes';
 
         const idEl = getEl('subjectId');
         if (idEl) idEl.value = s.id;
@@ -62,6 +64,26 @@
 
         const activeEl = getEl('subjectActive');
         if (activeEl) activeEl.checked = Boolean(s.is_active);
+
+        const placement = getEl('subjectCurriculumPlacement');
+        if (placement) placement.style.display = 'none';
+        const curriculumProgram = getEl('subjectCurriculumProgram');
+        if (curriculumProgram) curriculumProgram.value = '';
+        const curriculumYear = getEl('subjectCurriculumYear');
+        if (curriculumYear) {
+          curriculumYear.innerHTML = '<option value="">Select program first</option>';
+          curriculumYear.disabled = true;
+        }
+        const curriculumSemester = getEl('subjectCurriculumSemester');
+        if (curriculumSemester) {
+          curriculumSemester.value = '';
+          curriculumSemester.disabled = true;
+        }
+        const curriculumMajor = getEl('subjectCurriculumMajor');
+        if (curriculumMajor) {
+          curriculumMajor.checked = false;
+          curriculumMajor.disabled = true;
+        }
 
         const errEl = getEl('subjectFormError');
         if (errEl) errEl.style.display = 'none';
