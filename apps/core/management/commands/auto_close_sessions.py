@@ -25,6 +25,7 @@ from apps.core.models import (
     Profile,
 )
 from apps.core.services.notification_service import notify_session_auto_closed
+from apps.core.services.in_app_notification_service import notify_absent_students
 
 
 class Command(BaseCommand):
@@ -127,6 +128,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f'Closed {label} — {len(new_absent_records)} marked ABSENT'
             ))
+            notify_absent_students(
+                missing_profiles,
+                session.slot.class_obj,
+                session.session_date,
+            )
             notify_session_auto_closed(session, len(new_absent_records))
             total_closed += 1
             total_absent += len(new_absent_records)
