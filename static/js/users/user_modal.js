@@ -93,6 +93,7 @@
         var emEl = getEl('edit_email');
         var pwEl = getEl('edit_password');
         var actEl = getEl('edit_is_active');
+        var currentRoleEl = getEl('edit_current_role');
 
         if (idEl)  idEl.value  = editBtn.getAttribute('data-id') || '';
         if (uEl)   uEl.value   = editBtn.getAttribute('data-username') || '';
@@ -103,6 +104,7 @@
         if (actEl) actEl.checked = editBtn.getAttribute('data-active') === 'true';
 
         var role = editBtn.getAttribute('data-role') || 'STUDENT';
+        if (currentRoleEl) currentRoleEl.value = role;
         if (roleSelect) roleSelect.value = role;
         syncRoleFields(role);
 
@@ -123,8 +125,10 @@
         if (modalTitle) modalTitle.textContent = 'Add New Account';
         if (form) form.reset();
         var idEl2 = getEl('edit_id');
+        var currentRoleEl2 = getEl('edit_current_role');
         var actEl2 = getEl('edit_is_active');
         if (idEl2)  idEl2.value = '';
+        if (currentRoleEl2) currentRoleEl2.value = '';
         if (actEl2) actEl2.checked = true;
 
         var defaultRole = 'STUDENT';
@@ -149,6 +153,16 @@
     if (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
+        var currentRole = getEl('edit_current_role');
+        if (currentRole && currentRole.value && roleSelect &&
+            currentRole.value !== roleSelect.value &&
+            !window.confirm(
+              'Changing this role archives the current account and creates a new profile. ' +
+              'Attendance, enrollment, and class history stay with the archived profile. ' +
+              'Existing classes must be reassigned manually. Continue?'
+            )) {
+          return;
+        }
         var formData = new FormData(form);
 
         fetch('/users/ajax/save/', {
@@ -165,6 +179,7 @@
             }
             return;
           }
+          if (data.role_transition && data.message) window.alert(data.message);
           window.location.reload();
         })
         .catch(function () {
