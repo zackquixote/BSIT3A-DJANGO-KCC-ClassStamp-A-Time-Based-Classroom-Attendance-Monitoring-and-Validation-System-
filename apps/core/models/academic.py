@@ -216,6 +216,10 @@ class Curriculum(models.Model):
         related_name='curriculum_entries',
         help_text="// Subject included in program prospectus"
     )
+    is_major = models.BooleanField(
+        default=False,
+        help_text="// Whether this subject is part of the program's major field",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
