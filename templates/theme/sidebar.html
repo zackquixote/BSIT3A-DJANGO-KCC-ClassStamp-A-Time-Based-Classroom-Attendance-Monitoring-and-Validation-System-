@@ -23,7 +23,6 @@
   </div>
 
   <nav class="sidebar-nav">
-
     {% if request.user.is_superuser or profile and profile.role == 'ADMIN' %}
       <span class="sidebar-section-label">Overview</span>
       <a href="{% url 'admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
@@ -37,11 +36,6 @@
         <i data-lucide="calendar-days" class="sidebar-link-icon"></i>
         <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
         <span>Academic Terms</span>
-      </a>
-      <a href="{% url 'curriculum_readiness_report' %}" class="sidebar-link {% if request.resolver_match.url_name == 'curriculum_readiness_report' %}active{% endif %}" title="Curriculum & Term Readiness">
-        <i data-lucide="clipboard-check" class="sidebar-link-icon"></i>
-        <i class="fas fa-clipboard-check sidebar-link-icon lucide-fallback"></i>
-        <span>Readiness Report</span>
       </a>
       <a href="{% url 'department_list' %}" class="sidebar-link {% if request.resolver_match.url_name in 'department_list department_save' %}active{% endif %}" title="Academic Colleges & Departments">
         <i data-lucide="building-2" class="sidebar-link-icon"></i>
