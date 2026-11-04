@@ -24,6 +24,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 
 from apps.core.models import AuditEvent
+from apps.core.services.in_app_notification_service import create_notification
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,13 @@ def notify_excuse_decision(slip, approved, note=''):
             f'Your reason on file: {slip.reason}\n\n'
             f'— KCC ClassStamp Registrar & Attendance Office'
         )
+        create_notification(
+            student.user,
+            'excuse_slip',
+            'Excuse slip approved',
+            f'Your excuse slip for {class_code} on {meeting} was approved.',
+            '/student/excuse-slips/',
+        )
     else:
         subject = f'[KCC ClassStamp] Excuse slip rejected — {class_code}'
         body = (
@@ -109,6 +117,13 @@ def notify_excuse_decision(slip, approved, note=''):
             f'Reviewer note: {note or "(none provided)"}\n\n'
             f'If you believe this is wrong, contact your instructor or the Registrar\'s Office.\n\n'
             f'— KCC ClassStamp Registrar & Attendance Office'
+        )
+        create_notification(
+            student.user,
+            'excuse_slip',
+            'Excuse slip not approved',
+            f'Your excuse slip for {class_code} on {meeting} was not approved. Review the instructor note in your excuse slips.',
+            '/student/excuse-slips/',
         )
 
     return notify_user(
