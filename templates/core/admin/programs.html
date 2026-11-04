@@ -371,6 +371,8 @@
 
 <!-- Curriculum Matrix Modal -->
 <div class="modal" id="curriculumMatrixModal"
+     data-open-program-id="{{ open_curriculum_id }}"
+     data-major-url-prefix="/programs/curriculum/major/"
      data-assign-url="{% url 'program_curriculum_assign' %}"
      data-remove-url-prefix="/programs/curriculum/remove/"
      data-draft-url-template="{% url 'program_curriculum_draft_create' 999999 %}"
@@ -435,6 +437,13 @@
             <option value="">Select Semester</option>
           </select>
         </div>
+        <div class="form-group" style="flex: 0 0 auto; padding-bottom: 10px;">
+          <label class="flex items-center gap-2 text-sm" for="curriculumMajorCheckbox">
+            <input type="checkbox" name="is_major" id="curriculumMajorCheckbox" value="true">
+            Major subject
+          </label>
+          <span class="form-hint">Leave unchecked for general, core, or other non-major courses.</span>
+        </div>
         <div class="form-group" style="flex: 0 0 auto;">
           <button type="submit" class="btn btn-primary" id="curriculumAddBtn">
             <i class="fas fa-plus"></i> Assign
@@ -451,7 +460,7 @@
 <script src="{% static 'js/programs/programs_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261103_v1"></script>
+<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261104_v3"></script>
 
 <style>
 .year-chip {
@@ -535,6 +544,15 @@
   color: #bfdbfe;
   font-weight: 700;
 }
+.curriculum-chip-major-toggle {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.curriculum-chip-major-toggle:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 .curriculum-chip-remove {
   background: transparent;
   border: none;
@@ -552,4 +570,3 @@
 }
 </style>
 {% endblock %}
-
