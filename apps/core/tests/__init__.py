@@ -30,6 +30,7 @@ from .test_security_hardening import (
     ProtectedDocumentTests,
     UploadValidationTests,
 )
+from .test_notifications import InAppNotificationTests
 
 __all__ = [
     'HomeViewTests',
@@ -43,4 +44,5 @@ __all__ = [
     'CredentialLifecycleTests',
     'ProtectedDocumentTests',
     'UploadValidationTests',
+    'InAppNotificationTests',
 ]
