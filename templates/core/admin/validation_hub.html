@@ -167,6 +167,9 @@
         <table class="table">
           <thead>
             <tr>
+              <th scope="col" class="batch-check-col" style="width: 44px; text-align: center; vertical-align: middle;">
+                <input type="checkbox" id="batchSelectAll" class="batch-check" title="Select all on this page" aria-label="Select all pending students">
+              </th>
               <th scope="col">Student Name</th>
               <th scope="col">Student No.</th>
               <th scope="col">Department</th>
@@ -177,7 +180,10 @@
           </thead>
           <tbody>
             {% for p in pending %}
-              <tr>
+              <tr class="pending-student-row" data-id="{{ p.pk }}">
+                <td class="batch-check-col" style="text-align: center; vertical-align: middle;">
+                  <input type="checkbox" class="row-select-checkbox batch-check" data-id="{{ p.pk }}" data-name="{{ p.user.get_full_name|escapejs }}" aria-label="Select {{ p.user.get_full_name }}">
+                </td>
                 <td class="font-semibold text-primary">
                   <div class="flex items-center gap-3">
                     <span class="avatar-initial">{{ p.user.first_name|first|upper }}{{ p.user.last_name|first|upper }}</span>
@@ -616,6 +622,317 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 </style>
 <script src="{% static 'js/validation/dossier_drawer.js' %}?v=20261026_v1"></script>
+
+<!-- Floating Batch Action Bar -->
+<div id="batchActionBar" class="batch-action-bar" data-batch-url="{% url 'batch_validation_action' %}">
+  <div class="flex items-center gap-2">
+    <i class="fas fa-check-double" style="color: var(--accent-gold);"></i>
+    <span class="batch-count"><span id="batchSelectedCount">0</span> selected</span>
+  </div>
+  <button type="button" class="btn btn-success btn-sm" id="batchApproveBtn">
+    <i class="fas fa-circle-check"></i> Batch Approve (<span class="batch-selected-num">0</span>)
+  </button>
+  <button type="button" class="btn btn-danger btn-sm" id="batchRejectBtn">
+    <i class="fas fa-circle-xmark"></i> Batch Reject (<span class="batch-selected-num">0</span>)
+  </button>
+  <button type="button" class="btn btn-outline btn-sm" id="batchClearBtn" style="padding: 4px 8px; font-size: 0.75rem;">
+    Clear
+  </button>
+</div>
+
+<!-- Modal: Batch Approve Confirmation -->
+<div id="batchApproveModal" class="modal" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; backdrop-filter: blur(4px);">
+  <div class="modal-dialog" style="max-width: 500px; width: 90%; background: #142036; border: 1px solid var(--glass-border); border-radius: 12px; padding: 22px; box-shadow: 0 16px 40px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+      <i class="fas fa-circle-check" style="font-size: 1.5rem; color: #10b981;"></i>
+      <div>
+        <h3 style="margin: 0; font-size: 1.1rem; color: #fff;">Confirm Batch Approval</h3>
+        <p class="text-xs text-muted" style="margin: 2px 0 0;">Approving <strong id="batchApproveCount" style="color: #fbbf24;">0</strong> selected student accounts</p>
+      </div>
+    </div>
+    <p class="text-sm text-secondary" style="margin-bottom: 14px; line-height: 1.5; color: #cbd5e1;">
+      These students will be transitioned to <strong>APPROVED</strong> standing, issued dynamic QR secrets, and granted active attendance monitoring privileges.
+    </p>
+    <div class="form-group mb-4">
+      <label class="form-label text-xs font-semibold text-muted" style="text-transform: uppercase; letter-spacing: 0.5px;">Verification / Audit Note</label>
+      <input type="text" id="batchApproveNote" class="form-control text-sm" value="Verified against official Registrar block roster" placeholder="Enter verification remark for the audit ledger...">
+      <span class="text-xs text-muted mt-1 block" style="display: block; color: #94a3b8; font-size: 0.75rem;">Recorded into the immutable audit trail for governance compliance.</span>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" class="btn btn-outline btn-sm" id="cancelBatchApproveBtn">Cancel</button>
+      <button type="button" class="btn btn-success btn-sm" id="confirmBatchApproveBtn">
+        <i class="fas fa-check-double"></i> Confirm Batch Approval
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Batch Reject Confirmation -->
+<div id="batchRejectModal" class="modal" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; backdrop-filter: blur(4px);">
+  <div class="modal-dialog" style="max-width: 500px; width: 90%; background: #142036; border: 1px solid var(--glass-border); border-radius: 12px; padding: 22px; box-shadow: 0 16px 40px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+      <i class="fas fa-circle-xmark" style="font-size: 1.5rem; color: #f87171;"></i>
+      <div>
+        <h3 style="margin: 0; font-size: 1.1rem; color: #fff;">Confirm Batch Rejection</h3>
+        <p class="text-xs text-muted" style="margin: 2px 0 0;">Rejecting <strong id="batchRejectCount" style="color: #f87171;">0</strong> selected student accounts</p>
+      </div>
+    </div>
+    <div style="margin-bottom: 14px;">
+      <div class="text-muted text-xs font-semibold mb-2" style="text-transform: uppercase; font-size: 0.72rem;">QUICK REJECTION REASONS</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;" id="batchRejectChips">
+        <button type="button" class="modal-chip" data-reason="COR / Registration proof is unreadable">COR Unreadable</button>
+        <button type="button" class="modal-chip" data-reason="Student ID number does not match submitted name">ID Mismatch</button>
+        <button type="button" class="modal-chip" data-reason="Enrolled program or department mismatch">Wrong Program</button>
+        <button type="button" class="modal-chip" data-reason="Duplicate account submission detected">Duplicate Account</button>
+      </div>
+    </div>
+    <div class="form-group mb-4">
+      <label class="form-label text-xs font-semibold text-muted" style="text-transform: uppercase;">Rejection Reason <span class="text-danger">*</span></label>
+      <textarea id="batchRejectReason" rows="3" required placeholder="Reason for rejecting these students (recorded in audit log)..." class="form-control text-sm"></textarea>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button type="button" class="btn btn-outline btn-sm" id="cancelBatchRejectBtn">Cancel</button>
+      <button type="button" class="btn btn-danger btn-sm" id="confirmBatchRejectBtn">
+        <i class="fas fa-ban"></i> Confirm Batch Rejection
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Batch Validation JavaScript Controller
+document.addEventListener('DOMContentLoaded', function () {
+  const selectAll = document.getElementById('batchSelectAll');
+  const bar = document.getElementById('batchActionBar');
+  if (!bar) return;
+
+  const batchUrl = bar.getAttribute('data-batch-url');
+  const approveBtn = document.getElementById('batchApproveBtn');
+  const rejectBtn = document.getElementById('batchRejectBtn');
+  const clearBtn = document.getElementById('batchClearBtn');
+  const countEl = document.getElementById('batchSelectedCount');
+  const numEls = document.querySelectorAll('.batch-selected-num');
+
+  const approveModal = document.getElementById('batchApproveModal');
+  const approveCountEl = document.getElementById('batchApproveCount');
+  const approveNoteInput = document.getElementById('batchApproveNote');
+  const confirmApproveBtn = document.getElementById('confirmBatchApproveBtn');
+  const cancelApproveBtn = document.getElementById('cancelBatchApproveBtn');
+
+  const rejectModal = document.getElementById('batchRejectModal');
+  const rejectCountEl = document.getElementById('batchRejectCount');
+  const rejectReasonInput = document.getElementById('batchRejectReason');
+  const confirmRejectBtn = document.getElementById('confirmBatchRejectBtn');
+  const cancelRejectBtn = document.getElementById('cancelBatchRejectBtn');
+
+  function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+    const input = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (input) return input.value;
+    return '';
+  }
+
+  function getSelectedCheckboxes() {
+    return Array.from(document.querySelectorAll('.row-select-checkbox:checked'));
+  }
+
+  function getVisibleCheckboxes() {
+    return Array.from(document.querySelectorAll('.pending-student-row')).filter(function (row) {
+      return row.style.display !== 'none';
+    }).map(function (row) {
+      return row.querySelector('.row-select-checkbox');
+    }).filter(Boolean);
+  }
+
+  function updateBatchBar() {
+    const selected = getSelectedCheckboxes();
+    const count = selected.length;
+    if (countEl) countEl.textContent = count;
+    numEls.forEach(function (el) { el.textContent = count; });
+
+    if (count > 0) {
+      bar.classList.add('is-visible');
+    } else {
+      bar.classList.remove('is-visible');
+    }
+
+    const visible = getVisibleCheckboxes();
+    if (selectAll) {
+      selectAll.checked = visible.length > 0 && selected.length >= visible.length;
+    }
+  }
+
+  // Row checkbox changes
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.classList.contains('row-select-checkbox')) {
+      updateBatchBar();
+    }
+  });
+
+  // Select all checkbox
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      const isChecked = this.checked;
+      getVisibleCheckboxes().forEach(function (cb) {
+        cb.checked = isChecked;
+      });
+      updateBatchBar();
+    });
+  }
+
+  // Clear button
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      document.querySelectorAll('.row-select-checkbox').forEach(function (cb) {
+        cb.checked = false;
+      });
+      if (selectAll) selectAll.checked = false;
+      updateBatchBar();
+    });
+  }
+
+  // Open Batch Approve Modal
+  if (approveBtn) {
+    approveBtn.addEventListener('click', function () {
+      const selected = getSelectedCheckboxes();
+      if (!selected.length) return;
+      if (approveCountEl) approveCountEl.textContent = selected.length;
+      if (approveModal) approveModal.style.display = 'flex';
+    });
+  }
+
+  if (cancelApproveBtn) {
+    cancelApproveBtn.addEventListener('click', function () {
+      if (approveModal) approveModal.style.display = 'none';
+    });
+  }
+
+  // Confirm Batch Approve
+  if (confirmApproveBtn) {
+    confirmApproveBtn.addEventListener('click', async function () {
+      const selected = getSelectedCheckboxes();
+      if (!selected.length) return;
+
+      const ids = selected.map(function (cb) { return cb.getAttribute('data-id'); });
+      const reason = approveNoteInput ? approveNoteInput.value.trim() : '';
+
+      confirmApproveBtn.disabled = true;
+      confirmApproveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
+
+      const fd = new FormData();
+      fd.append('action', 'approve');
+      fd.append('reason', reason);
+      ids.forEach(function (id) { fd.append('ids[]', id); });
+
+      try {
+        const res = await fetch(batchUrl, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCSRFToken() },
+          body: fd
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (approveModal) approveModal.style.display = 'none';
+          if (window.App && window.App.toast) {
+            window.App.toast.success('Successfully approved ' + data.approved + ' student(s)!');
+          } else {
+            alert('Successfully approved ' + data.approved + ' student(s)!');
+          }
+          setTimeout(function () { window.location.reload(); }, 500);
+        } else {
+          alert(data.error || 'Batch approval failed.');
+          confirmApproveBtn.disabled = false;
+          confirmApproveBtn.innerHTML = '<i class="fas fa-check-double"></i> Confirm Batch Approval';
+        }
+      } catch (err) {
+        alert('Network error during batch approval.');
+        confirmApproveBtn.disabled = false;
+        confirmApproveBtn.innerHTML = '<i class="fas fa-check-double"></i> Confirm Batch Approval';
+      }
+    });
+  }
+
+  // Open Batch Reject Modal
+  if (rejectBtn) {
+    rejectBtn.addEventListener('click', function () {
+      const selected = getSelectedCheckboxes();
+      if (!selected.length) return;
+      if (rejectCountEl) rejectCountEl.textContent = selected.length;
+      if (rejectReasonInput) rejectReasonInput.value = '';
+      if (rejectModal) rejectModal.style.display = 'flex';
+    });
+  }
+
+  if (cancelRejectBtn) {
+    cancelRejectBtn.addEventListener('click', function () {
+      if (rejectModal) rejectModal.style.display = 'none';
+    });
+  }
+
+  // Rejection chips
+  document.querySelectorAll('#batchRejectChips .modal-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      if (rejectReasonInput) rejectReasonInput.value = this.getAttribute('data-reason') || '';
+      document.querySelectorAll('#batchRejectChips .modal-chip').forEach(function (c) {
+        c.classList.remove('is-selected');
+      });
+      this.classList.add('is-selected');
+    });
+  });
+
+  // Confirm Batch Reject
+  if (confirmRejectBtn) {
+    confirmRejectBtn.addEventListener('click', async function () {
+      const selected = getSelectedCheckboxes();
+      if (!selected.length) return;
+
+      const reason = rejectReasonInput ? rejectReasonInput.value.trim() : '';
+      if (!reason) {
+        alert('Please enter a rejection reason.');
+        if (rejectReasonInput) rejectReasonInput.focus();
+        return;
+      }
+
+      const ids = selected.map(function (cb) { return cb.getAttribute('data-id'); });
+      confirmRejectBtn.disabled = true;
+      confirmRejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejecting...';
+
+      const fd = new FormData();
+      fd.append('action', 'reject');
+      fd.append('reason', reason);
+      ids.forEach(function (id) { fd.append('ids[]', id); });
+
+      try {
+        const res = await fetch(batchUrl, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCSRFToken() },
+          body: fd
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (rejectModal) rejectModal.style.display = 'none';
+          if (window.App && window.App.toast) {
+            window.App.toast.warning('Rejected ' + data.rejected + ' student registration(s).');
+          } else {
+            alert('Rejected ' + data.rejected + ' student registration(s).');
+          }
+          setTimeout(function () { window.location.reload(); }, 500);
+        } else {
+          alert(data.error || 'Batch rejection failed.');
+          confirmRejectBtn.disabled = false;
+          confirmRejectBtn.innerHTML = '<i class="fas fa-ban"></i> Confirm Batch Rejection';
+        }
+      } catch (err) {
+        alert('Network error during batch rejection.');
+        confirmRejectBtn.disabled = false;
+        confirmRejectBtn.innerHTML = '<i class="fas fa-ban"></i> Confirm Batch Rejection';
+      }
+    });
+  }
+});
+</script>
+
 {% endblock %}
 
 

@@ -673,7 +673,7 @@ def batch_validation_action(request):
                     f'Batch {action} on {approved_count + rejected_count} profile(s): '
                     f'{approved_count} approved, {rejected_count} rejected, {skipped_count} skipped'
                 ),
-                reason=reason if action == 'reject' else 'Batch administrative approval',
+                reason=reason if reason else ('Batch administrative approval' if action == 'approve' else 'Batch rejection'),
             )
 
     return JsonResponse({
