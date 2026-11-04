@@ -491,7 +491,8 @@ def delete_or_deactivate_subject(actor, pk: int) -> dict:
 # // ==============================================================================
 
 def assign_curriculum_subject(
-    actor, program_id: int, year_level: int, subject_id: int, semester: int = 1
+    actor, program_id: int, year_level: int, subject_id: int, semester: int = 1,
+    is_major: bool = False,
 ) -> dict:
     """
     // [Service] Map Subject to Program Year Level + Semester in Curriculum Matrix
@@ -534,6 +535,7 @@ def assign_curriculum_subject(
         year_level=year_level,
         semester=semester,
         subject=subject,
+        is_major=is_major,
     )
 
     AuditEvent.objects.create(
@@ -543,7 +545,7 @@ def assign_curriculum_subject(
         object_id=str(entry.pk),
         new_value=(
             f'{program.code} Y{year_level} S{semester} <- {subject.code} '
-            f'(draft v{draft.version_number})'
+            f'({"Major" if is_major else "Non-major"}; draft v{draft.version_number})'
         ),
     )
 
@@ -578,6 +580,35 @@ def remove_curriculum_entry(actor, pk: int) -> dict:
     )
 
     return {'type': 'deleted', 'message': f'Removed "{summary}" from curriculum matrix.'}
+
+
+def set_curriculum_major(actor, pk: int, is_major: bool) -> dict:
+    """Set whether a curriculum entry is part of the program's major field."""
+    entry = get_object_or_404(Curriculum, pk=pk)
+    assert_entry_editable(entry)
+    previous_value = entry.is_major
+    entry.is_major = is_major
+    entry.save(update_fields=['is_major'])
+
+    AuditEvent.objects.create(
+        actor=actor,
+        action='UPDATE_CURRICULUM_CLASSIFICATION',
+        object_type='Curriculum',
+        object_id=str(entry.pk),
+        old_value='Major' if previous_value else 'Non-major',
+        new_value='Major' if is_major else 'Non-major',
+        reason=(
+            f'{entry.program.code} Y{entry.year_level} S{entry.semester} '
+            f'{entry.subject.code}'
+        ),
+    )
+    return {
+        'instance': entry,
+        'message': (
+            f'{entry.subject.code} marked as '
+            f'{"major" if is_major else "non-major"}.'
+        ),
+    }
 
 
 # // ==============================================================================
@@ -924,4 +955,3 @@ def delete_or_deactivate_academic_year(actor, pk: int) -> dict:
         ay = None
 
     return {'instance': ay, 'type': status_type, 'message': msg}
-
