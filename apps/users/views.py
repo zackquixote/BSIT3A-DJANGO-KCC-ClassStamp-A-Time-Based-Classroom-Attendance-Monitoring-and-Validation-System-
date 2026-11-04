@@ -17,7 +17,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -258,15 +258,6 @@ def user_save_ajax(request):
     """
     user_id = request.POST.get("id")
     is_new = not bool(user_id)
-
-    if user_id:
-        user = get_object_or_404(User, pk=user_id)
-        denied = _superuser_target_guard(request, user)
-        if denied:
-            return denied
-    else:
-        user = User()
-
     username = request.POST.get("username", "").strip()
     email = request.POST.get("email", "").strip()
     role = request.POST.get("role", "").strip().upper()
@@ -274,11 +265,26 @@ def user_save_ajax(request):
     department_id = request.POST.get("department_id")
     year_level = request.POST.get("year_level")
 
-    # // [Validation Rule] Identifier presence check
     if not username:
         return JsonResponse({"error": "Identifier / Student ID is required."}, status=400)
+    if role not in dict(Profile.ROLE_CHOICES):
+        return JsonResponse({"error": "Select a valid account role."}, status=400)
 
-    # // [Conflict Prevention] Verify uniqueness of username and email across accounts
+    user = get_object_or_404(User, pk=user_id) if user_id else User()
+    if user_id:
+        denied = _superuser_target_guard(request, user)
+        if denied:
+            return denied
+
+    old_profile = Profile.objects.filter(user=user).first() if user.pk else None
+    old_role = old_profile.role if old_profile else None
+    role_transition = bool(old_role and old_role != role)
+    if role_transition and (user.is_superuser or request.user.pk == user.pk):
+        return JsonResponse(
+            {"error": "A superuser or your own account cannot change roles here."},
+            status=400,
+        )
+
     dup_qs = User.objects.filter(Q(username=username) | (Q(email=email) & ~Q(email="")))
     if user_id:
         dup_qs = dup_qs.exclude(pk=user_id)
@@ -288,114 +294,184 @@ def user_save_ajax(request):
     if email and dup_qs.filter(email=email).exists():
         return JsonResponse({"error": "That email is already in use."}, status=400)
 
-    # If student, also verify student_number uniqueness on Profile
     if role == Profile.ROLE_STUDENT:
         prof_dup = Profile.objects.filter(student_number=username)
-        if user_id:
+        if old_profile:
             prof_dup = prof_dup.exclude(user_id=user_id)
         if prof_dup.exists():
             return JsonResponse({"error": "A student profile with this Student ID already exists."}, status=400)
 
-    user.username = username
-    user.first_name = request.POST.get("first_name", "").strip()
-    user.last_name = request.POST.get("last_name", "").strip()
-    user.email = email
-
-    is_active_val = request.POST.get("is_active")
-    user.is_active = is_active_val in ["true", "on", "1", True]
-
-    # System automatically assigns staff status strictly to Administrator accounts
-    user.is_staff = (role == Profile.ROLE_ADMIN)
-
-    password = request.POST.get("password")
-    if password:
-        password = password.strip()
-        if password:
-            user.set_password(password)
-    elif is_new:
-        return JsonResponse({"error": "Password is required for new accounts."}, status=400)
-
-    try:
-        user.save()
-        profile = getattr(user, 'classstamp_profile', None)
-        target_role = role or (profile.role if profile else Profile.ROLE_STUDENT)
-
-        # Resolve academic relationships
-        selected_program = None
+    selected_program = None
+    if role == Profile.ROLE_STUDENT:
         if program_id:
             selected_program = Program.objects.filter(pk=program_id).first()
-        if not selected_program and target_role == Profile.ROLE_STUDENT:
+            if not selected_program:
+                return JsonResponse({"error": "Select a valid degree program."}, status=400)
+        elif old_profile and old_role == Profile.ROLE_STUDENT and not role_transition:
+            selected_program = old_profile.program
+        else:
             selected_program = Program.objects.filter(is_active=True).first()
+        if not selected_program:
+            return JsonResponse({"error": "A degree program is required for student accounts."}, status=400)
 
-        selected_dept = None
+    selected_dept = None
+    if role == Profile.ROLE_TEACHER:
         if department_id:
             selected_dept = Department.objects.filter(pk=department_id).first()
-        if not selected_dept and target_role == Profile.ROLE_TEACHER:
-            selected_dept = Department.objects.filter(is_active=True).first()
-
-        selected_year = int(year_level) if (year_level and str(year_level).isdigit()) else 1
-
-        if not profile:
-            if target_role == Profile.ROLE_STUDENT:
-                profile = Profile.objects.create(
-                    user=user,
-                    role=Profile.ROLE_STUDENT,
-                    student_number=username,
-                    program=selected_program,
-                    year_level=selected_year,
-                    approval_status=Profile.APPROVAL_APPROVED,
-                    approved_by=request.user,
-                    approved_at=timezone.now(),
-                    qr_secret=secrets.token_hex(32),
-                )
-            elif target_role == Profile.ROLE_TEACHER:
-                profile = Profile.objects.create(
-                    user=user,
-                    role=Profile.ROLE_TEACHER,
-                    department=selected_dept,
-                    approval_status=Profile.APPROVAL_APPROVED,
-                    approved_by=request.user,
-                    approved_at=timezone.now(),
-                )
-            else:
-                profile = Profile.objects.create(
-                    user=user,
-                    role=Profile.ROLE_ADMIN,
-                    approval_status=Profile.APPROVAL_APPROVED,
-                )
+            if not selected_dept:
+                return JsonResponse({"error": "Select a valid faculty department."}, status=400)
+        elif old_profile and old_role == Profile.ROLE_TEACHER and not role_transition:
+            selected_dept = old_profile.department
         else:
-            fields_to_update = []
-            if role and profile.role != role:
-                profile.role = role
-                fields_to_update.append('role')
+            selected_dept = Department.objects.filter(is_active=True).first()
+        if not selected_dept:
+            return JsonResponse({"error": "A faculty department is required for teacher accounts."}, status=400)
 
-            if profile.role == Profile.ROLE_STUDENT:
-                if profile.student_number != username:
-                    profile.student_number = username
-                    fields_to_update.append('student_number')
-                if selected_program and profile.program != selected_program:
-                    profile.program = selected_program
-                    fields_to_update.append('program')
-                if year_level and profile.year_level != selected_year:
-                    profile.year_level = selected_year
-                    fields_to_update.append('year_level')
-            elif profile.role == Profile.ROLE_TEACHER:
-                if selected_dept and profile.department != selected_dept:
-                    profile.department = selected_dept
-                    fields_to_update.append('department')
+    if role == Profile.ROLE_STUDENT:
+        try:
+            selected_year = int(year_level) if year_level else (
+                old_profile.year_level if old_profile and not role_transition else 1
+            )
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Select a valid student year level."}, status=400)
+        if selected_year < 1 or selected_year > selected_program.years_total:
+            return JsonResponse(
+                {"error": f"Year level must be between 1 and {selected_program.years_total} for this program."},
+                status=400,
+            )
+    else:
+        selected_year = None
 
-            if fields_to_update:
-                profile.save(update_fields=fields_to_update)
-
-        AuditEvent.objects.create(
-            actor=request.user,
-            action='CREATE_USER' if is_new else 'UPDATE_USER',
-            object_type='User',
-            object_id=str(user.pk),
-            new_value=f"{user.get_full_name() or user.username} ({user.email}) - Role: {profile.role if profile else 'USER'}",
+    first_name = request.POST.get("first_name", "").strip()
+    last_name = request.POST.get("last_name", "").strip()
+    is_active = request.POST.get("is_active") in ["true", "on", "1", True]
+    password = request.POST.get("password", "").strip()
+    if is_new and not password:
+        return JsonResponse({"error": "Password is required for new accounts."}, status=400)
+    if password:
+        password_user = User(
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
         )
-    except IntegrityError as e:
-        return JsonResponse({"error": f"Database integrity error: {str(e)}"}, status=400)
+        try:
+            validate_password(password, password_user)
+        except ValidationError as exc:
+            return JsonResponse({"error": " ".join(exc.messages)}, status=400)
+
+    original_username = user.username if user.pk else None
+    try:
+        with transaction.atomic():
+            if user.pk:
+                user = User.objects.select_for_update().get(pk=user.pk)
+                profile = Profile.objects.select_for_update().filter(user=user).first()
+                old_role = profile.role if profile else None
+                role_transition = bool(old_role and old_role != role)
+            else:
+                profile = None
+
+            if role_transition:
+                archived_user_id = user.pk
+                old_password_hash = user.password
+                old_email = user.email
+                if user.username == username:
+                    user.username = f"archived_{user.pk}_{secrets.token_hex(4)}"
+                user.email = ""
+                user.is_active = False
+                user.is_staff = False
+                user.set_unusable_password()
+                user.save(update_fields=["username", "email", "is_active", "is_staff", "password"])
+
+                new_user = User(
+                    username=username,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    is_active=is_active,
+                    is_staff=(role == Profile.ROLE_ADMIN),
+                    is_superuser=False,
+                )
+                if password:
+                    new_user.set_password(password)
+                else:
+                    new_user.password = old_password_hash
+                new_user.save()
+                user = new_user
+                profile = None
+            else:
+                user.username = username
+                user.first_name = first_name
+                user.last_name = last_name
+                user.email = email
+                user.is_active = is_active
+                user.is_staff = (role == Profile.ROLE_ADMIN)
+                if password:
+                    user.set_password(password)
+                user.save()
+
+            if not profile:
+                profile_values = {
+                    "user": user,
+                    "role": role,
+                    "department": selected_dept,
+                    "program": selected_program,
+                    "year_level": selected_year,
+                    "student_number": username if role == Profile.ROLE_STUDENT else None,
+                    "approval_status": (
+                        Profile.APPROVAL_APPROVED if role == Profile.ROLE_STUDENT else None
+                    ),
+                    "approved_by": request.user if role == Profile.ROLE_STUDENT else None,
+                    "approved_at": timezone.now() if role == Profile.ROLE_STUDENT else None,
+                    "qr_secret": secrets.token_hex(32) if role == Profile.ROLE_STUDENT else None,
+                }
+                profile = Profile.objects.create(**profile_values)
+            else:
+                changed_fields = []
+                if role == Profile.ROLE_STUDENT:
+                    updates = {
+                        "student_number": username,
+                        "program": selected_program,
+                        "year_level": selected_year,
+                    }
+                elif role == Profile.ROLE_TEACHER:
+                    updates = {"department": selected_dept}
+                else:
+                    updates = {}
+                for field, value in updates.items():
+                    if getattr(profile, field) != value:
+                        setattr(profile, field, value)
+                        changed_fields.append(field)
+                if changed_fields:
+                    profile.save(update_fields=changed_fields)
+
+            if role_transition:
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    action="ARCHIVE_USER_ROLE_CHANGE",
+                    object_type="User",
+                    object_id=str(archived_user_id),
+                    old_value=f"{original_username} ({old_email}) - {old_role}",
+                    new_value=f"{username} ({role})",
+                    reason="Prior profile and its attendance/class history were preserved; new profile created.",
+                )
+            AuditEvent.objects.create(
+                actor=request.user,
+                action="CREATE_USER" if is_new else ("REPROVISION_USER_ROLE" if role_transition else "UPDATE_USER"),
+                object_type="User",
+                object_id=str(user.pk),
+                old_value=f"{original_username} ({old_role})" if role_transition else None,
+                new_value=f"{user.get_full_name() or user.username} ({user.email}) - Role: {profile.role}",
+                reason=(
+                    "Prior profile remains archived; reassign its classes manually if needed."
+                    if role_transition else None
+                ),
+            )
+    except IntegrityError:
+        return JsonResponse(
+            {"error": "The account conflicts with existing data. Check the username, student ID, and academic assignments."},
+            status=400,
+        )
 
     role_label = profile.role if profile else ('SUPERUSER' if user.is_superuser else 'NONE')
 
@@ -409,6 +485,11 @@ def user_save_ajax(request):
         "is_staff": user.is_staff,
         "is_active": user.is_active,
         "role": role_label,
+        "role_transition": role_transition,
+        "message": (
+            "The previous account was archived and its history preserved. Reassign its classes manually if needed."
+            if role_transition else ""
+        ),
     })
 
 
