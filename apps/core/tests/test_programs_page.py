@@ -75,6 +75,28 @@ class CurriculumBadgeTests(ProgramBase):
         self.assertEqual(row.curriculum_count, 2)
         self.assertContains(response, '2 subjects')
 
+    def test_open_curriculum_query_scopes_page_and_opens_selected_program(self):
+        other_program = Program.objects.create(
+            department=self.department,
+            code='BSED-SCI',
+            name='Bachelor of Secondary Education major in Science',
+        )
+
+        response = self.client.get(
+            reverse('program_list'),
+            {'open_curriculum': other_program.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [program.pk for program in response.context['programs']],
+            [other_program.pk],
+        )
+        self.assertContains(
+            response,
+            f'data-open-program-id="{other_program.pk}"',
+        )
+
 
 class DurationGuardTests(ProgramBase):
     def _update(self, years_total):
