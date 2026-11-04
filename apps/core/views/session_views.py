@@ -59,6 +59,11 @@ from apps.core.services.anomaly_service import (
 from apps.core.services.attendance_policy import policy_value
 from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.services.export_service import SafeCsvWriter, safe_spreadsheet_cell
+from apps.core.services.in_app_notification_service import (
+    create_notification,
+    notify_absent_students,
+    notify_class_students,
+)
 from apps.core.services.qr_service import token_details, verify_token
 from apps.core.views.helpers.absence_radar import (
     BAND_SAFE,
@@ -246,6 +251,7 @@ def teacher_session_open(request):
 
     # Check for existing session today for this slot
     session = ClassSession.objects.filter(slot=slot, session_date=today).first()
+    session_opened = session is None
     if not session:
         session = ClassSession.objects.create(
             slot=slot,
@@ -264,6 +270,7 @@ def teacher_session_open(request):
         )
     else:
         if session.status != ClassSession.STATUS_OPEN:
+            session_opened = True
             session.status = ClassSession.STATUS_OPEN
             session.opened_at = timezone.now()
             session.opened_by = request.user
@@ -277,6 +284,15 @@ def teacher_session_open(request):
                 object_id=str(session.id),
                 new_value=f"Reopened attendance session for {class_obj.class_code} on {today}",
             )
+
+    if session_opened:
+        notify_class_students(
+            class_obj,
+            'attendance_session',
+            'Attendance session is open',
+            f'{class_obj.class_code} ({class_obj.subject.code}) has opened attendance for {today}.',
+            '/student/attendance/',
+        )
 
     start_of_today = timezone.make_aware(datetime.combine(today, datetime.min.time()))
     end_of_today = timezone.make_aware(datetime.combine(today, datetime.max.time()))
@@ -774,6 +790,17 @@ def attendance_scan_api(request):
         _safe_detect(lambda: detect_duplicate_stamp(record))
         return _duplicate_stamp_response(record, student_profile, student_number)
 
+    create_notification(
+        student_profile.user,
+        'attendance',
+        'Attendance recorded',
+        (
+            f'Your {final_status.lower()} attendance was recorded for '
+            f'{class_obj.class_code} on {session.session_date}.'
+        ),
+        '/student/attendance/',
+    )
+
     # 9. Anomaly detection sweep (fail-open; never blocks the scan response)
     _safe_detect(lambda: detect_off_window(record, session))
     _safe_detect(lambda: detect_schedule_conflict(record, student_profile, session))
@@ -987,6 +1014,17 @@ def _scan_offline_badge(request, session, class_obj, student_number, raw_token):
             new_value=f'{student_profile.student_number} stamped {final_status} via offline badge',
         )
 
+    create_notification(
+        student_profile.user,
+        'attendance',
+        'Attendance recorded',
+        (
+            f'Your {final_status.lower()} attendance was recorded for '
+            f'{class_obj.class_code} on {session.session_date}.'
+        ),
+        '/student/attendance/',
+    )
+
     _safe_detect(lambda: detect_off_window(record, session))
     _safe_detect(lambda: detect_schedule_conflict(record, student_profile, session))
     _safe_detect(lambda: detect_rapid_scan(session, request.user))
@@ -1052,6 +1090,7 @@ def teacher_manual_override_ajax(request, session_id):
         }
     )
 
+    status_changed = created or record.status != new_status
     if not created:
         record.status = new_status
         record.method = AttendanceRecord.METHOD_MANUAL
@@ -1059,6 +1098,15 @@ def teacher_manual_override_ajax(request, session_id):
         record.marked_by = request.user
         record.stamped_at = timezone.now()
         record.save(update_fields=['status', 'method', 'correction_reason', 'marked_by', 'stamped_at'])
+
+    if status_changed:
+        create_notification(
+            student_profile.user,
+            'attendance',
+            'Attendance record updated',
+            f'Your attendance for {class_obj.class_code} was updated to {new_status.lower()}.',
+            '/student/attendance/',
+        )
 
     AuditEvent.objects.create(
         actor=request.user,
@@ -1211,6 +1259,7 @@ def teacher_session_close(request, session_id):
         stamped_ids = set(session.attendance_records.values_list('student_profile_id', flat=True))
         missing_profiles = enrolled_profiles.exclude(id__in=stamped_ids)
 
+        absent_profiles = list(missing_profiles)
         new_absent_records = [
             AttendanceRecord(
                 session=session,
@@ -1221,7 +1270,7 @@ def teacher_session_close(request, session_id):
                 marked_by=request.user,
                 correction_reason='Auto-marked absent at session close',
             )
-            for p in missing_profiles
+            for p in absent_profiles
         ]
         if new_absent_records:
             AttendanceRecord.objects.bulk_create(new_absent_records)
@@ -1234,6 +1283,7 @@ def teacher_session_close(request, session_id):
             new_value=f"Closed session for {class_obj.class_code} ({len(new_absent_records)} auto-marked absent)",
         )
 
+    notify_absent_students(absent_profiles, class_obj, session.session_date)
     messages.success(request, f"Session for {class_obj.class_code} successfully concluded.")
     return redirect('teacher_session_summary', session_id=session.id)
 
