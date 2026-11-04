@@ -80,6 +80,11 @@ from .document_views import (
     registration_proof_document,
     student_avatar_document,
 )
+from .notification_views import (
+    notification_list,
+    notification_mark_all_read,
+    notification_mark_read,
+)
 
 # // ------------------------------------------------------------------------------
 # // 3. Account Validation & Registrar Dossier Subsystem
@@ -173,6 +178,7 @@ from .subject_views import (
     subject_toggle,
     subject_curriculum_assign,
     subject_curriculum_remove,
+    subject_curriculum_major_update,
     subject_lookup_json,
 )
 
@@ -311,6 +317,9 @@ __all__ = [
     'student_qr_badge',
     'student_qr_token_api',
     'student_offline_badge_issue',
+    'notification_list',
+    'notification_mark_read',
+    'notification_mark_all_read',
     'student_attendance_log',
     'student_term_record',
     'registration_proof_document',
@@ -372,6 +381,7 @@ __all__ = [
     'subject_toggle',
     'subject_curriculum_assign',
     'subject_curriculum_remove',
+    'subject_curriculum_major_update',
     'subject_lookup_json',
 
     # Teachers & Faculty
