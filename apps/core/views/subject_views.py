@@ -13,7 +13,8 @@
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Min, Q
+from django.db import transaction
+from django.db.models import Min, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
@@ -37,6 +38,9 @@ from apps.core.services import (
     delete_or_deactivate_subject,
     official_curriculum_filter,
     remove_curriculum_entry,
+    set_curriculum_major,
+    ensure_draft_version,
+    curriculum_version_state,
 )
 
 
@@ -48,28 +52,132 @@ from apps.core.services import (
 def subject_list(request):
     """
     // [Admin Controller] Subject Catalogue Management
-    // Lists all registered subjects with status filters and create/edit/delete
-    // actions. Curriculum (program-year) mappings are managed exclusively on
-    // the Programs page matrix builder (A-07).
+    // Lists registered subjects with status filters and create/edit/delete
+    // actions. New subjects receive an initial program/year placement here;
+    // ongoing curriculum changes are managed in the Programs matrix builder.
     """
     query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
     dept_filter = request.GET.get('department', '').strip()
     program_filter = request.GET.get('program', '').strip()
-    usage_filter = request.GET.get('usage', '').strip()
     semester_filter = request.GET.get('semester', '').strip()
     year_filter = request.GET.get('year_level', '').strip()
     sort_mode = request.GET.get('sort', '').strip()
+    selected_program = None
+    curriculum_scope_filter = official_curriculum_filter('curriculum_entries__')
+    program_version_label = ''
+    curriculum_scope_version_id = None
+    program_curriculum_rows = Curriculum.objects.all()
+
+    if program_filter.isdigit():
+        selected_program = Program.objects.filter(
+            pk=int(program_filter),
+            is_active=True,
+        ).first()
+        if selected_program:
+            display_version = curriculum_version_state(selected_program)['display']
+            if display_version:
+                scope_entries = Curriculum.objects.filter(
+                    program=selected_program,
+                    version=display_version,
+                )
+                if not scope_entries.exists():
+                    legacy_entries = Curriculum.objects.filter(
+                        program=selected_program,
+                        version__isnull=True,
+                    )
+                    if legacy_entries.exists():
+                        curriculum_scope_version_id = None
+                        program_curriculum_rows = Curriculum.objects.filter(
+                            program=selected_program,
+                            version__isnull=True,
+                        )
+                        curriculum_scope_filter = (
+                            Q(curriculum_entries__program_id=selected_program.pk)
+                            & Q(curriculum_entries__version__isnull=True)
+                        )
+                    else:
+                        curriculum_scope_version_id = display_version.pk
+                        program_curriculum_rows = Curriculum.objects.filter(
+                            program=selected_program,
+                            version=display_version,
+                        )
+                        curriculum_scope_filter = (
+                            Q(curriculum_entries__program_id=selected_program.pk)
+                            & Q(curriculum_entries__version_id=display_version.pk)
+                        )
+                else:
+                    curriculum_scope_version_id = display_version.pk
+                    program_curriculum_rows = Curriculum.objects.filter(
+                        program=selected_program,
+                        version=display_version,
+                    )
+                    curriculum_scope_filter = (
+                        Q(curriculum_entries__program_id=selected_program.pk)
+                        & Q(curriculum_entries__version_id=display_version.pk)
+                    )
+                program_version_label = (
+                    f'Draft v{display_version.version_number}'
+                    if display_version.status == 'DRAFT'
+                    else f'Approved v{display_version.version_number}'
+                )
+            else:
+                curriculum_scope_version_id = None
+                program_curriculum_rows = Curriculum.objects.filter(
+                    program=selected_program,
+                    version__isnull=True,
+                )
+                curriculum_scope_filter = (
+                    Q(curriculum_entries__program_id=selected_program.pk)
+                    & Q(curriculum_entries__version__isnull=True)
+                )
+            program_filter = str(selected_program.pk)
+        else:
+            program_filter = ''
+    elif program_filter:
+        program_filter = ''
+
+    if selected_program is None:
+        program_curriculum_rows = Curriculum.objects.filter(official_curriculum_filter())
+    elif not program_curriculum_rows.exists() and curriculum_scope_version_id is None:
+        program_curriculum_rows = Curriculum.objects.filter(
+            program=selected_program,
+            version__isnull=True,
+        )
+
+    if dept_filter:
+        program_curriculum_rows = program_curriculum_rows.filter(
+            program__department_id=dept_filter,
+        )
+    curriculum_count = program_curriculum_rows.count()
+
+    placement_rows = program_curriculum_rows
+    if semester_filter.isdigit():
+        placement_rows = placement_rows.filter(semester=int(semester_filter))
+    if year_filter.isdigit():
+        placement_rows = placement_rows.filter(year_level=int(year_filter))
+
+    active_filter_labels = []
+    if query:
+        active_filter_labels.append(f'Search: {query}')
+    if dept_filter:
+        department = Department.objects.filter(pk=dept_filter).first()
+        active_filter_labels.append(
+            f'Department: {department.code}' if department else f'Department: {dept_filter}'
+        )
+    if selected_program:
+        active_filter_labels.append(f'Program: {selected_program.code}')
+    if year_filter.isdigit():
+        active_filter_labels.append(f'Year {int(year_filter)}')
+    if semester_filter.isdigit():
+        semester_label = dict(Curriculum.SEMESTER_CHOICES).get(int(semester_filter))
+        if semester_label:
+            active_filter_labels.append(semester_label)
+    if status_filter in {'active', 'inactive'}:
+        active_filter_labels.append(f'Status: {status_filter.title()}')
 
     subjects_qs = (
-        Subject.objects.annotate(
-            class_count=Count('classes', distinct=True),
-            curriculum_count=Count(
-                'curriculum_entries',
-                filter=official_curriculum_filter('curriculum_entries__'),
-                distinct=True,
-            ),
-        )
+        Subject.objects
         .order_by('code')
     )
 
@@ -83,37 +191,12 @@ def subject_list(request):
     elif status_filter == 'inactive':
         subjects_qs = subjects_qs.filter(is_active=False)
 
-    # Catalogue hygiene: a subject with no classes and no curriculum mapping is a
-    # dead row — it cannot be scheduled and no wizard will ever offer it.
-    if usage_filter == 'unused':
-        subjects_qs = subjects_qs.filter(class_count=0, curriculum_count=0)
-
-    if dept_filter:
+    # Apply placement filters to one scoped Curriculum queryset so program,
+    # year, and semester must all match the same curriculum row.
+    if dept_filter or program_filter or semester_filter.isdigit() or year_filter.isdigit():
         subjects_qs = subjects_qs.filter(
-            official_curriculum_filter('curriculum_entries__')
-            & Q(curriculum_entries__program__department_id=dept_filter)
-        ).distinct()
-
-    if program_filter:
-        subjects_qs = subjects_qs.filter(
-            official_curriculum_filter('curriculum_entries__')
-            & Q(curriculum_entries__program_id=program_filter)
-        ).distinct()
-
-    # Semester and year level are placement attributes, not subject attributes:
-    # a subject is only "1st semester, Year 2" because a curriculum row says so.
-    # Drafts and archived snapshots do not describe the official catalogue.
-    if semester_filter.isdigit():
-        subjects_qs = subjects_qs.filter(
-            official_curriculum_filter('curriculum_entries__')
-            & Q(curriculum_entries__semester=int(semester_filter))
-        ).distinct()
-
-    if year_filter.isdigit():
-        subjects_qs = subjects_qs.filter(
-            official_curriculum_filter('curriculum_entries__')
-            & Q(curriculum_entries__year_level=int(year_filter))
-        ).distinct()
+            pk__in=placement_rows.values('subject_id')
+        )
 
     # Curriculum order (program -> year -> semester) is how a registrar reads the
     # catalogue; alphabetical order is how you look up a code you already know.
@@ -122,32 +205,39 @@ def subject_list(request):
         subjects_qs = subjects_qs.annotate(
             _program_code=Min(
                 'curriculum_entries__program__code',
-                filter=official_curriculum_filter('curriculum_entries__'),
+                filter=curriculum_scope_filter,
             ),
             _year_level=Min(
                 'curriculum_entries__year_level',
-                filter=official_curriculum_filter('curriculum_entries__'),
+                filter=curriculum_scope_filter,
             ),
             _semester=Min(
                 'curriculum_entries__semester',
-                filter=official_curriculum_filter('curriculum_entries__'),
+                filter=curriculum_scope_filter,
             ),
         ).order_by('_program_code', '_year_level', '_semester', 'code')
 
     paginator = Paginator(subjects_qs, 15)
     page_number = request.GET.get('page', 1)
     subjects = paginator.get_page(page_number)
+    previous_page_query = request.GET.copy()
+    next_page_query = request.GET.copy()
+    if subjects.has_previous():
+        previous_page_query['page'] = subjects.previous_page_number()
+    if subjects.has_next():
+        next_page_query['page'] = subjects.next_page_number()
 
     # Where each subject on this page sits in the curriculum (program / year /
     # semester). One query for the whole page, not one per row.
     page_subjects = list(subjects)
     placements = {}
     if page_subjects:
+        displayed_placements = placement_rows.filter(
+            subject_id__in=[s.pk for s in page_subjects]
+        )
         for row in (
-            Curriculum.objects
-            .filter(official_curriculum_filter())
-            .filter(subject_id__in=[s.pk for s in page_subjects])
-            .values('subject_id', 'program__code', 'year_level', 'semester')
+            displayed_placements
+            .values('subject_id', 'program__code', 'year_level', 'semester', 'is_major')
             .order_by('program__code', 'year_level', 'semester')
         ):
             placements.setdefault(row['subject_id'], []).append(row)
@@ -157,14 +247,13 @@ def subject_list(request):
     total_count = Subject.objects.count()
     active_count = Subject.objects.filter(is_active=True).count()
     inactive_count = total_count - active_count
-    curriculum_count = Curriculum.objects.filter(official_curriculum_filter()).count()
-
     departments = Department.objects.filter(is_active=True).order_by('name')
     programs = (
         Program.objects.filter(is_active=True)
         .select_related('department')
         .order_by('code')
     )
+    max_year_level = max((program.years_total for program in programs), default=1)
 
     # Build a dict of subject_id → unique teacher display names for the active AY.
     # One bulk query — no N+1.
@@ -197,10 +286,12 @@ def subject_list(request):
         'status_filter': status_filter,
         'dept_filter': dept_filter,
         'program_filter': program_filter,
-        'usage_filter': usage_filter,
         'semester_filter': semester_filter,
         'year_filter': year_filter,
         'sort': sort_mode,
+        'active_filter_labels': active_filter_labels,
+        'previous_page_query': previous_page_query.urlencode(),
+        'next_page_query': next_page_query.urlencode(),
         'placements': placements,
         'total_count': total_count,
         'active_count': active_count,
@@ -208,6 +299,11 @@ def subject_list(request):
         'curriculum_count': curriculum_count,
         'departments': departments,
         'programs': programs,
+        'selected_program': selected_program,
+        'program_version_label': program_version_label,
+        'max_year_level': max_year_level,
+        'year_filter_choices': range(1, max_year_level + 1),
+        'semester_choices': Curriculum.SEMESTER_CHOICES,
         'active_ay': active_ay,
     })
 
@@ -228,20 +324,99 @@ def subject_save(request):
         if subject_id:
             subject_id = int(subject_id)
 
-        result = create_or_update_subject(
-            actor=request.user,
-            code=request.POST.get('code', ''),
-            name=request.POST.get('name', ''),
-            description=request.POST.get('description', ''),
-            units=request.POST.get('units', '3'),
-            is_active=request.POST.get('is_active') == '1',
-            subject_id=subject_id,
-        )
+        program_id = request.POST.get('curriculum_program_id', '').strip()
+        year_level_value = request.POST.get('curriculum_year_level', '').strip()
+        semester_value = request.POST.get('curriculum_semester', '').strip()
+        major_value = request.POST.get('curriculum_is_major', '').strip()
+        is_major = major_value == '1'
+        wants_mapping = bool(program_id or year_level_value or semester_value or major_value)
+
+        if not subject_id and not (program_id and year_level_value and semester_value and major_value in {'0', '1'}):
+            return JsonResponse({
+                'ok': False,
+                'error': 'Choose a program, year level, semester, and whether the subject is major or non-major.',
+            }, status=400)
+        if wants_mapping and not (program_id and year_level_value and semester_value):
+            return JsonResponse({
+                'ok': False,
+                'error': 'Choose a program, year level, and semester to place this subject in a curriculum.',
+            }, status=400)
+        if wants_mapping and major_value not in {'0', '1'}:
+            return JsonResponse({
+                'ok': False,
+                'error': 'Choose whether this subject is major or non-major.',
+            }, status=400)
+        if wants_mapping and subject_id:
+            return JsonResponse({
+                'ok': False,
+                'error': 'Curriculum placement can only be added while creating a new subject. Use the curriculum matrix to place an existing subject.',
+            }, status=400)
+
+        curriculum_entry = None
+        with transaction.atomic():
+            if wants_mapping:
+                try:
+                    program_id_int = int(program_id)
+                    year_level = int(year_level_value)
+                    semester = int(semester_value)
+                except ValueError:
+                    return JsonResponse({
+                        'ok': False,
+                        'error': 'Choose a valid program, year level, and semester.',
+                    }, status=400)
+                program = get_object_or_404(
+                    Program,
+                    pk=program_id_int,
+                    is_active=True,
+                )
+                if year_level < 1 or year_level > program.years_total:
+                    return JsonResponse({
+                        'ok': False,
+                        'error': f'Year level must be between 1 and {program.years_total} for {program.code}.',
+                    }, status=400)
+                if semester not in dict(Curriculum.SEMESTER_CHOICES):
+                    return JsonResponse({
+                        'ok': False,
+                        'error': 'Choose a valid semester.',
+                    }, status=400)
+                ensure_draft_version(request.user, program)
+
+            result = create_or_update_subject(
+                actor=request.user,
+                code=request.POST.get('code', ''),
+                name=request.POST.get('name', ''),
+                description=request.POST.get('description', ''),
+                units=request.POST.get('units', '3'),
+                is_active=request.POST.get('is_active') == '1',
+                subject_id=subject_id,
+            )
+            if wants_mapping:
+                curriculum_result = assign_curriculum_subject(
+                    actor=request.user,
+                    program_id=program_id_int,
+                    year_level=year_level,
+                    subject_id=result['instance'].pk,
+                    semester=semester,
+                    is_major=is_major,
+                )
+                curriculum_entry = curriculum_result['instance']
+
+        response_message = result['message']
+        if curriculum_entry:
+            response_message += (
+                f' Added to {program.code} Year {year_level}, '
+                f'{dict(Curriculum.SEMESTER_CHOICES)[semester]} curriculum'
+                f'{" as a major subject" if is_major else ""}.'
+            )
         return JsonResponse({
             'ok': True,
-            'message': result['message'],
+            'message': response_message,
             'warning': result.get('warning', ''),
             'subject': serialize_subject(result['instance']),
+            'curriculum_entry': (
+                serialize_curriculum_entry(curriculum_entry)
+                if curriculum_entry else None
+            ),
         })
     except ValueError as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
@@ -370,6 +545,7 @@ def subject_curriculum_assign(request):
             year_level=int(request.POST.get('year_level', 0)),
             subject_id=int(request.POST.get('subject_id', 0)),
             semester=int(request.POST.get('semester', 1)),
+            is_major=request.POST.get('is_major') in {'true', '1', 'on'},
         )
         return JsonResponse({
             'ok': True,
@@ -397,6 +573,29 @@ def subject_curriculum_remove(request, pk: int):
         return JsonResponse({'ok': True, 'message': result['message']})
     except Exception as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def subject_curriculum_major_update(request, pk: int):
+    """Update a draft or legacy curriculum entry's major/non-major marker."""
+    value = request.POST.get('is_major', '').strip().lower()
+    if value not in {'true', 'false', '1', '0', 'on', 'off'}:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Choose whether this curriculum subject is major or non-major.',
+        }, status=400)
+    is_major = value in {'true', '1', 'on'}
+    try:
+        result = set_curriculum_major(request.user, pk, is_major)
+        return JsonResponse({
+            'ok': True,
+            'message': result['message'],
+            'entry': serialize_curriculum_entry(result['instance']),
+        })
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
 
 
 # // ==============================================================================
