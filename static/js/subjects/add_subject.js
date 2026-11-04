@@ -11,6 +11,53 @@
     return (meta && meta.getAttribute('content')) || '';
   }
 
+  function resetCurriculumPlacement() {
+    const programSelect = getEl('subjectCurriculumProgram');
+    const yearSelect = getEl('subjectCurriculumYear');
+    const semesterSelect = getEl('subjectCurriculumSemester');
+    const majorSelect = getEl('subjectCurriculumMajor');
+    if (programSelect) programSelect.value = '';
+    if (yearSelect) {
+      yearSelect.innerHTML = '<option value="">Select program first</option>';
+      yearSelect.disabled = true;
+    }
+    if (semesterSelect) {
+      semesterSelect.value = '';
+      semesterSelect.disabled = true;
+    }
+    if (majorSelect) {
+      majorSelect.value = '';
+      majorSelect.disabled = true;
+    }
+  }
+
+  function updateCurriculumYears() {
+    const programSelect = getEl('subjectCurriculumProgram');
+    const yearSelect = getEl('subjectCurriculumYear');
+    const semesterSelect = getEl('subjectCurriculumSemester');
+    const majorSelect = getEl('subjectCurriculumMajor');
+    if (!programSelect || !yearSelect || !semesterSelect || !majorSelect) return;
+
+    const selected = programSelect.selectedOptions[0];
+    const years = selected ? parseInt(selected.dataset.years || '0', 10) : 0;
+    yearSelect.innerHTML = '';
+    if (!programSelect.value || !years) {
+      yearSelect.appendChild(new Option('Select program first', ''));
+      yearSelect.disabled = true;
+      semesterSelect.disabled = true;
+      majorSelect.disabled = true;
+      return;
+    }
+
+    yearSelect.appendChild(new Option('Select year level', ''));
+    for (let year = 1; year <= years; year += 1) {
+      yearSelect.appendChild(new Option('Year ' + year, String(year)));
+    }
+    yearSelect.disabled = false;
+    semesterSelect.disabled = false;
+    majorSelect.disabled = false;
+  }
+
   function initAddSubject() {
     // Guard: only run if the add/edit subject modal exists on this page
     if (!getEl('addSubjectBtn')) return;
@@ -19,7 +66,11 @@
     const addBtn = getEl('addSubjectBtn');
     if (addBtn) {
       addBtn.addEventListener('click', function () {
+        const form = getEl('subjectForm');
+        if (form) form.reset();
         const titleEl = getEl('subjectModalTitle'); if (titleEl) titleEl.textContent = 'Add Subject';
+        const saveBtn = getEl('subjectModalSave');
+        if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Subject & Add to Program';
         const idEl    = getEl('subjectId');          if (idEl)    idEl.value = '';
         const codeEl  = getEl('subjectCode');        if (codeEl)  codeEl.value = '';
         const nameEl  = getEl('subjectName');        if (nameEl)  nameEl.value = '';
@@ -27,6 +78,9 @@
         const unitEl  = getEl('subjectUnits');       if (unitEl)  unitEl.value = '3';
         const actEl   = getEl('subjectActive');      if (actEl)   actEl.checked = true;
         const errEl   = getEl('subjectFormError');   if (errEl)   errEl.style.display = 'none';
+        const placement = getEl('subjectCurriculumPlacement');
+        if (placement) placement.style.display = '';
+        resetCurriculumPlacement();
 
         const App = getApp();
         if (typeof window.openModal === 'function') {
@@ -40,12 +94,15 @@
       });
     }
 
+    getEl('subjectCurriculumProgram')?.addEventListener('change', updateCurriculumYears);
+
     // Save Subject
     const saveBtn = getEl('subjectModalSave');
     if (saveBtn) {
       saveBtn.addEventListener('click', async function () {
         const form = getEl('subjectForm');
         if (!form) return;
+        if (!form.reportValidity()) return;
 
         const fd = new FormData(form);
         const activeEl = getEl('subjectActive');
@@ -105,7 +162,7 @@
             window.App.setButtonLoading(saveBtn, false);
           } else {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Subject';
+            saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Subject & Add to Program';
           }
         }
       });
