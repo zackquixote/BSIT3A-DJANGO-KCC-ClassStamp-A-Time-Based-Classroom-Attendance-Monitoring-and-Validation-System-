@@ -638,6 +638,7 @@
     <form id="editUserForm">
       {% csrf_token %}
       <input type="hidden" name="id" id="edit_id">
+      <input type="hidden" id="edit_current_role">
       <div class="modal-body">
         <div id="editUserFormError" class="toast toast--error mb-4" style="display: none;"></div>
         
