@@ -174,6 +174,17 @@ class RosterGetScopeTests(TestCase, BaseWeek5FixtureMixin):
         self.assertIn(self.s3.id, available_ids)
         self.assertNotIn(self.s1.id, available_ids)
 
+    def test_explicit_blank_filters_include_all_programs_and_years(self):
+        self.client.force_login(self.admin)
+        res = self.client.get(
+            reverse('class_roster_get', args=[self.class_obj.id]),
+            {'program_id': '', 'year_level': ''},
+        )
+
+        self.assertEqual(res.status_code, 200)
+        available_ids = [student['profile_id'] for student in res.json()['available']]
+        self.assertCountEqual(available_ids, [self.s1.id, self.s2.id, self.s3.id])
+
     def test_payload_exposes_section_scope_and_capacity(self):
         self.class_obj.capacity = 40
         self.class_obj.save(update_fields=['capacity'])
@@ -271,6 +282,13 @@ class RosterBatchEnlistTests(TestCase, BaseWeek5FixtureMixin):
             class_obj=self.class_obj, student_profile=self.s3,
             status=Enrollment.STATUS_ACTIVE,
         ).exists())
+
+    def test_batch_explicit_blank_filters_include_all_programs_and_years(self):
+        self.client.force_login(self.admin)
+        res = self._batch(self.client, {'program_id': '', 'year_level': ''})
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['enrolled_count'], 3)
 
     def test_batch_rejects_invalid_year_level(self):
         self.client.force_login(self.admin)
