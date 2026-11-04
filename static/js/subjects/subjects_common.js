@@ -56,6 +56,31 @@
     // Filter bar cascade
     const filterDeptEl = document.getElementById('filterDept');
     const filterProgEl = document.getElementById('filterProgram');
+    const filterYearEl = document.getElementById('filterYear');
+
+    function updateYearFilter(resetInvalid) {
+      if (!filterProgEl || !filterYearEl) return;
+      const selectedProgram = filterProgEl.selectedOptions[0];
+      const maxYears = selectedProgram && selectedProgram.value
+        ? parseInt(selectedProgram.dataset.years || '0', 10)
+        : parseInt(filterYearEl.dataset.maxYears || '1', 10);
+      const currentYear = filterYearEl.value;
+      filterYearEl.innerHTML = '<option value="">All Years</option>';
+      for (let year = 1; year <= maxYears; year += 1) {
+        filterYearEl.appendChild(new Option('Year ' + year, String(year)));
+      }
+      if (currentYear && parseInt(currentYear, 10) <= maxYears) {
+        filterYearEl.value = currentYear;
+      } else if (resetInvalid) {
+        filterYearEl.value = '';
+      }
+      filterYearEl.disabled = false;
+    }
+
+    updateYearFilter(false);
+    filterProgEl?.addEventListener('change', function () {
+      updateYearFilter(true);
+    });
 
     filterDeptEl?.addEventListener('change', function () {
       const deptId = this.value;
@@ -65,6 +90,7 @@
         opt.hidden = deptId ? opt.dataset.dept !== deptId : false;
       });
       if (filterProgEl.selectedOptions[0]?.hidden) filterProgEl.value = '';
+      updateYearFilter(true);
     });
 
     if (filterDeptEl?.value && filterProgEl) {
