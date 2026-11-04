@@ -67,6 +67,7 @@ from .policy import SystemPolicy
 
 # // Two-factor recovery codes
 from .two_factor import RecoveryCode
+from .notifications import Notification
 
 __all__ = [
     # Academic
@@ -98,4 +99,5 @@ __all__ = [
     'AnomalyFlag',
     'AuditEvent',
     'ReviewAction',
+    'Notification',
 ]
