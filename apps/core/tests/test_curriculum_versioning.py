@@ -48,12 +48,13 @@ class CurriculumVersionBase(TestCase):
         Profile.objects.create(user=self.admin_user, role=Profile.ROLE_ADMIN)
         self.client.force_login(self.admin_user)
 
-    def _assign(self, subject, year_level=1, semester=1):
+    def _assign(self, subject, year_level=1, semester=1, is_major=False):
         return self.client.post(reverse('program_curriculum_assign'), {
             'program_id': self.program.pk,
             'subject_id': subject.pk,
             'year_level': year_level,
             'semester': semester,
+            'is_major': 'true' if is_major else 'false',
         })
 
     def _approve(self, effective_from=None):
@@ -68,6 +69,12 @@ class CurriculumVersionBase(TestCase):
     def _create_draft(self):
         return self.client.post(
             reverse('program_curriculum_draft_create', args=[self.program.pk]),
+        )
+
+    def _set_major(self, entry_id, is_major=True):
+        return self.client.post(
+            reverse('program_curriculum_major_update', args=[entry_id]),
+            {'is_major': 'true' if is_major else 'false'},
         )
 
     def _create_approved_v1(self, subjects, effective_from=None):
@@ -90,6 +97,23 @@ class CurriculumVersionBase(TestCase):
         })
         self.assertEqual(response.status_code, 200, response.content)
         return [subject['code'] for subject in response.json()['subjects']]
+
+    def test_wizard_marks_major_subject_for_selected_year_and_semester(self):
+        self._assign(self.intro, year_level=2, semester=2, is_major=True)
+        self._assign(self.programming, year_level=2, semester=2)
+        self.assertEqual(self._approve(effective_from=self.term).status_code, 200)
+
+        response = self.client.get(reverse('class_wizard_options'), {
+            'program_id': self.program.pk,
+            'year_level': 2,
+            'semester': 2,
+            'ay_id': self.term.pk,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        subjects = {subject['code']: subject for subject in response.json()['subjects']}
+        self.assertTrue(subjects['IT101']['is_major'])
+        self.assertFalse(subjects['IT102']['is_major'])
 
 
 class DraftVersionTests(CurriculumVersionBase):
@@ -127,6 +151,53 @@ class DraftVersionTests(CurriculumVersionBase):
         self.assertEqual(payload['version']['status'], CurriculumVersion.STATUS_DRAFT)
         self.assertEqual(payload['draft_version']['version_number'], 1)
         self.assertEqual(len(payload['entries']), 1)
+
+    def test_existing_draft_entry_can_be_marked_major(self):
+        self._assign(self.intro, year_level=2, semester=2)
+        entry = Curriculum.objects.get(subject=self.intro)
+
+        response = self._set_major(entry.pk)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()['entry']['is_major'])
+        entry.refresh_from_db()
+        self.assertTrue(entry.is_major)
+
+    def test_approved_curriculum_entry_cannot_be_reclassified(self):
+        approved = self._create_approved_v1([self.intro])
+        entry = Curriculum.objects.get(version=approved)
+
+        response = self._set_major(entry.pk)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('read-only', response.json()['error'])
+        entry.refresh_from_db()
+        self.assertFalse(entry.is_major)
+
+    def test_major_flag_is_saved_and_returned_in_matrix(self):
+        response = self._assign(self.intro, year_level=2, semester=2, is_major=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['entry']['is_major'])
+
+        matrix = self.client.get(
+            reverse('program_curriculum_list', args=[self.program.pk])
+        ).json()
+        entry = matrix['entries'][0]
+        self.assertEqual((entry['year_level'], entry['semester']), (2, 2))
+        self.assertTrue(entry['is_major'])
+
+    def test_major_flag_is_preserved_when_creating_draft_from_approved(self):
+        response = self._assign(self.intro, is_major=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._approve(effective_from=self.term).status_code, 200)
+
+        self.assertEqual(self._create_draft().status_code, 200)
+        draft = CurriculumVersion.objects.get(
+            program=self.program,
+            status=CurriculumVersion.STATUS_DRAFT,
+        )
+        self.assertTrue(Curriculum.objects.get(version=draft).is_major)
 
     def test_create_draft_clones_approved_entries(self):
         approved = self._create_approved_v1([self.intro])
