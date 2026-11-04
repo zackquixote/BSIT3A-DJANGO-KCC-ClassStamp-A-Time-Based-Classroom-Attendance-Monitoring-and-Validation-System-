@@ -111,6 +111,11 @@ class ReadinessEmptyTests(TestCase):
         self.assertEqual(report['class_issues'], [])
         self.assertEqual(report['totals']['programs'], 0)
         self.assertEqual(report['totals']['classes'], 0)
+        self.assertContains(response, 'Term &amp; Class Readiness')
+        self.assertContains(response, 'Existing Terms')
+        self.assertContains(response, 'Classes Needing Attention')
+        self.assertNotContains(response, 'Curriculum Coverage by Program')
+        self.assertNotContains(response, 'Export Coverage CSV')
 
 
 class ReadinessReportTests(ReadinessBase):
@@ -146,7 +151,7 @@ class ReadinessReportTests(ReadinessBase):
         self.assertEqual(semester_rows[1]['status_label'], 'Inactive subjects only')
         self.assertFalse(semester_rows[1]['subjects'][0]['is_active'])
 
-    def test_empty_curriculum_slot_is_distinct_from_a_configured_program(self):
+    def test_empty_summer_slot_is_optional(self):
         Curriculum.objects.filter(
             program=self.program,
             year_level=1,
@@ -155,19 +160,37 @@ class ReadinessReportTests(ReadinessBase):
 
         report = self._report().context['report']
 
-        self.assertEqual(report['totals']['empty_slots'], 1)
-        self.assertEqual(report['program_rows'][0]['status'], 'incomplete')
+        self.assertEqual(report['totals']['empty_slots'], 0)
+        self.assertEqual(report['totals']['expected_slots'], 2)
+        self.assertEqual(report['program_rows'][0]['status'], 'complete')
         semester_rows = report['program_rows'][0]['years'][0]['semesters']
-        self.assertEqual(semester_rows[2]['status'], 'empty')
+        self.assertEqual(semester_rows[2]['status'], 'optional')
+        self.assertEqual(semester_rows[2]['status_label'], 'Optional')
         self.assertEqual(semester_rows[2]['subjects'], [])
 
-    def test_unconfigured_program_is_not_reported_as_empty_slots(self):
+    def test_empty_required_semester_is_reported_as_a_gap(self):
+        Curriculum.objects.filter(
+            program=self.program,
+            year_level=1,
+            semester=2,
+        ).delete()
+
+        report = self._report().context['report']
+
+        self.assertEqual(report['totals']['empty_slots'], 1)
+        self.assertEqual(report['totals']['expected_slots'], 3)
+        self.assertEqual(report['program_rows'][0]['status'], 'incomplete')
+        semester_rows = report['program_rows'][0]['years'][0]['semesters']
+        self.assertEqual(semester_rows[1]['status'], 'empty')
+
+    def test_unconfigured_program_counts_only_required_semesters(self):
         self.program.curriculum_entries.all().delete()
 
         report = self._report().context['report']
 
         self.assertEqual(report['totals']['unconfigured_programs'], 1)
-        self.assertEqual(report['totals']['empty_slots'], 3)
+        self.assertEqual(report['totals']['empty_slots'], 2)
+        self.assertEqual(report['totals']['expected_slots'], 2)
         self.assertEqual(report['program_rows'][0]['status'], 'not_configured')
 
     def test_class_gaps_and_duplicate_offering_are_reported(self):
@@ -236,6 +259,12 @@ class ReadinessReportTests(ReadinessBase):
         self.assertEqual(report['class_issues'], [])
 
     def test_coverage_csv_exports_every_slot(self):
+        Curriculum.objects.filter(
+            program=self.program,
+            year_level=1,
+            semester=3,
+        ).delete()
+
         response = self.client.get(
             reverse('curriculum_readiness_export', args=['coverage'])
         )
@@ -246,6 +275,7 @@ class ReadinessReportTests(ReadinessBase):
         self.assertIn('Department,Program,Program Title', content)
         self.assertIn('IT101', content)
         self.assertIn('Complete', content)
+        self.assertIn('Optional', content)
 
     def test_issues_csv_exports_operational_gaps(self):
         self.class_obj.slots.all().delete()
