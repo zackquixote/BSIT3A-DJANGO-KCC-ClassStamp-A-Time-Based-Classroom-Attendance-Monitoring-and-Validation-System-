@@ -140,6 +140,12 @@ exactly the class of defect this gap hides.
 - **Test method:** on MariaDB, create a teacher and an admin via the endpoint, edit a role, and
   assert 2xx + correct profile shape; inject a profile failure and assert full rollback. Add a
   regression test that runs against MySQL (not only SQLite).
+- **Remediation:** **FIXED 2026-11-04.** User and profile writes are atomic; new non-student
+  profiles use the required null approval fields; student profiles include the required approval
+  and QR data; passwords use Django's configured validators. Role changes disable the old account
+  and create a fresh account/profile while preserving the original profile and historical links.
+  The role-transition UI warns that class assignments need manual reassignment.
+  `apps.users.tests` passes 12/12 on both MariaDB and SQLite.
 
 #### AUD-03 — Stored XSS in roster enlistment modal
 - **Status:** CONFIRMED by source; browser reproduction not performed
@@ -550,3 +556,4 @@ reviewed/committed; AUD-09 is the only migration not applied.
 | 2026-10-31 | Initial audit; 29 findings; baseline 411/411 tests on SQLite and MariaDB, 84 % coverage |
 | 2026-10-31 | Safe fixes applied and verified: AUD-03 (roster XSS), AUD-07 (excuse review URL), AUD-10 (open redirect), AUD-18 (CSV newline), AUD-19 (`__all__`). 417/417 tests pass on both backends; 6 regression tests added |
 | 2026-10-31 | AUD-11, AUD-12, and AUD-15 fixed; AUD-26 Batch A cleanup completed. Final gate: 422/422 tests on MariaDB (569.5 s) and SQLite (14.5 s), clean checks and migration-drift scan |
+| 2026-11-04 | AUD-02 fixed and verified with focused MariaDB/SQLite tests. AUD-01 migration trial deferred after 200+ compatibility failures; no migration was applied. |
