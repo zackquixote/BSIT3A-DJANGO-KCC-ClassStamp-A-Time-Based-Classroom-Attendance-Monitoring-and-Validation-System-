@@ -194,7 +194,7 @@ class AdminTeacherFlowRegressionTests(TestCase):
         self.assertNotContains(response, 'curriculumModal')
         self.assertNotContains(response, 'js-curriculum-btn')
         self.assertNotContains(response, 'curriculum_modal.js')
-        self.assertContains(response, 'Managed in Programs')
+        self.assertContains(response, 'Curriculum mappings live in')
 
     def test_class_save_rejects_create_without_class_id(self):
         self.client.force_login(self.admin_user)
