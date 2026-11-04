@@ -12,10 +12,11 @@
 
 import json
 from datetime import time
+from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -50,6 +51,66 @@ from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.models.classroom import derive_section_code
 from apps.core.services.export_service import SafeCsvWriter
 from apps.core.services.class_join_service import generate_join_code
+from apps.core.services.in_app_notification_service import create_notification
+
+
+def _class_setup_checklist(active_ay):
+    classes = Class.objects.filter(is_active=True)
+    if active_ay:
+        classes = classes.filter(academic_year=active_ay)
+    classes = classes.select_related(
+        'academic_year', 'subject', 'teacher_profile__user',
+    ).prefetch_related('slots').annotate(
+        active_enrolled=Count(
+            'enrollments',
+            filter=Q(enrollments__status=Enrollment.STATUS_ACTIVE),
+        ),
+    ).order_by('class_code')
+
+    checklist = []
+    for class_obj in classes:
+        missing = []
+        if not class_obj.teacher_profile_id:
+            missing.append('Teacher')
+        active_slots = [slot for slot in class_obj.slots.all() if slot.is_active]
+        if not active_slots:
+            missing.append('Schedule')
+        elif any(
+            not slot.room or slot.room.strip().upper() in {'TBA', 'ASSIGNED ROOM'}
+            for slot in active_slots
+        ):
+            missing.append('Room')
+        if not class_obj.active_enrolled:
+            missing.append('Student roster')
+        if not class_obj.join_code_active:
+            missing.append('Student join code')
+        if missing:
+            action_specs = []
+            if 'Teacher' in missing:
+                action_specs.append(('Assign teacher', 'teacher'))
+            if 'Schedule' in missing or 'Room' in missing:
+                action_specs.append(('Set schedule / room', 'schedule'))
+            if 'Student roster' in missing:
+                action_specs.append(('Manage roster', 'roster'))
+            if 'Student join code' in missing:
+                action_specs.append(('Open join code menu', 'join_code'))
+            checklist.append({
+                'class_obj': class_obj,
+                'missing': missing,
+                'actions': [
+                    {
+                        'label': label,
+                        'link': '/classes/?' + urlencode({
+                            'ay': 'ALL',
+                            'q': class_obj.class_code,
+                            'setup_class': class_obj.pk,
+                            'setup_action': action,
+                        }),
+                    }
+                    for label, action in action_specs
+                ],
+            })
+    return checklist
 
 
 # // ==============================================================================
@@ -152,6 +213,7 @@ def class_list(request):
         'total_slots_count': total_slots_count,
         'total_enrolled_count': total_enrolled_count,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
+        'setup_checklist': _class_setup_checklist(active_ay),
     })
 
 
@@ -197,6 +259,7 @@ def class_save(request):
     academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
 
     class_obj = get_object_or_404(Class, pk=class_id)
+    previous_teacher_id = class_obj.teacher_profile_id
 
     # Attendance hangs off ClassSession -> ClassSlot -> Class. Changing the subject
     # or the academic year therefore re-labels every recorded meeting, so those two
@@ -236,6 +299,14 @@ def class_save(request):
         )
     else:
         messages.success(request, f"Class '{class_code}' updated successfully.")
+    if previous_teacher_id != teacher.pk:
+        create_notification(
+            teacher.user,
+            'class_assignment',
+            'Class assigned to you',
+            f'You are assigned to {class_obj.class_code} ({class_obj.subject.code}).',
+            '/teacher/classes/',
+        )
 
     return redirect('class_list')
 
@@ -488,10 +559,10 @@ def class_roster_get(request, class_id):
     # enlistment dropdown shows relevant students first; explicit query params
     # widen or narrow that scope.
     prog_filter = request.GET.get('program_id', '').strip()
-    if not prog_filter and class_obj.program_id:
+    if 'program_id' not in request.GET and class_obj.program_id:
         prog_filter = str(class_obj.program_id)
     year_filter = request.GET.get('year_level', '').strip()
-    if not year_filter and class_obj.year_level:
+    if 'year_level' not in request.GET and class_obj.year_level:
         year_filter = str(class_obj.year_level)
 
     available_qs = (
@@ -542,13 +613,17 @@ def class_roster_get(request, class_id):
 
 
 @login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
+@role_required(Profile.ROLE_ADMIN, Profile.ROLE_TEACHER)
 @require_POST
 def class_roster_enroll(request, class_id):
     """
     // Enrolls an approved student profile into a class section.
     """
-    class_obj = get_object_or_404(Class, pk=class_id)
+    profile = getattr(request.user, 'classstamp_profile', None)
+    class_queryset = Class.objects.all()
+    if profile and profile.role == Profile.ROLE_TEACHER:
+        class_queryset = class_queryset.filter(teacher_profile=profile)
+    class_obj = get_object_or_404(class_queryset, pk=class_id)
     profile_id = request.POST.get('profile_id', '').strip()
 
     if not profile_id:
@@ -560,6 +635,15 @@ def class_roster_enroll(request, class_id):
         role=Profile.ROLE_STUDENT,
         approval_status=Profile.APPROVAL_APPROVED,
     )
+    if profile and profile.role == Profile.ROLE_TEACHER and not Enrollment.objects.filter(
+        class_obj=class_obj,
+        student_profile=student,
+        status=Enrollment.STATUS_PENDING,
+    ).exists():
+        return JsonResponse({
+            'success': False,
+            'message': 'Teachers can only approve pending requests for their own classes.',
+        }, status=400)
 
     # One room, one chair: a student cannot be in two overlapping sections.
     clashes = student_overlap_conflicts(student, class_obj)
@@ -577,9 +661,30 @@ def class_roster_enroll(request, class_id):
 
     with transaction.atomic():
         class_obj = Class.objects.select_for_update().get(pk=class_obj.pk)
+        if profile and profile.role == Profile.ROLE_TEACHER and (
+            class_obj.teacher_profile_id != profile.pk
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': 'You can only manage your own class roster.',
+            }, status=404)
+        if profile and profile.role == Profile.ROLE_TEACHER and (
+            not class_obj.is_active or not class_obj.academic_year.is_active
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': 'Teachers can only approve requests for active classes in the active academic term.',
+            }, status=400)
         enrollment = Enrollment.objects.select_for_update().filter(
             class_obj=class_obj, student_profile=student,
         ).first()
+        if profile and profile.role == Profile.ROLE_TEACHER and (
+            enrollment is None or enrollment.status != Enrollment.STATUS_PENDING
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': 'Teachers can only approve pending requests for their own classes.',
+            }, status=400)
         active_count = Enrollment.objects.filter(
             class_obj=class_obj, status=Enrollment.STATUS_ACTIVE,
         ).count()
@@ -607,11 +712,15 @@ def class_roster_enroll(request, class_id):
                 approved_by=request.user,
                 approved_at=timezone.now(),
             )
+            newly_enrolled = True
         elif enrollment.status != Enrollment.STATUS_ACTIVE:
             enrollment.status = Enrollment.STATUS_ACTIVE
             enrollment.approved_by = request.user
             enrollment.approved_at = timezone.now()
             enrollment.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+            newly_enrolled = True
+        else:
+            newly_enrolled = False
 
     AuditEvent.objects.create(
         actor=request.user,
@@ -620,6 +729,14 @@ def class_roster_enroll(request, class_id):
         object_id=str(enrollment.id),
         reason=f"Enrolled student {student.student_number} into {class_obj.class_code}",
     )
+    if newly_enrolled:
+        create_notification(
+            student.user,
+            'enrollment',
+            'Class enrollment approved',
+            f'You are enrolled in {class_obj.class_code} ({class_obj.subject.code}).',
+            '/student/dashboard/',
+        )
 
     return JsonResponse({
         'success': True,
@@ -634,7 +751,7 @@ def class_roster_enroll(request, class_id):
 
 
 @login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
+@role_required(Profile.ROLE_ADMIN, Profile.ROLE_TEACHER)
 @require_POST
 def class_join_code_manage(request, class_id):
     """Generate/rotate or revoke the student join code for one class offering."""
@@ -642,12 +759,25 @@ def class_join_code_manage(request, class_id):
     if action not in {'rotate', 'revoke'}:
         return JsonResponse({'success': False, 'message': 'Choose rotate or revoke.'}, status=400)
 
+    profile = getattr(request.user, 'classstamp_profile', None)
+    class_queryset = Class.objects.select_for_update()
+    if profile and profile.role == Profile.ROLE_TEACHER:
+        class_queryset = class_queryset.filter(teacher_profile=profile)
+
     with transaction.atomic():
-        class_obj = get_object_or_404(Class.objects.select_for_update(), pk=class_id)
+        class_obj = get_object_or_404(class_queryset, pk=class_id)
         if not class_obj.is_active:
             return JsonResponse({
                 'success': False,
                 'message': 'Activate this class before managing its join code.',
+            }, status=400)
+        if (
+            profile and profile.role == Profile.ROLE_TEACHER
+            and not class_obj.academic_year.is_active
+        ):
+            return JsonResponse({
+                'success': False,
+                'message': 'Teachers can only manage join codes for the active academic term.',
             }, status=400)
 
         if action == 'rotate':
@@ -698,10 +828,10 @@ def class_roster_enroll_batch(request, class_id):
     class_obj = get_object_or_404(Class, pk=class_id)
 
     prog_id = request.POST.get('program_id', '').strip()
-    if not prog_id and class_obj.program_id:
+    if 'program_id' not in request.POST and class_obj.program_id:
         prog_id = str(class_obj.program_id)
     year_level = request.POST.get('year_level', '').strip()
-    if not year_level and class_obj.year_level:
+    if 'year_level' not in request.POST and class_obj.year_level:
         year_level = str(class_obj.year_level)
 
     candidates = Profile.objects.filter(
@@ -722,6 +852,7 @@ def class_roster_enroll_batch(request, class_id):
     candidates = candidates.exclude(id__in=active_ids).order_by('user__last_name', 'user__first_name')
 
     enrolled = 0
+    newly_enrolled_students = []
     skipped_full = False
     skipped_conflicts = 0
     with transaction.atomic():
@@ -762,11 +893,15 @@ def class_roster_enroll_batch(request, class_id):
                     'approved_at': timezone.now(),
                 },
             )
+            was_active = not created and enrollment.status == Enrollment.STATUS_ACTIVE
             if not created and enrollment.status != Enrollment.STATUS_ACTIVE:
                 enrollment.status = Enrollment.STATUS_ACTIVE
                 enrollment.approved_by = request.user
                 enrollment.approved_at = timezone.now()
                 enrollment.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+
+            if not was_active:
+                newly_enrolled_students.append(student.user)
 
             AuditEvent.objects.create(
                 actor=request.user,
@@ -779,6 +914,15 @@ def class_roster_enroll_batch(request, class_id):
                 ),
             )
             enrolled += 1
+
+    for student_user in newly_enrolled_students:
+        create_notification(
+            student_user,
+            'enrollment',
+            'Class enrollment approved',
+            f'You are enrolled in {class_obj.class_code} ({class_obj.subject.code}).',
+            '/student/dashboard/',
+        )
 
     message = f'Enlisted {enrolled} student(s) into {class_obj.class_code}.'
     if skipped_conflicts:
@@ -797,25 +941,57 @@ def class_roster_enroll_batch(request, class_id):
 
 
 @login_required(login_url='login')
-@role_required(Profile.ROLE_ADMIN)
+@role_required(Profile.ROLE_ADMIN, Profile.ROLE_TEACHER)
 @require_POST
 def class_roster_remove(request, enrollment_id):
     """
     // Withdraws or removes a student enrollment from a class section.
     """
-    enrollment = get_object_or_404(Enrollment, pk=enrollment_id)
+    profile = getattr(request.user, 'classstamp_profile', None)
+    enrollment_queryset = Enrollment.objects.select_related('class_obj')
+    if profile and profile.role == Profile.ROLE_TEACHER:
+        enrollment_queryset = enrollment_queryset.filter(
+            class_obj__teacher_profile=profile,
+            status=Enrollment.STATUS_PENDING,
+        )
+    enrollment = get_object_or_404(enrollment_queryset, pk=enrollment_id)
+    is_teacher_decline = bool(profile and profile.role == Profile.ROLE_TEACHER)
     class_code = enrollment.class_obj.class_code
     student_num = enrollment.student_profile.student_number
+    student_user = enrollment.student_profile.user
 
-    enrollment.status = Enrollment.STATUS_WITHDRAWN
-    enrollment.save(update_fields=['status', 'updated_at'])
+    with transaction.atomic():
+        enrollment = Enrollment.objects.select_for_update().select_related('class_obj').get(
+            pk=enrollment.pk,
+        )
+        if is_teacher_decline and enrollment.class_obj.teacher_profile_id != profile.pk:
+            return JsonResponse({'success': False, 'message': 'You can only manage your own class requests.'}, status=404)
+        if is_teacher_decline and enrollment.status != Enrollment.STATUS_PENDING:
+            return JsonResponse({'success': False, 'message': 'This request is no longer pending.'}, status=400)
+        enrollment.status = Enrollment.STATUS_WITHDRAWN
+        enrollment.save(update_fields=['status', 'updated_at'])
 
     AuditEvent.objects.create(
         actor=request.user,
-        action='WITHDRAW_ENROLLMENT',
+        action='DECLINE_CLASS_JOIN_REQUEST' if is_teacher_decline else 'WITHDRAW_ENROLLMENT',
         object_type='Enrollment',
         object_id=str(enrollment.id),
-        reason=f"Withdrew student {student_num} from {class_code}",
+        reason=(
+            f"Declined class join request for student {student_num} in {class_code}"
+            if is_teacher_decline
+            else f"Withdrew student {student_num} from {class_code}"
+        ),
+    )
+    create_notification(
+        student_user,
+        'enrollment',
+        'Class join request declined' if is_teacher_decline else 'Class enrollment withdrawn',
+        (
+            f'Your request to join {class_code} was declined.'
+            if is_teacher_decline
+            else f'Your enrollment in {class_code} was withdrawn.'
+        ),
+        '/student/classes/join/',
     )
 
     return JsonResponse({'success': True})
@@ -977,6 +1153,7 @@ def class_wizard_options(request):
             'code': entry.subject.code,
             'name': entry.subject.name,
             'units': entry.subject.units,
+            'is_major': entry.is_major,
         }
         for entry in _wizard_curriculum_entries(
             program, academic_year, year_level, semester,
@@ -1055,6 +1232,7 @@ def class_wizard_code_check(request):
     code = (request.GET.get('code') or '').strip().upper()
     ay_id = (request.GET.get('ay') or '').strip()
     subject_code = (request.GET.get('subject') or '').strip().upper()
+    batch_mode = request.GET.get('batch') == '1'
 
     if not code:
         return JsonResponse(
@@ -1066,8 +1244,9 @@ def class_wizard_code_check(request):
     if ay_id.isdigit():
         classes = classes.filter(academic_year_id=int(ay_id))
 
+    class_code = f'{code}-{subject_code}' if batch_mode and subject_code else code
     clash = (
-        classes.filter(class_code__iexact=code)
+        classes.filter(class_code__iexact=class_code)
         .values('class_code', 'subject__code', 'section_code')
         .first()
     )
@@ -1079,7 +1258,7 @@ def class_wizard_code_check(request):
     # Offer the conventional section+subject form so the registrar can fix it in
     # one click instead of guessing why the code is refused.
     suggestion = ''
-    if subject_code:
+    if subject_code and not batch_mode:
         candidate = f'{derive_section_code(code)}-{subject_code}'
         if not classes.filter(class_code__iexact=candidate).exists():
             suggestion = candidate
@@ -1094,9 +1273,224 @@ def class_wizard_code_check(request):
         },
         'suggestion': suggestion,
         'message': (
-            f'{code} is already used by '
+            f'{class_code} is already used by '
             f'{clash["subject__code"] or "another subject"} in this term.'
         ),
+    })
+
+
+def _class_wizard_save_batch(request, offerings_json):
+    try:
+        offerings_data = json.loads(offerings_json)
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'message': 'Offerings must be a JSON array.'}, status=400)
+    if not isinstance(offerings_data, list) or not offerings_data or len(offerings_data) > 30:
+        return JsonResponse({
+            'success': False,
+            'message': 'Add between 1 and 30 subject offerings.',
+        }, status=400)
+
+    program_id = request.POST.get('program_id', '').strip()
+    year_level_str = request.POST.get('year_level', '').strip()
+    ay_id = request.POST.get('ay_id', '').strip()
+    semester_str = request.POST.get('semester', '').strip()
+    section_code = request.POST.get('class_code', '').strip().upper()
+    capacity_str = request.POST.get('capacity', '').strip()
+    grace_str = request.POST.get('grace_minutes', '10').strip()
+    if not all((program_id, year_level_str, ay_id, semester_str, section_code)):
+        return JsonResponse({
+            'success': False,
+            'message': 'Program, year, semester, academic year, and section code are required.',
+        }, status=400)
+
+    try:
+        program = Program.objects.get(pk=int(program_id), is_active=True)
+        academic_year = AcademicYear.objects.get(pk=int(ay_id))
+        year_level = int(year_level_str)
+        semester = int(semester_str)
+        capacity = int(capacity_str) if capacity_str else None
+        grace_minutes = int(grace_str) if grace_str else 10
+    except (ValueError, Program.DoesNotExist, AcademicYear.DoesNotExist):
+        return JsonResponse({'success': False, 'message': 'Invalid program, year, or academic year.'}, status=400)
+    if not 1 <= year_level <= 8 or semester not in dict(Curriculum.SEMESTER_CHOICES):
+        return JsonResponse({'success': False, 'message': 'Invalid year level or semester.'}, status=400)
+    if capacity is not None and capacity < 1:
+        capacity = None
+    if not 0 <= grace_minutes <= 120:
+        return JsonResponse({'success': False, 'message': 'Grace minutes must be between 0 and 120.'}, status=400)
+
+    curriculum_subject_ids = set(_wizard_curriculum_entries(
+        program, academic_year, year_level, semester,
+    ).filter(subject__is_active=True).values_list('subject_id', flat=True))
+    parsed_offerings = []
+    seen_subjects = set()
+    pending_slots = []
+    room_warnings = []
+    for index, item in enumerate(offerings_data, start=1):
+        if not isinstance(item, dict):
+            return JsonResponse({'success': False, 'message': f'Offering {index} is invalid.'}, status=400)
+        try:
+            subject_id = int(item.get('subject_id'))
+            teacher_id = int(item.get('teacher_profile_id'))
+        except (TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'message': f'Choose a subject and teacher for offering {index}.',
+            }, status=400)
+        if subject_id in seen_subjects:
+            return JsonResponse({'success': False, 'message': 'Each subject can only be added once per section.'}, status=400)
+        seen_subjects.add(subject_id)
+        if subject_id not in curriculum_subject_ids:
+            return JsonResponse({
+                'success': False,
+                'message': f'Offering {index} is not in the selected curriculum.',
+            }, status=400)
+        subject = get_object_or_404(Subject, pk=subject_id, is_active=True)
+        teacher = get_object_or_404(Profile, pk=teacher_id, role=Profile.ROLE_TEACHER, user__is_active=True)
+        class_code = f'{section_code}-{subject.code}'.upper()
+        if len(class_code) > 40:
+            return JsonResponse({
+                'success': False,
+                'message': f'{class_code} is too long. Shorten the section code.',
+            }, status=400)
+        if Class.objects.filter(academic_year=academic_year, class_code__iexact=class_code).exists():
+            return JsonResponse({
+                'success': False,
+                'message': f'{class_code} already exists in {academic_year.name}.',
+            }, status=400)
+
+        parsed_slots, parse_error = _parse_wizard_slots(json.dumps(item.get('slots', [])))
+        if parse_error:
+            return JsonResponse({'success': False, 'message': f'{subject.code}: {parse_error}'}, status=400)
+        total_minutes = _wizard_slot_minutes(parsed_slots)
+        required_minutes = subject.units * 60
+        if total_minutes != required_minutes:
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    f'{subject.code} needs {_wizard_hours_label(required_minutes)} per week, '
+                    f'but its schedule totals {_wizard_hours_label(total_minutes)}.'
+                ),
+            }, status=400)
+
+        conflicts = _collect_wizard_conflicts(teacher.pk, parsed_slots, academic_year=academic_year)
+        teacher_clashes = [entry for slot in conflicts for entry in slot['teacher']]
+        if teacher_clashes:
+            return JsonResponse({
+                'success': False,
+                'message': f'{teacher.user.get_full_name() or teacher.user.username} has a schedule conflict: {teacher_clashes[0]}.',
+            }, status=400)
+        room_warnings.extend(
+            f'{subject.code}: {warning}'
+            for slot in conflicts
+            for warning in slot['room']
+        )
+
+        for slot in parsed_slots:
+            for prior_teacher, prior_room, prior_slot, prior_subject in pending_slots:
+                overlaps = (
+                    slot['weekday'] == prior_slot['weekday']
+                    and slot['starts_at'] < prior_slot['ends_at']
+                    and prior_slot['starts_at'] < slot['ends_at']
+                )
+                if not overlaps:
+                    continue
+                if teacher.pk == prior_teacher.pk:
+                    return JsonResponse({
+                        'success': False,
+                        'message': (
+                            f'{teacher.user.get_full_name() or teacher.user.username} has overlapping '
+                            f'{prior_subject.code} and {subject.code} offerings in this section.'
+                        ),
+                    }, status=400)
+                room = (slot['room'] or '').strip().casefold()
+                if room and room not in {'tba', 'assigned room'} and room == prior_room.casefold():
+                    room_warnings.append(
+                        f'{subject.code}: {room} also has {prior_subject.code} at the same time.'
+                    )
+            pending_slots.append((teacher, slot['room'] or '', slot, subject))
+        parsed_offerings.append({
+            'subject': subject,
+            'teacher': teacher,
+            'class_code': class_code,
+            'slots': parsed_slots,
+        })
+
+    created_classes = []
+    notifications = []
+    try:
+        with transaction.atomic():
+            for offering in parsed_offerings:
+                result = assign_class(
+                    actor=request.user,
+                    teacher_profile=offering['teacher'],
+                    academic_year=academic_year,
+                    subject=offering['subject'],
+                    class_code=offering['class_code'],
+                    grace_minutes=grace_minutes,
+                    capacity=capacity,
+                    program=program,
+                    year_level=year_level,
+                )
+                class_obj = result['class']
+                created_slots = []
+                for slot in offering['slots']:
+                    created = ClassSlot.objects.create(
+                        class_obj=class_obj,
+                        weekday=slot['weekday'],
+                        starts_at=slot['starts_at'],
+                        ends_at=slot['ends_at'],
+                        room=slot['room'] or 'TBA',
+                        is_active=True,
+                    )
+                    AuditEvent.objects.create(
+                        actor=request.user,
+                        action='ADD_CLASS_SLOT',
+                        object_type='ClassSlot',
+                        object_id=str(created.pk),
+                        reason=f"Added slot for {offering['class_code']}: {created.get_weekday_display()} {slot['starts_at']}-{slot['ends_at']}",
+                    )
+                    created_slots.append({
+                        'weekday': created.get_weekday_display(),
+                        'starts_at': str(created.starts_at)[:5],
+                        'ends_at': str(created.ends_at)[:5],
+                        'room': created.room,
+                    })
+                created_classes.append({
+                    'class_id': class_obj.pk,
+                    'class_code': class_obj.class_code,
+                    'subject': offering['subject'].code,
+                    'teacher': offering['teacher'].user.get_full_name() or offering['teacher'].user.username,
+                    'slots': created_slots,
+                })
+                if result['created'] or result['reassigned_from']:
+                    notifications.append((
+                        offering['teacher'].user,
+                        class_obj.class_code,
+                        offering['subject'].code,
+                    ))
+    except ClassAssignmentError as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+    except IntegrityError:
+        return JsonResponse({
+            'success': False,
+            'message': 'One of these subject offerings already exists. Refresh the wizard and review the section list.',
+        }, status=400)
+
+    for teacher_user, class_code, subject_code in notifications:
+        create_notification(
+            teacher_user,
+            'class_assignment',
+            'Class assigned to you',
+            f'You are assigned to {class_code} ({subject_code}).',
+            '/teacher/classes/',
+        )
+
+    return JsonResponse({
+        'success': True,
+        'section_code': section_code,
+        'classes': created_classes,
+        'warnings': room_warnings,
     })
 
 
@@ -1108,6 +1502,10 @@ def class_wizard_save(request):
     // Creates a class section plus its weekly slots in one atomic transaction.
     // Teacher timetable clashes hard-block; room clashes return as warnings.
     """
+    offerings_json = request.POST.get('offerings', '').strip()
+    if offerings_json:
+        return _class_wizard_save_batch(request, offerings_json)
+
     program_id = request.POST.get('program_id', '').strip()
     year_level_str = request.POST.get('year_level', '').strip()
     subject_id = request.POST.get('subject_id', '').strip()
@@ -1237,6 +1635,15 @@ def class_wizard_save(request):
                 })
     except ClassAssignmentError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+
+    if result['created'] or result['reassigned_from']:
+        create_notification(
+            teacher.user,
+            'class_assignment',
+            'Class assigned to you',
+            f'You are assigned to {class_obj.class_code} ({subject.code}).',
+            '/teacher/classes/',
+        )
 
     return JsonResponse({
         'success': True,
