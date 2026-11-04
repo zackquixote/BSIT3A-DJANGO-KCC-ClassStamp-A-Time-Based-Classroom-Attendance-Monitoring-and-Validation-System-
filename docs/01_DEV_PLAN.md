@@ -180,9 +180,15 @@ After login, every user lands on a role-specific dashboard — no shared UI conf
 
 ### 🔵 Phase 6 — Notifications & Polish
 
-1. Email notifications: account approved/rejected, absence warning
+1. Email notifications for account/attendance outcomes and in-app updates for
+   class assignments, join requests, session openings, attendance changes,
+   excuse slips, and attendance disputes
 2. Anomaly Flag UI: dismiss/confirm/excuse suspicious stamps
 3. Reports & Export: CSV download, print-friendly attendance sheets
+
+The shared sidebar badge opens the authenticated user's notification center.
+Administrators also see a class setup checklist for missing instructors,
+schedules/rooms, student rosters, and join codes.
 
 ---
 
