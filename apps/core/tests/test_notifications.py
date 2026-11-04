@@ -15,6 +15,7 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.models import (
@@ -28,6 +29,7 @@ from apps.core.models import (
     Enrollment,
     ExcuseSlip,
     Profile,
+    Notification,
     Program,
     Subject,
 )
@@ -35,6 +37,10 @@ from apps.core.services.notification_service import (
     notify_at_risk,
     notify_excuse_decision,
     notify_user,
+)
+from apps.core.services.in_app_notification_service import (
+    create_notification,
+    notify_absent_students,
 )
 
 User = get_user_model()
@@ -139,6 +145,17 @@ class ExcuseDecisionNotificationTests(TestCase):
         self.assertIn('REJECTED', mail.outbox[0].body)
         self.assertIn('No supporting document', mail.outbox[0].body)
 
+    def test_auto_absence_creates_student_notification(self):
+        notify_absent_students(
+            [self.student_profile],
+            self.class_obj,
+            self.session.session_date,
+        )
+
+        notification = Notification.objects.get(user=self.student_user)
+        self.assertEqual(notification.category, 'attendance')
+        self.assertIn('marked absent', notification.message)
+
 
 class AtRiskMailerTests(TestCase):
     def setUp(self):
@@ -212,3 +229,91 @@ class AtRiskMailerTests(TestCase):
 
         self.assertTrue(delivered)
         self.assertIn('100.0%', mail.outbox[0].body)
+
+
+class InAppNotificationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='student-notify', password='test-pass')
+        self.other_user = User.objects.create_user(username='other-notify', password='test-pass')
+        self.client.force_login(self.user)
+
+    def test_notification_list_is_scoped_to_logged_in_user(self):
+        own = Notification.objects.create(
+            user=self.user,
+            category='attendance',
+            title='Attendance recorded',
+            message='Your attendance was recorded.',
+        )
+        Notification.objects.create(
+            user=self.other_user,
+            category='attendance',
+            title='Private update',
+            message='This belongs to another user.',
+        )
+
+        response = self.client.get(reverse('notification_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, own.title)
+        self.assertNotContains(response, 'Private update')
+        self.assertNotContains(response, 'href="/notifications/"')
+
+    def test_mark_read_requires_ownership_and_redirects_to_internal_link(self):
+        notification = Notification.objects.create(
+            user=self.user,
+            category='enrollment',
+            title='Class approved',
+            message='You are enrolled.',
+            link='/student/dashboard/',
+        )
+        other_notification = Notification.objects.create(
+            user=self.other_user,
+            category='enrollment',
+            title='Other user',
+            message='Private.',
+        )
+
+        response = self.client.post(
+            reverse('notification_mark_read', args=[notification.pk]),
+        )
+        self.assertRedirects(response, '/student/dashboard/', fetch_redirect_response=False)
+        notification.refresh_from_db()
+        self.assertIsNotNone(notification.read_at)
+
+        denied = self.client.post(
+            reverse('notification_mark_read', args=[other_notification.pk]),
+        )
+        self.assertEqual(denied.status_code, 404)
+
+    def test_mark_all_read_only_updates_current_user_notifications(self):
+        own = Notification.objects.create(
+            user=self.user,
+            category='attendance',
+            title='Own',
+            message='Own notification.',
+        )
+        other = Notification.objects.create(
+            user=self.other_user,
+            category='attendance',
+            title='Other',
+            message='Other notification.',
+        )
+
+        response = self.client.post(reverse('notification_mark_all_read'))
+
+        self.assertRedirects(response, reverse('notification_list'), fetch_redirect_response=False)
+        own.refresh_from_db()
+        other.refresh_from_db()
+        self.assertIsNotNone(own.read_at)
+        self.assertIsNone(other.read_at)
+
+    def test_notification_service_rejects_external_redirect_links(self):
+        notification = create_notification(
+            self.user,
+            'class_assignment',
+            'Class assigned',
+            'A section was assigned.',
+            'https://example.com/',
+        )
+
+        self.assertEqual(notification.link, '')
