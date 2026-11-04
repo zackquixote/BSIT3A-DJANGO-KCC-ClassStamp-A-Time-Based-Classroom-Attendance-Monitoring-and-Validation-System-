@@ -42,6 +42,7 @@ from apps.core.models import (
     Profile,
 )
 from apps.core.services.class_join_service import hash_join_code, normalize_join_code
+from apps.core.services.in_app_notification_service import create_notification
 from apps.core.services.schedule_service import student_overlap_conflicts
 from apps.core.services.qr_service import (
     TOTP_INTERVAL,
@@ -159,6 +160,17 @@ def student_join_class(request):
                                             object_id=str(enrollment.pk),
                                             reason='Student requested class enrollment with join code.',
                                         )
+                                        if class_obj.teacher_profile_id:
+                                            create_notification(
+                                                class_obj.teacher_profile.user,
+                                                'enrollment',
+                                                'New class join request',
+                                                (
+                                                    f'{profile.user.get_full_name() or profile.student_number} '
+                                                    f'requested to join {class_obj.class_code}.'
+                                                ),
+                                                '/teacher/classes/',
+                                            )
                                     else:
                                         error_message = 'Your enrollment status changed. Refresh and check your class list.'
 
@@ -803,5 +815,18 @@ def student_dispute_open(request):
         ),
         reason=reason[:200],
     )
+    class_obj = record.session.slot.class_obj
+    if class_obj.teacher_profile_id:
+        create_notification(
+            class_obj.teacher_profile.user,
+            'attendance_dispute',
+            'Attendance dispute submitted',
+            (
+                f'{profile.user.get_full_name() or profile.student_number} disputed the '
+                f'{record.status.lower()} record for {class_obj.class_code} on '
+                f'{record.session.session_date}.'
+            ),
+            '/teacher/excuse-slips/',
+        )
     messages.success(request, 'Dispute submitted — your instructor will review it.')
     return redirect('student_attendance_log')
