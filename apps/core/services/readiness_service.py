@@ -26,6 +26,7 @@ SLOT_STATUS_LABELS = {
     'partial': 'Active and inactive subjects',
     'inactive': 'Inactive subjects only',
     'empty': 'No mappings',
+    'optional': 'Optional',
 }
 
 PROGRAM_STATUS_LABELS = {
@@ -47,12 +48,13 @@ SLOT_STATUS_BADGES = {
     'partial': 'badge--warning',
     'inactive': 'badge--warning',
     'empty': 'badge--danger',
+    'optional': 'badge--muted',
 }
 
 
-def _slot_status(entries):
+def _slot_status(entries, optional=False):
     if not entries:
-        return 'empty'
+        return 'optional' if optional else 'empty'
     active = [entry for entry in entries if entry.subject.is_active]
     if not active:
         return 'inactive'
@@ -159,13 +161,14 @@ def build_curriculum_readiness_report(program_id=None):
             semesters = []
             for semester, semester_label in Curriculum.SEMESTER_CHOICES:
                 slot_entries = entries_by_slot.get((year_level, semester), [])
-                status = _slot_status(slot_entries)
+                summer_optional = semester == 3 and not slot_entries
+                status = _slot_status(slot_entries, optional=summer_optional)
                 inactive_count = sum(
                     1 for entry in slot_entries if not entry.subject.is_active
                 )
                 active_count = len(slot_entries) - inactive_count
 
-                if not slot_entries:
+                if not slot_entries and not summer_optional:
                     program_empty_slots += 1
                 program_inactive_mappings += inactive_count
 
@@ -209,7 +212,10 @@ def build_curriculum_readiness_report(program_id=None):
                 'semesters': semesters,
             })
 
-        expected_slots = program.years_total * len(Curriculum.SEMESTER_CHOICES)
+        expected_slots = program.years_total * 2 + sum(
+            1 for year_level in range(1, program.years_total + 1)
+            if entries_by_slot.get((year_level, 3))
+        )
         total_expected_slots += expected_slots
         total_empty_slots += program_empty_slots
         total_inactive_mappings += program_inactive_mappings
