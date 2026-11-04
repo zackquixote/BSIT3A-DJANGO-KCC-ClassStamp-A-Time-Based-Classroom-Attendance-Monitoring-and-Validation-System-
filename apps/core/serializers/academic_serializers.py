@@ -134,6 +134,7 @@ def serialize_curriculum_entry(entry) -> dict:
         'subject_id': entry.subject_id,
         'subject_code': entry.subject.code if entry.subject else None,
         'subject_name': entry.subject.name if entry.subject else None,
+        'is_major': entry.is_major,
     }
 
 
@@ -152,4 +153,3 @@ def serialize_academic_year(academic_year) -> dict:
         'is_active': academic_year.is_active,
         'class_count': getattr(academic_year, 'class_count', academic_year.classes.count() if hasattr(academic_year, 'classes') else 0),
     }
-
