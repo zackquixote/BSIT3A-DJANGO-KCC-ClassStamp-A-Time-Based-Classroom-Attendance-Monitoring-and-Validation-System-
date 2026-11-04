@@ -53,6 +53,31 @@
         });
       }
     });
+
+    var params = new URLSearchParams(window.location.search);
+    var setupClassId = params.get('setup_class');
+    var setupAction = params.get('setup_action');
+    if (setupClassId && setupAction) {
+      window.setTimeout(function () {
+        var row = getEl('class-' + setupClassId);
+        var actionSelectors = {
+          teacher: '.btn-edit-class',
+          schedule: '.btn-manage-slots',
+          roster: '.btn-manage-roster',
+          join_code: '.action-dropdown-toggle',
+        };
+        var selector = actionSelectors[setupAction];
+        var actionButton = row && selector ? row.querySelector(selector) : null;
+        if (!row || !actionButton) {
+          if (window.App && window.App.toast) {
+            window.App.toast('error', 'Could not open that section setup. Find the section in the list and try again.');
+          }
+          return;
+        }
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        actionButton.click();
+      }, 0);
+    }
   }
 
   if (document.readyState === 'loading') {
