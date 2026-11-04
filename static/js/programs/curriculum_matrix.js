@@ -69,6 +69,21 @@
     chip.appendChild(code);
 
     chip.appendChild(document.createTextNode(' ' + (entry.subject_name || '')));
+    var typeBadge = document.createElement(state.canEdit ? 'button' : 'span');
+    typeBadge.className = 'badge badge--' + (entry.is_major ? 'purple' : 'muted') +
+      ' badge--xs' + (state.canEdit ? ' curriculum-chip-major-toggle' : '');
+    if (state.canEdit) {
+      typeBadge.type = 'button';
+      typeBadge.setAttribute('data-entry-id', entry.id);
+      typeBadge.title = 'Click to mark as ' + (entry.is_major ? 'non-major' : 'major');
+      typeBadge.setAttribute(
+        'aria-label',
+        'Mark ' + (entry.subject_code || 'subject') + ' as ' +
+          (entry.is_major ? 'non-major' : 'major')
+      );
+    }
+    typeBadge.textContent = entry.is_major ? 'Major' : 'Non-major';
+    chip.appendChild(typeBadge);
 
     if (state.canEdit) {
       var removeBtn = document.createElement('button');
@@ -145,7 +160,7 @@
   function setFormEnabled(enabled) {
     var addForm = getEl('curriculumAddForm');
     if (!addForm) return;
-    addForm.querySelectorAll('select, button').forEach(function (el) {
+    addForm.querySelectorAll('select, input, button').forEach(function (el) {
       el.disabled = !enabled;
     });
     var note = getEl('curriculumReadOnlyNote');
@@ -377,6 +392,39 @@
         return;
       }
 
+      var majorBtn = e.target.closest('.curriculum-chip-major-toggle');
+      if (majorBtn) {
+        e.preventDefault();
+        var majorEntryId = majorBtn.getAttribute('data-entry-id');
+        var majorEntry = state.entries.find(function (entry) {
+          return String(entry.id) === String(majorEntryId);
+        });
+        if (!majorEntryId || !majorEntry) return;
+        majorBtn.disabled = true;
+        var majorPrefix = modal.getAttribute('data-major-url-prefix') ||
+          '/programs/curriculum/major/';
+        postJSON(majorPrefix + majorEntryId + '/', toFormBody({
+          is_major: majorEntry.is_major ? 'false' : 'true'
+        }))
+        .then(function (result) {
+          if (!result.data.ok) {
+            throw new Error(result.data.error || 'Unable to update subject classification.');
+          }
+          state.entries = state.entries.map(function (entry) {
+            return String(entry.id) === String(majorEntryId) ? result.data.entry : entry;
+          });
+          renderGrid();
+          toast('success', result.data.message || 'Subject classification updated.');
+        })
+        .catch(function (err) {
+          majorBtn.disabled = false;
+          var message = err && err.message ? err.message : 'Unable to update subject classification.';
+          showError(message);
+          if (err && err.message) toast('error', message);
+        });
+        return;
+      }
+
       var draftBtn = e.target.closest('#curriculumCreateDraftBtn');
       if (draftBtn) {
         e.preventDefault();
@@ -463,7 +511,8 @@
           program_id: state.programId,
           subject_id: subjectId,
           year_level: yearLevel,
-          semester: semester
+          semester: semester,
+          is_major: getEl('curriculumMajorCheckbox').checked ? 'true' : 'false'
         }))
         .then(function (result) {
           if (addBtn) addBtn.disabled = false;
@@ -474,6 +523,7 @@
             state.entries.push(result.data.entry);
             renderGrid();
           }
+          addForm.reset();
           if (!state.draftVersion) {
             return fetchMatrix().then(function () {
               toast('success', result.data.message || 'Subject assigned to curriculum.');
@@ -488,6 +538,17 @@
           if (err && err.message) toast('error', message);
         });
       });
+    }
+
+    var openProgramId = modal.getAttribute('data-open-program-id');
+    if (openProgramId) {
+      var openButton = Array.prototype.find.call(
+        document.querySelectorAll('.js-curriculum-matrix-btn'),
+        function (button) {
+          return button.getAttribute('data-program-id') === openProgramId;
+        }
+      );
+      if (openButton) loadMatrix(openButton);
     }
   }
 
