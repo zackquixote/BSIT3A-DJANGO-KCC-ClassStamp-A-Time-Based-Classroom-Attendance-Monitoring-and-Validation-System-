@@ -73,6 +73,44 @@
   </div>
 </div>
 
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="flex items-center justify-between gap-3 flex-wrap mb-2">
+      <div>
+        <h2 class="h3 mb-1">Class setup checklist</h2>
+        <p class="text-muted mb-0">Finish these details so teachers and students can use each active section.</p>
+      </div>
+      <span class="badge {% if setup_checklist %}badge--warning{% else %}badge--success{% endif %}">
+        {{ setup_checklist|length }} section{{ setup_checklist|length|pluralize }} need attention
+      </span>
+    </div>
+    {% if setup_checklist %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead><tr><th>Section</th><th>Missing setup</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for item in setup_checklist %}
+              <tr>
+                <td>{{ item.class_obj.class_code }} · {{ item.class_obj.subject.code }}</td>
+                <td>{{ item.missing|join:", " }}</td>
+                <td>
+                  <div class="flex items-center gap-1 flex-wrap">
+                    {% for action in item.actions %}
+                    <a class="btn btn-outline btn-sm" href="{{ action.link }}">{{ action.label }}</a>
+                    {% endfor %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-success mb-0"><i class="fas fa-circle-check"></i> All active sections in this academic term have a teacher, schedule, room, roster, and join code.</p>
+    {% endif %}
+  </div>
+</div>
+
 <!-- ── Filter & Search Bar ────────────────────────────────────── -->
 <div class="card mb-4" style="padding: 14px 18px;">
   <form method="GET" class="flex items-center gap-3 flex-wrap">
@@ -166,7 +204,7 @@
       </thead>
       <tbody>
         {% for c in classes %}
-        <tr>
+        <tr id="class-{{ c.pk }}">
           <td>
             <div class="font-bold text-sm text-primary">{{ c.class_code }}</div>
             <div class="text-xs text-muted mt-0.5">
@@ -243,6 +281,8 @@
               <button type="button" class="btn btn-outline btn-icon-xs btn-manage-roster"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
+                      data-program-id="{{ c.program_id|default_if_none:'' }}"
+                      data-year-level="{{ c.year_level|default_if_none:'' }}"
                       title="Manage Student Roster" aria-label="Manage Student Roster">
                 <i class="fas fa-users"></i>
               </button>
@@ -513,6 +553,12 @@
             <i class="fas fa-plus"></i> Enlist
           </button>
         </div>
+        <div id="rosterAvailableEmpty" class="text-xs text-muted mt-2" style="display:none;">
+          <span id="rosterAvailableEmptyMessage"></span>
+          <button type="button" class="btn btn-outline btn-xs mt-1" id="btnRosterClearScope">
+            Show all programs and years
+          </button>
+        </div>
         <button type="button" class="btn btn-outline btn-sm" id="btnRosterBatchEnroll" style="width: 100%; margin-top: 8px;">
           <i class="fas fa-users"></i> <span id="rosterBatchLabel">Enlist All Matching Students</span>
         </button>
@@ -595,10 +641,10 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/classes/classes_common.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/classes_common.js' %}?v=20261104_setup1"></script>
 <script src="{% static 'js/classes/class_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/classes/roster_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/roster_modal.js' %}?v=20261104_roster2"></script>
 <script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/join_codes.js' %}?v=20261103_v1"></script>
 
@@ -667,4 +713,3 @@
   });
 </script>
 {% endblock %}
-
