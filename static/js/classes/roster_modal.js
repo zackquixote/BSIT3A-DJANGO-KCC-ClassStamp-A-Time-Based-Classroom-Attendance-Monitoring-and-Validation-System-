@@ -3,7 +3,6 @@
   'use strict';
 
   var currentRosterClassId = null;
-  var lastRosterClassId = null;
 
   function getEl(id) { return document.getElementById(id); }
   function escapeHtml(value) {
@@ -127,14 +126,17 @@
     var programFilter           = getEl('rosterProgramFilter');
     var yearFilter              = getEl('rosterYearFilter');
     var batchLabel              = getEl('rosterBatchLabel');
+    var availableEmpty          = getEl('rosterAvailableEmpty');
+    var availableEmptyMessage   = getEl('rosterAvailableEmptyMessage');
+    var clearScopeButton        = getEl('btnRosterClearScope');
 
     if (rosterStudentsList) {
       rosterStudentsList.innerHTML = '<p class="text-muted text-xs">Loading roster...</p>';
     }
 
     var params = new URLSearchParams();
-    if (programFilter && programFilter.value) params.set('program_id', programFilter.value);
-    if (yearFilter && yearFilter.value) params.set('year_level', yearFilter.value);
+    if (programFilter) params.set('program_id', programFilter.value);
+    if (yearFilter) params.set('year_level', yearFilter.value);
     var qs = params.toString() ? ('?' + params.toString()) : '';
 
     fetch('/classes/' + classId + '/roster/' + qs)
@@ -148,13 +150,6 @@
             : (data.enrolled_count + ' enrolled \u00b7 no capacity limit');
         }
 
-        // Auto-scope the candidate filters to the section's own program/year
-        // the first time this section is opened, not on every reload.
-        if (classId !== lastRosterClassId) {
-          lastRosterClassId = classId;
-          if (programFilter) programFilter.value = data.class_program_id ? String(data.class_program_id) : '';
-          if (yearFilter) yearFilter.value = data.class_year_level ? String(data.class_year_level) : '';
-        }
         if (batchLabel) {
           var scope = [];
           if (programFilter && programFilter.value) {
@@ -168,11 +163,25 @@
         }
 
         // Render available dropdown
-        var optHtml = '<option value="">Choose an approved student to enlist...</option>';
+        var optHtml = data.available.length
+          ? '<option value="">Choose an approved student to enlist...</option>'
+          : '<option value="">No eligible approved students match these filters</option>';
         data.available.forEach(function (s) {
           optHtml += '<option value="' + escapeHtml(s.profile_id) + '">' + escapeHtml(s.student_name) + ' (' + escapeHtml(s.student_id) + ' \u00b7 ' + escapeHtml(s.program) + ')</option>';
         });
         if (availableStudentsSelect) availableStudentsSelect.innerHTML = optHtml;
+        if (availableEmpty) {
+          var hasScope = Boolean(
+            (programFilter && programFilter.value) || (yearFilter && yearFilter.value)
+          );
+          availableEmpty.style.display = data.available.length ? 'none' : 'block';
+          if (availableEmptyMessage) {
+            availableEmptyMessage.textContent = hasScope
+              ? 'No approved students are available for this program/year. Clear the filters to search all approved students. Accounts awaiting approval cannot be enlisted.'
+              : 'No approved students are currently available to enlist. Accounts awaiting approval cannot be enlisted.';
+          }
+          if (clearScopeButton) clearScopeButton.style.display = hasScope ? '' : 'none';
+        }
 
         // Render requests separately so an admin can explicitly approve or decline them.
         var listHtml = '';
@@ -234,6 +243,7 @@
     var btnBatchEnroll = getEl('btnRosterBatchEnroll');
     var programFilter = getEl('rosterProgramFilter');
     var yearFilter = getEl('rosterYearFilter');
+    var clearScopeButton = getEl('btnRosterClearScope');
 
     // Candidate scope filters reload the available-students dropdown
     [programFilter, yearFilter].forEach(function (sel) {
@@ -264,8 +274,8 @@
 
         var fd = new FormData();
         fd.append('csrfmiddlewaretoken', getCSRF());
-        if (programFilter && programFilter.value) fd.append('program_id', programFilter.value);
-        if (yearFilter && yearFilter.value) fd.append('year_level', yearFilter.value);
+        if (programFilter) fd.append('program_id', programFilter.value);
+        if (yearFilter) fd.append('year_level', yearFilter.value);
 
         fetch('/classes/' + currentRosterClassId + '/roster/enroll-batch/', {
           method: 'POST',
@@ -308,6 +318,8 @@
 
       e.preventDefault();
       currentRosterClassId = rosterBtn.dataset.classId;
+      if (programFilter) programFilter.value = rosterBtn.dataset.programId || '';
+      if (yearFilter) yearFilter.value = rosterBtn.dataset.yearLevel || '';
       var rosterModalClassCode = getEl('rosterModalClassCode');
       if (rosterModalClassCode) rosterModalClassCode.textContent = rosterBtn.dataset.classCode;
       if (typeof window.openModal === 'function') {
@@ -317,6 +329,14 @@
       }
       loadRosterData(currentRosterClassId);
     });
+
+    if (clearScopeButton) {
+      clearScopeButton.addEventListener('click', function () {
+        if (programFilter) programFilter.value = '';
+        if (yearFilter) yearFilter.value = '';
+        if (currentRosterClassId) loadRosterData(currentRosterClassId);
+      });
+    }
 
     // Enroll student button click
     if (btnEnrollStudent) {
