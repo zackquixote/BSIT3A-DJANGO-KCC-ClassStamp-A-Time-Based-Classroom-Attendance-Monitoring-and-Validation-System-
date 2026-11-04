@@ -19,7 +19,7 @@ from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 
 from apps.core.decorators import approved_required, role_required
-from apps.core.models import AcademicYear, ClassSlot, Profile
+from apps.core.models import AcademicYear, ClassSlot, Enrollment, Profile
 from apps.core.views.helpers import (
     _admin_dashboard_stats,
     _student_dashboard_stats,
@@ -184,8 +184,21 @@ def teacher_classes(request):
 
     weekly_slot_total = 0
     at_risk_count = 0
+    pending_by_class = {}
+    if classes:
+        for enrollment in (
+            Enrollment.objects.filter(
+                class_obj_id__in=[class_obj.id for class_obj in classes],
+                status=Enrollment.STATUS_PENDING,
+            )
+            .select_related('student_profile__user', 'student_profile__program')
+            .order_by('created_at')
+        ):
+            pending_by_class.setdefault(enrollment.class_obj_id, []).append(enrollment)
+
     for c in classes:
         c.week_slots = slots_by_class.get(c.id, [])
+        c.pending_join_requests = pending_by_class.get(c.id, [])
         weekly_slot_total += len(c.week_slots)
         if c.radar_critical:
             at_risk_count += 1
