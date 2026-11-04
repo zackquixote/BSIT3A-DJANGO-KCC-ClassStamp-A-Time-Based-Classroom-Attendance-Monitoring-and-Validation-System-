@@ -106,27 +106,30 @@ this file supersedes it for status tracking.
 - **Verification evidence:** _pending_
 
 ### TODO-P0-06 — Make user-management writes legal and atomic
-- **Audit ref:** AUD-02 · **Status:** `NEEDS APPROVAL` · **Priority:** P0
+- **Audit ref:** AUD-02 · **Status:** `DONE` (2026-11-04) · **Priority:** P0
 - **Problem:** teacher/admin creation violates `chk_cs_profile_shape`; role edits violate the
   immutability trigger; `User` and `Profile` writes are not atomic; passwords are unvalidated.
 - **Files:** `apps/users/views.py:318-400`; `apps/core/models/profile.py`; provisioning services.
 - **Root cause:** generic CRUD written without the live profile shape/trigger policy; SQLite tests
   do not enforce either.
-- **Solution (preferred):** wrap in `transaction.atomic()`; stop direct role mutation — either
-  reject role changes with an explicit 400 or implement an audited “archive old profile, create
-  new profile” service; set `approval_status=NULL` and clear student-only fields for
-  TEACHER/ADMIN; route provisioning through `auth_service`/`teacher_service`; validate passwords.
-- **Dependencies:** **approval** of the role-change policy; coordinate with TODO-P0-07 so a fresh
-  DB enforces the same rules.
+- **Solution:** the endpoint now commits the User, Profile, and audit writes atomically; validates
+  passwords; creates role-correct profiles; and implements role changes by disabling the old
+  account, preserving its profile and historical class/attendance links, and creating a fresh
+  account/profile. Class assignments are intentionally left for an administrator to reassign.
+  The UI warns before the transition.
+- **Dependencies:** the selected archive-and-recreate policy is implemented. Database migration
+  parity remains tracked under TODO-P0-07.
 - **Expected result:** create/edit operations return 2xx only when the resulting row satisfies the
   profile shape; failures roll back completely and are audited.
 - **Test method:** MariaDB integration tests for: create teacher, create admin, edit role, failed
   profile insert rollback; assert `Profile` shape and `AuditEvent`. Add the same to SQLite via
   Django constraints (TODO-P1-10).
-- **Verification evidence:** _pending_
+- **Verification evidence:** `apps.users.tests` passes on MariaDB and SQLite (12 tests each),
+  including role-shape creation, rollback on profile failure, weak-password rejection, and
+  preservation of historical class links during role reprovisioning.
 
 ### TODO-P0-07 — Provision business triggers and CHECK constraints through migrations
-- **Audit ref:** AUD-01, AUD-21, AUD-22 · **Status:** `NEEDS APPROVAL` · **Priority:** P0
+- **Audit ref:** AUD-01, AUD-21, AUD-22 · **Status:** `BLOCKED` · **Priority:** P0
 - **Problem:** 13 of 17 triggers and 21 CHECK constraints exist only in the live DB/manual dump.
 - **Files:** `apps/core/migrations/0007…`, `sql/bsitcrud.sql`, `apps/core/models/*.py`.
 - **Root cause:** manual schema application; only append-only triggers were ported.
@@ -134,15 +137,20 @@ this file supersedes it for status tracking.
   triggers and MySQL-compatible CHECKs; add Django `CheckConstraint`s/`clean()` for vendor-neutral
   rules so SQLite tests exercise them; regenerate or mark the SQL dump historical; add a
   schema-inventory test.
-- **Dependencies:** **approval** (schema change); MariaDB 10.4 table-rebuild behavior; coordinate
-  with TODO-P0-06. Django 5.2 upgrade (B-10) remains separately blocked.
+- **Dependencies:** resolve existing application/test compatibility with strict row-level
+  constraints before provisioning them from migrations. MariaDB 10.4 DDL behavior also needs a
+  scratch-database migration test. Django 5.2 upgrade (B-10) remains separately blocked.
 - **Expected result:** a database built from migrations alone rejects the same invalid rows as the
   current live DB; SQLite tests catch single-row violations.
 - **Test method:** build a scratch DB from migrations only; attempt each forbidden
   insert/update (role change, wrong approval shape, attendance on closed session, teacher as
   marker, weekday mismatch, capacity overflow, etc.); assert database errors; run full suite on
   both backends. Keep a backup before applying to the live DB.
-- **Verification evidence:** _pending_
+- **Verification evidence:** Migration design was trialed locally and caused 200+ existing
+  MariaDB/SQLite tests to fail because current fixtures and workflows violate the proposed
+  constraints (notably profile shape and attendance stamp-state rules). The trial migration was
+  removed and was never applied to the configured database. Rework the constraints and affected
+  workflows/fixtures together, then rerun the full suite before enabling schema enforcement.
 
 ### TODO-P0-08 — One password policy; remove the shared default
 - **Audit ref:** AUD-04 · **Status:** `NEEDS APPROVAL` · **Priority:** P0
@@ -384,4 +392,6 @@ Plus the item’s targeted test and a browser/HTTP smoke for UI changes.
 | 2026-10-31 | TODO-P1-05 subject toggle | DONE | Live-class guard and activation/deactivation audit tests |
 | 2026-10-31 | TODO-P2-01 Batch A cleanup | DONE | DC-01/05/06/07/09/10/11 removed; zero remaining Python/asset references |
 | 2026-10-31 | Final verification gate | **422/422 MariaDB (569.5 s), 422/422 SQLite (14.5 s)** | `check` clean; `makemigrations --check --dry-run` clean; `git diff --check` clean |
+| 2026-11-04 | TODO-P0-06 account writes | DONE | `apps.users.tests`: 12/12 on MariaDB and SQLite |
+| 2026-11-04 | TODO-P0-07 migration trial | BLOCKED | Proposed constraints broke 200+ existing tests; migration not applied and removed |
 | — | All remaining TODO items | Not started / needs approval | — |
