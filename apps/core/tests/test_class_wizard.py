@@ -10,6 +10,7 @@
 """
 
 from datetime import date
+import json
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -158,6 +159,97 @@ class CodeAvailabilityTests(WizardBase):
 
         self.assertEqual(response.status_code, 302)
 
+    def test_batch_check_allows_other_subjects_in_existing_section(self):
+        self._class('BSIT-1A-IT103')
+
+        payload = self.client.get(reverse('class_wizard_code_check'), {
+            'code': 'BSIT-1A',
+            'subject': 'GE101',
+            'ay': self.academic_year.pk,
+            'batch': '1',
+        }).json()
+
+        self.assertTrue(payload['available'])
+
+    def test_batch_check_rejects_existing_subject_offering(self):
+        self._class('BSIT-1A-IT103')
+
+        payload = self.client.get(reverse('class_wizard_code_check'), {
+            'code': 'BSIT-1A',
+            'subject': 'IT103',
+            'ay': self.academic_year.pk,
+            'batch': '1',
+        }).json()
+
+        self.assertFalse(payload['available'])
+        self.assertIn('BSIT-1A-IT103', payload['message'])
+
+
+class BatchOfferingTests(WizardBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin_user)
+
+    def _offering(self, subject, weekday, teacher=None, start='08:00', end='11:00'):
+        return {
+            'subject_id': self.subjects[subject].pk,
+            'teacher_profile_id': (teacher or self.teacher_profile).pk,
+            'slots': [{
+                'weekday': weekday,
+                'starts_at': start,
+                'ends_at': end,
+                'room': f'Room {weekday + 1}',
+            }],
+        }
+
+    def _save(self, offerings):
+        return self.client.post(reverse('class_wizard_save'), {
+            'program_id': self.program.pk,
+            'year_level': 1,
+            'semester': 1,
+            'ay_id': self.academic_year.pk,
+            'class_code': 'BSIT-1A',
+            'capacity': 40,
+            'grace_minutes': 10,
+            'offerings': json.dumps(offerings),
+        })
+
+    def test_creates_multiple_subjects_under_one_section_in_one_submission(self):
+        response = self._save([
+            self._offering('IT103', 0),
+            self._offering('GE101', 1),
+        ])
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['section_code'], 'BSIT-1A')
+        self.assertEqual(
+            {item['class_code'] for item in payload['classes']},
+            {'BSIT-1A-IT103', 'BSIT-1A-GE101'},
+        )
+        self.assertEqual(Class.objects.filter(academic_year=self.academic_year).count(), 2)
+
+    def test_duplicate_subject_in_batch_is_rejected_without_partial_save(self):
+        response = self._save([
+            self._offering('IT103', 0),
+            self._offering('IT103', 1),
+        ])
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('only be added once', response.json()['message'])
+        self.assertFalse(Class.objects.filter(academic_year=self.academic_year).exists())
+
+    def test_teacher_cannot_be_scheduled_for_overlapping_offerings(self):
+        response = self._save([
+            self._offering('IT103', 0),
+            self._offering('GE101', 0),
+        ])
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('overlapping', response.json()['message'])
+        self.assertFalse(Class.objects.filter(academic_year=self.academic_year).exists())
+
 
 class StepperAccessibilityTests(WizardBase):
     def setUp(self):
@@ -175,4 +267,6 @@ class StepperAccessibilityTests(WizardBase):
         self.assertIn('aria-label="Step 1 of 5: Curriculum"', body)
         self.assertIn('aria-current="step"', body)
         self.assertIn('id="wiz-code-status"', body)
+        self.assertIn('id="wiz-added-offerings-list"', body)
+        self.assertIn('data-programs-url="/programs/"', body)
         self.assertIn('data-code-check-url', body)
