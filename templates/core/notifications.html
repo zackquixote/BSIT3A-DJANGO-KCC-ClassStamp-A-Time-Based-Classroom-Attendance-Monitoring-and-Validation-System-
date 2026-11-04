@@ -1,0 +1,46 @@
+{% extends "theme/base.html" %}
+{% block title %}Notifications — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Notifications</h1>
+    <p class="page-subtitle">{{ unread_notification_count }} unread update{{ unread_notification_count|pluralize }} across your classes and attendance.</p>
+  </div>
+  {% if unread_notification_count %}
+    <form method="post" action="{% url 'notification_mark_all_read' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline btn-sm">Mark all as read</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  {% for notification in notifications %}
+    <article class="card-body" style="border-bottom: 1px solid var(--border-color, #e5e7eb);{% if not notification.read_at %} background: var(--surface-muted, #f8fafc);{% endif %}">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="h4 mb-1">{{ notification.title }}</h2>
+          <p class="mb-1">{{ notification.message }}</p>
+          <small class="text-muted">{{ notification.created_at|date:"M j, Y · g:i A" }}</small>
+        </div>
+        {% if not notification.read_at %}
+          <form method="post" action="{% url 'notification_mark_read' notification.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline btn-sm" aria-label="Open and mark {{ notification.title }} as read">
+              {% if notification.link %}Open{% else %}Mark read{% endif %}
+            </button>
+          </form>
+        {% elif notification.link %}
+          <a href="{{ notification.link }}" class="btn btn-outline btn-sm">Open</a>
+        {% endif %}
+      </div>
+    </article>
+  {% empty %}
+    <div class="card-body text-center py-5">
+      <i class="fas fa-bell-slash fa-2x mb-3"></i>
+      <p class="mb-0">You are all caught up. New class and attendance updates will appear here.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
