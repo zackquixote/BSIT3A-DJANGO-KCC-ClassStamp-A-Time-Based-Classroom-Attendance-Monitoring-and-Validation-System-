@@ -21,6 +21,9 @@
     options: null,
     slots: [],
     conflicts: [],
+    offerings: [],
+    sectionCode: '',
+    finalOffering: null,
     codeStatus: { available: true, message: '' }
   };
 
@@ -223,6 +226,9 @@
       }
       state.options = data;
       state.step1Key = currentKey;
+      state.offerings = [];
+      state.sectionCode = '';
+      state.finalOffering = null;
       state.slots = [];
       state.conflicts = [];
       populateSubjects();
@@ -242,31 +248,45 @@
     const emptyBox = $('wiz-empty-subjects');
     const emptyDesc = $('wiz-empty-subjects-desc');
     const link = $('wiz-curriculum-link');
+    const selectedSubjectId = sel.value;
     sel.innerHTML = '';
 
-    const subjects = state.options.subjects || [];
+    const addedSubjectIds = new Set(state.offerings.map((offering) => String(offering.subject_id)));
+    const subjects = (state.options.subjects || [])
+      .filter((subject) => !addedSubjectIds.has(String(subject.id)));
     if (!subjects.length) {
       if (emptyBox) emptyBox.style.display = 'block';
       const p = programs.find((pr) => String(pr.id) === $('wiz-program').value);
       const pName = p ? p.code : 'this program';
       if (emptyDesc) {
-        emptyDesc.textContent = `No active subjects found in curriculum matrix for ${pName}, Year ${$('wiz-year').value}, ${$('wiz-semester').selectedOptions[0].textContent}.`;
+        emptyDesc.textContent = state.offerings.length
+          ? 'All curriculum subjects have been added to this section.'
+          : `No active subjects found in curriculum matrix for ${pName}, Year ${$('wiz-year').value}, ${$('wiz-semester').selectedOptions[0].textContent}.`;
       }
       if (link && p) {
-        link.href = `/programs/${p.id}/curriculum/`;
+        const curriculumUrl = new URL(boot.dataset.programsUrl, window.location.origin);
+        curriculumUrl.searchParams.set('open_curriculum', p.id);
+        link.href = curriculumUrl.toString();
       }
       sel.appendChild(new Option('No curriculum subjects for this selection', ''));
       updateUnitsHint();
+      renderAddedOfferings();
       return;
     }
 
     if (emptyBox) emptyBox.style.display = 'none';
     sel.appendChild(new Option('Select subject', ''));
     subjects.forEach((s) => {
-      // Clean option formatting (no dashes)
-      sel.appendChild(new Option(`${s.code} · ${s.name} (${s.units} units)`, String(s.id)));
+      const majorLabel = s.is_major ? ' · MAJOR' : '';
+      const option = new Option(`${s.code} · ${s.name}${majorLabel} (${s.units} units)`, String(s.id));
+      option.dataset.code = s.code;
+      sel.appendChild(option);
     });
+    if (subjects.some((subject) => String(subject.id) === selectedSubjectId)) {
+      sel.value = selectedSubjectId;
+    }
     updateUnitsHint();
+    renderAddedOfferings();
   }
 
   function populateTeachers() {
@@ -276,6 +296,55 @@
     if (!teachers.length) {
       sel.appendChild(new Option('No active teachers in this department', ''));
       return;
+    }
+
+    function renderAddedOfferings() {
+      const container = $('wiz-added-offerings');
+      const list = $('wiz-added-offerings-list');
+      if (!container || !list) return;
+      list.innerHTML = '';
+      if (!state.offerings.length) {
+        container.style.display = 'none';
+        return;
+      }
+
+      container.style.display = '';
+      const message = container.querySelector('span');
+      if (message) {
+        message.textContent =
+          `${state.offerings.length} subject offering${state.offerings.length === 1 ? '' : 's'} saved for ${state.sectionCode}. You can remove one before creating the section.`;
+      }
+
+      state.offerings.forEach((offering, index) => {
+        const subject = (state.options.subjects || []).find(
+          (item) => String(item.id) === String(offering.subject_id)
+        );
+        const teacher = (state.options.teachers || []).find(
+          (item) => String(item.profile_id) === String(offering.teacher_profile_id)
+        );
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid rgba(255,255,255,.08);';
+
+        const details = document.createElement('span');
+        details.textContent = `${subject ? subject.code : 'Subject'} · ${teacher ? teacher.name : 'Teacher'} · ${(offering.slots || []).length} schedule slot(s)`;
+        row.appendChild(details);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-outline btn-xs';
+        removeButton.style.marginLeft = 'auto';
+        removeButton.textContent = 'Remove';
+        removeButton.setAttribute(
+          'aria-label',
+          `Remove ${subject ? subject.code : 'subject'} offering`
+        );
+        removeButton.addEventListener('click', () => {
+          state.offerings.splice(index, 1);
+          populateSubjects();
+        });
+        row.appendChild(removeButton);
+        list.appendChild(row);
+      });
     }
     sel.appendChild(new Option('Select teacher', ''));
     teachers.forEach((t) => {
@@ -341,6 +410,7 @@
       code: code,
       ay: $('wiz-ay') ? $('wiz-ay').value : '',
       subject: subjectCode,
+      batch: '1',
     });
 
     try {
@@ -454,6 +524,10 @@
 
     state.slots.sort((a, b) => a.weekday - b.weekday || toMins(a.starts_at) - toMins(b.starts_at));
     showError('');
+    $('wiz-schedule-subject').textContent = subject ? `${subject.code} — ${subject.name}` : 'this subject';
+    $('wiz-offering-count').textContent = state.offerings.length
+      ? `${state.offerings.length} subject offering${state.offerings.length === 1 ? '' : 's'} ready for this section.`
+      : 'No subject offerings added yet.';
     renderSlots();
     updateTally();
     renderTimetableGrid();
@@ -654,28 +728,71 @@
     }
   }
 
+  function currentOfferingData() {
+    return {
+      subject_id: $('wiz-subject').value,
+      teacher_profile_id: $('wiz-teacher').value,
+      slots: state.slots.map((slot) => ({ ...slot }))
+    };
+  }
+
+  async function validateCurrentOffering() {
+    if (!$('wiz-subject').value) {
+      showError('Select a subject.');
+      return null;
+    }
+    if (!$('wiz-teacher').value) {
+      showError('Select a teacher.');
+      return null;
+    }
+    if (!isHoursOk()) {
+      showError(
+        `This subject needs ~${fmtMinutes(requiredMinutes())} per week; your slots total ${fmtMinutes(totalMinutes())}.`
+      );
+      return null;
+    }
+    if (!await checkConflicts()) return null;
+    if (hasTeacherConflicts()) {
+      showError('Resolve the teacher schedule clashes below before continuing.');
+      return null;
+    }
+    return currentOfferingData();
+  }
+
+  async function addOffering() {
+    const offering = await validateCurrentOffering();
+    if (!offering) return;
+    const sectionCode = $('wiz-code').value.trim().toUpperCase();
+    if (!sectionCode) {
+      showError('Enter the section code before adding subject offerings.');
+      return;
+    }
+    state.sectionCode = sectionCode;
+    state.offerings.push(offering);
+    state.slots = [];
+    state.conflicts = [];
+    state.finalOffering = null;
+    populateSubjects();
+    updateUnitsHint();
+    $('wiz-teacher').value = '';
+    setStep(2);
+  }
+
   /* ── Step 5: Review ─────────────────────────────────────────── */
   function buildReview() {
     const summary = $('review-summary');
     summary.innerHTML = '';
-    const subject = currentSubject();
-    const teacher = (state.options.teachers || []).find((t) => String(t.profile_id) === $('wiz-teacher').value);
-    const scheduleLines = state.slots.map((s) =>
-      `${WEEKDAYS[s.weekday]} · ${fmtTime(s.starts_at)} – ${fmtTime(s.ends_at)}${s.room ? ` (${s.room})` : ' (TBA)'}`
-    ).join('<br>');
+    const offerings = state.offerings.concat(state.finalOffering ? [state.finalOffering] : []);
 
     const rows = [
       { label: 'Academic Year', value: $('wiz-ay').selectedOptions[0].textContent },
       { label: 'Program', value: $('wiz-program').selectedOptions[0].textContent },
       { label: 'Year Level', value: 'Year ' + $('wiz-year').value },
       { label: 'Semester', value: $('wiz-semester').selectedOptions[0].textContent },
-      { label: 'Subject', value: subject ? `${sClean(subject.code)} · ${sClean(subject.name)}` : '' },
-      { label: 'Required Hours', value: `${fmtMinutes(requiredMinutes())} per week` },
-      { label: 'Teacher', value: teacher ? teacher.name : '' },
-      { label: 'Section Code', value: $('wiz-code').value.trim().toUpperCase(), badge: true },
+      { label: 'Section Code', value: state.sectionCode || $('wiz-code').value.trim().toUpperCase(), badge: true },
+      { label: 'Subject Offerings', value: String(offerings.length) },
       { label: 'Capacity', value: $('wiz-capacity').value || 'Unlimited' },
       { label: 'Grace Minutes', value: ($('wiz-grace').value || '10') + ' minutes' },
-      { label: 'Weekly Schedule', value: scheduleLines, html: true, full: true },
     ];
 
     const grid = document.createElement('div');
@@ -705,6 +822,32 @@
 
     summary.appendChild(grid);
 
+    offerings.forEach((offering, index) => {
+      const subject = (state.options.subjects || []).find(
+        (item) => String(item.id) === String(offering.subject_id)
+      );
+      const teacher = (state.options.teachers || []).find(
+        (item) => String(item.profile_id) === String(offering.teacher_profile_id)
+      );
+      const card = document.createElement('div');
+      card.className = 'review-item review-item--full';
+      const title = document.createElement('div');
+      title.className = 'review-item-label';
+      title.textContent = `${index + 1}. ${subject ? `${subject.code} — ${subject.name}` : 'Subject'}`;
+      card.appendChild(title);
+      const details = document.createElement('div');
+      details.className = 'review-item-value';
+      details.textContent = `Class ${state.sectionCode || $('wiz-code').value.trim().toUpperCase()}-${subject ? subject.code : ''} · ${subject && subject.is_major ? 'Major' : 'Non-major'} · Teacher: ${teacher ? teacher.name : '—'} · ${subject ? fmtMinutes(subject.units * 60) : '—'} per week`;
+      card.appendChild(details);
+      const schedule = document.createElement('div');
+      schedule.className = 'text-muted text-xs mt-1';
+      schedule.textContent = (offering.slots || []).map((slot) =>
+        `${WEEKDAYS[slot.weekday]} · ${fmtTime(slot.starts_at)}–${fmtTime(slot.ends_at)} · ${slot.room || 'TBA'}`
+      ).join(' | ');
+      card.appendChild(schedule);
+      summary.appendChild(card);
+    });
+
     const warnings = $('review-warnings');
     warnings.innerHTML = '';
     state.conflicts.forEach((c) => {
@@ -718,10 +861,6 @@
     });
   }
 
-  function sClean(str) {
-    return String(str || '').replace(/—/g, '·').trim();
-  }
-
   /* ── Create Section ─────────────────────────────────────────── */
   async function createSection() {
     const btn = $('wiz-create');
@@ -733,13 +872,13 @@
       body.set('program_id', $('wiz-program').value);
       body.set('year_level', $('wiz-year').value);
       body.set('semester', $('wiz-semester').value);
-      body.set('subject_id', $('wiz-subject').value);
-      body.set('teacher_profile_id', $('wiz-teacher').value);
       body.set('ay_id', $('wiz-ay').value);
-      body.set('class_code', $('wiz-code').value.trim().toUpperCase());
+      body.set('class_code', state.sectionCode || $('wiz-code').value.trim().toUpperCase());
       body.set('capacity', $('wiz-capacity').value);
       body.set('grace_minutes', $('wiz-grace').value || '10');
-      body.set('slots', JSON.stringify(state.slots));
+      body.set('offerings', JSON.stringify(
+        state.offerings.concat(state.finalOffering ? [state.finalOffering] : [])
+      ));
       const res = await fetch(boot.dataset.saveUrl, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrf },
@@ -756,21 +895,19 @@
       $('wizard-progress').style.display = 'none';
       $('wizard-success').style.display = '';
       $('success-code').textContent =
-        `Section ${data.class_code} created with ${data.slots.length} schedule slot(s).`;
+        `Section ${data.section_code} created with ${data.classes.length} subject offering(s).`;
 
       /* Populate success summary */
       const sumDiv = $('success-summary');
-      const subject = currentSubject();
-      const teacher = (state.options.teachers || []).find((t) => String(t.profile_id) === $('wiz-teacher').value);
-      sumDiv.innerHTML =
-        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px 20px;">' +
-        renderSuccessItem('Section Code', `<span class="badge badge--purple" style="font-size:0.85rem;">${data.class_code}</span>`) +
-        renderSuccessItem('Subject', subject ? subject.code : '') +
-        renderSuccessItem('Teacher', teacher ? teacher.name : '') +
-        renderSuccessItem('Slots', `${data.slots.length} weekly slot(s)`) +
-        renderSuccessItem('Semester', $('wiz-semester').selectedOptions[0].textContent) +
-        renderSuccessItem('Academic Year', $('wiz-ay').selectedOptions[0].textContent) +
-        '</div>';
+      sumDiv.innerHTML = '';
+      const list = document.createElement('ul');
+      list.className = 'mb-0';
+      data.classes.forEach((item) => {
+        const row = document.createElement('li');
+        row.textContent = `${item.class_code} · ${item.subject} · ${item.teacher} · ${item.slots.length} schedule slot(s)`;
+        list.appendChild(row);
+      });
+      sumDiv.appendChild(list);
 
       const warnBox = $('success-warnings');
       warnBox.innerHTML = '';
@@ -778,27 +915,37 @@
         const div = document.createElement('div');
         div.className = 'badge badge--gold';
         div.style.cssText = 'display:block;margin:4px 0;padding:8px 12px;';
-        div.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Room warning: ${text}`;
+        div.textContent = `Room warning: ${text}`;
         warnBox.appendChild(div);
       });
     } catch (err) {
       showError('Network error while creating the section.');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-check"></i> Create Section';
+      btn.innerHTML = '<i class="fas fa-check"></i> Create Section & Offerings';
     }
-  }
-
-  function renderSuccessItem(label, valueHtml) {
-    return `<div><div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:3px;">${label}</div><div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);">${valueHtml}</div></div>`;
   }
 
   /* ── Next / Back ─────────────────────────────────────────────── */
   async function onNext() {
     if (state.step === 1) return loadOptions();
     if (state.step === 2) {
+      if (!$('wiz-subject').value && state.offerings.length) {
+        state.finalOffering = null;
+        setStep(5);
+        return;
+      }
       if (!$('wiz-subject').value) return showError('Select a subject.');
       if (!$('wiz-teacher').value) return showError('Select a teacher.');
+      if (state.sectionCode) {
+        const free = await checkCodeAvailability();
+        if (!free) {
+          showError((state.codeStatus && state.codeStatus.message) || 'This subject is already added to that section.');
+          return;
+        }
+        setStep(4);
+        return;
+      }
       setStep(3);
       return;
     }
@@ -809,22 +956,13 @@
         showError((state.codeStatus && state.codeStatus.message) || 'That section code is already taken.');
         return;
       }
+      state.sectionCode = $('wiz-code').value.trim().toUpperCase();
       setStep(4);
       return;
     }
     if (state.step === 4) {
-      if (!isHoursOk()) {
-        showError(
-          `This subject needs ~${fmtMinutes(requiredMinutes())} per week; your slots total ${fmtMinutes(totalMinutes())}.`
-        );
-        return;
-      }
-      const ok = await checkConflicts();
-      if (!ok) return;
-      if (hasTeacherConflicts()) {
-        showError('Resolve the teacher schedule clashes below before continuing.');
-        return;
-      }
+      state.finalOffering = await validateCurrentOffering();
+      if (!state.finalOffering) return;
       setStep(5);
     }
   }
@@ -871,6 +1009,7 @@
     if (clearBtn) clearBtn.addEventListener('click', clearAllSlots);
 
     $('wiz-create').addEventListener('click', createSection);
+    $('wiz-add-offering').addEventListener('click', addOffering);
 
     // 1-Click preset buttons
     document.querySelectorAll('.js-preset-slot').forEach((btn) => {
