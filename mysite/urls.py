@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.http import FileResponse
+from apps.core.views.system_views import service_worker
 
 def favicon_view(request):
     favicon_path = os.path.join(settings.BASE_DIR, 'static', 'img', 'favicon.ico')
@@ -26,6 +27,7 @@ def favicon_view(request):
 
 urlpatterns = [
     path('favicon.ico', favicon_view, name='favicon'),
+    path('service-worker.js', service_worker, name='service_worker'),
     path('', include('apps.core.urls')),
     path('admin/', admin.site.urls),
     path('users/', include('apps.users.urls')),
