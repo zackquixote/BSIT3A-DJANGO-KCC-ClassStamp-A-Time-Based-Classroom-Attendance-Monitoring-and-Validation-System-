@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>Connection unavailable — KCC ClassStamp</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(ellipse at top, #17243b, #0b1220 62%);
+    }
+    main {
+      width: min(100%, 480px);
+      padding: 32px;
+      text-align: center;
+      border: 1px solid rgba(148, 163, 184, .24);
+      border-radius: 18px;
+      background: rgba(15, 23, 42, .88);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .35);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, .13);
+      font-size: 30px;
+    }
+    h1 { margin: 0 0 12px; font-size: clamp(1.45rem, 5vw, 1.9rem); }
+    p { margin: 0 0 14px; color: #a7b3c5; line-height: 1.6; }
+    .notice { font-size: .88rem; }
+    button {
+      margin-top: 12px;
+      padding: 11px 20px;
+      border: 0;
+      border-radius: 9px;
+      color: #111827;
+      background: #f5b82e;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">!</div>
+    <h1>ClassStamp is temporarily unavailable</h1>
+    <p>We can’t reach the system right now. Check your internet or local network, then try again.</p>
+    <p class="notice">This page is an offline notice. Attendance and other changes cannot be confirmed until the system is back online.</p>
+    <form method="get">
+      <button type="submit">Try again</button>
+    </form>
+  </main>
+</body>
+</html>
