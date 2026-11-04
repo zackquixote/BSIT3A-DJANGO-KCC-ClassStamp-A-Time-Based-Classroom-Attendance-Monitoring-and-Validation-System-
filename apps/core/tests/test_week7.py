@@ -711,7 +711,15 @@ class SubjectUnitsTests(BaseWeek5FixtureMixin, TestCase):
         self.client.force_login(self.admin)
 
     def _save(self, code, name, **overrides):
-        data = {'code': code, 'name': name, 'is_active': '1'}
+        data = {
+            'code': code,
+            'name': name,
+            'is_active': '1',
+            'curriculum_program_id': self.program.pk,
+            'curriculum_year_level': '1',
+            'curriculum_semester': '1',
+            'curriculum_is_major': '0',
+        }
         data.update(overrides)
         return self.client.post(reverse('subject_save'), data=data)
 
