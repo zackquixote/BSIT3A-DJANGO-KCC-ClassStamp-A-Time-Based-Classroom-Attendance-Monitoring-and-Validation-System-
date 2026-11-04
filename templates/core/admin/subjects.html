@@ -19,6 +19,14 @@
     white-space: normal;
     overflow-wrap: break-word;
   }
+  .subject-placement-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  @media (max-width: 720px) {
+    .subject-placement-grid { grid-template-columns: 1fr; }
+  }
 </style>
 {% endblock %}
 
@@ -87,10 +95,23 @@
       <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
       {% endfor %}
     </select>
-    <select name="program" class="form-control" style="width: 180px;" id="filterProgram">
+    <select name="program" class="form-control" style="width: 220px;" id="filterProgram">
       <option value="">All Programs</option>
       {% for p in programs %}
-      <option value="{{ p.id }}" data-dept="{{ p.department_id }}" {% if program_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }}</option>
+      <option value="{{ p.id }}" data-dept="{{ p.department_id }}" data-years="{{ p.years_total }}" {% if program_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="year_level" class="form-control" style="width: 145px;" id="filterYear"
+            data-max-years="{{ max_year_level }}">
+      <option value="">All Years</option>
+      {% for year in year_filter_choices %}
+      <option value="{{ year }}" {% if year_filter == year|stringformat:"s" %}selected{% endif %}>Year {{ year }}</option>
+      {% endfor %}
+    </select>
+    <select name="semester" class="form-control" style="width: 165px;">
+      <option value="">All Semesters</option>
+      {% for value, label in semester_choices %}
+      <option value="{{ value }}" {% if semester_filter == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
     <select name="status" class="form-control" style="width: 150px;">
@@ -98,17 +119,24 @@
       <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
       <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
     </select>
-    <select name="usage" class="form-control" style="width: 165px;"
-            title="Subjects with no class sections and no curriculum mapping">
-      <option value="">All Usage</option>
-      <option value="unused" {% if usage_filter == 'unused' %}selected{% endif %}>Unused only</option>
-    </select>
-    {% if query or status_filter or program_filter or dept_filter or usage_filter %}
+    {% if query or status_filter or program_filter or dept_filter or year_filter or semester_filter %}
     <a href="{% url 'subject_list' %}" class="btn btn-outline">Clear</a>
     {% endif %}
     <button type="submit" class="btn btn-primary">Filter</button>
   </form>
 </div>
+
+{% if selected_program %}
+<div class="card mb-4" style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <div>
+    <strong class="text-primary">{{ selected_program.code }} curriculum</strong>
+    <span class="text-muted text-sm"> · {{ program_version_label|default:"Legacy curriculum" }} · {{ subjects.paginator.count }} subject{{ subjects.paginator.count|pluralize }}</span>
+  </div>
+  <a href="{% url 'program_list' %}?open_curriculum={{ selected_program.id }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-table-cells"></i> Open full curriculum matrix
+  </a>
+</div>
+{% endif %}
 
 <div id="subjectAlert"   class="toast toast--error   mb-4" style="display: none;"></div>
 <div id="subjectSuccess" class="toast toast--success mb-4" style="display: none;"></div>
@@ -176,11 +204,27 @@
               <span class="text-muted text-xs">— unassigned</span>
             {% endif %}
           </td>
-          <td>
-            <a href="{% url 'program_list' %}" class="badge badge--gold text-decoration-none"
-               title="Managed in Programs &rarr; Curriculum Matrix (mapped to {{ s.curriculum_count }} program(s))">
-              <i class="fas fa-sitemap" style="font-size:0.6rem;"></i> {{ s.curriculum_count }}
+          <td style="min-width:190px;">
+            {% if s.placements %}
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                {% for placement in s.placements %}
+                <span class="badge badge--gold" title="{{ placement.program_code }} Year {{ placement.year_level }}">
+                  {{ placement.program_code }} · Y{{ placement.year_level }} · {% if placement.semester == 1 %}1st Sem{% elif placement.semester == 2 %}2nd Sem{% else %}Summer{% endif %}
+                </span>
+                {% if placement.is_major %}
+                <span class="badge badge--purple">Major</span>
+                {% endif %}
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="text-muted text-xs">No curriculum placement</span>
+            {% endif %}
+            {% if not selected_program %}
+            <a href="{% url 'program_list' %}" class="text-xs text-primary text-decoration-none"
+               title="Open Programs &rarr; Curriculum Matrix">
+              <i class="fas fa-sitemap"></i> {{ s.curriculum_count }} mapping{{ s.curriculum_count|pluralize }}
             </a>
+            {% endif %}
           </td>
           <td class="js-status-badge">
             {% if s.is_active %}
@@ -235,7 +279,18 @@
         <tr>
           <td colspan="9" class="text-center text-muted" style="padding: 48px 0;">
             <i class="fas fa-book-open" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
-            No subjects found{% if query %} matching "{{ query }}"{% endif %}.
+            {% if active_filter_labels %}
+            <strong class="text-primary">No subjects match these filters.</strong>
+            <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:12px 0;">
+              {% for filter_label in active_filter_labels %}
+              <span class="badge badge--muted">{{ filter_label }}</span>
+              {% endfor %}
+            </div>
+            <a href="{% url 'subject_list' %}" class="btn btn-outline btn-sm">Clear filters</a>
+            {% else %}
+            <strong class="text-primary">No subjects in the catalogue yet.</strong>
+            <div class="text-sm mt-2">Use Add Subject above to create the first catalogue entry.</div>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -246,12 +301,12 @@
   {% if subjects.has_other_pages %}
   <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; gap: 8px; justify-content: center;">
     {% if subjects.has_previous %}
-    <a href="?page={{ subjects.previous_page_number }}&q={{ query }}&status={{ status_filter }}&department={{ dept_filter }}&program={{ program_filter }}"
+    <a href="?{{ previous_page_query }}"
       class="btn btn-outline btn-sm"><i class="fas fa-chevron-left"></i></a>
     {% endif %}
     <span class="text-muted text-sm" style="padding: 6px 10px;">Page {{ subjects.number }} of {{ subjects.paginator.num_pages }}</span>
     {% if subjects.has_next %}
-    <a href="?page={{ subjects.next_page_number }}&q={{ query }}&status={{ status_filter }}&department={{ dept_filter }}&program={{ program_filter }}"
+    <a href="?{{ next_page_query }}"
       class="btn btn-outline btn-sm"><i class="fas fa-chevron-right"></i></a>
     {% endif %}
   </div>
@@ -261,7 +316,7 @@
 
 <!-- ═══ MODAL: Create / Edit Subject ═══ -->
 <div class="modal" id="subjectModal">
-  <div class="modal-dialog" style="max-width: 560px;">
+  <div class="modal-dialog" style="max-width: 680px;">
     <div class="modal-header">
       <h2 class="modal-title" id="subjectModalTitle">Add Subject</h2>
       <button type="button" class="modal-close" id="subjectModalClose" data-modal-dismiss="subjectModal">
@@ -297,6 +352,44 @@
           <textarea id="subjectDesc" name="description" class="form-control" rows="3"
             placeholder="Brief course description or learning objectives…"></textarea>
         </div>
+        <div id="subjectCurriculumPlacement" class="card p-3 mb-3">
+          <div class="font-semibold text-sm mb-1">Required program curriculum placement</div>
+          <p class="form-hint mb-3">Every new subject must belong to a program, year, and semester. Major status is specific to this program placement. The same catalog subject can be assigned to other programs later in the curriculum matrix.</p>
+          <div class="subject-placement-grid">
+            <div class="form-group">
+              <label class="form-label" for="subjectCurriculumProgram">Program <span class="text-danger">*</span></label>
+              <select id="subjectCurriculumProgram" name="curriculum_program_id" class="form-control" required>
+                <option value="">Select program</option>
+                {% for p in programs %}
+                <option value="{{ p.id }}" data-years="{{ p.years_total }}">{{ p.code }} · {{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="subjectCurriculumYear">Year Level <span class="text-danger">*</span></label>
+              <select id="subjectCurriculumYear" name="curriculum_year_level" class="form-control" disabled required>
+                <option value="">Select program first</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="subjectCurriculumSemester">Semester <span class="text-danger">*</span></label>
+              <select id="subjectCurriculumSemester" name="curriculum_semester" class="form-control" disabled required>
+                <option value="">Select program first</option>
+                {% for value, label in semester_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-group mt-2">
+            <label class="form-label" for="subjectCurriculumMajor">Subject classification <span class="text-danger">*</span></label>
+            <select id="subjectCurriculumMajor" name="curriculum_is_major" class="form-control" disabled required>
+              <option value="">Choose classification</option>
+              <option value="1">Major</option>
+              <option value="0">Non-major (general/core/elective)</option>
+            </select>
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
             <input type="checkbox" id="subjectActive" name="is_active"
@@ -311,7 +404,7 @@
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" id="subjectModalCancel" data-modal-dismiss="subjectModal">Cancel</button>
       <button type="button" class="btn btn-primary" id="subjectModalSave">
-        <i class="fas fa-floppy-disk"></i> Save Subject
+        <i class="fas fa-floppy-disk"></i> Save Subject &amp; Add to Program
       </button>
     </div>
   </div>
@@ -344,9 +437,9 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/subjects/subjects_common.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/subjects/add_subject.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/subjects/edit_subject.js' %}?v=20261020_v4"></script>
+<script src="{% static 'js/subjects/subjects_common.js' %}?v=20261104_v2"></script>
+<script src="{% static 'js/subjects/add_subject.js' %}?v=20261104_v3"></script>
+<script src="{% static 'js/subjects/edit_subject.js' %}?v=20261104_v3"></script>
 <script src="{% static 'js/subjects/delete_subject.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/subjects/toggle_subject.js' %}?v=20261029_v1"></script>
 <script>
