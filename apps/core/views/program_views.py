@@ -58,6 +58,7 @@ def program_list(request):
     """
     query = request.GET.get('q', '').strip()
     dept_filter = request.GET.get('department', '').strip()
+    open_curriculum_id = request.GET.get('open_curriculum', '').strip()
 
     programs_qs = (
         Program.objects.select_related('department')
@@ -95,6 +96,11 @@ def program_list(request):
     if dept_filter:
         programs_qs = programs_qs.filter(department_id=dept_filter)
 
+    if open_curriculum_id.isdigit():
+        programs_qs = programs_qs.filter(pk=open_curriculum_id)
+    else:
+        open_curriculum_id = ''
+
     paginator = Paginator(programs_qs, 10)
     page_number = request.GET.get('page', 1)
     programs = paginator.get_page(page_number)
@@ -110,6 +116,7 @@ def program_list(request):
         'dept_filter': dept_filter,
         'total_count': total_count,
         'active_count': active_count,
+        'open_curriculum_id': open_curriculum_id,
     })
 
 
