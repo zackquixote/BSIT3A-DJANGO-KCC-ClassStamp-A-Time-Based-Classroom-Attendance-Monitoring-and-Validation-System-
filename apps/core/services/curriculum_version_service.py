@@ -133,6 +133,7 @@ def _copy_entries(version, source_version=None, include_legacy=False):
             year_level=entry.year_level,
             semester=entry.semester,
             subject_id=entry.subject_id,
+            is_major=entry.is_major,
         )
         for entry in source.select_related('subject').order_by(
             'year_level', 'semester', 'subject__code',
