@@ -109,6 +109,94 @@ class ClassJoinCodeTests(TestCase):
         enrollment.refresh_from_db()
         self.assertEqual(enrollment.status, Enrollment.STATUS_ACTIVE)
 
+    def test_assigned_teacher_can_generate_code_and_approve_join_request(self):
+        self.client.force_login(self.teacher_user)
+        generated = self.client.post(
+            reverse('class_join_code_manage', args=[self.class_obj.pk]),
+            {'action': 'rotate'},
+        )
+        self.assertEqual(generated.status_code, 200)
+        join_code = generated.json()['join_code']
+        self.class_obj.refresh_from_db()
+        self.assertEqual(self.class_obj.join_code_digest, hash_join_code(join_code))
+
+        self.client.force_login(self.student_user)
+        self.client.post(reverse('student_join_class'), {'join_code': join_code})
+        enrollment = Enrollment.objects.get(class_obj=self.class_obj, student_profile=self.student)
+        self.assertEqual(enrollment.status, Enrollment.STATUS_PENDING)
+
+        self.client.force_login(self.teacher_user)
+        approved = self.client.post(
+            reverse('class_roster_enroll', args=[self.class_obj.pk]),
+            {'profile_id': self.student.pk},
+        )
+
+        self.assertEqual(approved.status_code, 200)
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.status, Enrollment.STATUS_ACTIVE)
+        self.assertEqual(enrollment.approved_by, self.teacher_user)
+
+    def test_teacher_cannot_manage_another_teachers_class(self):
+        other_user = User.objects.create_user(username='other_join_teacher')
+        other_teacher = Profile.objects.create(
+            user=other_user,
+            role=Profile.ROLE_TEACHER,
+            department=self.department,
+        )
+        other_class = Class.objects.create(
+            academic_year=self.term,
+            class_code='BSIT-3B-IT311',
+            section_code='BSIT-3B',
+            subject=self.subject,
+            teacher_profile=other_teacher,
+            program=self.program,
+            year_level=3,
+        )
+
+        self.client.force_login(self.teacher_user)
+        response = self.client.post(
+            reverse('class_join_code_manage', args=[other_class.pk]),
+            {'action': 'rotate'},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        other_class.refresh_from_db()
+        self.assertFalse(other_class.join_code_active)
+
+    def test_teacher_can_decline_only_pending_requests_for_owned_class(self):
+        enrollment = Enrollment.objects.create(
+            class_obj=self.class_obj,
+            student_profile=self.student,
+            status=Enrollment.STATUS_PENDING,
+        )
+        self.client.force_login(self.teacher_user)
+        response = self.client.post(
+            reverse('class_roster_remove', args=[enrollment.pk]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.status, Enrollment.STATUS_WITHDRAWN)
+
+    def test_teacher_class_page_shows_join_code_and_pending_requests(self):
+        self.class_obj.join_code_active = True
+        self.class_obj.join_code_digest = hash_join_code('ABCD-EFGH-JK23')
+        self.class_obj.save(update_fields=['join_code_active', 'join_code_digest', 'updated_at'])
+        Enrollment.objects.create(
+            class_obj=self.class_obj,
+            student_profile=self.student,
+            status=Enrollment.STATUS_PENDING,
+        )
+
+        self.client.force_login(self.teacher_user)
+        response = self.client.get(reverse('teacher_classes'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rotate Join Code')
+        self.assertContains(response, '1 pending join request')
+        self.assertContains(response, self.student.student_number)
+        self.assertContains(response, reverse('class_roster_enroll', args=[self.class_obj.pk]))
+
     def test_rotating_code_invalidates_previous_code(self):
         first_code = self._issue_code()
         second_code = self._issue_code()
