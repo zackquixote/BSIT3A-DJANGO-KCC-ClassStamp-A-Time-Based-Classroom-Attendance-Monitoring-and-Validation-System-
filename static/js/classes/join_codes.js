@@ -15,7 +15,7 @@
     body.set('action', action);
     var csrf = window.ClassesApp && window.ClassesApp.getCSRFToken
       ? window.ClassesApp.getCSRFToken()
-      : '';
+      : (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     body.set('csrfmiddlewaretoken', csrf);
 
     var response = await fetch(button.dataset.codeUrl, {
@@ -31,6 +31,51 @@
   }
 
   document.addEventListener('click', async function (event) {
+    var approveButton = event.target.closest('.js-approve-join-request');
+    var declineButton = event.target.closest('.js-reject-join-request');
+    var requestButton = approveButton || declineButton;
+    if (requestButton && requestButton.closest('.teacher-classes')) {
+      var approve = Boolean(approveButton);
+      if (!approve) {
+        var confirmed = window.App && window.App.confirm
+          ? await window.App.confirm({
+              title: 'Decline Join Request',
+              message: 'Decline this student request? The student will need a new code to request enrollment again.',
+              confirmText: 'Decline Request',
+              confirmClass: 'btn-danger',
+              type: 'danger'
+            })
+          : window.confirm('Decline this student request?');
+        if (!confirmed) return;
+      }
+
+      requestButton.disabled = true;
+      try {
+        var requestBody = new URLSearchParams();
+        requestBody.set('csrfmiddlewaretoken', (
+          window.ClassesApp && window.ClassesApp.getCSRFToken
+            ? window.ClassesApp.getCSRFToken()
+            : (document.querySelector('meta[name="csrf-token"]') || {}).content || ''
+        ));
+        if (approve) requestBody.set('profile_id', approveButton.dataset.profileId);
+        var requestResponse = await fetch(requestButton.dataset.actionUrl, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: requestBody
+        });
+        var requestResult = await requestResponse.json();
+        if (!requestResponse.ok || !requestResult.success) {
+          throw new Error(requestResult.message || 'Unable to update the join request.');
+        }
+        notify('success', approve ? 'Enrollment request approved.' : 'Join request declined.');
+        window.location.reload();
+      } catch (error) {
+        notify('error', error.message || 'Request failed.');
+        requestButton.disabled = false;
+      }
+      return;
+    }
+
     var rotateButton = event.target.closest('.js-manage-join-code');
     var revokeButton = event.target.closest('.js-revoke-join-code');
     var button = rotateButton || revokeButton;
