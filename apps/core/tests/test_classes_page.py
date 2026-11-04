@@ -22,6 +22,7 @@ from apps.core.models import (
     ClassSlot,
     Department,
     Enrollment,
+    Notification,
     Profile,
     Program,
     Subject,
@@ -116,6 +117,12 @@ class ClassHistoryLockTests(ClassBase):
 
         self.class_obj.refresh_from_db()
         self.assertEqual(self.class_obj.teacher_profile_id, replacement.pk)
+        self.assertTrue(
+            Notification.objects.filter(
+                user=replacement_user,
+                category='class_assignment',
+            ).exists()
+        )
 
     def test_subject_change_is_allowed_without_meetings(self):
         self._slot()  # slot exists, but no session was ever opened
@@ -200,6 +207,12 @@ class BatchEnlistmentClashTests(ClassBase):
                 status=Enrollment.STATUS_ACTIVE,
             ).exists()
         )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=student.user,
+                category='enrollment',
+            ).exists()
+        )
 
     def test_single_enlistment_still_refuses_the_clash(self):
         student = self._student('2026-6003')
@@ -212,3 +225,40 @@ class BatchEnlistmentClashTests(ClassBase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('overlaps', response.json()['message'])
+
+
+class ClassSetupChecklistTests(ClassBase):
+    def test_checklist_identifies_missing_section_setup(self):
+        response = self.client.get(reverse('class_list'))
+
+        self.assertEqual(response.status_code, 200)
+        checklist = response.context['setup_checklist']
+        self.assertEqual(len(checklist), 1)
+        self.assertEqual(
+            checklist[0]['missing'],
+            ['Schedule', 'Student roster', 'Student join code'],
+        )
+
+        slot = self._slot()
+        slot.room = 'TBA'
+        slot.save(update_fields=['room'])
+        response = self.client.get(reverse('class_list'))
+
+        self.assertIn('Room', response.context['setup_checklist'][0]['missing'])
+
+    def test_checklist_links_open_the_matching_setup_controls(self):
+        response = self.client.get(reverse('class_list'))
+
+        self.assertEqual(response.status_code, 200)
+        item = response.context['setup_checklist'][0]
+        self.assertEqual(
+            [action['label'] for action in item['actions']],
+            ['Set schedule / room', 'Manage roster', 'Open join code menu'],
+        )
+        for action in item['actions']:
+            self.assertIn(f'setup_class={self.class_obj.pk}', action['link'])
+        self.assertContains(response, 'Manage roster')
+        html = response.content.decode()
+        row_start = html.index(f'<tr id="class-{self.class_obj.pk}">')
+        row_end = html.index('</tr>', row_start)
+        self.assertIn(self.class_obj.class_code, html[row_start:row_end])
