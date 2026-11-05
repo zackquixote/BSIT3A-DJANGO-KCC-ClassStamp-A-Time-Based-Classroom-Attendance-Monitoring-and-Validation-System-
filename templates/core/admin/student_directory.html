@@ -373,6 +373,52 @@
     color: #e9d5ff !important;
   }
 
+  /* Server-rendered section rows, cloned into the quick-view modal */
+  .sq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sq-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+  }
+
+  .sq-row-title {
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    font-size: 0.875rem;
+  }
+
+  .sq-row-sub {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.75rem;
+    color: var(--text-muted, #94a3b8);
+    margin-top: 2px;
+  }
+
+  .sq-list .section-tag {
+    display: inline-block;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.75rem;
+    text-decoration: underline dotted;
+  }
+
+  .sq-list .section-tag:hover {
+    background: none;
+    color: #c084fc;
+  }
+
   .section-tag--pending {
     background: rgba(245, 158, 11, 0.12);
     border: 1px solid rgba(245, 158, 11, 0.35);
@@ -791,11 +837,35 @@
                           title="Click to view enrolled sections"
                           data-student-name="{{ student.user.get_full_name|default:student.user.username }}"
                           data-student-id="{{ student.student_number }}"
-                          data-sections='[{% for e in student.active_section_enrollments %}{"code":"{{ e.class_obj.subject.code|default:e.class_obj.class_code|escapejs }}","title":"{{ e.class_obj.subject.name|escapejs }}","class_code":"{{ e.class_obj.class_code|escapejs }}","year":"{{ e.class_obj.academic_year.name|escapejs }}","pending":false}{% if not forloop.last %},{% endif %}{% endfor %}{% if n_act and n_pen %},{% endif %}{% for e in student.pending_section_enrollments %}{"code":"{{ e.class_obj.subject.code|default:e.class_obj.class_code|escapejs }}","title":"{{ e.class_obj.subject.name|escapejs }}","class_code":"{{ e.class_obj.class_code|escapejs }}","year":"{{ e.class_obj.academic_year.name|escapejs }}","pending":true}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                          data-sections-source="sections-src-{{ student.pk }}">
                     <i class="fas fa-layer-group" style="font-size: 0.72rem;"></i>
                     <span>{{ n_total }} Section{{ n_total|pluralize }}</span>
                     <i class="fas fa-chevron-down" style="font-size: 0.62rem; opacity: 0.75;"></i>
                   </button>
+                  <div class="sections-source" id="sections-src-{{ student.pk }}" hidden>
+                    {% for e in student.active_section_enrollments %}
+                      <div class="sq-row">
+                        <div>
+                          <div class="sq-row-title">{{ e.class_obj.subject.code|default:e.class_obj.class_code }} — {{ e.class_obj.subject.name|default:"Subject" }}</div>
+                          <div class="sq-row-sub">
+                            <a class="section-tag"
+                               href="?section={{ e.class_obj.section_code|default:e.class_obj.class_code|urlencode }}"
+                               title="View all students in section {{ e.class_obj.section_code|default:e.class_obj.class_code }}">{{ e.class_obj.class_code }}</a>
+                          </div>
+                        </div>
+                        <span class="badge badge--muted text-xs font-mono">{{ e.class_obj.academic_year.name }}</span>
+                      </div>
+                    {% endfor %}
+                    {% for e in student.pending_section_enrollments %}
+                      <div class="sq-row">
+                        <div>
+                          <div class="sq-row-title">{{ e.class_obj.subject.code|default:e.class_obj.class_code }} — {{ e.class_obj.subject.name|default:"Subject" }}</div>
+                          <div class="sq-row-sub" title="Awaiting approval">Pending: {{ e.class_obj.class_code }}</div>
+                        </div>
+                        <span class="badge badge--warning text-xs">Pending approval</span>
+                      </div>
+                    {% endfor %}
+                  </div>
                 {% else %}
                   <span class="unassigned-tag">Unassigned</span>
                 {% endif %}
@@ -989,7 +1059,7 @@
         </div>
         <span class="badge badge--purple text-xs" id="sectionsCountBadge">0 Sections</span>
       </div>
-      <div id="sectionsQuickList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      <div id="sectionsQuickList" class="sq-list"></div>
     </div>
     <div class="modal-footer" style="display: flex; justify-content: flex-end;">
       <button type="button" class="btn btn-outline btn-sm" data-modal-dismiss="sectionsQuickModal">Close</button>
@@ -1011,39 +1081,25 @@
 <script src="{% static 'js/student_directory/directory_bulk_actions.js' %}?v=20261027_v1"></script>
 <script>
 (function () {
-  function esc(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-    });
-  }
-
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-show-sections-modal');
     if (!btn) return;
     e.preventDefault();
 
-    var items = [];
-    try { items = JSON.parse(btn.dataset.sections || '[]'); } catch (err) { items = []; }
+    var source = document.getElementById(btn.dataset.sectionsSource || '');
+    var rows = source ? Array.prototype.slice.call(source.children) : [];
 
     document.getElementById('sectionsStudentName').textContent = btn.dataset.studentName || '—';
     document.getElementById('sectionsStudentId').textContent = btn.dataset.studentId || '';
     document.getElementById('sectionsCountBadge').textContent =
-      items.length + ' Section' + (items.length === 1 ? '' : 's');
+      rows.length + ' Section' + (rows.length === 1 ? '' : 's');
 
     var list = document.getElementById('sectionsQuickList');
-    if (!items.length) {
+    list.textContent = '';
+    if (!rows.length) {
       list.innerHTML = '<div class="text-muted text-center py-4 text-sm">No enrolled sections.</div>';
     } else {
-      list.innerHTML = items.map(function (s) {
-        var right = s.pending
-          ? '<span class="badge badge--warning text-xs">Pending approval</span>'
-          : '<span class="badge badge--muted text-xs font-mono">' + esc(s.year) + '</span>';
-        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">'
-          + '<div>'
-          + '<div style="font-weight:600;color:var(--text-primary,#fff);font-size:0.875rem;">' + esc(s.code) + ' — ' + esc(s.title || 'Subject') + '</div>'
-          + '<div class="font-mono" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-top:2px;">' + esc(s.class_code) + '</div>'
-          + '</div>' + right + '</div>';
-      }).join('');
+      rows.forEach(function (row) { list.appendChild(row.cloneNode(true)); });
     }
 
     var modal = document.getElementById('sectionsQuickModal');
