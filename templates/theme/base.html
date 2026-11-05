@@ -1,4 +1,4 @@
-{% load static %}
+{% load static classstamp_assets %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,30 +18,21 @@
     } catch(e){}
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261103_solar_boost">
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
   {% comment %}
-    Modules are linked directly instead of @import-ing them from app.css. Imported
-    sheets are discovered only after app.css is parsed, so Chrome could paint the
-    sidebar before sidebar.css arrived (unstyled blue links flashing on navigation).
-    Links in <head> are render-blocking, so first paint always has the full theme.
+    One sheet instead of eleven: PythonAnywhere answers a request in ~0.8 s, so
+    twelve separate sheets meant ~9 s of dead time before first paint.
+    FontAwesome stays separate: its url() paths are relative to its own folder.
+    The bundle and its ?v= are generated from static/css by
+    apps/core/services/asset_bundles.py — editing CSS needs no command.
   {% endcomment %}
-  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/components.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/login.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/register.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/validation.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261103_solar_boost">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261103_solar_boost">
+  <link rel="stylesheet" href="{% bundle_static 'css/classstamp.bundle.css' %}">
   {% comment %}
     Loaded in <head>, not between the sidebar and the main content. A synchronous
     script there paused the parser mid-body, so Chrome painted the sidebar while
     sidebar.css was still in flight (icons and layout missing for a moment).
   {% endcomment %}
-  <script src="{% static 'js/vendor/lucide.min.js' %}?v=20261029b"></script>
+  <script defer src="{% static 'js/vendor/lucide.min.js' %}?v=20261029b"></script>
   {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if request.user.is_authenticated and request.user.classstamp_profile.role == 'STUDENT' %}role-student{% endif %}">
@@ -204,20 +195,8 @@
       }
     });
   </script>
-  <script src="{% static 'js/core/app_toasts.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_buttons.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_modals.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_confirm.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_audio.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_table_search.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_action_dropdowns.js' %}?v=20261029_v2"></script>
-  <script src="{% static 'js/core/app_session_guard.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_navigation.js' %}?v=20261102_rail"></script>
-  <script src="{% static 'js/core/app_shortcuts.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/app_password_reset.js' %}?v=20261102"></script>
-  <script src="{% static 'js/core/app_lightbox.js' %}?v=20261020"></script>
-  <script src="{% static 'js/core/service_worker.js' %}?v=20261102"></script>
-  <script src="{% static 'js/core/push_notifications.js' %}?v=20261105"></script>
+  <!-- Core modules, concatenated in source order by apps/core/services/asset_bundles.py. -->
+  <script src="{% bundle_static 'js/classstamp.core.bundle.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

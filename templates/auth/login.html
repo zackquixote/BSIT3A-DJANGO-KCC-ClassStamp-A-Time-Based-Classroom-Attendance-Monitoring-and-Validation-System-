@@ -1,4 +1,4 @@
-{% load static %}
+{% load static classstamp_assets %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,13 +7,8 @@
   <meta name="description" content="KCC ClassStamp — A Time-Based Classroom Attendance Monitoring and Validation System">
   <title>Sign In — KCC ClassStamp</title>
   {% include "theme/favicons.html" %}
-  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261102_local">
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
-  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261102_local">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}">
-  <link rel="stylesheet" href="{% static 'css/components.css' %}">
-  <link rel="stylesheet" href="{% static 'css/auth.css' %}?v=20261102_img">
-  <link rel="stylesheet" href="{% static 'css/login.css' %}">
+  <link rel="stylesheet" href="{% bundle_static 'css/classstamp.bundle.css' %}">
 </head>
 <body class="kcc-auth-page">
 

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static classstamp_assets %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,11 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Two-Factor Verification — KCC ClassStamp</title>
   {% include "theme/favicons.html" %}
-  <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=20261102_local">
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
-  <link rel="stylesheet" href="{% static 'css/variables.css' %}?v=20261102_local">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}">
-  <link rel="stylesheet" href="{% static 'css/components.css' %}">
+  <link rel="stylesheet" href="{% bundle_static 'css/classstamp.bundle.css' %}">
   <style>
     body.kcc-2fa-page {
       min-height: 100vh;
