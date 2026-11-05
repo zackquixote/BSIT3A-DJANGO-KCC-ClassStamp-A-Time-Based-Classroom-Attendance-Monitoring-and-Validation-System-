@@ -19,6 +19,7 @@ urlpatterns = [
     path('notifications/', views.notification_list, name='notification_list'),
     path('notifications/<int:notification_id>/read/', views.notification_mark_read, name='notification_mark_read'),
     path('notifications/read-all/', views.notification_mark_all_read, name='notification_mark_all_read'),
+    path('api/notifications/unread/', views.notification_unread_api, name='notification_unread_api'),
 
     # // Role-specific dashboard pages
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),

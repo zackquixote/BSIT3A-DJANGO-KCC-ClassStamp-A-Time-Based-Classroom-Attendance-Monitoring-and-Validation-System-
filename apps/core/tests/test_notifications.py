@@ -256,7 +256,11 @@ class InAppNotificationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, own.title)
         self.assertNotContains(response, 'Private update')
-        self.assertNotContains(response, 'href="/notifications/"')
+        # Used to assert that no 'href="/notifications/"' appears in the page, as a
+        # stand-in for "a row with no link must not become an anchor". The sidebar
+        # bell is now a real link to that same URL, so the string check is no longer
+        # about scoping. Assert the scoping directly instead.
+        self.assertEqual({row.pk for row in response.context['notifications']}, {own.pk})
 
     def test_mark_read_requires_ownership_and_redirects_to_internal_link(self):
         notification = Notification.objects.create(

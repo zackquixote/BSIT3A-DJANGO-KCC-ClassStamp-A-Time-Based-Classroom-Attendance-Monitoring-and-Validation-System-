@@ -7,12 +7,17 @@
     <h1 class="page-title">Notifications</h1>
     <p class="page-subtitle">{{ unread_notification_count }} unread update{{ unread_notification_count|pluralize }} across your classes and attendance.</p>
   </div>
-  {% if unread_notification_count %}
-    <form method="post" action="{% url 'notification_mark_all_read' %}">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-outline btn-sm">Mark all as read</button>
-    </form>
-  {% endif %}
+  <div class="flex items-center gap-2">
+    {% if unread_notification_count %}
+      <form method="post" action="{% url 'notification_mark_all_read' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline btn-sm">Mark all as read</button>
+      </form>
+    {% endif %}
+    <button type="button" class="btn btn-outline btn-sm" data-desktop-alerts-toggle>
+      Enable desktop alerts
+    </button>
+  </div>
 </div>
 
 <div class="card">

@@ -84,6 +84,7 @@ from .notification_views import (
     notification_list,
     notification_mark_all_read,
     notification_mark_read,
+    notification_unread_api,
 )
 
 from .feature_views import (
@@ -332,6 +333,7 @@ __all__ = [
     'notification_list',
     'notification_mark_read',
     'notification_mark_all_read',
+    'notification_unread_api',
     'student_attendance_log',
     'student_term_record',
     'registration_proof_document',

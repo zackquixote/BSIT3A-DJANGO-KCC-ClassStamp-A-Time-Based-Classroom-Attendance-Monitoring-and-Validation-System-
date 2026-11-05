@@ -209,6 +209,19 @@
       </a>
     {% endif %}
 
+      {% comment %}
+        Shared by every role: the Notification rows were already being written and
+        counted by the context processor, but nothing in the navigation pointed at
+        /notifications/, so the whole feed was reachable only by typing the URL.
+      {% endcomment %}
+      <span class="sidebar-section-label">Account</span>
+      <a href="{% url 'notification_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'notification_list' %}active{% endif %}">
+        <i data-lucide="bell" class="sidebar-link-icon"></i>
+        <i class="fas fa-bell sidebar-link-icon lucide-fallback"></i>
+        <span>Notifications</span>
+        <span class="sidebar-badge" id="sidebarUnreadBadge"{% if not unread_notification_count %} style="display: none;"{% endif %}>{{ unread_notification_count }}</span>
+      </a>
+
   </nav>
 
   <div class="sidebar-footer">
