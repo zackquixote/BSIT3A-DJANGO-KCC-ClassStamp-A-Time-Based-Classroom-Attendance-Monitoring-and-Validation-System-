@@ -141,18 +141,21 @@
             {% endif %}
           </td>
           <td>
-            {% if t.taught_classes.all %}
-              <div class="flex items-center gap-1" style="flex-wrap: wrap; max-width: 190px;">
-                {% for c in t.taught_classes.all %}
-                  <span class="badge badge--primary font-mono text-xs" style="padding: 2px 7px; margin-bottom: 2px;" title="{{ c.class_code }} • {{ c.subject.name }} ({{ c.academic_year.name }})">
-                    <i class="fas fa-book-open text-gold" style="font-size: 0.65rem;"></i> {{ c.subject.code }}
-                    <span class="text-muted" style="font-size: 0.68rem; margin-left: 2px;">{{ c.class_code }}</span>
-                  </span>
-                {% endfor %}
-              </div>
-            {% else %}
-              <span class="badge badge--muted text-xs">No active load</span>
-            {% endif %}
+            {% with load_count=t.taught_classes.all|length %}
+              {% if load_count > 0 %}
+                <button type="button" class="btn btn-outline btn-sm js-show-load-modal"
+                        style="padding: 4px 10px; font-size: 0.76rem; border-radius: 9999px; gap: 6px; white-space: nowrap; border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); color: var(--gold, #fbbf24);"
+                        title="Click to view assigned subjects"
+                        data-teacher-name="{{ t.user.get_full_name|default:t.user.username }}"
+                        data-classes='[{% for c in t.taught_classes.all %}{"code":"{{ c.subject.code|escapejs }}","title":"{{ c.subject.name|escapejs }}","class_code":"{{ c.class_code|escapejs }}","year":"{{ c.academic_year.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                  <i class="fas fa-book-bookmark text-gold"></i>
+                  <span>{{ load_count }} Class{{ load_count|pluralize:"es" }}</span>
+                  <i class="fas fa-chevron-down text-muted" style="font-size: 0.65rem; margin-left: 2px;"></i>
+                </button>
+              {% else %}
+                <span class="badge badge--muted text-xs">No active load</span>
+              {% endif %}
+            {% endwith %}
           </td>
           <td>
             {% if t.user.is_active %}
@@ -558,4 +561,82 @@
     }
   });
 </script>
+
+<!-- Modal: Quick View Teaching Load -->
+<div class="modal" id="quickLoadModal" style="display: none;">
+  <div class="modal-dialog" style="max-width: 540px;">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title" style="font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+          <i class="fas fa-book-bookmark text-gold"></i>
+          <span>Teaching Load &amp; Assigned Classes</span>
+        </h2>
+        <p class="text-xs text-muted mt-1" id="quickLoadTeacherName">Faculty member classes</p>
+      </div>
+      <button type="button" class="modal-close" data-modal-dismiss="quickLoadModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 16px 20px;">
+      <div id="quickLoadList" style="display: flex; flex-direction: column; gap: 8px;">
+        <!-- Populated dynamically via JS -->
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: flex-end;">
+      <button type="button" class="btn btn-outline btn-sm" data-modal-dismiss="quickLoadModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.js-show-load-modal');
+  if (!btn) return;
+  e.preventDefault();
+  
+  var teacherName = btn.dataset.teacherName || 'Faculty Member';
+  var rawClasses = btn.dataset.classes || '[]';
+  var classes = [];
+  try { classes = JSON.parse(rawClasses); } catch(err) { classes = []; }
+  
+  var titleEl = document.getElementById('quickLoadTeacherName');
+  if (titleEl) titleEl.textContent = teacherName + ' (' + classes.length + ' active class' + (classes.length === 1 ? '' : 'es') + ')';
+  
+  var listEl = document.getElementById('quickLoadList');
+  if (listEl) {
+    if (classes.length === 0) {
+      listEl.innerHTML = '<div class="text-muted text-center py-4">No active classes assigned.</div>';
+    } else {
+      listEl.innerHTML = classes.map(function(c) {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">' +
+          '<div>' +
+            '<div style="font-weight:600;color:var(--text-primary,#fff);font-size:0.875rem;">' + (c.code || '') + ' — ' + (c.title || 'Subject Class') + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-top:2px;" class="font-mono">' + (c.class_code || '') + '</div>' +
+          '</div>' +
+          '<span class="badge badge--muted text-xs font-mono">' + (c.year || 'Active Term') + '</span>' +
+        '</div>';
+      }).join('');
+    }
+  }
+  
+  var modal = document.getElementById('quickLoadModal');
+  if (modal) {
+    modal.classList.add('is-open');
+    modal.style.display = 'flex';
+  }
+});
+
+// Dismiss listener for quickLoadModal
+document.addEventListener('click', function(e) {
+  var dismissBtn = e.target.closest('[data-modal-dismiss="quickLoadModal"]');
+  if (dismissBtn) {
+    var modal = document.getElementById('quickLoadModal');
+    if (modal) {
+      modal.classList.remove('is-open');
+      modal.style.display = 'none';
+    }
+  }
+});
+</script>
+
 {% endblock %}

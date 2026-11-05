@@ -113,9 +113,9 @@
 
 <!-- ── Filter & Search Bar ────────────────────────────────────── -->
 <div class="card mb-4" style="padding: 14px 18px;">
-  <form method="GET" class="flex items-center gap-3 flex-wrap">
+  <form method="GET" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
     <!-- Academic Year Selector -->
-    <div class="input-wrap" style="min-width: 200px;">
+    <div class="input-wrap" style="flex: 1; min-width: 170px;">
       <i class="fas fa-calendar-days input-icon"></i>
       <select name="ay" class="form-control" onchange="this.form.submit()">
         <option value="ALL" {% if ay_filter == 'ALL' %}selected{% endif %}>All Academic Years</option>
@@ -128,7 +128,7 @@
     </div>
 
     <!-- Subject Selector -->
-    <div class="input-wrap" style="min-width: 180px;">
+    <div class="input-wrap" style="flex: 1; min-width: 160px;">
       <i class="fas fa-book input-icon"></i>
       <select name="subject" class="form-control" onchange="this.form.submit()">
         <option value="">All Subjects</option>
@@ -141,7 +141,7 @@
     </div>
 
     <!-- Teacher Selector -->
-    <div class="input-wrap" style="min-width: 180px;">
+    <div class="input-wrap" style="flex: 1; min-width: 160px;">
       <i class="fas fa-chalkboard-user input-icon"></i>
       <select name="teacher" class="form-control" onchange="this.form.submit()">
         <option value="">All Instructors</option>
@@ -153,21 +153,21 @@
       </select>
     </div>
 
-    <!-- Search Query -->
-    <div class="input-wrap" style="flex: 1; min-width: 200px;">
-      <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" class="form-control" data-table-search=".table" placeholder="Search class code or subject..." value="{{ search_q }}">
+    <!-- Search Query & Integrated Filter/Reset Buttons -->
+    <div style="display: flex; align-items: center; gap: 8px; flex: 1.5; min-width: 280px;">
+      <div class="input-wrap" style="flex: 1;">
+        <i class="fas fa-magnifying-glass input-icon"></i>
+        <input type="text" name="q" class="form-control" data-table-search=".table" placeholder="Search class code or subject..." value="{{ search_q }}">
+      </div>
+      <button type="submit" class="btn btn-primary" style="padding: 8px 18px; white-space: nowrap; height: 38px; display: inline-flex; align-items: center; gap: 6px;">
+        <i class="fas fa-filter"></i> Filter
+      </button>
+      {% if search_q or subject_filter or teacher_filter or ay_filter != active_ay.id|stringformat:"s" %}
+        <a href="{% url 'class_list' %}" class="btn btn-outline" style="padding: 8px 14px; white-space: nowrap; height: 38px; display: inline-flex; align-items: center; gap: 6px;" title="Reset filters">
+          <i class="fas fa-rotate-left"></i> Reset
+        </a>
+      {% endif %}
     </div>
-
-    <button type="submit" class="btn btn-primary btn-sm" style="padding: 9px 16px;">
-      <i class="fas fa-search"></i> Filter
-    </button>
-
-    {% if search_q or subject_filter or teacher_filter or ay_filter != active_ay.id|stringformat:"s" %}
-      <a href="{% url 'class_list' %}" class="btn btn-outline btn-sm" style="padding: 9px 14px;" title="Reset filters">
-        <i class="fas fa-rotate-left"></i> Reset
-      </a>
-    {% endif %}
   </form>
 </div>
 
@@ -230,19 +230,23 @@
               {% endif %}
             </div>
           </td>
-          <td style="max-width: 190px;">
+          <td style="min-width: 262px;">
             {% with slots=c.slots.all %}
               {% if slots %}
-                <div class="flex flex-col gap-1">
+                <div style="display: flex; flex-direction: column; gap: 7px;">
                   {% for slot in slots %}
                     {% if slot.is_active %}
-                      <div class="text-xs flex items-center gap-1.5" style="color: #cbd5e1;" data-slot-id="{{ slot.id }}">
-                        <span class="badge badge--dark badge--xs" style="background: rgba(255,255,255,0.06); font-weight: 700;">
+                      <div class="text-xs flex items-center gap-2" style="color: #cbd5e1; background: rgba(255, 255, 255, 0.03); padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);" data-slot-id="{{ slot.id }}">
+                        <span class="badge badge--dark badge--xs" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; border: 1px solid rgba(245, 158, 11, 0.3);">
                           {{ slot.get_weekday_display|slice:":3"|upper }}
                         </span>
-                        <span>{{ slot.starts_at|time:"h:i A" }}–{{ slot.ends_at|time:"h:i A" }}</span>
+                        <span class="font-mono" style="font-size: 0.76rem; letter-spacing: 0.01em;">
+                          {{ slot.starts_at|time:"h:i A" }} – {{ slot.ends_at|time:"h:i A" }}
+                        </span>
                         {% if slot.room %}
-                          <span class="text-muted" style="font-size: 0.68rem;">({{ slot.room }})</span>
+                          <span class="text-muted" style="font-size: 0.72rem; margin-left: auto; padding-left: 6px; color: #94a3b8; white-space: nowrap;">
+                            <i class="fas fa-door-open" style="font-size: 0.65rem; opacity: 0.6;"></i> {{ slot.room }}
+                          </span>
                         {% endif %}
                       </div>
                     {% endif %}

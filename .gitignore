@@ -21,3 +21,10 @@ local_settings.py
 # Coverage artifacts (B-03)
 .coverage
 coverage_report.txt
+
+# Private notes & local archives (kept local, never committed to git)
+docs/PRIVATE_*
+*.private.*
+*.bak
+*.zip
+scratch/

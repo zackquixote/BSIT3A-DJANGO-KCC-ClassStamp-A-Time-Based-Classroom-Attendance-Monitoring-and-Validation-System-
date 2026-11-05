@@ -362,6 +362,17 @@
     color: #e9d5ff;
   }
 
+  /* Section count pill keeps the row to a single line */
+  .cell-sections {
+    min-width: 132px;
+    white-space: nowrap;
+  }
+
+  .js-show-sections-modal:hover {
+    background: rgba(147, 51, 234, 0.22) !important;
+    color: #e9d5ff !important;
+  }
+
   .section-tag--pending {
     background: rgba(245, 158, 11, 0.12);
     border: 1px solid rgba(245, 158, 11, 0.35);
@@ -771,23 +782,25 @@
           </td>
 
           <!-- Enrolled Sections (active academic year) -->
-          <td>
-            {% if student.active_section_enrollments or student.pending_section_enrollments %}
-              {% for e in student.active_section_enrollments %}
-                <a class="section-tag" href="?section={{ e.class_obj.section_code|default:e.class_obj.class_code|urlencode }}"
-                   title="View all students in section {{ e.class_obj.section_code|default:e.class_obj.class_code }}">
-                  {{ e.class_obj.class_code }}
-                </a>
-              {% endfor %}
-              {% for e in student.pending_section_enrollments %}
-                <span class="section-tag section-tag--pending"
-                      title="Awaiting approval — {{ e.class_obj.subject.name }}">
-                  Pending: {{ e.class_obj.class_code }}
-                </span>
-              {% endfor %}
-            {% else %}
-              <span class="unassigned-tag">Unassigned</span>
-            {% endif %}
+          <td class="cell-sections">
+            {% with n_act=student.active_section_enrollments|length n_pen=student.pending_section_enrollments|length %}
+              {% with n_total=n_act|add:n_pen %}
+                {% if n_total > 0 %}
+                  <button type="button" class="btn btn-outline btn-sm js-show-sections-modal"
+                          style="padding: 4px 11px; font-size: 0.76rem; border-radius: 9999px; gap: 6px; white-space: nowrap; border-color: rgba(147, 51, 234, 0.35); background: rgba(147, 51, 234, 0.10); color: #c084fc;"
+                          title="Click to view enrolled sections"
+                          data-student-name="{{ student.user.get_full_name|default:student.user.username }}"
+                          data-student-id="{{ student.student_number }}"
+                          data-sections='[{% for e in student.active_section_enrollments %}{"code":"{{ e.class_obj.subject.code|default:e.class_obj.class_code|escapejs }}","title":"{{ e.class_obj.subject.name|escapejs }}","class_code":"{{ e.class_obj.class_code|escapejs }}","year":"{{ e.class_obj.academic_year.name|escapejs }}","pending":false}{% if not forloop.last %},{% endif %}{% endfor %}{% if n_act and n_pen %},{% endif %}{% for e in student.pending_section_enrollments %}{"code":"{{ e.class_obj.subject.code|default:e.class_obj.class_code|escapejs }}","title":"{{ e.class_obj.subject.name|escapejs }}","class_code":"{{ e.class_obj.class_code|escapejs }}","year":"{{ e.class_obj.academic_year.name|escapejs }}","pending":true}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                    <i class="fas fa-layer-group" style="font-size: 0.72rem;"></i>
+                    <span>{{ n_total }} Section{{ n_total|pluralize }}</span>
+                    <i class="fas fa-chevron-down" style="font-size: 0.62rem; opacity: 0.75;"></i>
+                  </button>
+                {% else %}
+                  <span class="unassigned-tag">Unassigned</span>
+                {% endif %}
+              {% endwith %}
+            {% endwith %}
           </td>
 
           <!-- Status Badge -->
@@ -960,6 +973,29 @@
     </div>
   </div>
 </div>
+
+<!-- ── Enrolled Sections quick view ─────────────────────────────── -->
+<div class="modal" id="sectionsQuickModal" style="display: none;">
+  <div class="modal-dialog" style="max-width: 560px;">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-layer-group text-purple"></i> Enrolled Sections</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="sectionsQuickModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="max-height: 60vh; overflow-y: auto; padding: 16px 20px;">
+      <div class="flex items-center justify-between mb-3" style="gap: 10px;">
+        <div>
+          <div class="font-semibold text-primary" id="sectionsStudentName">—</div>
+          <div class="text-muted text-xs font-mono" id="sectionsStudentId">—</div>
+        </div>
+        <span class="badge badge--purple text-xs" id="sectionsCountBadge">0 Sections</span>
+      </div>
+      <div id="sectionsQuickList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: flex-end;">
+      <button type="button" class="btn btn-outline btn-sm" data-modal-dismiss="sectionsQuickModal">Close</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -973,4 +1009,54 @@
 <script src="{% static 'js/student_directory/student_directory.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/student_directory/profile_editor.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/student_directory/directory_bulk_actions.js' %}?v=20261027_v1"></script>
+<script>
+(function () {
+  function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-show-sections-modal');
+    if (!btn) return;
+    e.preventDefault();
+
+    var items = [];
+    try { items = JSON.parse(btn.dataset.sections || '[]'); } catch (err) { items = []; }
+
+    document.getElementById('sectionsStudentName').textContent = btn.dataset.studentName || '—';
+    document.getElementById('sectionsStudentId').textContent = btn.dataset.studentId || '';
+    document.getElementById('sectionsCountBadge').textContent =
+      items.length + ' Section' + (items.length === 1 ? '' : 's');
+
+    var list = document.getElementById('sectionsQuickList');
+    if (!items.length) {
+      list.innerHTML = '<div class="text-muted text-center py-4 text-sm">No enrolled sections.</div>';
+    } else {
+      list.innerHTML = items.map(function (s) {
+        var right = s.pending
+          ? '<span class="badge badge--warning text-xs">Pending approval</span>'
+          : '<span class="badge badge--muted text-xs font-mono">' + esc(s.year) + '</span>';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">'
+          + '<div>'
+          + '<div style="font-weight:600;color:var(--text-primary,#fff);font-size:0.875rem;">' + esc(s.code) + ' — ' + esc(s.title || 'Subject') + '</div>'
+          + '<div class="font-mono" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-top:2px;">' + esc(s.class_code) + '</div>'
+          + '</div>' + right + '</div>';
+      }).join('');
+    }
+
+    var modal = document.getElementById('sectionsQuickModal');
+    modal.classList.add('is-open');
+    modal.style.display = 'flex';
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-modal-dismiss="sectionsQuickModal"]')) return;
+    var modal = document.getElementById('sectionsQuickModal');
+    modal.classList.remove('is-open');
+    modal.style.display = 'none';
+  });
+})();
+</script>
 {% endblock %}
