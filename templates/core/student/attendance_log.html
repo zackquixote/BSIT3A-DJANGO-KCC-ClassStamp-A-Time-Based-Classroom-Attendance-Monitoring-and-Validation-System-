@@ -195,7 +195,8 @@
         </div>
       </div>
     {% empty %}
-      <div class="empty-state">
+      {# Spans every auto-fit column, otherwise the message sits in one 260px track. #}
+      <div class="empty-state" style="grid-column: 1 / -1;">
         <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
         <div class="empty-state-title">No Active Enrollments</div>
         <p class="empty-state-text">You are not enrolled in any active class sections for the current academic term.</p>

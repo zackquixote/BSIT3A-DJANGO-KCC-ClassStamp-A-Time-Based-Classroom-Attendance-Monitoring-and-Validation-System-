@@ -327,8 +327,8 @@
   <div class="card stat-card--kpi card--hoverable">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-primary">{{ class_count }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Assigned Classes</p>
-        <h3 class="stat-value font-mono text-primary mt-1">{{ class_count }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-chalkboard-user" style="font-size: 1.2rem;"></i>
@@ -341,8 +341,8 @@
   <div class="card stat-card--kpi card--hoverable" style="border-color: {% if open_session_count > 0 %}rgba(34, 197, 94, 0.5){% else %}var(--glass-border){% endif %};">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-success">{{ open_session_count }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Active Sessions</p>
-        <h3 class="stat-value font-mono text-success mt-1">{{ open_session_count }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-camera" style="font-size: 1.2rem;"></i>
@@ -355,8 +355,8 @@
   <div class="card stat-card--kpi card--hoverable">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-warning">{{ total_students_roster }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Total Students</p>
-        <h3 class="stat-value font-mono text-warning mt-1">{{ total_students_roster }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-users" style="font-size: 1.2rem;"></i>
@@ -369,8 +369,8 @@
   <div class="card stat-card--kpi card--hoverable">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-primary" style="color: #c084fc;">{% if total_sessions_count %}{{ overall_attendance_rate }}%{% else %}—{% endif %}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Compliance Rate</p>
-        <h3 class="stat-value font-mono text-primary mt-1" style="color: #c084fc;">{% if total_sessions_count %}{{ overall_attendance_rate }}%{% else %}—{% endif %}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-chart-line" style="font-size: 1.2rem;"></i>
@@ -386,8 +386,8 @@
   <a href="{% url 'teacher_excuse_slips' %}" class="card card--hoverable" style="text-decoration:none;">
     <div class="flex items-center justify-between gap-3">
       <div>
+        <h3 class="stat-value text-warning">{{ pending_excuses }} pending</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Excuse Review</p>
-        <h3 class="stat-value text-warning mt-1">{{ pending_excuses }} pending</h3>
       </div>
       <i class="fas fa-file-circle-check text-warning" style="font-size:1.5rem;"></i>
     </div>
@@ -398,8 +398,8 @@
   <a href="{% url 'teacher_excuse_slips' %}" class="card card--hoverable" style="text-decoration:none;">
     <div class="flex items-center justify-between gap-3">
       <div>
+        <h3 class="stat-value text-danger">{{ pending_disputes }} pending</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Attendance Disputes</p>
-        <h3 class="stat-value text-danger mt-1">{{ pending_disputes }} pending</h3>
       </div>
       <i class="fas fa-scale-balanced text-danger" style="font-size:1.5rem;"></i>
     </div>
@@ -516,7 +516,7 @@
             <span class="teacher-load-meta">
               <span title="Enrolled students"><i class="fas fa-user-graduate"></i> {{ c.roster_count }}</span>
               <span title="Weekly slots"><i class="fas fa-calendar-week"></i> {{ c.slot_count }}</span>
-              <span title="Credit units">{{ c.subject.units }}u</span>
+              <span title="Credit units">{{ c.subject.units }} units</span>
             </span>
           </a>
           {% endfor %}

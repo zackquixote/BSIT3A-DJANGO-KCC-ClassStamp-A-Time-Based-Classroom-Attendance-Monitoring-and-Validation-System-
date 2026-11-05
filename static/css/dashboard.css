@@ -285,10 +285,15 @@
   font-size: 0.73rem;
   font-weight: 600;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   line-height: 1.2;
+  /* Two clamped lines: the launcher is a 2-column grid, so a single nowrap
+     line truncates names like "Attendance Monitoring" mid-word. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .dash-launcher-sub {
   font-size: 0.61rem;
@@ -338,9 +343,13 @@
   font-size: 0.72rem;
   font-weight: 500;
   color: var(--text-primary);
-  white-space: nowrap;
+  /* Long department names wrap instead of losing characters to an ellipsis. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .dash-dept-meta { font-size: 0.62rem; color: var(--text-muted); margin-top: 1px; }
 .dash-dept-badge { font-size: 0.6rem !important; padding: 1px 5px !important; flex-shrink: 0; }

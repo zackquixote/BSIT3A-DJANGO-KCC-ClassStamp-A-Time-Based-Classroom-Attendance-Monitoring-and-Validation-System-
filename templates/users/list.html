@@ -26,8 +26,8 @@
   <div class="card stat-card--kpi card--hoverable">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-primary">{{ total_users_count }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Total Accounts</p>
-        <h3 class="stat-value font-mono text-primary mt-1">{{ total_users_count }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--gold-light); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-users" style="font-size: 1.2rem;"></i>
@@ -49,8 +49,8 @@
   <a href="?role=students" class="card stat-card--kpi card--hoverable {% if role_tab == 'students' %}stat-card--active{% endif %}" style="text-decoration: none;">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-success">{{ total_students_count }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Students</p>
-        <h3 class="stat-value font-mono text-success mt-1">{{ total_students_count }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(34, 197, 94, 0.12); color: #4ade80; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-user-graduate" style="font-size: 1.2rem;"></i>
@@ -66,8 +66,8 @@
   <a href="?role=teachers" class="card stat-card--kpi card--hoverable {% if role_tab == 'teachers' %}stat-card--active{% endif %}" style="text-decoration: none;">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-warning">{{ total_teachers_count }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Faculty / Teachers</p>
-        <h3 class="stat-value font-mono text-warning mt-1">{{ total_teachers_count }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-chalkboard-user" style="font-size: 1.2rem;"></i>
@@ -83,8 +83,8 @@
   <a href="?role=admins" class="card stat-card--kpi card--hoverable {% if role_tab == 'admins' %}stat-card--active{% endif %}" style="text-decoration: none;">
     <div class="flex items-center justify-between">
       <div>
+        <h3 class="stat-value font-mono text-primary" style="color: #c084fc;">{{ total_admins_count }}</h3>
         <p class="stat-label text-muted text-xs uppercase font-semibold">Admin &amp; Staff</p>
-        <h3 class="stat-value font-mono text-primary mt-1" style="color: #c084fc;">{{ total_admins_count }}</h3>
       </div>
       <div class="stat-icon" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
         <i class="fas fa-shield-halved" style="font-size: 1.2rem;"></i>
@@ -222,7 +222,7 @@
     <table class="table" id="usersTable">
       <thead>
         <tr>
-          <th scope="col" style="width: 32px;">#</th>
+          <th scope="col" style="width: 32px;">ID</th>
           <th scope="col">Account / Name</th>
           {% if role_tab == 'students' %}
             <th scope="col">Student ID</th>

@@ -81,7 +81,13 @@
         <p class="text-muted mb-0">Finish these details so teachers and students can use each active section.</p>
       </div>
       <span class="badge {% if setup_checklist %}badge--warning{% else %}badge--success{% endif %}">
-        {{ setup_checklist|length }} section{{ setup_checklist|length|pluralize }} need attention
+        {% if not setup_checklist %}
+          All sections complete
+        {% elif setup_checklist|length == 1 %}
+          1 section needs attention
+        {% else %}
+          {{ setup_checklist|length }} sections need attention
+        {% endif %}
       </span>
     </div>
     {% if setup_checklist %}

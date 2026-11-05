@@ -1,5 +1,5 @@
 {% extends "theme/base.html" %}
-{% load static %}
+{% load static classstamp_assets %}
 {% block title %}My QR Badge — KCC ClassStamp{% endblock %}
 
 {% block content %}
@@ -208,7 +208,7 @@
     100% { transform: scale(1);    filter: drop-shadow(0 0 0 rgba(245, 158, 11, 0)); }
   }
 </style>
-<script src="{% static 'js/student/qr_badge.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/student/offline_badge.js' %}?v=20261026_v1"></script>
+<script src="{% bundle_static 'js/student/qr_badge.js' %}"></script>
+<script src="{% bundle_static 'js/student/offline_badge.js' %}"></script>
 {% endif %}
 {% endblock %}

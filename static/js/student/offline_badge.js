@@ -43,6 +43,14 @@
     countdownTimer = setInterval(tick, 30000);
   }
 
+  // A dropped request surfaces as TypeError("Failed to fetch") and a non-JSON
+  // reply as SyntaxError("Unexpected token '<'"); neither is actionable, so
+  // those get the plain message while server-written errors pass through.
+  function friendlyMessage(err, fallback) {
+    if (err && (err.name === 'TypeError' || err.name === 'SyntaxError')) return fallback;
+    return (err && err.message) || fallback;
+  }
+
   function issueOfflineBadge(url) {
     var btn = getEl('offlineBadgeIssueBtn');
     var errEl = getEl('offlineBadgeError');
@@ -78,9 +86,9 @@
     })
     .catch(function (err) {
       if (btn) btn.disabled = false;
-      var message = err && err.message ? err.message : 'Network error while issuing badge.';
+      var message = friendlyMessage(err, 'Could not reach the server — check your connection and try again.');
       if (errEl) errEl.textContent = message;
-      if (err && err.message) toast('error', message);
+      toast('error', message);
     });
   }
 

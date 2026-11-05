@@ -85,9 +85,14 @@
 }
 
 .stat-card--kpi .stat-label {
-  white-space: nowrap;
+  /* Labels such as "WITH ACTIVE TEACHING LOAD" are longer than one card line;
+     wrapping keeps the whole caption readable. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 @keyframes kpi-pulse {

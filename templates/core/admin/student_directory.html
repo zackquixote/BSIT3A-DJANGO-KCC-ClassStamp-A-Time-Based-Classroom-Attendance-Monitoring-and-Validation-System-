@@ -265,22 +265,6 @@
     background: rgba(255, 255, 255, 0.025);
   }
 
-  .student-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 5px;
-  }
-  .student-actions .btn-sm {
-    height: 30px;
-    padding: 0 9px;
-    font-size: 0.76rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-  }
-
   .student-cell-profile {
     display: flex;
     align-items: center;
@@ -888,11 +872,11 @@
 
           <!-- Actions -->
           <td class="text-right action-col" style="white-space: nowrap;">
-            <div class="student-actions">
-              <a href="{% url 'validation_detail' student.student_number %}" class="btn btn-outline btn-sm" title="View Student Profile & Review Form">
-                <i class="fas fa-id-card"></i> View
+            <div class="table-actions-cluster">
+              <a href="{% url 'validation_detail' student.student_number %}" class="btn btn-outline btn-icon-xs" title="View Student Profile &amp; Review Form" aria-label="View Student Profile and Review Form">
+                <i class="fas fa-id-card"></i>
               </a>
-              <button type="button" class="btn btn-outline btn-sm js-edit-student"
+              <button type="button" class="btn btn-outline btn-icon-xs js-edit-student"
                       data-student-id="{{ student.id }}"
                       data-first-name="{{ student.user.first_name|escapejs }}"
                       data-last-name="{{ student.user.last_name|escapejs }}"
@@ -900,16 +884,16 @@
                       data-dept-id="{% if student.program and student.program.department %}{{ student.program.department.id }}{% endif %}"
                       data-prog-id="{% if student.program %}{{ student.program.id }}{% endif %}"
                       data-year-level="{{ student.year_level|default:1 }}"
-                      title="Edit Student Profile">
-                <i class="fas fa-user-pen text-gold"></i> Edit
+                      title="Edit Student Profile" aria-label="Edit Student Profile">
+                <i class="fas fa-user-pen text-gold"></i>
               </button>
-              <button type="button" class="btn btn-outline btn-sm js-qr-reset"
+              <button type="button" class="btn btn-outline btn-icon-xs js-qr-reset"
                       data-student-id="{{ student.id }}"
                       data-student-number="{{ student.student_number|default:''|escapejs }}"
                       title="Rotate TOTP QR secret (invalidates current badge)" aria-label="Rotate TOTP QR secret (invalidates current badge)">
                 <i class="fas fa-shield-halved text-danger"></i>
               </button>
-              <button type="button" class="btn btn-outline btn-sm js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password" aria-label="Reset Password">
+              <button type="button" class="btn btn-outline btn-icon-xs js-admin-reset-pw" data-user-id="{{ student.user.id }}" data-name="{{ student.user.get_full_name|default:student.user.username }}" title="Reset Password" aria-label="Reset Password">
                 <i class="fas fa-key text-warning"></i>
               </button>
             </div>

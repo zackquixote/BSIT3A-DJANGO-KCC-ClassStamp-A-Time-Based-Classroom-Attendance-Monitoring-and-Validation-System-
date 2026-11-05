@@ -18,6 +18,27 @@
     } catch(e){}
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
+  {% comment %}
+    Critical rules, inlined because they are the ones the browser would otherwise
+    answer for itself. While classstamp.bundle.css is still in flight the page
+    paints with UA defaults: violet visited links and default buttons — the
+    ~0.2 s sidebar flash in the 2026-11-05 screen recording. color-scheme as a
+    meta (not only in base.css) applies at parse time, before any stylesheet.
+    Values mirror static/css/variables.css and sidebar.css; the bundle overrides
+    them, so a drift here is a colour difference for those 200 ms, not a bug.
+  {% endcomment %}
+  <meta name="color-scheme" content="dark">
+  <style>
+    html { background: #0b1220; }
+    a { color: #f59e0b; }
+    .sidebar { background: linear-gradient(180deg, #091427 0%, #07101f 60%, #050b16 100%); }
+    .sidebar-link { color: #94a3b8; text-decoration: none; }
+    .sidebar-section-label { text-transform: uppercase; color: #64748b; }
+    /* Both buttons are display:none on desktop and shown by a later media
+       query in sidebar.css, so this only removes the white UA boxes from the
+       pre-CSS paint. */
+    .sidebar-collapse-btn, .sidebar-close-btn { display: none; }
+  </style>
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
   {% comment %}
     One sheet instead of eleven: PythonAnywhere answers a request in ~0.8 s, so

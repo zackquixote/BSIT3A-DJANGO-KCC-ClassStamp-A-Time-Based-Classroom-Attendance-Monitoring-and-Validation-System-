@@ -224,23 +224,23 @@
 
   <div class="stat-grid mb-4">
     <div class="card stat-card--kpi">
+      <h3 class="stat-value font-mono text-primary">{{ class_count }}</h3>
       <p class="stat-label text-muted text-xs uppercase font-semibold">Assigned Sections</p>
-      <h3 class="stat-value font-mono text-primary mt-1">{{ class_count }}</h3>
       <div class="mt-2 text-xs text-muted">Active teaching load</div>
     </div>
     <div class="card stat-card--kpi">
+      <h3 class="stat-value font-mono text-success">{{ total_students_roster }}</h3>
       <p class="stat-label text-muted text-xs uppercase font-semibold">Enrolled Students</p>
-      <h3 class="stat-value font-mono text-success mt-1">{{ total_students_roster }}</h3>
       <div class="mt-2 text-xs text-muted">Across all rosters</div>
     </div>
     <div class="card stat-card--kpi">
+      <h3 class="stat-value font-mono text-warning">{{ weekly_slot_total }}</h3>
       <p class="stat-label text-muted text-xs uppercase font-semibold">Weekly Meeting Slots</p>
-      <h3 class="stat-value font-mono text-warning mt-1">{{ weekly_slot_total }}</h3>
       <div class="mt-2 text-xs text-muted">Recurring schedule entries</div>
     </div>
     <div class="card stat-card--kpi" style="border-color: {% if at_risk_count %}rgba(239, 68, 68, 0.45){% else %}var(--glass-border){% endif %};">
+      <h3 class="stat-value font-mono" style="color: {% if at_risk_count %}#f87171{% else %}var(--text-muted){% endif %};">{{ at_risk_count }}</h3>
       <p class="stat-label text-muted text-xs uppercase font-semibold">FDA-Risk Sections</p>
-      <h3 class="stat-value font-mono mt-1" style="color: {% if at_risk_count %}#f87171{% else %}var(--text-muted){% endif %};">{{ at_risk_count }}</h3>
       <div class="mt-2 text-xs text-muted">Past the 20% absence threshold</div>
     </div>
   </div>

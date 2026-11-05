@@ -61,6 +61,14 @@
     }
   }
 
+  // A dropped request surfaces as TypeError("Failed to fetch") and a non-JSON
+  // reply as SyntaxError("Unexpected token '<'") — neither tells a student in
+  // the ID line what to do, so those two get the plain message instead.
+  function friendlyMessage(err, fallback) {
+    if (err && (err.name === 'TypeError' || err.name === 'SyntaxError')) return fallback;
+    return (err && err.message) || fallback;
+  }
+
   function loadToken(force) {
     if (fetching) return;
     fetching = true;
@@ -93,7 +101,7 @@
         render();
       })
       .catch(function (err) {
-        showError(err.message || 'Badge unavailable');
+        showError(friendlyMessage(err, 'Could not reach the server — check your connection, then tap Refresh.'));
       })
       .then(function () {
         fetching = false;
