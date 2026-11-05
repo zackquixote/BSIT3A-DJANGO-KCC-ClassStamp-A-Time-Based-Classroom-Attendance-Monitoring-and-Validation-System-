@@ -29,7 +29,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
-from django.utils import timezone
 
 from apps.core.models import AuditEvent, Profile
 from apps.core.services.credential_service import revoke_user_sessions

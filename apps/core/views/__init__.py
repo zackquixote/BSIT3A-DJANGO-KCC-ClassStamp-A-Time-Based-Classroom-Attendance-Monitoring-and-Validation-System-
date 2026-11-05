@@ -86,6 +86,18 @@ from .notification_views import (
     notification_mark_read,
 )
 
+from .feature_views import (
+    attendance_period_report,
+    attendance_period_report_page,
+    excuse_calendar,
+    excuse_calendar_page,
+    push_subscription_delete,
+    push_subscription_save,
+    teacher_timetable,
+    teacher_timetable_export,
+    verify_classroom,
+)
+
 # // ------------------------------------------------------------------------------
 # // 3. Account Validation & Registrar Dossier Subsystem
 # // ------------------------------------------------------------------------------
@@ -439,4 +451,13 @@ __all__ = [
     'teacher_class_term_export',
     'teacher_manual_override_ajax',
     'attendance_scan_api',
+    'teacher_timetable',
+    'teacher_timetable_export',
+    'attendance_period_report',
+    'attendance_period_report_page',
+    'excuse_calendar',
+    'excuse_calendar_page',
+    'push_subscription_save',
+    'push_subscription_delete',
+    'verify_classroom',
 ]

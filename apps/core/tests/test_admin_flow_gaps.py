@@ -82,7 +82,7 @@ class UnassignedKpiTests(FlowGapBase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['unassigned_count'], 1)
-        self.assertContains(response, 'not enrolled in any section')
+        self.assertContains(response, 'not enrolled yet')
 
     def test_enrolled_student_is_not_counted(self):
         student = self._student('2026-9002')

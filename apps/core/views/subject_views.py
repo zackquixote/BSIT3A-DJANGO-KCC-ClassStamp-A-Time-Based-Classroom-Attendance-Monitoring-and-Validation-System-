@@ -14,7 +14,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Min, Q
+from django.db.models import Count, Min, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
@@ -243,6 +243,7 @@ def subject_list(request):
             placements.setdefault(row['subject_id'], []).append(row)
     for subject_obj in page_subjects:
         subject_obj.placements = placements.get(subject_obj.pk, [])
+        subject_obj.curriculum_count = len(subject_obj.placements)
 
     total_count = Subject.objects.count()
     active_count = Subject.objects.filter(is_active=True).count()
@@ -421,6 +422,9 @@ def subject_save(request):
     except ValueError as e:
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
     except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).exception('Unexpected error saving subject')
         return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
 
 

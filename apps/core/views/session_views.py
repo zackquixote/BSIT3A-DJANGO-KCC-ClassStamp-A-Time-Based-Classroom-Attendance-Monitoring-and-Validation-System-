@@ -15,7 +15,9 @@
 
 from datetime import datetime, time, timedelta
 import hashlib
+import ipaddress
 from io import BytesIO
+import json
 import logging
 import re
 from urllib.parse import urlencode
@@ -35,6 +37,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
 from apps.core.decorators import role_required
+from apps.core.views.helpers.auth_helpers import client_ip
 from apps.core.models import (
     AcademicEvent,
     AttendanceRecord,
@@ -100,6 +103,10 @@ SCAN_RATE_LIMIT_PER_IP = 120
 # A consumed token stays unavailable long enough to cover the 30s TOTP interval
 # plus the +/-1 window tolerance used by verification.
 SCAN_TOKEN_TTL_SECONDS = 120
+# Offline scanner retries carry a stable scan_key. Keep the original successful
+# reply briefly so a lost response can be replayed instead of surfacing as a
+# misleading "already stamped" duplicate.
+SCAN_REPLY_TTL_SECONDS = 600
 # A scan landing after the scheduled end of class plus this tolerance is refused
 # outright instead of being recorded as LATE. The attendance window is the claim
 # this system makes: a stamp three hours after class ended is an error, not a
@@ -107,12 +114,17 @@ SCAN_TOKEN_TTL_SECONDS = 120
 SCAN_CLOSE_TOLERANCE_MINUTES = 15
 
 
-def _client_ip(request):
-    """Best-effort client IP, honoring a single proxy hop."""
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+def _scan_audit_context(request):
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    address = client_ip(request)
+    try:
+        ipaddress.ip_address(address)
+    except ValueError:
+        address = None
+    return {
+        'client_ip': address,
+        'user_agent': user_agent[:500] if user_agent else None,
+    }
 
 
 def _bump_counter(key, window):
@@ -133,9 +145,45 @@ def _scan_is_rate_limited(request):
         f'classstamp:scan:rl:user:{request.user.pk}', SCAN_RATE_WINDOW_SECONDS
     )
     ip_hits = _bump_counter(
-        f'classstamp:scan:rl:ip:{_client_ip(request)}', SCAN_RATE_WINDOW_SECONDS
+        f'classstamp:scan:rl:ip:{client_ip(request)}', SCAN_RATE_WINDOW_SECONDS
     )
     return user_hits > SCAN_RATE_LIMIT_PER_USER or ip_hits > SCAN_RATE_LIMIT_PER_IP
+
+
+def _scan_reply_cache_key(request, scan_key, session_id, qr_payload):
+    # Bind the reply to the exact scan content: a reused key must never replay
+    # a different student or session's success.
+    digest = hashlib.sha256(
+        f'{session_id}:{qr_payload}'.encode('utf-8')
+    ).hexdigest()[:32]
+    return f'classstamp:scan:reply:{request.user.pk}:{scan_key}:{digest}'
+
+
+def _get_cached_scan_reply(request, scan_key, session_id, qr_payload):
+    """Return a previously stored successful reply for an offline retry."""
+    if not scan_key:
+        return None
+    return cache.get(_scan_reply_cache_key(request, scan_key, session_id, qr_payload))
+
+
+def _remember_scan_reply(request, scan_key, session_id, qr_payload, response):
+    """Persist a successful reply so the same scan_key can be retried safely.
+
+    Only 2xx responses are stored: replaying an error would hide a condition
+    (rate limit, expired token, closed window) that may have changed since.
+    """
+    if not scan_key or response.status_code != 200:
+        return response
+    try:
+        payload = json.loads(response.content)
+    except (TypeError, ValueError):
+        return response
+    cache.set(
+        _scan_reply_cache_key(request, scan_key, session_id, qr_payload),
+        {'data': payload, 'status': response.status_code},
+        SCAN_REPLY_TTL_SECONDS,
+    )
+    return response
 
 
 def _consume_scan_token(student_profile, token, session_id=None):
@@ -545,6 +593,11 @@ def attendance_scan_api(request):
     """
     session_id = request.POST.get('session_id')
     qr_payload = request.POST.get('qr_payload', '').strip()
+    scan_key = request.POST.get('scan_key', '').strip()[:100]
+
+    cached_reply = _get_cached_scan_reply(request, scan_key, session_id, qr_payload)
+    if cached_reply is not None:
+        return JsonResponse(cached_reply['data'], status=cached_reply['status'])
 
     if not session_id or not qr_payload:
         return JsonResponse({'error': 'Missing session_id or qr_payload.'}, status=400)
@@ -594,12 +647,18 @@ def attendance_scan_api(request):
         r'^classstamp:offline:([A-Za-z0-9\-]+):([0-9a-f]{64})$', qr_payload
     )
     if offline_match:
-        return _scan_offline_badge(
+        return _remember_scan_reply(
             request,
-            session,
-            class_obj,
-            offline_match.group(1).strip(),
-            offline_match.group(2).strip(),
+            scan_key,
+            session_id,
+            qr_payload,
+            _scan_offline_badge(
+                request,
+                session,
+                class_obj,
+                offline_match.group(1).strip(),
+                offline_match.group(2).strip(),
+            ),
         )
 
     # 2. Parse QR payload: Format "classstamp:<student_number>:<token>"
@@ -681,6 +740,7 @@ def attendance_scan_api(request):
             outcome=StampAttempt.OUTCOME_EXPIRED,
             token_bucket=token_bucket,
             token_age_s=token_age_s,
+            **_scan_audit_context(request),
         )
         _safe_detect(lambda: detect_token_bruteforce(session=session, student_profile=student_profile))
         return JsonResponse({
@@ -784,6 +844,7 @@ def attendance_scan_api(request):
             ),
             token_bucket=token_bucket,
             token_age_s=token_age_s,
+            **_scan_audit_context(request),
         )
 
     if not created:
@@ -806,8 +867,14 @@ def attendance_scan_api(request):
     _safe_detect(lambda: detect_schedule_conflict(record, student_profile, session))
     _safe_detect(lambda: detect_rapid_scan(session, request.user))
 
-    return _scan_success_response(
-        session, class_obj, student_profile, final_status, late_minutes, now
+    return _remember_scan_reply(
+        request,
+        scan_key,
+        session_id,
+        qr_payload,
+        _scan_success_response(
+            session, class_obj, student_profile, final_status, late_minutes, now
+        ),
     )
 
 
@@ -1005,6 +1072,7 @@ def _scan_offline_badge(request, session, class_obj, student_number, raw_token):
             scanned_by=request.user,
             method=StampAttempt.METHOD_QR,
             outcome=StampAttempt.OUTCOME_ACCEPTED,
+            **_scan_audit_context(request),
         )
         AuditEvent.objects.create(
             actor=request.user,

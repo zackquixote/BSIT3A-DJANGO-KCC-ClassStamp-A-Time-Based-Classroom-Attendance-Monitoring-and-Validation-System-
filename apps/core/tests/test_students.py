@@ -126,9 +126,25 @@ class StudentDirectoryViewTests(TestCase):
             "student_number,first_name,last_name,email,program,year_level,section\n"
             "2024-0555,Carlos,Yulo,carlos@kcc.ph,BSIT,3,BSIT-3A\n"
         ).encode('utf-8')
+
+        # Step 2: preview/validate without writing.
         csv_file = SimpleUploadedFile("section_roster.csv", csv_content, content_type="text/csv")
-        res = self.client.post(reverse('student_directory_import_csv'), {
+        preview_response = self.client.post(reverse('student_directory_import_csv'), {
             'csv_file': csv_file,
+            'preview': '1',
+            'default_password': 'TempPass123!',
+            'auto_approve': 'on',
+        })
+        self.assertEqual(preview_response.status_code, 200)
+        preview = preview_response.context['preview']
+        self.assertEqual(preview['valid_count'], 1)
+        self.assertFalse(Profile.objects.filter(student_number='2024-0555').exists())
+
+        # Step 3: confirm the previewed import.
+        res = self.client.post(reverse('student_directory_import_csv'), {
+            'confirm': '1',
+            'csv_text': preview['csv_text'],
+            'default_password': 'TempPass123!',
             'auto_approve': 'on',
         })
         self.assertEqual(res.status_code, 200)

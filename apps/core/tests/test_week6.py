@@ -207,9 +207,9 @@ class DatabaseBackupTests(BaseWeek5FixtureMixin, TestCase):
         self.assertFalse(AuditEvent.objects.filter(action='DB_BACKUP_DOWNLOAD').exists())
 
     def test_missing_mysqldump_redirects_with_error(self):
-        self.mock_which.return_value = None
         self.client.force_login(self.admin)
-        res = self.client.get(reverse('admin_db_backup'))
+        with patch.object(backup_service, '_find_mysqldump', return_value=None):
+            res = self.client.get(reverse('admin_db_backup'))
         self.assertRedirects(res, reverse('admin_dashboard'))
         self.assertFalse(AuditEvent.objects.filter(action='DB_BACKUP_DOWNLOAD').exists())
 

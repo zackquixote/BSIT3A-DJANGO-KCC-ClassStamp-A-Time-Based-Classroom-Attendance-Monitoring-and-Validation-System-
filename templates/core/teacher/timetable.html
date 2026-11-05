@@ -1,0 +1,60 @@
+{% extends "theme/base.html" %}
+{% load static %}
+
+{% block title %}Timetable & Workload — ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Timetable & Workload</h1>
+    <p class="page-subtitle">{{ academic_year.name|default:"No active academic year" }}</p>
+  </div>
+  <a href="{% url 'teacher_timetable_export' %}" class="btn btn-outline">
+    <i class="fas fa-download"></i> Export Timetable
+  </a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div class="card"><div class="text-muted text-sm">Assigned classes</div><div class="text-2xl font-bold">{{ total_classes }}</div></div>
+  <div class="card"><div class="text-muted text-sm">Weekly schedule slots</div><div class="text-2xl font-bold">{{ total_slots }}</div></div>
+  <div class="card"><div class="text-muted text-sm">Teaching hours / week</div><div class="text-2xl font-bold">{{ total_hours|floatformat:1 }}</div></div>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+  <table class="table">
+    <thead>
+      <tr><th>Day</th><th>Time</th><th>Class</th><th>Subject</th><th>Room</th><th>Students</th></tr>
+    </thead>
+    <tbody>
+      {% for row in schedule %}
+      <tr>
+        <td>{{ row.weekday }}</td>
+        <td>{{ row.starts_at|time:"g:i A" }} – {{ row.ends_at|time:"g:i A" }}</td>
+        <td>{{ row.class_code }}</td>
+        <td>{{ row.subject }}</td>
+        <td>{{ row.room }}</td>
+        <td>{{ row.students }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="text-muted text-center">No active schedule slots found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-6">
+  {% for day in day_groups %}
+  <div class="card mb-3" style="padding:16px;">
+    <div class="font-semibold mb-3">{{ day.name }}</div>
+    {% for row in day.slots %}
+    <div style="display:grid;grid-template-columns:150px 1fr 100px;gap:12px;padding:8px 0;border-top:1px solid var(--glass-border);">
+      <span>{{ row.starts_at|time:"g:i A" }} – {{ row.ends_at|time:"g:i A" }}</span>
+      <span><strong>{{ row.class_code }}</strong> · {{ row.subject }}</span>
+      <span class="text-muted">{{ row.room }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% empty %}
+  {% endfor %}
+</div>
+{% endblock %}

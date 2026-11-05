@@ -1,0 +1,43 @@
+{% extends "theme/base.html" %}
+
+{% block title %}Attendance Period Report — ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Semester & Academic-Year Report</h1>
+    <p class="page-subtitle">Download attendance records for review and reporting.</p>
+  </div>
+</div>
+
+<div class="card p-4">
+  {% if academic_years %}
+  <form method="get" class="form-grid" style="display:grid;grid-template-columns:minmax(220px,420px) auto;gap:12px;align-items:end;">
+    <div class="form-group">
+      <label class="form-label" for="reportAcademicYear">Academic year</label>
+      <select id="reportAcademicYear" name="academic_year" class="form-control">
+        {% for academic_year in academic_years %}
+        <option value="{{ academic_year.pk }}" {% if selected_academic_year.pk == academic_year.pk %}selected{% endif %}>{{ academic_year.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-primary" type="submit">Preview report</button>
+  </form>
+
+  <div class="mt-4">
+    {% if selected_academic_year %}
+    <p><strong>{{ selected_academic_year.name }}</strong>: {{ record_count }} attendance record{{ record_count|pluralize }}.</p>
+    {% if record_count %}
+    <a class="btn btn-outline" href="{% url 'attendance_period_report_export' %}?academic_year={{ selected_academic_year.pk }}">
+      <i class="fas fa-download"></i> Download CSV
+    </a>
+    {% else %}
+    <p class="text-muted">No attendance records found for this academic year.</p>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="text-muted">No academic years have been registered. Add one before generating a period report.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -214,6 +214,14 @@ class StampAttempt(models.Model):
         null=True, blank=True,
         help_text="// Age in seconds of token relative to current wall clock"
     )
+    client_ip = models.GenericIPAddressField(
+        null=True, blank=True,
+        help_text="// Scanner network address captured at scan time",
+    )
+    user_agent = models.CharField(
+        max_length=500, null=True, blank=True,
+        help_text="// Scanner browser or device user agent",
+    )
 
     class Meta:
         app_label = 'core'
@@ -274,6 +282,28 @@ class OfflineBadge(models.Model):
     def is_expired(self) -> bool:
         from django.utils import timezone
         return self.expires_at <= timezone.now()
+
+
+class RoomVerification(models.Model):
+    session = models.OneToOneField(
+        ClassSession,
+        on_delete=models.CASCADE,
+        related_name='room_verification',
+    )
+    room = models.CharField(max_length=100)
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='room_verifications',
+    )
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tblcs_room_verification'
+
+    def __str__(self):
+        return f'{self.session} - {self.room}'
 
 
 class AttendanceDispute(models.Model):

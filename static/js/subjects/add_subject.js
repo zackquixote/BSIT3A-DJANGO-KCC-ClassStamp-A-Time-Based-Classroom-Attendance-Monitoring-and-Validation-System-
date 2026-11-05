@@ -123,7 +123,12 @@
             headers: { 'X-CSRFToken': getCSRF() },
             body: fd,
           });
-          const data = await res.json();
+          let data;
+          try {
+            data = await res.json();
+          } catch (parseError) {
+            throw new Error('The server returned an invalid response.');
+          }
           if (!data.ok) {
             const errEl = getEl('subjectFormError');
             if (window.App && window.App.toast) {

@@ -157,7 +157,7 @@ def build_student_queryset(filters: dict):
 def import_students_from_csv(
     reader: csv.DictReader,
     actor,
-    default_password: str = 'KccStudent2026!',
+    default_password: str,
     auto_approve: bool = False,
     target_class=None,
     dry_run: bool = False,
@@ -171,7 +171,7 @@ def import_students_from_csv(
     // Arguments:
     //   reader           (csv.DictReader): Parsed CSV rows iterator.
     //   actor            (User):           Admin requesting the import.
-    //   default_password (str):            Fallback password if not in CSV.
+    //       default_password (str):            Required fallback password for rows without one.
     //   auto_approve     (bool):           If True, sets APPROVED + approved_by/at immediately.
     //   target_class     (Class|None):     Optional class section to enroll all imports into.
     //   dry_run          (bool):           A-10 preview mode — validates and reports
@@ -184,6 +184,9 @@ def import_students_from_csv(
     //     'errors'        (list) — row-level error descriptions (capped at 50)
     //     'rows'          (list) — per-row preview verdicts (row_number, fields, ok, error)
     """
+    if not default_password or len(default_password.strip()) < 8:
+        raise ValueError('A default password of at least 8 characters is required.')
+
     programs_by_code = {p.code.upper(): p for p in Program.objects.all()}
     classes_by_code = {c.class_code.upper(): c for c in Class.objects.filter(is_active=True)}
 

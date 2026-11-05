@@ -46,6 +46,7 @@ from .attendance import (
     AttendanceRecord,
     ClassSession,
     OfflineBadge,
+    RoomVerification,
     StampAttempt,
 )
 
@@ -67,7 +68,7 @@ from .policy import SystemPolicy
 
 # // Two-factor recovery codes
 from .two_factor import RecoveryCode
-from .notifications import Notification
+from .notifications import Notification, PushSubscription
 
 __all__ = [
     # Academic
@@ -89,6 +90,7 @@ __all__ = [
     'AttendanceRecord',
     'ClassSession',
     'OfflineBadge',
+    'RoomVerification',
     'StampAttempt',
     'ExcuseSlip',
     # Policy
@@ -100,4 +102,5 @@ __all__ = [
     'AuditEvent',
     'ReviewAction',
     'Notification',
+    'PushSubscription',
 ]

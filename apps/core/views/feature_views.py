@@ -1,0 +1,286 @@
+import json
+import hashlib
+
+from django.contrib.auth.decorators import login_required
+from django.db.models import Prefetch
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_GET, require_POST
+
+from apps.core.decorators import role_required
+from apps.core.models import (
+    AcademicYear,
+    AttendanceRecord,
+    Class,
+    ClassSession,
+    ClassSlot,
+    Enrollment,
+    ExcuseSlip,
+    Profile,
+    PushSubscription,
+    RoomVerification,
+)
+from apps.core.services.export_service import SafeCsvWriter
+
+
+def _resolve_academic_year(raw_value):
+    """Return (year, error). A blank value selects the active academic year."""
+    raw_value = (raw_value or '').strip()
+    if not raw_value:
+        return AcademicYear.objects.filter(is_active=True).first(), None
+    if not raw_value.isdigit():
+        return None, HttpResponseBadRequest('Invalid academic year.')
+    year = AcademicYear.objects.filter(pk=int(raw_value)).first()
+    if year is None:
+        return None, HttpResponseBadRequest('Invalid academic year.')
+    return year, None
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER)
+def teacher_timetable(request):
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+    classes = list(
+        Class.objects.filter(
+            teacher_profile__user=request.user,
+            academic_year=active_year,
+            is_active=True,
+        )
+        .select_related('subject')
+        .prefetch_related(
+            Prefetch(
+                'slots',
+                queryset=ClassSlot.objects.filter(is_active=True).order_by(
+                    'weekday', 'starts_at'
+                ),
+                to_attr='active_slots',
+            ),
+            Prefetch(
+                'enrollments',
+                queryset=Enrollment.objects.filter(status=Enrollment.STATUS_ACTIVE),
+                to_attr='active_enrollments',
+            ),
+        )
+    )
+
+    rows = []
+    for class_obj in classes:
+        for slot in class_obj.active_slots:
+            rows.append({
+                'weekday': slot.get_weekday_display(),
+                'weekday_value': slot.weekday,
+                'starts_at': slot.starts_at,
+                'ends_at': slot.ends_at,
+                'room': slot.room or 'TBA',
+                'class_code': class_obj.class_code,
+                'subject': class_obj.subject.name,
+                'students': len(class_obj.active_enrollments),
+            })
+    rows.sort(key=lambda row: (row['weekday_value'], row['starts_at']))
+    weekday_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    day_groups = []
+    for weekday_value in range(7):
+        day_rows = [row for row in rows if row['weekday_value'] == weekday_value]
+        if day_rows:
+            day_groups.append({
+                'name': weekday_names[weekday_value],
+                'slots': day_rows,
+            })
+    return render(request, 'core/teacher/timetable.html', {
+        'academic_year': active_year,
+        'schedule': rows,
+        'day_groups': day_groups,
+        'total_slots': len(rows),
+        'total_classes': len(classes),
+        'total_hours': sum(
+            (
+                row['ends_at'].hour + row['ends_at'].minute / 60
+                - row['starts_at'].hour - row['starts_at'].minute / 60
+            )
+            for row in rows
+        ),
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER)
+@require_GET
+def teacher_timetable_export(request):
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+    slots = ClassSlot.objects.filter(
+        class_obj__teacher_profile__user=request.user,
+        class_obj__academic_year=active_year,
+        class_obj__is_active=True,
+        is_active=True,
+    ).select_related('class_obj', 'class_obj__subject').order_by('weekday', 'starts_at')
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="classstamp-teacher-timetable.csv"'
+    writer = SafeCsvWriter(response)
+    writer.writerow(['Day', 'Start', 'End', 'Class', 'Subject', 'Room'])
+    for slot in slots:
+        writer.writerow([
+            slot.get_weekday_display(),
+            slot.starts_at.strftime('%I:%M %p'),
+            slot.ends_at.strftime('%I:%M %p'),
+            slot.class_obj.class_code,
+            slot.class_obj.subject.name,
+            slot.room or 'TBA',
+        ])
+    return response
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_GET
+def attendance_period_report(request):
+    academic_year, error = _resolve_academic_year(request.GET.get('academic_year'))
+    if error:
+        return error
+    records = AttendanceRecord.objects.select_related(
+        'student_profile__user',
+        'session__slot__class_obj__subject',
+    ).filter(session__slot__class_obj__academic_year=academic_year)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="classstamp-period-report.csv"'
+    writer = SafeCsvWriter(response)
+    writer.writerow([
+        'Date', 'Academic Year', 'Class', 'Subject', 'Student Number',
+        'Student Name', 'Status', 'Method', 'Late Minutes',
+    ])
+    for record in records.order_by('session__session_date', 'student_profile__student_number'):
+        writer.writerow([
+            record.session.session_date,
+            academic_year.name if academic_year else '',
+            record.session.slot.class_obj.class_code,
+            record.session.slot.class_obj.subject.name,
+            record.student_profile.student_number or '',
+            record.student_profile.user.get_full_name(),
+            record.status,
+            record.method,
+            record.late_minutes,
+        ])
+    return response
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_GET
+def attendance_period_report_page(request):
+    academic_years = AcademicYear.objects.order_by('-starts_on')
+    selected_year, error = _resolve_academic_year(request.GET.get('academic_year'))
+    if error:
+        return error
+    record_count = AttendanceRecord.objects.filter(
+        session__slot__class_obj__academic_year=selected_year
+    ).count() if selected_year else 0
+    return render(request, 'core/admin/attendance_period_report.html', {
+        'academic_years': academic_years,
+        'selected_academic_year': selected_year,
+        'record_count': record_count,
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+@require_POST
+def verify_classroom(request, session_id):
+    session = get_object_or_404(ClassSession.objects.select_related('slot__class_obj'), pk=session_id)
+    profile = getattr(request.user, 'classstamp_profile', None)
+    if not request.user.is_superuser and profile.role != Profile.ROLE_ADMIN:
+        if session.slot.class_obj.teacher_profile_id != profile.id:
+            return JsonResponse({'error': 'Not authorized for this class.'}, status=403)
+
+    expected = (session.slot.room or '').strip()
+    room = request.POST.get('room', '').strip()
+    if not room:
+        return JsonResponse({'error': 'Room is required.'}, status=400)
+    if expected and room.casefold() != expected.casefold():
+        return JsonResponse({
+            'error': f'Room mismatch. This session is assigned to {expected}.',
+        }, status=400)
+
+    verification, _ = RoomVerification.objects.update_or_create(
+        session=session,
+        defaults={'room': room, 'verified_by': request.user},
+    )
+    return JsonResponse({
+        'ok': True,
+        'room': verification.room,
+        'verified_at': verification.verified_at.isoformat(),
+    })
+
+
+@login_required(login_url='login')
+@require_POST
+def push_subscription_save(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+        subscription = payload['subscription']
+        keys = subscription['keys']
+    except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
+        return JsonResponse({'error': 'Invalid push subscription.'}, status=400)
+
+    endpoint = subscription.get('endpoint', '').strip()
+    if not endpoint or not keys.get('p256dh') or not keys.get('auth'):
+        return JsonResponse({'error': 'Incomplete push subscription.'}, status=400)
+
+    obj, _ = PushSubscription.objects.update_or_create(
+        user=request.user,
+        endpoint_hash=hashlib.sha256(endpoint.encode('utf-8')).hexdigest(),
+        defaults={
+            'endpoint': endpoint,
+            'p256dh': keys['p256dh'],
+            'auth': keys['auth'],
+            'user_agent': request.META.get('HTTP_USER_AGENT', '')[:500],
+        },
+    )
+    return JsonResponse({'ok': True, 'subscription_id': obj.pk})
+
+
+@login_required(login_url='login')
+@require_POST
+def push_subscription_delete(request):
+    endpoint = request.POST.get('endpoint', '').strip()
+    PushSubscription.objects.filter(
+        user=request.user,
+        endpoint_hash=hashlib.sha256(endpoint.encode('utf-8')).hexdigest(),
+    ).delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required(login_url='login')
+@require_GET
+def excuse_calendar_page(request):
+    return render(request, 'core/excuse_calendar.html', {})
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN, Profile.ROLE_STUDENT)
+@require_GET
+def excuse_calendar(request):
+    profile = getattr(request.user, 'classstamp_profile', None)
+    slips = ExcuseSlip.objects.select_related(
+        'student_profile__user',
+        'session__slot__class_obj',
+    ).filter(session__session_date__isnull=False)
+    if profile.role == Profile.ROLE_TEACHER:
+        slips = slips.filter(session__slot__class_obj__teacher_profile=profile)
+    elif profile.role == Profile.ROLE_STUDENT:
+        slips = slips.filter(student_profile=profile)
+
+    events = [
+        {
+            'id': slip.pk,
+            'title': (
+                f'{slip.student_profile.user.get_full_name() or slip.student_profile.student_number} '
+                f'- {slip.status}'
+            ),
+            'start': slip.session.session_date.isoformat(),
+            'status': slip.status,
+            'class_code': slip.session.slot.class_obj.class_code,
+        }
+        for slip in slips.order_by('session__session_date')[:500]
+    ]
+    return JsonResponse({'events': events})

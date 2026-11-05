@@ -114,6 +114,16 @@
         <i class="fas fa-calendar-alt sidebar-link-icon lucide-fallback"></i>
         <span>Academic Calendar</span>
       </a>
+      <a href="{% url 'excuse_calendar_page' %}" class="sidebar-link {% if request.resolver_match.url_name == 'excuse_calendar_page' %}active{% endif %}">
+        <i data-lucide="calendar-days" class="sidebar-link-icon"></i>
+        <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
+        <span>Excuse Calendar</span>
+      </a>
+      <a href="{% url 'attendance_period_report' %}" class="sidebar-link {% if request.resolver_match.url_name in 'attendance_period_report attendance_period_report_export attendance_period_report_page' %}active{% endif %}">
+        <i data-lucide="chart-no-axes-combined" class="sidebar-link-icon"></i>
+        <i class="fas fa-chart-column sidebar-link-icon lucide-fallback"></i>
+        <span>Attendance Reports</span>
+      </a>
       <a href="{% url 'admin_audit_log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_audit_log' %}active{% endif %}" title="System Activity & Audit Trail">
         <i data-lucide="file-text" class="sidebar-link-icon"></i>
         <i class="fas fa-shield-halved sidebar-link-icon lucide-fallback"></i>
@@ -137,6 +147,11 @@
         <i class="fas fa-chalkboard sidebar-link-icon lucide-fallback"></i>
         <span>My Classes</span>
       </a>
+      <a href="{% url 'teacher_timetable' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teacher_timetable' %}active{% endif %}">
+        <i data-lucide="calendar-clock" class="sidebar-link-icon"></i>
+        <i class="fas fa-calendar-week sidebar-link-icon lucide-fallback"></i>
+        <span>Timetable &amp; Workload</span>
+      </a>
       <a href="{% url 'teacher_session_history' %}" class="sidebar-link {% if request.resolver_match.url_name in 'teacher_session_history teacher_session_history_export teacher_session_export' %}active{% endif %}">
         <i data-lucide="history" class="sidebar-link-icon"></i>
         <i class="fas fa-clipboard-list sidebar-link-icon lucide-fallback"></i>
@@ -146,6 +161,11 @@
         <i data-lucide="file-check" class="sidebar-link-icon"></i>
         <i class="fas fa-file-medical sidebar-link-icon lucide-fallback"></i>
         <span>Excuse Slips</span>
+      </a>
+      <a href="{% url 'excuse_calendar_page' %}" class="sidebar-link {% if request.resolver_match.url_name == 'excuse_calendar_page' %}active{% endif %}">
+        <i data-lucide="calendar-days" class="sidebar-link-icon"></i>
+        <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
+        <span>Excuse Calendar</span>
       </a>
 
     {% elif profile and profile.role == 'STUDENT' %}
@@ -169,6 +189,11 @@
         <i data-lucide="file-text" class="sidebar-link-icon"></i>
         <i class="fas fa-file-medical sidebar-link-icon lucide-fallback"></i>
         <span>Excuse Slips</span>
+      </a>
+      <a href="{% url 'excuse_calendar_page' %}" class="sidebar-link {% if request.resolver_match.url_name == 'excuse_calendar_page' %}active{% endif %}">
+        <i data-lucide="calendar-days" class="sidebar-link-icon"></i>
+        <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
+        <span>Excuse Calendar</span>
       </a>
       <a href="{% url 'student_profile' %}" class="sidebar-link {% if request.resolver_match.url_name == 'student_profile' %}active{% endif %}">
         <i data-lucide="circle-user-round" class="sidebar-link-icon"></i>
@@ -206,9 +231,12 @@
         {% endif %}
       </div>
     </div>
-    <a href="{% url 'logout' %}" class="sidebar-logout" title="Logout" aria-label="Logout">
-      <i class="fas fa-right-from-bracket"></i>
-    </a>
+    <form method="post" action="{% url 'logout' %}" class="sidebar-logout-form">
+      {% csrf_token %}
+      <button type="submit" class="sidebar-logout" title="Logout" aria-label="Logout">
+        <i class="fas fa-right-from-bracket"></i>
+      </button>
+    </form>
   </div>
 
 </aside>

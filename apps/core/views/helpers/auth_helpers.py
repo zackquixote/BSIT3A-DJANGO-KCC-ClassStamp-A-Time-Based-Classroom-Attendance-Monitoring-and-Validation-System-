@@ -32,6 +32,7 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 from django.core.validators import validate_email
 from django.utils import timezone
 
@@ -59,16 +60,52 @@ LOCKED_MESSAGE = 'Too many failed attempts. Locked for 1 minute.'
 # // SECTION 2: SESSION RATE-LIMITING HELPERS
 # // ==============================================================================
 
-def _reset_lock_state(request):
+def client_ip(request) -> str:
+    """Client address from the socket.
+
+    Forwarding headers are deliberately not trusted: without a known,
+    configured reverse proxy any client can set X-Forwarded-For and rotate
+    through unlimited rate-limit buckets. One trusted value beats a spoofable
+    "best effort".
+    """
+    return request.META.get('REMOTE_ADDR', 'unknown')
+
+
+def _throttle_keys(request, identifier=''):
+    ip = client_ip(request)
+    normalized = (identifier or '').strip().lower()
+    return normalized, ip
+
+
+def _reset_lock_state(request, identifier=''):
     """
     // Clears failed attempt counters and active unlock timestamps from the user session.
     // Called on successful login or after lockout duration has expired.
     """
     request.session['failed_attempts'] = 0
     request.session['lock_time'] = None
+    normalized, ip = _throttle_keys(request, identifier)
+    cache.delete(f'login_failures:ip:{ip}')
+    cache.delete(f'login_lock:ip:{ip}')
+    if normalized:
+        cache.delete(f'login_failures:account:{normalized}')
+        cache.delete(f'login_lock:account:{normalized}')
 
 
-def _get_lock_state(request):
+def _record_failed_attempt(request, identifier='', timeout_seconds=300):
+    normalized, ip = _throttle_keys(request, identifier)
+    ip_key = f'login_failures:ip:{ip}'
+    ip_failures = cache.get(ip_key, 0) + 1
+    cache.set(ip_key, ip_failures, timeout_seconds)
+    if normalized:
+        account_key = f'login_failures:account:{normalized}'
+        account_failures = cache.get(account_key, 0) + 1
+        cache.set(account_key, account_failures, timeout_seconds)
+        return max(ip_failures, account_failures)
+    return ip_failures
+
+
+def _get_lock_state(request, identifier=''):
     """
     // Inspects session metadata to determine if the client is actively throttled.
     //
@@ -76,8 +113,18 @@ def _get_lock_state(request):
     //   - remaining_seconds is None if no active lockout exists.
     //   - remaining_seconds > 0 if the client is still within a lockout window.
     """
-    failed_attempts = request.session.get('failed_attempts', 0)
+    normalized, ip = _throttle_keys(request, identifier)
+    account_failures = cache.get(f'login_failures:account:{normalized}', 0) if normalized else 0
+    ip_failures = cache.get(f'login_failures:ip:{ip}', 0)
+    failed_attempts = max(account_failures, ip_failures, request.session.get('failed_attempts', 0))
     lock_time = request.session.get('lock_time')
+    locks = []
+    if normalized:
+        locks.append(cache.get(f'login_lock:account:{normalized}'))
+    locks.append(cache.get(f'login_lock:ip:{ip}'))
+    active_locks = [value for value in locks if value]
+    if active_locks:
+        lock_time = max(active_locks)
 
     if not lock_time:
         return failed_attempts, None
@@ -98,7 +145,7 @@ def _get_lock_state(request):
     return 0, None
 
 
-def _set_lock_state(request):
+def _set_lock_state(request, identifier=''):
     """
     // Activates temporary lockout window for the client session upon threshold breach.
     // Returns: remaining_seconds (int) — how long until the lock expires.
@@ -106,6 +153,13 @@ def _set_lock_state(request):
     lock_until = timezone.now() + LOCK_DURATION
     request.session['failed_attempts'] = MAX_FAILED_ATTEMPTS
     request.session['lock_time'] = lock_until.isoformat()
+    timeout = int(LOCK_DURATION.total_seconds())
+    normalized, ip = _throttle_keys(request, identifier)
+    cache.set(f'login_lock:ip:{ip}', lock_until.isoformat(), timeout)
+    cache.set(f'login_failures:ip:{ip}', MAX_FAILED_ATTEMPTS, timeout)
+    if normalized:
+        cache.set(f'login_lock:account:{normalized}', lock_until.isoformat(), timeout)
+        cache.set(f'login_failures:account:{normalized}', MAX_FAILED_ATTEMPTS, timeout)
     return int(LOCK_DURATION.total_seconds())
 
 

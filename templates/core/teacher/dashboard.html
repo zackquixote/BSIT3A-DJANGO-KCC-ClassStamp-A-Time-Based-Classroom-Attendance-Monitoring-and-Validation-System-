@@ -380,6 +380,35 @@
   </div>
 </div>
 
+{% if pending_excuses or pending_disputes %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+  {% if pending_excuses %}
+  <a href="{% url 'teacher_excuse_slips' %}" class="card card--hoverable" style="text-decoration:none;">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Excuse Review</p>
+        <h3 class="stat-value text-warning mt-1">{{ pending_excuses }} pending</h3>
+      </div>
+      <i class="fas fa-file-circle-check text-warning" style="font-size:1.5rem;"></i>
+    </div>
+    <p class="text-xs text-muted mt-2 mb-0">Review requests before updating attendance records.</p>
+  </a>
+  {% endif %}
+  {% if pending_disputes %}
+  <a href="{% url 'teacher_excuse_slips' %}" class="card card--hoverable" style="text-decoration:none;">
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <p class="stat-label text-muted text-xs uppercase font-semibold">Attendance Disputes</p>
+        <h3 class="stat-value text-danger mt-1">{{ pending_disputes }} pending</h3>
+      </div>
+      <i class="fas fa-scale-balanced text-danger" style="font-size:1.5rem;"></i>
+    </div>
+    <p class="text-xs text-muted mt-2 mb-0">Resolve student challenges to recorded attendance.</p>
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Compact attendance console: schedule + recent rolls (left) / classes + milestones (right) -->
 <div class="teacher-console">
   <div class="teacher-console-col">

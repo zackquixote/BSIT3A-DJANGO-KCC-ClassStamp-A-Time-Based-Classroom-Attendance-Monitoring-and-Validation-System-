@@ -49,6 +49,7 @@ from apps.core.views.helpers import (
     _get_lock_state,
     _reset_lock_state,
     _set_lock_state,
+    _record_failed_attempt,
     _validate_registration_data,
 )
 
@@ -79,16 +80,15 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
-    failed_attempts, remaining = _get_lock_state(request)
-    if remaining is not None:
-        messages.error(request, f'Too many failed attempts. Try again in {remaining} seconds.')
-        return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
-
     if request.method == 'GET':
         return render(request, 'auth/login.html')
 
     login_input = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
+    failed_attempts, remaining = _get_lock_state(request, login_input)
+    if remaining is not None:
+        messages.error(request, f'Too many failed attempts. Try again in {remaining} seconds.')
+        return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
 
     # // [Flexible Identity Lookup]
     user_obj = None
@@ -144,16 +144,16 @@ def login_view(request):
             return redirect('two_factor_verify')
 
         # // [Success Route] Reset failed attempt trackers and rotate session key
-        _reset_lock_state(request)
+        _reset_lock_state(request, login_input)
         login(request, user)
         request.session.cycle_key()
         return redirect('dashboard')
 
     # // [Failure Route] Increment failure counter and apply lockout if threshold reached
-    failed_attempts += 1
+    failed_attempts = _record_failed_attempt(request, login_input)
     request.session['failed_attempts'] = failed_attempts
     if failed_attempts >= MAX_FAILED_ATTEMPTS:
-        remaining = _set_lock_state(request)
+        remaining = _set_lock_state(request, login_input)
         messages.error(request, LOCKED_MESSAGE)
         return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
 
@@ -165,6 +165,7 @@ def login_view(request):
 # // ==============================================================================
 # // VIEW: Logout Controller
 # // ==============================================================================
+@require_http_methods(['POST'])
 def logout_view(request):
     """
     // Terminates current user session, clears authentication cookies,
@@ -181,6 +182,7 @@ def logout_view(request):
 # // ==============================================================================
 # // VIEW: Session Keepalive Endpoint (/session/keepalive/)
 # // ==============================================================================
+@require_http_methods(['POST'])
 def session_keepalive(request):
     """
     // [AJAX Controller] Refreshes session last_activity timestamp to prevent
@@ -504,7 +506,7 @@ def two_factor_verify(request):
         return render(request, 'auth/two_factor_verify.html')
 
     _clear_pending_2fa(request)
-    _reset_lock_state(request)
+    _reset_lock_state(request, profile.user.username)
     login(request, profile.user, backend='django.contrib.auth.backends.ModelBackend')
     request.session.cycle_key()
     AuditEvent.objects.create(
@@ -619,4 +621,3 @@ def two_factor_setup(request):
         })
 
     return render(request, 'auth/two_factor_setup.html', context)
-

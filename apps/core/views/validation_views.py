@@ -10,6 +10,7 @@
 # // ==============================================================================
 """
 
+import logging
 from urllib.parse import urlparse
 
 from django.contrib import messages
@@ -28,6 +29,8 @@ from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Department, Profile, Program
 from apps.core.serializers import serialize_student_detail
 from apps.core.validators import validate_uploaded_document
+
+logger = logging.getLogger(__name__)
 from apps.core.services import (
     approve_student_registration,
     reject_student_registration,
@@ -42,13 +45,23 @@ def _check_validation_rate_limit(request, max_requests=120, window_seconds=60) -
     user_id = getattr(request.user, 'pk', 'anon')
     cache_key = f"val_rl_{user_id}"
     try:
-        count = cache.get(cache_key, 0)
-        if count >= max_requests:
-            return False
-        cache.set(cache_key, count + 1, timeout=window_seconds)
+        # add() seeds the window atomically; incr() is atomic, so two concurrent
+        # decisions cannot both read the same count and overwrite each other.
+        cache.add(cache_key, 0, timeout=window_seconds)
+        count = cache.incr(cache_key)
+    except ValueError:
+        # Window expired between add() and incr(); start a fresh one.
+        cache.set(cache_key, 1, timeout=window_seconds)
+        count = 1
     except Exception:
-        pass
-    return True
+        # A cache outage must not block registrar work, but it must not be
+        # silent either: losing the throttle is a security-relevant event.
+        logger.warning(
+            'Validation rate-limit cache unavailable; allowing request for user %s.',
+            user_id, exc_info=True,
+        )
+        return True
+    return count <= max_requests
 
 
 def _redirect_after_validation(request, fallback='validation_pending_queue'):

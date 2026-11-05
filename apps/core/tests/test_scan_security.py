@@ -111,13 +111,16 @@ class ScanSecurityTests(TestCase):
 
         self.client.force_login(self.teacher_user)
 
-    def _scan(self, session, token=None, payload=None):
+    def _scan(self, session, token=None, payload=None, scan_key=None):
         if payload is None:
             payload = build_payload(self.student_profile, token or current_token(self.student_profile))
-        return self.client.post(reverse('attendance_scan_api'), {
+        data = {
             'session_id': session.pk,
             'qr_payload': payload,
-        })
+        }
+        if scan_key is not None:
+            data['scan_key'] = scan_key
+        return self.client.post(reverse('attendance_scan_api'), data)
 
     def test_valid_token_is_accepted_once(self):
         response = self._scan(self.session_one)
@@ -191,4 +194,72 @@ class ScanSecurityTests(TestCase):
                 outcome=StampAttempt.OUTCOME_DUPLICATE,
             ).count(),
             1,
+        )
+
+    def test_scan_key_replays_the_original_success(self):
+        """A queued offline scan whose response was lost must retry as success."""
+        payload = build_payload(self.student_profile, current_token(self.student_profile))
+
+        first = self._scan(self.session_one, payload=payload, scan_key='offline-scan-1')
+        self.assertEqual(first.status_code, 200)
+
+        replay = self._scan(self.session_one, payload=payload, scan_key='offline-scan-1')
+
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(replay.json(), first.json())
+        self.assertEqual(
+            AttendanceRecord.objects.filter(
+                session=self.session_one, student_profile=self.student_profile
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            StampAttempt.objects.filter(
+                session=self.session_one,
+                student_profile=self.student_profile,
+                outcome=StampAttempt.OUTCOME_ACCEPTED,
+            ).count(),
+            1,
+        )
+
+    def test_scan_key_does_not_replay_failures(self):
+        first = self._scan(self.session_one, payload='invalid-payload', scan_key='offline-scan-2')
+        second = self._scan(self.session_one, payload='invalid-payload', scan_key='offline-scan-2')
+
+        self.assertEqual(first.status_code, 400)
+        self.assertEqual(second.status_code, 400)
+        self.assertEqual(second.json()['outcome'], StampAttempt.OUTCOME_INVALID)
+
+    def test_scan_key_cache_is_scoped_to_the_operator(self):
+        """One operator's successful reply must not be served to another account."""
+        payload = build_payload(self.student_profile, current_token(self.student_profile))
+        self.assertEqual(
+            self._scan(self.session_one, payload=payload, scan_key='shared-key').status_code,
+            200,
+        )
+
+        admin_user = User.objects.create_user(username='scan_admin', password='Admin!Pass123')
+        Profile.objects.create(user=admin_user, role=Profile.ROLE_ADMIN, department=self.department)
+        self.client.force_login(admin_user)
+
+        response = self._scan(self.session_one, payload=payload, scan_key='shared-key')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['outcome'], StampAttempt.OUTCOME_DUPLICATE)
+
+    def test_scan_key_cache_is_scoped_to_the_session(self):
+        """A key reused for another meeting must not replay the first success."""
+        payload = build_payload(self.student_profile, current_token(self.student_profile))
+        self.assertEqual(
+            self._scan(self.session_one, payload=payload, scan_key='session-key').status_code,
+            200,
+        )
+
+        response = self._scan(self.session_two, payload=payload, scan_key='session-key')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['outcome'], StampAttempt.OUTCOME_DUPLICATE)
+        self.assertFalse(
+            AttendanceRecord.objects.filter(
+                session=self.session_two, student_profile=self.student_profile
+            ).exists()
         )

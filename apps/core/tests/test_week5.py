@@ -359,6 +359,7 @@ class CsvImportPreviewTests(TestCase, BaseWeek5FixtureMixin):
             'csv_file': csv_file,
             'auto_approve': 'on',
             'preview': '1',
+            'default_password': 'SecureImport123!',
         })
 
     def test_preview_validates_without_creating_anything(self):
@@ -381,7 +382,7 @@ class CsvImportPreviewTests(TestCase, BaseWeek5FixtureMixin):
             'confirm': '1',
             'csv_text': CSV_FIXTURE,
             'auto_approve': 'on',
-            'default_password': 'KccStudent2026!',
+            'default_password': 'SecureImport123!',
         })
         self.assertEqual(res.status_code, 200)
         self.assertEqual(
@@ -399,6 +400,7 @@ class CsvImportPreviewTests(TestCase, BaseWeek5FixtureMixin):
         res = self.client.post(reverse('student_directory_import_csv'), {
             'csv_file': csv_file,
             'auto_approve': 'on',
+            'default_password': 'SecureImport123!',
         })
         self.assertEqual(res.status_code, 200)
         self.assertEqual(

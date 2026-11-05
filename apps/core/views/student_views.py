@@ -347,7 +347,7 @@ def student_directory_import_csv(request):
     if request.method == 'GET':
         return render(request, 'core/admin/student_import.html', base_context)
 
-    default_password = request.POST.get('default_password', 'KccStudent2026!').strip() or 'KccStudent2026!'
+    default_password = request.POST.get('default_password', '').strip()
     auto_approve = request.POST.get('auto_approve') == 'on'
     target_class_id = request.POST.get('target_class_id', '').strip()
 
@@ -379,6 +379,17 @@ def student_directory_import_csv(request):
             messages.error(request, f'Failed to parse CSV file: {str(e)}')
             return redirect('student_directory_import_csv')
         decoded_file = csv_text.splitlines()
+
+    if len(default_password) < 8:
+        messages.error(request, 'A default password of at least 8 characters is required for student imports.')
+        return render(request, 'core/admin/student_import.html', {
+            **base_context,
+            'import_form_values': {
+                'default_password': '',
+                'auto_approve': auto_approve,
+                'target_class_id': target_class_id,
+            },
+        })
 
     try:
         reader = csv.DictReader(decoded_file)

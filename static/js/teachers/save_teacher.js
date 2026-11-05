@@ -17,7 +17,6 @@
   /* Core save handler */
   async function handleSave(e) {
     if (e) e.preventDefault();
-    console.log('[ClassStamp] Save Teacher triggered.');
 
     var formEl = getEl('teacherForm');
     if (!formEl) { console.error('[ClassStamp] teacherForm not found!'); return; }
@@ -40,13 +39,8 @@
     var activeEl = getEl('teacherIsActive');
     fd.set('is_active', (activeEl && activeEl.checked) ? '1' : '0');
 
-    var debugSnap = {};
-    fd.forEach(function (v, k) { debugSnap[k] = v; });
-    console.log('[ClassStamp] FormData being sent:', debugSnap);
-
     var url  = isEdit ? '/teachers/update/' + profileId + '/' : '/teachers/create/';
     var csrf = getCSRF();
-    console.log('[ClassStamp] POST to:', url, '| CSRF present:', !!csrf);
 
     if (btn) {
       btn.disabled = true;
@@ -59,7 +53,6 @@
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf },
         body   : fd,
       });
-      console.log('[ClassStamp] HTTP status:', res.status);
 
       var data;
       try {
@@ -74,8 +67,6 @@
         }
         return;
       }
-
-      console.log('[ClassStamp] Server response:', data);
 
       if (data.ok) {
         if (data.generated_password) {
@@ -121,20 +112,17 @@
 
   /* Init: direct bind + delegation fallback */
   function initSaveTeacher() {
-    console.log('[ClassStamp] Save Teacher module v4 loaded.');
     var saveBtn = getEl('teacherModalSave');
     var form    = getEl('teacherForm');
 
     if (saveBtn) {
       saveBtn.addEventListener('click', handleSave);
       saveBtn._saveHandlerBound = true;
-      console.log('[ClassStamp] Direct click listener attached to teacherModalSave.');
     } else {
       console.warn('[ClassStamp] teacherModalSave not found at DOMContentLoaded.');
     }
     if (form) {
       form.addEventListener('submit', handleSave);
-      console.log('[ClassStamp] Submit listener attached to teacherForm.');
     }
 
     /* Delegation fallback */

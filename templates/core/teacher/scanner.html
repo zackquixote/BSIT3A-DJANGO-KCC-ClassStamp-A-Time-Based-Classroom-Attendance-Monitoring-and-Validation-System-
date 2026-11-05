@@ -45,6 +45,10 @@
       <button type="button" class="btn btn-outline" id="kioskModeBtn" title="Fullscreen self-scan mode for classroom projector">
         <i class="fas fa-display"></i> Kiosk Mode
       </button>
+      <button type="button" class="btn btn-outline" id="verifyRoomBtn">
+        <i class="fas fa-location-dot"></i>
+        {% if session.room_verification %}Room Verified{% else %}Verify Room{% endif %}
+      </button>
     {% endif %}
 
     <!-- Conclude Session Button -->
@@ -503,6 +507,32 @@
 {% block extra_js %}
 <!-- Offline-Ready HTML5 QR Scanner Library -->
 <script src="{% static 'js/vendor/html5-qrcode.min.js' %}"></script>
+<script>
+(function () {
+  const button = document.getElementById('verifyRoomBtn');
+  if (!button) return;
+  button.addEventListener('click', async function () {
+    const expectedRoom = '{{ slot.room|default:""|escapejs }}';
+    const room = window.prompt('Enter the room number you are currently using:', expectedRoom);
+    if (room === null) return;
+    const form = new FormData();
+    form.set('room', room);
+    try {
+      const response = await fetch('{% url "verify_classroom" session.id %}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
+        body: form,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Room verification failed.');
+      button.innerHTML = '<i class="fas fa-circle-check"></i> Room Verified';
+      window.App && window.App.toast && window.App.toast('success', 'Room verified.');
+    } catch (error) {
+      window.App && window.App.toast && window.App.toast('error', error.message);
+    }
+  });
+})();
+</script>
 
 <script>
   window.ScannerConfig = {

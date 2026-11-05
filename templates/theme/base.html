@@ -7,6 +7,7 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   {% include "theme/favicons.html" %}
   <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="web-push-public-key" content="{{ web_push_public_key }}">
   <script>
     try {
       localStorage.removeItem('kcc_theme');
@@ -112,11 +113,14 @@
 
               <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 0;"></div>
 
-              <a href="{% url 'logout' %}" class="mobile-avatar-menu-item"
-                 style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #f87171; text-decoration: none; font-size: 0.84rem; font-weight: 600;">
-                <i class="fas fa-right-from-bracket" style="font-size: 0.95rem; width: 16px;"></i>
-                <span>Log out</span>
-              </a>
+              <form method="post" action="{% url 'logout' %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="mobile-avatar-menu-item"
+                        style="width: 100%; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #f87171; text-decoration: none; font-size: 0.84rem; font-weight: 600; text-align: left;">
+                  <i class="fas fa-right-from-bracket" style="font-size: 0.95rem; width: 16px;"></i>
+                  <span>Log out</span>
+                </button>
+              </form>
             </div>
           </div>
         </header>
@@ -213,6 +217,7 @@
   <script src="{% static 'js/core/app_password_reset.js' %}?v=20261102"></script>
   <script src="{% static 'js/core/app_lightbox.js' %}?v=20261020"></script>
   <script src="{% static 'js/core/service_worker.js' %}?v=20261102"></script>
+  <script src="{% static 'js/core/push_notifications.js' %}?v=20261105"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

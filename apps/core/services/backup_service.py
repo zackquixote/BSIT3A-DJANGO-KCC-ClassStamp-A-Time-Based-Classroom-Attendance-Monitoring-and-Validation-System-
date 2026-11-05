@@ -14,8 +14,11 @@ import os
 import shutil
 import subprocess
 import zlib
+from datetime import timedelta
+from pathlib import Path
 
 from django.conf import settings
+from django.utils import timezone
 
 
 def _find_mysqldump():
@@ -90,3 +93,25 @@ def stream_database_backup():
                 raise RuntimeError(f'mysqldump failed (exit {return_code}): {stderr_tail}')
 
     return _generate()
+
+
+def create_database_backup(output_dir=None, keep=30):
+    """Write a backup to disk and remove backups older than the retention window."""
+    destination = Path(output_dir or getattr(settings, 'DATABASE_BACKUP_DIR', 'backups'))
+    destination.mkdir(parents=True, exist_ok=True)
+    timestamp = timezone.localtime().strftime('%Y%m%d_%H%M%S')
+    output = destination / f'classstamp_{timestamp}.sql.gz'
+
+    with output.open('wb') as target:
+        for chunk in stream_database_backup():
+            target.write(chunk)
+
+    cutoff = timezone.now() - timedelta(days=max(1, int(keep)))
+    for candidate in destination.glob('classstamp_*.sql.gz'):
+        created_at = timezone.datetime.fromtimestamp(
+            candidate.stat().st_mtime,
+            tz=timezone.get_current_timezone(),
+        )
+        if created_at < cutoff:
+            candidate.unlink()
+    return output

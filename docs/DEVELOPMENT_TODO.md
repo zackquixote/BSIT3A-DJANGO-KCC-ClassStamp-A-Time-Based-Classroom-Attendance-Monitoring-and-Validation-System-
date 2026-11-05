@@ -395,3 +395,33 @@ Plus the item’s targeted test and a browser/HTTP smoke for UI changes.
 | 2026-11-04 | TODO-P0-06 account writes | DONE | `apps.users.tests`: 12/12 on MariaDB and SQLite |
 | 2026-11-04 | TODO-P0-07 migration trial | BLOCKED | Proposed constraints broke 200+ existing tests; migration not applied and removed |
 | — | All remaining TODO items | Not started / needs approval | — |
+
+---
+
+## 9. Audit refactor log — 2026-11-05
+
+Safe, behavior-preserving cleanups from the full-codebase review. Each one is a
+defect already listed in this file or in `docs/DEAD_CODE_REPORT.md`; no schema or
+feature behavior changed.
+
+| # | Change | Files | Why |
+|---|--------|-------|-----|
+| 1 | Removed the dead first `student_term_record` definition (71 lines). | `apps/core/views/student_portal_views.py` | Two views shared one name; Python kept the second, so the first never ran. |
+| 2 | Single `client_ip()` helper that reads `REMOTE_ADDR` only; both login throttling and scan throttling use it. | `apps/core/views/helpers/auth_helpers.py`, `apps/core/views/session_views.py` | `session_views` trusted `X-Forwarded-For`, so a client could rotate buckets and dodge the scan limit. |
+| 3 | Validation throttle uses atomic `cache.add` + `cache.incr` and logs cache failures instead of `except Exception: pass`. | `apps/core/views/validation_views.py` | Removed the read-modify-write race and the silent fail-open. |
+| 4 | Removed `console.log` debug output and the full `FormData` dump from the teacher save script. | `static/js/teachers/save_teacher.js` | The dump included the password field in the browser console. |
+| 5 | Removed four unused imports. | `models/two_factor.py`, `views/policy_views.py`, `services/password_reset_service.py` | Dead imports. |
+| 6 | Offline scan retries now actually replay the original success. Successful replies are stored under `classstamp:scan:reply:<user>:<scan_key>:<payload digest>` for 10 minutes; errors are never cached. | `apps/core/views/session_views.py`, `apps/core/tests/test_scan_security.py` | The view read `scan_key` from the offline buffer but never wrote a reply, so a lost response retried as a misleading DUPLICATE. The digest binds the cached reply to one session + payload. New tests cover success replay, failure non-replay, and per-operator/per-session cache scoping. |
+| 7 | Removed four unreferenced 0-byte stubs: `middleware/rate_limit.py`, `absence_notices.html`, `absence_notice_queue.html`, `substitute_handoffs.html`. | `apps/core/middleware/`, `templates/core/teacher/` | No imports, routes, template includes, or JS references. Migration `0026_absence_notice` was retained because it is already applied and is a no-op. |
+| 8 | Both new CSV exports now use `SafeCsvWriter` and neutralise formula-prefixed cells. | `apps/core/views/feature_views.py`, `apps/core/tests/test_feature_views.py` | `teacher_timetable_export` and `attendance_period_report` used raw `csv.writer`, bypassing the existing OWASP guard. |
+| 9 | Academic-year parameters are validated on both period-report endpoints; invalid/unknown ids return HTTP 400 instead of raising `ValueError` (500). | `apps/core/views/feature_views.py`, `apps/core/tests/test_feature_views.py` | `filter(pk=<non-numeric>)` crashed the export; the page silently lost its selection. |
+| 10 | Removed the timetable N+1: active slots and enrollments are filtered through `Prefetch(to_attr=...)` and counted from the prefetched lists. | `apps/core/views/feature_views.py`, `apps/core/tests/test_feature_views.py` | The previous `prefetch_related()` was defeated by `.filter()` inside the loop; query count is now flat as classes grow. |
+| 11 | Restored the per-subject curriculum mapping count on the subject catalogue. | `apps/core/views/subject_views.py` | The template rendered `{{ s.curriculum_count }}` but the view only set `s.placements`, leaving the count blank. |
+| 12 | Removed an unused `compressor` local from `create_database_backup`. | `apps/core/services/backup_service.py` | `stream_database_backup()` already yields gzip-compressed chunks; the local was never used. |
+| 13 | Updated stale tests to the current product behaviour: POST logout, preview→confirm CSV import, dashboard wording, and deterministic `mysqldump` mocking. | `apps/core/tests/test_middleware.py`, `test_students.py`, `test_admin_flow_gaps.py`, `test_week6.py` | These five tests were the only red tests on both backends; each failure was traced to changed behaviour or host-specific fallback discovery, not to the scan fix. |
+
+Not changed, needs a decision: the `year_level` filters in `student_service`,
+`class_views`, and `export_service` still ignore non-numeric values silently
+(behavior change to reject them), and the midterm/finals export caps remain
+hardcoded at 9/18 because `AcademicYear` has no term-type or midterm boundary
+fields (schema change).

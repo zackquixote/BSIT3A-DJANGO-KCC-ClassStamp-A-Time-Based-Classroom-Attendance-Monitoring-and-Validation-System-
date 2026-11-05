@@ -22,6 +22,25 @@ class AttachProfileMiddleware:
     def __call__(self, request):
         if getattr(request, 'user', None) and request.user.is_authenticated:
             request.profile = getattr(request.user, 'classstamp_profile', None)
+            if request.profile is None and request.user.is_superuser:
+                from apps.core.models import Profile
+
+                request.profile, _ = Profile.objects.get_or_create(
+                    user=request.user,
+                    defaults={'role': Profile.ROLE_ADMIN},
+                )
+            if request.profile is None:
+                from django.contrib import messages
+                from django.urls import reverse
+
+                if request.path not in {
+                    reverse('dashboard'),
+                    reverse('logout'),
+                }:
+                    messages.error(
+                        request,
+                        'Your account profile is incomplete. Contact an administrator.',
+                    )
         else:
             request.profile = None
 

@@ -1,0 +1,41 @@
+{% extends "theme/base.html" %}
+{% load static %}
+
+{% block title %}Excuse Calendar — ClassStamp{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'libs/fullcalendar/index.global.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Leave & Excuse Calendar</h1>
+    <p class="page-subtitle">Approved and pending attendance excuses by meeting date.</p>
+  </div>
+</div>
+<div class="card p-4">
+  <div id="excuseCalendar"></div>
+  <p id="excuseCalendarEmpty" class="text-muted" style="display:none;">No excuse slips found for your account.</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'libs/fullcalendar/index.global.min.js' %}"></script>
+<script>
+(function () {
+  const calendarEl = document.getElementById('excuseCalendar');
+  if (!calendarEl || typeof FullCalendar === 'undefined') return;
+  fetch('{% url "excuse_calendar" %}')
+    .then(response => response.ok ? response.json() : Promise.reject(new Error('Unable to load excuses')))
+    .then(data => {
+      document.getElementById('excuseCalendarEmpty').style.display = data.events.length ? 'none' : 'block';
+      new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        events: data.events,
+      }).render();
+    });
+})();
+</script>
+{% endblock %}

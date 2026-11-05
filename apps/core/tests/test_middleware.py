@@ -44,11 +44,15 @@ class CacheControlMiddlewareTests(TestCase):
         self.assertIn('must-revalidate', cache_control)
 
     def test_logout_redirect_includes_no_cache_headers(self):
-        response = self.client.get(reverse('logout'))
+        response = self.client.post(reverse('logout'))
         self.assertEqual(response.status_code, 302)
         cache_control = response.headers.get('Cache-Control', '')
         self.assertIn('no-cache', cache_control)
         self.assertIn('no-store', cache_control)
+
+    def test_logout_get_is_rejected(self):
+        response = self.client.get(reverse('logout'))
+        self.assertEqual(response.status_code, 405)
 
 
 class SecurityHeadersMiddlewareTests(TestCase):

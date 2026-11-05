@@ -6,7 +6,8 @@
 # // Description: Re-exports all helper functions and constants from each domain
 # //   helper module so consumers can use a single flat import path:
 # //
-# //       from apps.core.views.helpers import _get_lock_state, _admin_dashboard_stats
+# //       from apps.core.views.helpers import _get_lock_state,
+_record_failed_attempt, _admin_dashboard_stats
 # //
 # // Module layout:
 # //   auth_helpers.py      — Login rate-limiting, lockout helpers, registration validator
@@ -21,6 +22,7 @@ from .auth_helpers import (
     LOCKED_MESSAGE,
     MAX_FAILED_ATTEMPTS,
     _get_lock_state,
+    _record_failed_attempt,
     _reset_lock_state,
     _set_lock_state,
     _validate_registration_data,
@@ -43,6 +45,7 @@ __all__ = [
     # Auth helper functions
     '_reset_lock_state',
     '_get_lock_state',
+    '_record_failed_attempt',
     '_set_lock_state',
     '_validate_registration_data',
     # Dashboard stat helpers
@@ -55,4 +58,3 @@ __all__ = [
     # Academic stat helpers
     'get_program_student_stats',
 ]
-

@@ -7,6 +7,7 @@
 # // ==============================================================================
 """
 from .models import AnomalyFlag, Notification, Profile
+from django.conf import settings
 
 
 # // ==============================================================================
@@ -30,6 +31,7 @@ def pending_approval_count(request):
         is_admin = user.is_superuser or (profile is not None and profile.role == Profile.ROLE_ADMIN)
         if is_admin:
             return {
+                'web_push_public_key': getattr(settings, 'WEB_PUSH_PUBLIC_KEY', ''),
                 'unread_notification_count': unread_notification_count,
                 'pending_approval_count': Profile.objects.filter(
                     role=Profile.ROLE_STUDENT,
@@ -40,11 +42,13 @@ def pending_approval_count(request):
                 ).count(),
             }
         return {
+            'web_push_public_key': getattr(settings, 'WEB_PUSH_PUBLIC_KEY', ''),
             'unread_notification_count': unread_notification_count,
             'pending_approval_count': 0,
             'open_anomaly_count': 0,
         }
     return {
+        'web_push_public_key': getattr(settings, 'WEB_PUSH_PUBLIC_KEY', ''),
         'unread_notification_count': 0,
         'pending_approval_count': 0,
         'open_anomaly_count': 0,

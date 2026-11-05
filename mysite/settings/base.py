@@ -30,6 +30,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
 DEBUG = False  # overridden per-environment (dev.py / prod.py)
 
 ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1')
+WEB_PUSH_PUBLIC_KEY = os.environ.get('WEB_PUSH_PUBLIC_KEY', '')
 
 
 # Application definition
@@ -54,8 +55,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'apps.core.middleware.AttachProfileMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'apps.core.middleware.AttachProfileMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.core.middleware.DisableBrowserCacheMiddleware',
     'apps.core.middleware.SessionInactivityTimeoutMiddleware',

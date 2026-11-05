@@ -46,6 +46,16 @@
     });
   }
 
+  function createScanKey(entry) {
+    if (entry.scan_key) return entry.scan_key;
+    entry.scan_key = [
+      entry.session_id,
+      entry.qr_payload,
+      entry.queued_at
+    ].join(':');
+    return entry.scan_key;
+  }
+
   function updatePendingBadge() {
     return storeOp('readonly', function (store) {
       var req = store.count();
@@ -67,7 +77,13 @@
       store.add({
         session_id: scan.session_id,
         qr_payload: scan.qr_payload,
-        queued_at: Date.now()
+        queued_at: Date.now(),
+        scan_key: [
+          scan.session_id,
+          scan.qr_payload,
+          Date.now(),
+          Math.random().toString(36).slice(2)
+        ].join(':')
       });
     }).then(updatePendingBadge);
   }
@@ -119,6 +135,7 @@
     var postData = new FormData();
     postData.append('session_id', item.entry.session_id);
     postData.append('qr_payload', item.entry.qr_payload);
+    postData.append('scan_key', createScanKey(item.entry));
 
     return fetch(url, {
       method: 'POST',

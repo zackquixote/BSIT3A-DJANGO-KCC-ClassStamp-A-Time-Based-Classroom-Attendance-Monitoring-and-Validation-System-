@@ -1,6 +1,7 @@
 from django.contrib import admin
-
 from apps.core.models.academic import Program
+from apps.core.models.attendance import RoomVerification
+from apps.core.models.notifications import PushSubscription
 from apps.core.models.profile import Profile
 
 
@@ -24,3 +25,28 @@ class ProgramAdmin(admin.ModelAdmin):
         ).count()
     student_count.short_description = 'Approved Students'
     student_count.admin_order_field = 'profile_count'
+
+
+@admin.register(RoomVerification)
+class RoomVerificationAdmin(admin.ModelAdmin):
+    list_display = ('session', 'room', 'verified_by', 'verified_at')
+    list_filter = ('verified_at',)
+    search_fields = ('room', 'session__slot__class_obj__class_code')
+    readonly_fields = ('session', 'room', 'verified_by', 'verified_at')
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(PushSubscription)
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'short_endpoint', 'updated_at', 'user_agent')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'endpoint')
+    readonly_fields = ('user', 'endpoint', 'p256dh', 'auth', 'endpoint_hash', 'user_agent', 'created_at', 'updated_at')
+
+    @admin.display(description='Endpoint')
+    def short_endpoint(self, obj):
+        return f'{obj.endpoint[:60]}...' if len(obj.endpoint) > 60 else obj.endpoint
+
+    def has_add_permission(self, request):
+        return False

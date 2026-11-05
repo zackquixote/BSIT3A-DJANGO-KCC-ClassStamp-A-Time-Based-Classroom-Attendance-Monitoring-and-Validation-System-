@@ -4,6 +4,26 @@
 
   window.App = window.App || {};
 
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    var cookie = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return cookie ? decodeURIComponent(cookie[1]) : '';
+  }
+
+  function submitLogout() {
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/logout/';
+    var token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = 'csrfmiddlewaretoken';
+    token.value = csrfToken();
+    form.appendChild(token);
+    document.body.appendChild(form);
+    form.submit();
+  }
+
   /* ── User Session Inactivity Watchdog ────────────────────────── */
   function initSessionInactivityGuard() {
     // Only monitor on authenticated pages (sidebar present)
@@ -47,7 +67,7 @@
           '    </div>' +
           '  </div>' +
           '  <div class="modal-footer" style="padding: 14px 24px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--glass-border);">' +
-          '    <a href="/logout/" class="btn btn-outline btn-sm">Log Out Now</a>' +
+          '    <button type="button" id="sessionLogoutNowBtn" class="btn btn-outline btn-sm">Log Out Now</button>' +
           '    <button type="button" id="sessionStayLoggedInBtn" class="btn btn-primary btn-sm"><i class="fas fa-lock-open mr-1"></i> Stay Signed In</button>' +
           '  </div>' +
           '</div>';
@@ -56,6 +76,7 @@
 
       var displayEl = modal.querySelector('#sessionCountdownDisplay');
       var stayBtn = modal.querySelector('#sessionStayLoggedInBtn');
+      var logoutBtn = modal.querySelector('#sessionLogoutNowBtn');
 
       if (typeof window.openModal === 'function') {
         window.openModal('sessionInactivityModal');
@@ -70,7 +91,7 @@
         if (displayEl) displayEl.textContent = remaining;
         if (remaining <= 0) {
           clearInterval(countdownInterval);
-          window.location.href = '/logout/';
+          submitLogout();
         }
       }, 1000);
 
@@ -83,7 +104,13 @@
           window.App.closeModal('sessionInactivityModal');
         }
         // Ping keepalive to refresh backend Django session activity
-        fetch('/session/keepalive/', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        fetch('/session/keepalive/', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken()
+          }
+        })
           .catch(function () {});
         if (window.App && window.App.toast) {
           window.App.toast('success', 'Your session has been extended.', 3000);
@@ -93,6 +120,9 @@
 
       if (stayBtn) {
         stayBtn.onclick = onStayLoggedIn;
+      }
+      if (logoutBtn) {
+        logoutBtn.onclick = submitLogout;
       }
     }
 
