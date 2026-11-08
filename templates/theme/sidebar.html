@@ -109,9 +109,9 @@
         </div>
       </div>
 
-      {% with is_oversight_active=request.resolver_match.url_name in 'anomaly_list anomaly_adjudicate admin_calendar excuse_calendar_page attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}
-      <div class="sidebar-dropdown {% if is_oversight_active %}is-open{% endif %}" data-sidebar-dropdown="oversight">
-        <button type="button" class="sidebar-dropdown-toggle" aria-expanded="{% if is_oversight_active %}true{% else %}false{% endif %}">
+      {% with cur_view=request.resolver_match.url_name %}
+      <div class="sidebar-dropdown {% if cur_view in 'anomaly_list anomaly_adjudicate admin_calendar excuse_calendar_page attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}is-open{% endif %}" data-sidebar-dropdown="oversight">
+        <button type="button" class="sidebar-dropdown-toggle" aria-expanded="{% if cur_view in 'anomaly_list anomaly_adjudicate admin_calendar excuse_calendar_page attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}true{% else %}false{% endif %}">
           <span class="sidebar-dropdown-title">Oversight &amp; Security</span>
           {% if open_anomaly_count %}
             <span class="sidebar-badge sidebar-badge--danger sidebar-dropdown-badge">{{ open_anomaly_count }}</span>
