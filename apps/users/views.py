@@ -411,6 +411,10 @@ def user_save_ajax(request):
                 user.save()
 
             if not profile:
+                from apps.core.services.student_service import compute_batch_fields
+                batch_entry_year, batch_version = compute_batch_fields(
+                    username if role == Profile.ROLE_STUDENT else None, selected_program
+                )
                 profile_values = {
                     "user": user,
                     "role": role,
@@ -418,6 +422,8 @@ def user_save_ajax(request):
                     "program": selected_program,
                     "year_level": selected_year,
                     "student_number": username if role == Profile.ROLE_STUDENT else None,
+                    "entry_year": batch_entry_year,
+                    "curriculum_version": batch_version,
                     "approval_status": (
                         Profile.APPROVAL_APPROVED if role == Profile.ROLE_STUDENT else None
                     ),
@@ -429,10 +435,14 @@ def user_save_ajax(request):
             else:
                 changed_fields = []
                 if role == Profile.ROLE_STUDENT:
+                    from apps.core.services.student_service import compute_batch_fields
+                    batch_entry_year, batch_version = compute_batch_fields(username, selected_program)
                     updates = {
                         "student_number": username,
                         "program": selected_program,
                         "year_level": selected_year,
+                        "entry_year": batch_entry_year,
+                        "curriculum_version": batch_version,
                     }
                 elif role == Profile.ROLE_TEACHER:
                     updates = {"department": selected_dept}

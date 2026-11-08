@@ -168,6 +168,58 @@
       }
     });
 
+    // Toggle for specific sidebar dropdowns (Security & Oversight) with preference persistence
+    document.querySelectorAll('.sidebar-dropdown').forEach(function (dropdown) {
+      var dropdownKey = dropdown.getAttribute('data-sidebar-dropdown');
+      var toggle = dropdown.querySelector('.sidebar-dropdown-toggle');
+      if (!toggle) return;
+
+      var storageKey = 'kcc_sidebar_dd_' + dropdownKey;
+      var hasActiveLink = dropdown.querySelector('.sidebar-link.active') !== null;
+
+      // Keep open if currently active link is inside; otherwise respect saved preference
+      if (hasActiveLink) {
+        dropdown.classList.add('is-open');
+        toggle.setAttribute('aria-expanded', 'true');
+      } else {
+        try {
+          var savedState = localStorage.getItem(storageKey);
+          if (savedState === 'open') {
+            dropdown.classList.add('is-open');
+            toggle.setAttribute('aria-expanded', 'true');
+          } else if (savedState === 'closed') {
+            dropdown.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+          }
+        } catch (_) {}
+      }
+
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        var isOpen = dropdown.classList.contains('is-open');
+        var nextState = !isOpen;
+        dropdown.classList.toggle('is-open', nextState);
+        toggle.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+        try {
+          localStorage.setItem(storageKey, nextState ? 'open' : 'closed');
+        } catch (_) {}
+      });
+    });
+
+    // Smooth sidebar scroll preservation across page navigations (prevents scroll jumps)
+    var sidebarNavEl = document.querySelector('.sidebar-nav');
+    if (sidebarNavEl) {
+      try {
+        var savedScroll = sessionStorage.getItem('kcc_sidebar_scroll');
+        if (savedScroll !== null) {
+          sidebarNavEl.scrollTop = parseInt(savedScroll, 10) || 0;
+        }
+        sidebarNavEl.addEventListener('scroll', function () {
+          sessionStorage.setItem('kcc_sidebar_scroll', sidebarNavEl.scrollTop);
+        }, { passive: true });
+      } catch (_) {}
+    }
+
     // In-page section navigation (teacher "Scan Attendance" / "My Classes")
     function focusSection(hash, smooth, flash) {
       var id = (hash || '').replace(/^#/, '');

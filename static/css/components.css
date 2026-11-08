@@ -1326,6 +1326,8 @@ kbd {
 .modal.is-open,
 .modal-overlay.is-active,
 .modal-overlay.is-open,
+.modal[style*="display: flex"],
+.modal[style*="display:flex"],
 .modal-overlay[style*="display: flex"],
 .modal-overlay[style*="display:flex"] {
   display: flex !important;
@@ -1361,7 +1363,9 @@ kbd {
 }
 
 .modal.is-active .modal-dialog,
-.modal.is-open .modal-dialog {
+.modal.is-open .modal-dialog,
+.modal[style*="display: flex"] .modal-dialog,
+.modal[style*="display:flex"] .modal-dialog {
   transform: translateY(0) scale(1);
 }
 

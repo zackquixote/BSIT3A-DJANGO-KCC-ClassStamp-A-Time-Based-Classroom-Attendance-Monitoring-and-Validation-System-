@@ -15,6 +15,7 @@
     programId: null,
     programCode: '',
     matrixUrl: '',
+    matrixBaseUrl: '',
     yearsTotal: 0,
     semesters: [],
     entries: [],
@@ -22,10 +23,26 @@
     version: null,
     draftVersion: null,
     approvedVersion: null,
+    versions: [],
+    selectedVersionId: null,
     canEdit: false,
     isLegacy: false,
-    terms: []
+    terms: [],
+    includeSummer: false,
+    viewMode: 'prospectus'
   };
+
+  function yearNumberToWord(year) {
+    var words = ['First Year', 'Second Year', 'Third Year', 'Fourth Year', 'Fifth Year', 'Sixth Year', 'Seventh Year', 'Eighth Year'];
+    return words[year - 1] || ('Year ' + year);
+  }
+
+  function semesterNumberToWord(sem) {
+    if (sem === 1) return 'First Semester';
+    if (sem === 2) return 'Second Semester';
+    if (sem === 3) return 'Summer Term';
+    return 'Semester ' + sem;
+  }
 
   function toast(type, message) {
     if (typeof window.toast === 'function') { window.toast(type, message); return; }
@@ -61,29 +78,41 @@
   }
 
   function makeChip(entry) {
-    var chip = document.createElement('span');
-    chip.className = 'curriculum-chip';
+    var card = document.createElement('div');
+    card.className = 'curriculum-subject-card' + (entry.is_major ? ' is-major' : '');
 
-    var code = document.createElement('strong');
-    code.textContent = entry.subject_code;
-    chip.appendChild(code);
+    var top = document.createElement('div');
+    top.className = 'curriculum-card-top';
 
-    chip.appendChild(document.createTextNode(' ' + (entry.subject_name || '')));
+    var codeBadge = document.createElement('span');
+    codeBadge.className = 'badge badge--' + (entry.is_major ? 'purple' : 'blue') + ' font-mono font-semibold';
+    codeBadge.style.fontSize = '0.72rem';
+    codeBadge.textContent = entry.subject_code;
+    top.appendChild(codeBadge);
+
+    var units = entry.subject_units || 3;
+    var unitsBadge = document.createElement('span');
+    unitsBadge.className = 'badge badge--teal';
+    unitsBadge.style.fontSize = '0.7rem';
+    unitsBadge.textContent = units + 'u';
+    unitsBadge.title = units + ' Credit Units';
+    top.appendChild(unitsBadge);
+
     var typeBadge = document.createElement(state.canEdit ? 'button' : 'span');
-    typeBadge.className = 'badge badge--' + (entry.is_major ? 'purple' : 'muted') +
+    typeBadge.className = 'badge badge--' + (entry.is_major ? 'gold' : 'muted') +
       ' badge--xs' + (state.canEdit ? ' curriculum-chip-major-toggle' : '');
     if (state.canEdit) {
       typeBadge.type = 'button';
       typeBadge.setAttribute('data-entry-id', entry.id);
-      typeBadge.title = 'Click to mark as ' + (entry.is_major ? 'non-major' : 'major');
+      typeBadge.title = 'Click to toggle major / non-major';
       typeBadge.setAttribute(
         'aria-label',
         'Mark ' + (entry.subject_code || 'subject') + ' as ' +
           (entry.is_major ? 'non-major' : 'major')
       );
     }
-    typeBadge.textContent = entry.is_major ? 'Major' : 'Non-major';
-    chip.appendChild(typeBadge);
+    typeBadge.textContent = entry.is_major ? 'Major' : 'Core / GenEd';
+    top.appendChild(typeBadge);
 
     if (state.canEdit) {
       var removeBtn = document.createElement('button');
@@ -94,16 +123,274 @@
       var icon = document.createElement('i');
       icon.className = 'fas fa-xmark';
       removeBtn.appendChild(icon);
-      chip.appendChild(removeBtn);
+      top.appendChild(removeBtn);
     }
 
-    return chip;
+    card.appendChild(top);
+
+    var title = document.createElement('div');
+    title.className = 'curriculum-card-title';
+    title.textContent = entry.subject_name || '';
+    card.appendChild(title);
+
+    if (entry.teachers && entry.teachers.length > 0) {
+      var instructorRow = document.createElement('div');
+      instructorRow.className = 'curriculum-card-instructor';
+      instructorRow.innerHTML = '<i class="fas fa-chalkboard-user text-teal" style="font-size:0.68rem;"></i> ' +
+        entry.teachers.map(function (t) { return '<span>' + t + '</span>'; }).join(', ');
+      card.appendChild(instructorRow);
+    }
+
+    return card;
   }
 
-  function renderGrid() {
+  function updateSummerButton() {
+    var btn = getEl('curriculumSummerToggleBtn');
+    var text = getEl('curriculumSummerToggleText');
+    if (!btn) return;
+
+    if (state.includeSummer) {
+      btn.classList.add('is-active');
+      btn.style.borderColor = 'rgba(245, 158, 11, 0.6)';
+      btn.style.background = 'rgba(245, 158, 11, 0.16)';
+      btn.style.color = '#fbbf24';
+      if (text) text.innerHTML = '<i class="fas fa-sun text-gold"></i> Summer Term: <strong>Included</strong>';
+      btn.title = 'Summer term is currently displayed. Click to hide summer.';
+    } else {
+      btn.classList.remove('is-active');
+      btn.style.borderColor = 'var(--glass-border)';
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--text-muted)';
+      if (text) text.innerHTML = '<i class="fas fa-sun text-muted" style="opacity: 0.5;"></i> Summer Term: <strong>Excluded</strong>';
+      btn.title = 'Summer term is currently hidden. Click to include summer.';
+    }
+  }
+
+  function updateViewModeButtons() {
+    var prosBtn = getEl('curriculumViewProspectusBtn');
+    var matBtn = getEl('curriculumViewMatrixBtn');
+    if (!prosBtn || !matBtn) return;
+
+    if (state.viewMode === 'prospectus') {
+      prosBtn.style.background = 'rgba(59, 130, 246, 0.35)';
+      prosBtn.style.color = '#93c5fd';
+      prosBtn.style.fontWeight = '600';
+      matBtn.style.background = 'transparent';
+      matBtn.style.color = 'var(--text-muted)';
+      matBtn.style.fontWeight = '400';
+    } else {
+      matBtn.style.background = 'rgba(59, 130, 246, 0.35)';
+      matBtn.style.color = '#93c5fd';
+      matBtn.style.fontWeight = '600';
+      prosBtn.style.background = 'transparent';
+      prosBtn.style.color = 'var(--text-muted)';
+      prosBtn.style.fontWeight = '400';
+    }
+  }
+
+  function renderProspectusView() {
     var grid = getEl('curriculumGrid');
     if (!grid) return;
     grid.innerHTML = '';
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'curriculum-prospectus';
+
+    var semsToShow = state.includeSummer ? [1, 2, 3] : [1, 2];
+
+    for (var year = 1; year <= state.yearsTotal; year++) {
+      var yearSection = document.createElement('div');
+      yearSection.className = 'curriculum-year-section';
+
+      // Year stats
+      var yearEntries = state.entries.filter(function (e) {
+        if (!state.includeSummer && e.semester === 3) return false;
+        return e.year_level === year;
+      });
+      var yearUnits = yearEntries.reduce(function (sum, e) {
+        return sum + (Number(e.subject_units) || 3);
+      }, 0);
+
+      // Header for Year (e.g. FIRST YEAR)
+      var yearHeader = document.createElement('div');
+      yearHeader.className = 'curriculum-year-header';
+      yearHeader.innerHTML =
+        '<div class="curriculum-year-title">' +
+          '<span class="curriculum-year-badge"><i class="fas fa-graduation-cap"></i> ' + yearNumberToWord(year).toUpperCase() + '</span>' +
+          '<span class="curriculum-year-name">' + state.programCode + ' — ' + yearNumberToWord(year) + '</span>' +
+        '</div>' +
+        '<div class="curriculum-year-stats">' +
+          '<span class="badge badge--gold" style="font-size: 0.74rem;"><i class="fas fa-layer-group"></i> ' + yearEntries.length + ' Subject' + (yearEntries.length === 1 ? '' : 's') + '</span>' +
+          '<span class="badge badge--teal" style="font-size: 0.74rem;"><i class="fas fa-award"></i> ' + yearUnits + '.0 Units Total</span>' +
+        '</div>';
+      yearSection.appendChild(yearHeader);
+
+      // Semesters list
+      var semsContainer = document.createElement('div');
+      semsContainer.className = 'curriculum-prospectus-sems-wrap';
+
+      semsToShow.forEach(function (sem) {
+        var semBlock = document.createElement('div');
+        semBlock.className = 'curriculum-prospectus-sem' + (sem === 3 ? ' is-summer' : '');
+
+        var semEntries = state.entries.filter(function (e) {
+          return e.year_level === year && e.semester === sem;
+        });
+        var semUnits = semEntries.reduce(function (sum, e) {
+          return sum + (Number(e.subject_units) || 3);
+        }, 0);
+
+        var semHeader = document.createElement('div');
+        semHeader.className = 'curriculum-prospectus-sem-header';
+        var semIcon = sem === 3 ? 'fa-sun text-gold' : 'fa-calendar-week text-primary';
+        var semTitleColor = sem === 3 ? 'text-gold' : 'text-primary';
+        semHeader.innerHTML =
+          '<div class="flex items-center gap-2">' +
+            '<i class="fas ' + semIcon + '"></i>' +
+            '<strong class="' + semTitleColor + '" style="font-size: 0.88rem; letter-spacing: 0.04em; text-transform: uppercase;">' +
+              semesterNumberToWord(sem) +
+            '</strong>' +
+          '</div>' +
+          '<div class="text-xs text-muted font-medium">' +
+            semEntries.length + ' Subject' + (semEntries.length === 1 ? '' : 's') + ' • ' + semUnits + '.0 Units' +
+          '</div>';
+        semBlock.appendChild(semHeader);
+
+        if (semEntries.length === 0) {
+          var emptyDiv = document.createElement('div');
+          emptyDiv.className = 'curriculum-prospectus-empty';
+          emptyDiv.innerHTML =
+            '<i class="fas fa-folder-open text-muted" style="opacity: 0.5; font-size: 1.1rem;"></i>' +
+            '<span>No subjects allocated for ' + semesterNumberToWord(sem) + ' yet.</span>';
+          semBlock.appendChild(emptyDiv);
+        } else {
+          var tableWrap = document.createElement('div');
+          tableWrap.className = 'curriculum-prospectus-table-wrap';
+
+          var table = document.createElement('table');
+          table.className = 'curriculum-prospectus-table';
+
+          var thead = document.createElement('thead');
+          var thRow = document.createElement('tr');
+          thRow.innerHTML =
+            '<th style="width: 125px;">Subj Code</th>' +
+            '<th>Descriptive Title</th>' +
+            '<th style="width: 75px; text-align: center;">Units</th>' +
+            '<th style="width: 140px; text-align: center;">Classification</th>' +
+            '<th style="width: 220px;">Faculty / Handled By</th>' +
+            (state.canEdit ? '<th style="width: 65px; text-align: right;">Action</th>' : '');
+          thead.appendChild(thRow);
+          table.appendChild(thead);
+
+          var tbody = document.createElement('tbody');
+          semEntries.forEach(function (entry) {
+            var tr = document.createElement('tr');
+
+            // Code
+            var tdCode = document.createElement('td');
+            tdCode.innerHTML = '<span class="badge badge--' + (entry.is_major ? 'purple' : 'blue') + ' font-mono font-bold" style="font-size: 0.76rem;">' + (entry.subject_code || '') + '</span>';
+            tr.appendChild(tdCode);
+
+            // Descriptive Title
+            var tdTitle = document.createElement('td');
+            tdTitle.innerHTML = '<span class="text-white font-medium" style="font-size: 0.84rem;">' + (entry.subject_name || '') + '</span>';
+            tr.appendChild(tdTitle);
+
+            // Units
+            var tdUnits = document.createElement('td');
+            tdUnits.style.textAlign = 'center';
+            tdUnits.innerHTML = '<span class="badge badge--teal font-bold" style="font-size: 0.74rem;">' + (entry.subject_units || 3) + 'u</span>';
+            tr.appendChild(tdUnits);
+
+            // Classification
+            var tdClass = document.createElement('td');
+            tdClass.style.textAlign = 'center';
+            if (state.canEdit) {
+              var majorBtn = document.createElement('button');
+              majorBtn.type = 'button';
+              majorBtn.className = 'badge badge--' + (entry.is_major ? 'gold' : 'muted') + ' curriculum-chip-major-toggle';
+              majorBtn.style.border = 'none';
+              majorBtn.style.cursor = 'pointer';
+              majorBtn.setAttribute('data-entry-id', entry.id);
+              majorBtn.title = 'Click to toggle Major / Core';
+              majorBtn.textContent = entry.is_major ? 'Major' : 'Core / GenEd';
+              tdClass.appendChild(majorBtn);
+            } else {
+              tdClass.innerHTML = '<span class="badge badge--' + (entry.is_major ? 'gold' : 'muted') + '">' + (entry.is_major ? 'Major' : 'Core / GenEd') + '</span>';
+            }
+            tr.appendChild(tdClass);
+
+            // Faculty
+            var tdFaculty = document.createElement('td');
+            if (entry.teachers && entry.teachers.length > 0) {
+              var teacherBadges = entry.teachers.map(function (t) {
+                return '<span class="badge badge--teal" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px;">' +
+                  '<i class="fas fa-chalkboard-user"></i> ' + t +
+                '</span>';
+              }).join(' ');
+              tdFaculty.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 4px;">' + teacherBadges + '</div>';
+            } else {
+              tdFaculty.innerHTML = '<span class="text-muted text-xs" style="opacity: 0.6;">— unassigned</span>';
+            }
+            tr.appendChild(tdFaculty);
+
+            // Action
+            if (state.canEdit) {
+              var tdAct = document.createElement('td');
+              tdAct.style.textAlign = 'right';
+              var rmBtn = document.createElement('button');
+              rmBtn.type = 'button';
+              rmBtn.className = 'btn btn-outline btn-icon-xs text-danger curriculum-chip-remove';
+              rmBtn.setAttribute('data-entry-id', entry.id);
+              rmBtn.title = 'Remove ' + (entry.subject_code || '') + ' from curriculum';
+              rmBtn.innerHTML = '<i class="fas fa-trash-can"></i>';
+              tdAct.appendChild(rmBtn);
+              tr.appendChild(tdAct);
+            }
+
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody);
+
+          // Subtotal footer
+          var tfoot = document.createElement('tfoot');
+          var tfRow = document.createElement('tr');
+          tfRow.innerHTML =
+            '<td colspan="2" class="text-right text-muted font-semibold text-xs" style="text-transform: uppercase; letter-spacing: 0.05em;">' +
+              semesterNumberToWord(sem) + ' Subtotal:' +
+            '</td>' +
+            '<td style="text-align: center;"><span class="font-bold text-teal" style="font-size: 0.82rem;">' + semUnits + '.0u</span></td>' +
+            '<td colspan="' + (state.canEdit ? 3 : 2) + '" class="text-xs text-muted font-medium">' +
+              semEntries.length + ' Subject' + (semEntries.length === 1 ? '' : 's') +
+            '</td>';
+          tfoot.appendChild(tfRow);
+          table.appendChild(tfoot);
+
+          tableWrap.appendChild(table);
+          semBlock.appendChild(tableWrap);
+        }
+
+        semsContainer.appendChild(semBlock);
+      });
+
+      yearSection.appendChild(semsContainer);
+      wrapper.appendChild(yearSection);
+    }
+
+    grid.appendChild(wrapper);
+  }
+
+  function renderMatrixTableView() {
+    var grid = getEl('curriculumGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    var visibleSemesters = state.semesters.filter(function (sem) {
+      if (sem.value === 3) {
+        return !!state.includeSummer;
+      }
+      return true;
+    });
 
     var table = document.createElement('table');
     table.className = 'curriculum-table';
@@ -111,11 +398,12 @@
     var thead = document.createElement('thead');
     var headRow = document.createElement('tr');
     var corner = document.createElement('th');
-    corner.textContent = 'Year \\ Semester';
+    corner.textContent = 'Year Level';
     headRow.appendChild(corner);
-    state.semesters.forEach(function (sem) {
+    visibleSemesters.forEach(function (sem) {
       var th = document.createElement('th');
-      th.textContent = sem.label;
+      var icon = sem.value === 3 ? 'fa-sun text-gold' : 'fa-calendar-week';
+      th.innerHTML = '<i class="fas ' + icon + '" style="margin-right:4px;"></i> ' + sem.label;
       headRow.appendChild(th);
     });
     thead.appendChild(headRow);
@@ -128,7 +416,7 @@
       yearCell.textContent = 'Year ' + year;
       row.appendChild(yearCell);
 
-      state.semesters.forEach(function (sem) {
+      visibleSemesters.forEach(function (sem) {
         var cell = document.createElement('td');
         cell.setAttribute('data-year', year);
         cell.setAttribute('data-semester', sem.value);
@@ -139,8 +427,22 @@
 
         if (cellEntries.length === 0) {
           cell.classList.add('curriculum-cell-empty');
-          cell.textContent = '—';
+          var emptySlot = document.createElement('div');
+          emptySlot.className = 'curriculum-empty-slot';
+          emptySlot.innerHTML = '<i class="fas fa-minus-circle"></i><span>No subjects allocated</span>';
+          cell.appendChild(emptySlot);
         } else {
+          var totalUnits = cellEntries.reduce(function (sum, e) {
+            return sum + (Number(e.subject_units) || 3);
+          }, 0);
+
+          var statsBar = document.createElement('div');
+          statsBar.className = 'curriculum-cell-stats';
+          statsBar.innerHTML =
+            '<span class="badge badge--gold" style="font-size:0.7rem;"><i class="fas fa-layer-group"></i> ' + cellEntries.length + ' Subject' + (cellEntries.length > 1 ? 's' : '') + '</span>' +
+            '<span class="badge badge--teal" style="font-size:0.7rem;"><i class="fas fa-award"></i> ' + totalUnits + ' Units</span>';
+          cell.appendChild(statsBar);
+
           var list = document.createElement('div');
           list.className = 'curriculum-chip-list';
           cellEntries.forEach(function (entry) {
@@ -157,14 +459,31 @@
     grid.appendChild(table);
   }
 
+  function renderGrid() {
+    updateSummerButton();
+    updateViewModeButtons();
+    if (state.viewMode === 'prospectus') {
+      renderProspectusView();
+    } else {
+      renderMatrixTableView();
+    }
+  }
+
   function setFormEnabled(enabled) {
+    var lockedNotice = getEl('curriculumFormLockedNotice');
+    var editableWrap = getEl('curriculumFormEditableWrap');
     var addForm = getEl('curriculumAddForm');
-    if (!addForm) return;
-    addForm.querySelectorAll('select, input, button').forEach(function (el) {
-      el.disabled = !enabled;
-    });
     var note = getEl('curriculumReadOnlyNote');
+
+    if (lockedNotice) lockedNotice.style.display = enabled ? 'none' : 'flex';
+    if (editableWrap) editableWrap.style.display = enabled ? 'block' : 'none';
     if (note) note.style.display = enabled ? 'none' : 'flex';
+
+    if (addForm) {
+      addForm.querySelectorAll('select, input, button').forEach(function (el) {
+        el.disabled = !enabled;
+      });
+    }
   }
 
   function versionBadge(label, tone) {
@@ -172,6 +491,39 @@
     badge.className = 'badge badge--' + tone;
     badge.textContent = label;
     return badge;
+  }
+
+  function batchYearOf(version) {
+    return version && version.batch_year ? version.batch_year : '';
+  }
+
+  function renderBatchSelector() {
+    var wrap = getEl('curriculumBatchWrap');
+    var select = getEl('curriculumBatchSelect');
+    if (!wrap || !select) return;
+
+    // Only offer a choice when a program actually has multiple batches/versions.
+    if (!state.versions || state.versions.length <= 1) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    wrap.style.display = 'flex';
+    select.innerHTML = '';
+    state.versions.forEach(function (v) {
+      var opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.batch_label || (v.label + ' (' + v.status_label + ')');
+      select.appendChild(opt);
+    });
+    if (state.selectedVersionId) {
+      select.value = String(state.selectedVersionId);
+    }
+  }
+
+  function resetToDefaultVersion() {
+    state.selectedVersionId = null;
+    state.matrixUrl = state.matrixBaseUrl;
   }
 
   function renderVersionBar() {
@@ -185,19 +537,19 @@
     summary.innerHTML = '';
 
     if (state.draftVersion) {
-      summary.appendChild(versionBadge('Draft v' + state.draftVersion.version_number, 'warning'));
+      summary.appendChild(versionBadge(batchYearOf(state.draftVersion) || 'Draft', 'warning'));
       var text = document.createElement('span');
       text.className = 'text-sm';
       text.textContent = state.approvedVersion
-        ? 'Editing the draft. Approved v' + state.approvedVersion.version_number +
+        ? 'Editing the draft. The approved ' + (batchYearOf(state.approvedVersion) || 'curriculum') +
           ' stays in force until you approve this draft.'
         : 'Editing the first draft. It becomes official when approved.';
       summary.appendChild(text);
     } else if (state.approvedVersion) {
-      summary.appendChild(versionBadge('Approved v' + state.approvedVersion.version_number, 'success'));
+      summary.appendChild(versionBadge(batchYearOf(state.approvedVersion) || 'Approved', 'success'));
       var approvedText = document.createElement('span');
       approvedText.className = 'text-sm';
-      approvedText.textContent = 'This approved curriculum is read-only.';
+      approvedText.textContent = 'Approved · this curriculum is read-only.';
       summary.appendChild(approvedText);
     } else {
       summary.appendChild(versionBadge('No version yet', 'muted'));
@@ -298,9 +650,26 @@
       state.version = result.data.version || null;
       state.draftVersion = result.data.draft_version || null;
       state.approvedVersion = result.data.approved_version || null;
+      state.versions = result.data.versions || [];
+      state.selectedVersionId = result.data.selected_version_id || null;
       state.canEdit = !!result.data.can_edit;
       state.isLegacy = !!result.data.is_legacy;
       state.terms = result.data.terms || [];
+
+      var savedSummer = null;
+      try {
+        savedSummer = localStorage.getItem('kcc_curriculum_summer_' + state.programId);
+      } catch (e) {}
+
+      var hasSummer = (result.data.entries || []).some(function (e) {
+        return e.semester === 3;
+      });
+
+      if (savedSummer !== null) {
+        state.includeSummer = savedSummer === '1';
+      } else {
+        state.includeSummer = hasSummer || (state.programCode === 'BSIT');
+      }
 
       var filter = getEl('curriculumEffectiveTerm');
       if (filter) filter.innerHTML = '';
@@ -308,6 +677,7 @@
       populateSelects();
       renderGrid();
       renderVersionBar();
+      renderBatchSelector();
     })
     .catch(function (err) {
       if (grid) grid.innerHTML = '';
@@ -317,6 +687,8 @@
 
   function loadMatrix(button) {
     state.matrixUrl = button.getAttribute('data-curriculum-url');
+    state.matrixBaseUrl = state.matrixUrl;
+    state.selectedVersionId = null;
     state.programId = button.getAttribute('data-program-id');
     state.programCode = button.getAttribute('data-program-code') || '';
 
@@ -354,11 +726,79 @@
     return template.replace('999999', state.programId);
   }
 
+  function toggleFullscreen() {
+    var dialog = getEl('curriculumModalDialog');
+    var btn = getEl('curriculumFullscreenBtn');
+    var label = getEl('curriculumFsLabel');
+    if (!dialog) return;
+
+    var isFs = dialog.classList.toggle('is-fullscreen');
+    if (btn) {
+      var icon = btn.querySelector('i');
+      if (icon) {
+        icon.className = isFs ? 'fas fa-compress' : 'fas fa-expand';
+      }
+    }
+    if (label) {
+      label.textContent = isFs ? 'Exit Fullscreen' : 'Fullscreen';
+    }
+  }
+
   function initCurriculumMatrix() {
     var modal = getEl('curriculumMatrixModal');
     if (!modal) return;
 
     document.addEventListener('click', function (e) {
+      var fsBtn = e.target.closest('#curriculumFullscreenBtn');
+      if (fsBtn) {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
+      var prosBtn = e.target.closest('#curriculumViewProspectusBtn');
+      if (prosBtn) {
+        e.preventDefault();
+        state.viewMode = 'prospectus';
+        renderGrid();
+        return;
+      }
+
+      var matBtn = e.target.closest('#curriculumViewMatrixBtn');
+      if (matBtn) {
+        e.preventDefault();
+        state.viewMode = 'matrix';
+        renderGrid();
+        return;
+      }
+
+      var summerBtn = e.target.closest('#curriculumSummerToggleBtn');
+      if (summerBtn) {
+        e.preventDefault();
+        state.includeSummer = !state.includeSummer;
+        try {
+          localStorage.setItem('kcc_curriculum_summer_' + state.programId, state.includeSummer ? '1' : '0');
+        } catch (err) {}
+        renderGrid();
+        toast(
+          state.includeSummer ? 'info' : 'secondary',
+          state.includeSummer
+            ? 'Summer term included for ' + (state.programCode || 'this program') + '.'
+            : 'Summer term hidden for ' + (state.programCode || 'this program') + '.'
+        );
+        return;
+      }
+
+      var draftShortcut = e.target.closest('.js-create-draft-shortcut');
+      if (draftShortcut) {
+        e.preventDefault();
+        var topDraftBtn = getEl('curriculumCreateDraftBtn');
+        if (topDraftBtn) {
+          topDraftBtn.click();
+        }
+        return;
+      }
+
       var openBtn = e.target.closest('.js-curriculum-matrix-btn');
       if (openBtn) {
         e.preventDefault();
@@ -441,6 +881,7 @@
             throw new Error(result.data.error || 'Unable to create a draft.');
           }
           toast('success', result.data.message || 'Draft created.');
+          resetToDefaultVersion();
           return fetchMatrix();
         })
         .catch(function (err) {
@@ -473,6 +914,7 @@
             throw new Error(result.data.error || 'Unable to approve the draft.');
           }
           toast('success', result.data.message || 'Curriculum approved.');
+          resetToDefaultVersion();
           return fetchMatrix();
         })
         .catch(function (err) {
@@ -483,6 +925,17 @@
         });
       }
     });
+
+    var batchSelect = getEl('curriculumBatchSelect');
+    if (batchSelect) {
+      batchSelect.addEventListener('change', function () {
+        var id = this.value;
+        state.selectedVersionId = id || null;
+        state.matrixUrl = state.matrixBaseUrl +
+          (id ? '?version_id=' + encodeURIComponent(id) : '');
+        fetchMatrix();
+      });
+    }
 
     var addForm = getEl('curriculumAddForm');
     if (addForm) {
@@ -521,6 +974,9 @@
           }
           if (result.data.entry) {
             state.entries.push(result.data.entry);
+            if (Number(semester) === 3) {
+              state.includeSummer = true;
+            }
             renderGrid();
           }
           addForm.reset();

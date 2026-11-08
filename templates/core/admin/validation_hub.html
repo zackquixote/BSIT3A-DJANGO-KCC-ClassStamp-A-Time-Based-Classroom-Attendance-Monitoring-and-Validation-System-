@@ -726,11 +726,42 @@ document.addEventListener('DOMContentLoaded', function () {
   const cancelRejectBtn = document.getElementById('cancelBatchRejectBtn');
 
   function getCSRFToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
-    const input = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (input) return input.value;
-    return '';
+    let token = '';
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, 10) === 'csrftoken=') {
+          token = decodeURIComponent(cookie.substring(10));
+          break;
+        }
+      }
+    }
+    if (!token) {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta && meta.getAttribute('content')) token = meta.getAttribute('content');
+    }
+    if (!token) {
+      const input = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (input) token = input.value;
+    }
+    return token;
+  }
+
+  function showToastNotification(type, msg) {
+    try {
+      if (typeof window.toast === 'function') {
+        window.toast(type, msg);
+        return;
+      }
+      if (window.App && typeof window.App.toast === 'function') {
+        window.App.toast(type, msg);
+        return;
+      }
+    } catch (_) {}
+    try {
+      alert(msg);
+    } catch (_) {}
   }
 
   function getSelectedCheckboxes() {
@@ -810,7 +841,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Confirm Batch Approve
   if (confirmApproveBtn) {
-    confirmApproveBtn.addEventListener('click', async function () {
+    confirmApproveBtn.addEventListener('click', async function (e) {
+      if (e) e.preventDefault();
       const selected = getSelectedCheckboxes();
       if (!selected.length) return;
 
@@ -820,7 +852,9 @@ document.addEventListener('DOMContentLoaded', function () {
       confirmApproveBtn.disabled = true;
       confirmApproveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
 
+      const csrf = getCSRFToken();
       const fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrf);
       fd.append('action', 'approve');
       fd.append('reason', reason);
       ids.forEach(function (id) { fd.append('ids[]', id); });
@@ -828,25 +862,32 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         const res = await fetch(batchUrl, {
           method: 'POST',
-          headers: { 'X-CSRFToken': getCSRFToken() },
+          headers: {
+            'X-CSRFToken': csrf,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
           body: fd
         });
-        const data = await res.json();
-        if (res.ok) {
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (_) {}
+
+        if (res.ok && data) {
           if (approveModal) approveModal.style.display = 'none';
-          if (window.App && window.App.toast) {
-            window.App.toast.success('Successfully approved ' + data.approved + ' student(s)!');
-          } else {
-            alert('Successfully approved ' + data.approved + ' student(s)!');
-          }
-          setTimeout(function () { window.location.reload(); }, 500);
+          const successCount = typeof data.approved !== 'undefined' ? data.approved : ids.length;
+          showToastNotification('success', 'Successfully approved ' + successCount + ' student(s)!');
+          setTimeout(function () { window.location.reload(); }, 600);
         } else {
-          alert(data.error || 'Batch approval failed.');
+          const errDetail = (data && data.error) ? data.error : ('Server returned ' + res.status + ' (' + res.statusText + ')');
+          alert('Batch approval failed: ' + errDetail);
           confirmApproveBtn.disabled = false;
           confirmApproveBtn.innerHTML = '<i class="fas fa-check-double"></i> Confirm Batch Approval';
         }
       } catch (err) {
-        alert('Network error during batch approval.');
+        console.error('Batch approval error:', err);
+        alert('Network error during batch approval: ' + (err.message || 'Check connection.'));
         confirmApproveBtn.disabled = false;
         confirmApproveBtn.innerHTML = '<i class="fas fa-check-double"></i> Confirm Batch Approval';
       }
@@ -883,7 +924,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Confirm Batch Reject
   if (confirmRejectBtn) {
-    confirmRejectBtn.addEventListener('click', async function () {
+    confirmRejectBtn.addEventListener('click', async function (e) {
+      if (e) e.preventDefault();
       const selected = getSelectedCheckboxes();
       if (!selected.length) return;
 
@@ -898,7 +940,9 @@ document.addEventListener('DOMContentLoaded', function () {
       confirmRejectBtn.disabled = true;
       confirmRejectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejecting...';
 
+      const csrf = getCSRFToken();
       const fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrf);
       fd.append('action', 'reject');
       fd.append('reason', reason);
       ids.forEach(function (id) { fd.append('ids[]', id); });
@@ -906,25 +950,32 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         const res = await fetch(batchUrl, {
           method: 'POST',
-          headers: { 'X-CSRFToken': getCSRFToken() },
+          headers: {
+            'X-CSRFToken': csrf,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
           body: fd
         });
-        const data = await res.json();
-        if (res.ok) {
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (_) {}
+
+        if (res.ok && data) {
           if (rejectModal) rejectModal.style.display = 'none';
-          if (window.App && window.App.toast) {
-            window.App.toast.warning('Rejected ' + data.rejected + ' student registration(s).');
-          } else {
-            alert('Rejected ' + data.rejected + ' student registration(s).');
-          }
-          setTimeout(function () { window.location.reload(); }, 500);
+          const rejCount = typeof data.rejected !== 'undefined' ? data.rejected : ids.length;
+          showToastNotification('warning', 'Rejected ' + rejCount + ' student registration(s).');
+          setTimeout(function () { window.location.reload(); }, 600);
         } else {
-          alert(data.error || 'Batch rejection failed.');
+          const errDetail = (data && data.error) ? data.error : ('Server returned ' + res.status + ' (' + res.statusText + ')');
+          alert('Batch rejection failed: ' + errDetail);
           confirmRejectBtn.disabled = false;
           confirmRejectBtn.innerHTML = '<i class="fas fa-ban"></i> Confirm Batch Rejection';
         }
       } catch (err) {
-        alert('Network error during batch rejection.');
+        console.error('Batch rejection error:', err);
+        alert('Network error during batch rejection: ' + (err.message || 'Check connection.'));
         confirmRejectBtn.disabled = false;
         confirmRejectBtn.innerHTML = '<i class="fas fa-ban"></i> Confirm Batch Rejection';
       }

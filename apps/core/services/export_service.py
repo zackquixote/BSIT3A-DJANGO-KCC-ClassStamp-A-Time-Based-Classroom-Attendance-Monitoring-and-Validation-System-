@@ -87,6 +87,7 @@ def export_student_directory_csv(filter_params=None):
     dept_id = str(filter_params.get('department', '') or '').strip()
     prog_id = str(filter_params.get('program', '') or '').strip()
     year_level = str(filter_params.get('year_level', '') or '').strip()
+    batch = str(filter_params.get('batch', '') or '').strip()
     section = str(filter_params.get('section', '') or '').strip()
     status = str(filter_params.get('status', '') or '').strip()
     q = str(filter_params.get('q', '') or '').strip()
@@ -104,6 +105,11 @@ def export_student_directory_csv(filter_params=None):
     if year_level:
         try:
             students_qs = students_qs.filter(year_level=int(year_level))
+        except ValueError:
+            pass
+    if batch:
+        try:
+            students_qs = students_qs.filter(entry_year=int(batch))
         except ValueError:
             pass
     if status in [Profile.APPROVAL_APPROVED, Profile.APPROVAL_PENDING, Profile.APPROVAL_REJECTED]:
@@ -145,6 +151,7 @@ def export_student_directory_csv(filter_params=None):
         'Program Code',
         'Program Name',
         'Year Level',
+        'Entering Batch',
         'Enrolled Sections',
         'Approval Status',
         'Registration Date',
@@ -166,6 +173,7 @@ def export_student_directory_csv(filter_params=None):
             prog.code if prog else "N/A",
             prog.name if prog else "N/A",
             f"Year {profile.year_level}" if profile.year_level else "N/A",
+            f"Batch {profile.entry_year}" if profile.entry_year else "N/A",
             sections_str,
             profile.approval_status or "N/A",
             profile.created_at.strftime('%Y-%m-%d %H:%M') if profile.created_at else "N/A",

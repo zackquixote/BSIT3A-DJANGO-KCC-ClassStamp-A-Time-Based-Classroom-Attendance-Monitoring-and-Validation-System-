@@ -50,6 +50,7 @@ def student_directory(request):
     dept_id = request.GET.get('department', '').strip()
     prog_id = request.GET.get('program', '').strip()
     year_level = request.GET.get('year_level', '').strip()
+    batch = request.GET.get('batch', '').strip()
     section = request.GET.get('section', '').strip()
     status = request.GET.get('status', '').strip()
     q = request.GET.get('q', '').strip()
@@ -59,6 +60,7 @@ def student_directory(request):
         'department': dept_id,
         'program': prog_id,
         'year_level': year_level,
+        'batch': batch,
         'section': section,
         'status': status,
         'q': q,
@@ -87,6 +89,14 @@ def student_directory(request):
     rejected_count = Profile.objects.filter(role=Profile.ROLE_STUDENT, approval_status=Profile.APPROVAL_REJECTED).count()
 
     filtered_count = students_qs.count()
+
+    # Entering-batch (cohort) choices for the directory's Batch filter.
+    batches = (
+        Profile.objects.filter(role=Profile.ROLE_STUDENT, entry_year__isnull=False)
+        .values_list('entry_year', flat=True)
+        .distinct()
+        .order_by('entry_year')
+    )
 
     # Dynamic year level counts follow the same filters as the listing itself
     year_count_base = students_qs
@@ -121,6 +131,8 @@ def student_directory(request):
         'selected_dept': dept_id,
         'selected_prog': prog_id,
         'selected_year': year_level,
+        'selected_batch': batch,
+        'batches': batches,
         'selected_section': section,
         'selected_status': status,
         'query': q,

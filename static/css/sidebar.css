@@ -167,6 +167,7 @@
 
 .sidebar-section-label {
   display: block;
+  position: static;
   font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -477,6 +478,7 @@ html.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
   }
 
   html.sidebar-collapsed .sidebar-section-label {
+    position: static;
     width: 5px;
     height: 5px;
     padding: 0;
@@ -538,3 +540,101 @@ html.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
     display: none;
   }
 }
+
+/* ── Collapsible Dropdowns for Security & Oversight ─────────── */
+.sidebar-dropdown {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 8px 8px 4px;
+  margin-top: 3px;
+  border-radius: 6px;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-dropdown-title {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #64748b;
+  transition: color 0.15s ease;
+}
+
+.sidebar-dropdown-toggle:hover .sidebar-dropdown-title {
+  color: #cbd5e1;
+}
+
+.sidebar-dropdown-chevron {
+  font-size: 0.58rem;
+  color: #64748b;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
+}
+
+.sidebar-dropdown.is-open .sidebar-dropdown-chevron {
+  transform: rotate(180deg);
+  color: #fbbf24;
+}
+
+.sidebar-dropdown-badge {
+  margin-left: auto;
+  margin-right: 6px;
+  font-size: 0.6rem;
+  padding: 1px 6px;
+}
+
+/* Seamless, aligned submenu links with smooth slide-down */
+.sidebar-dropdown-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.24s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease;
+}
+
+.sidebar-dropdown.is-open .sidebar-dropdown-menu {
+  max-height: 380px;
+  opacity: 1;
+}
+
+@media (min-width: 901px) {
+  html.sidebar-collapsed .sidebar-dropdown-toggle {
+    pointer-events: none;
+    width: 5px;
+    height: 5px;
+    padding: 0;
+    margin: 12px auto 8px;
+    border-radius: 50%;
+    background: rgba(245, 158, 11, 0.45);
+    overflow: hidden;
+  }
+  html.sidebar-collapsed .sidebar-dropdown-title,
+  html.sidebar-collapsed .sidebar-dropdown-chevron,
+  html.sidebar-collapsed .sidebar-dropdown-badge {
+    display: none;
+  }
+  html.sidebar-collapsed .sidebar-dropdown-menu {
+    max-height: none !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+}
+
+

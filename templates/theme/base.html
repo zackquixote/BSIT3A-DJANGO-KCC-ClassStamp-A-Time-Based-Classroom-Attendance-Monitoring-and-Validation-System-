@@ -81,58 +81,84 @@
               <span class="mobile-topbar-title">KCC <span class="text-gold">ClassStamp</span></span>
             </div>
           </div>
-          <div class="mobile-avatar-dropdown-wrap" style="position: relative;">
-            <button type="button" class="mobile-avatar-btn" id="mobileAvatarBtn" aria-expanded="false" aria-haspopup="true" aria-label="Account Menu"
-                    style="background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; -webkit-tap-highlight-color: transparent;">
-              <div class="mobile-avatar" style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; background: linear-gradient(135deg, #f59e0b 0%, #3b82f6 100%); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); overflow: hidden; border: 1.5px solid rgba(245, 158, 11, 0.5);">
-                {% if request.user.classstamp_profile.role == 'STUDENT' and request.user.classstamp_profile.avatar %}
-                  <img src="{% url 'student_avatar_document' request.user.classstamp_profile.pk %}" alt="Profile photo" style="width: 100%; height: 100%; object-fit: cover;">
-                {% elif request.user.first_name and request.user.last_name %}
-                  {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
-                {% else %}
-                  {{ request.user.username|slice:":2"|upper }}
-                {% endif %}
-              </div>
-            </button>
+          <div class="mobile-topbar-right" style="display: flex; align-items: center; gap: 10px;">
+            <!-- Notification Bell Icon (for all mobile devices, especially students) -->
+            <a href="{% url 'notification_list' %}" class="mobile-bell-btn" id="mobileBellBtn"
+               aria-label="Notifications ({% if unread_notification_count %}{{ unread_notification_count }} unread{% else %}none{% endif %})"
+               title="Notifications">
+              <i class="fas fa-bell"></i>
+              {% if unread_notification_count and unread_notification_count > 0 %}
+                <span class="mobile-bell-badge" id="mobileBellBadge">
+                  {% if unread_notification_count > 99 %}99+{% else %}{{ unread_notification_count }}{% endif %}
+                </span>
+              {% endif %}
+            </a>
 
-            <!-- Dropdown Popover Menu -->
-            <div class="mobile-avatar-menu" id="mobileAvatarMenu"
-                 style="display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 210px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.65); z-index: 1050; padding: 6px; overflow: hidden;">
-              <!-- User Info Header -->
-              <div style="padding: 10px 12px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px;">
-                <div style="font-weight: 700; font-size: 0.85rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  {{ request.user.get_full_name|default:request.user.username }}
-                </div>
-                <div style="font-size: 0.72rem; color: var(--accent-gold); font-family: var(--font-mono, monospace); margin-top: 2px;">
-                  {% if request.user.classstamp_profile.role == 'STUDENT' %}
-                    {{ request.user.classstamp_profile.student_id|default:"Student" }}
-                  {% elif request.user.classstamp_profile.role == 'TEACHER' %}
-                    Faculty Instructor
+            <!-- Mobile Avatar Dropdown -->
+            <div class="mobile-avatar-dropdown-wrap" style="position: relative;">
+              <button type="button" class="mobile-avatar-btn" id="mobileAvatarBtn" aria-expanded="false" aria-haspopup="true" aria-label="Account Menu"
+                      style="background: none; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; -webkit-tap-highlight-color: transparent;">
+                <div class="mobile-avatar" style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; background: linear-gradient(135deg, #f59e0b 0%, #3b82f6 100%); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); overflow: hidden; border: 1.5px solid rgba(245, 158, 11, 0.5);">
+                  {% if request.user.classstamp_profile.role == 'STUDENT' and request.user.classstamp_profile.avatar %}
+                    <img src="{% url 'student_avatar_document' request.user.classstamp_profile.pk %}" alt="Profile photo" style="width: 100%; height: 100%; object-fit: cover;">
+                  {% elif request.user.first_name and request.user.last_name %}
+                    {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
                   {% else %}
-                    System Administrator
+                    {{ request.user.username|slice:":2"|upper }}
                   {% endif %}
                 </div>
-              </div>
+              </button>
 
-              <!-- Menu Items -->
-              {% if request.user.classstamp_profile.role == 'STUDENT' %}
-                <a href="{% url 'student_profile' %}" class="mobile-avatar-menu-item"
-                   style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #e2e8f0; text-decoration: none; font-size: 0.84rem; font-weight: 500;">
-                  <i class="fas fa-user-circle text-primary" style="font-size: 0.95rem; width: 16px;"></i>
-                  <span>My Profile</span>
+              <!-- Dropdown Popover Menu -->
+              <div class="mobile-avatar-menu" id="mobileAvatarMenu"
+                   style="display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 220px; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.65); z-index: 1050; padding: 6px; overflow: hidden;">
+                <!-- User Info Header -->
+                <div style="padding: 10px 12px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ request.user.get_full_name|default:request.user.username }}
+                  </div>
+                  <div style="font-size: 0.72rem; color: var(--accent-gold); font-family: var(--font-mono, monospace); margin-top: 2px;">
+                    {% if request.user.classstamp_profile.role == 'STUDENT' %}
+                      {{ request.user.classstamp_profile.student_id|default:"Student" }}
+                    {% elif request.user.classstamp_profile.role == 'TEACHER' %}
+                      Faculty Instructor
+                    {% else %}
+                      System Administrator
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Menu Items -->
+                <a href="{% url 'notification_list' %}" class="mobile-avatar-menu-item"
+                   style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 8px; color: #e2e8f0; text-decoration: none; font-size: 0.84rem; font-weight: 500;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-bell text-gold" style="font-size: 0.95rem; width: 16px;"></i>
+                    <span>Notifications</span>
+                  </div>
+                  {% if unread_notification_count and unread_notification_count > 0 %}
+                    <span class="badge badge--danger" style="font-size: 0.68rem; padding: 1px 6px; border-radius: 9999px;">{{ unread_notification_count }}</span>
+                  {% endif %}
                 </a>
-              {% endif %}
 
-              <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 0;"></div>
+                {% if request.user.classstamp_profile.role == 'STUDENT' %}
+                  <a href="{% url 'student_profile' %}" class="mobile-avatar-menu-item"
+                     style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #e2e8f0; text-decoration: none; font-size: 0.84rem; font-weight: 500;">
+                    <i class="fas fa-user-circle text-primary" style="font-size: 0.95rem; width: 16px;"></i>
+                    <span>My Profile</span>
+                  </a>
+                {% endif %}
 
-              <form method="post" action="{% url 'logout' %}" style="margin: 0;">
-                {% csrf_token %}
-                <button type="submit" class="mobile-avatar-menu-item"
-                        style="width: 100%; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #f87171; text-decoration: none; font-size: 0.84rem; font-weight: 600; text-align: left;">
-                  <i class="fas fa-right-from-bracket" style="font-size: 0.95rem; width: 16px;"></i>
-                  <span>Log out</span>
-                </button>
-              </form>
+                <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 0;"></div>
+
+                <form method="post" action="{% url 'logout' %}" style="margin: 0;">
+                  {% csrf_token %}
+                  <button type="submit" class="mobile-avatar-menu-item"
+                          style="width: 100%; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #f87171; text-decoration: none; font-size: 0.84rem; font-weight: 600; text-align: left;">
+                    <i class="fas fa-right-from-bracket" style="font-size: 0.95rem; width: 16px;"></i>
+                    <span>Log out</span>
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </header>

@@ -68,10 +68,14 @@ def provision_student_account(form_data: dict, proof_file=None):
     # // DB constraint chk_cs_profile_shape:
     # //   - department_id must be NULL for STUDENT role
     # //   - qr_secret must be exactly 64 hex characters at INSERT
+    from apps.core.services.student_service import compute_batch_fields
+    entry_year, curriculum_version = compute_batch_fields(form_data['student_number'], program)
     profile = Profile.objects.create(
         user=user,
         role=Profile.ROLE_STUDENT,
         student_number=form_data['student_number'],
+        entry_year=entry_year,
+        curriculum_version=curriculum_version,
         student_type=form_data.get('student_type') or Profile.STUDENT_TYPE_REGULAR,
         gender=form_data.get('gender') or None,
         phone_number=form_data.get('phone_number') or None,

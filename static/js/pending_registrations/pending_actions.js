@@ -84,10 +84,26 @@
   }
 
   function getCSRF() {
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
-    var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    return input ? input.value : '';
+    var token = '';
+    if (document.cookie && document.cookie !== '') {
+      var cookies = document.cookie.split(';');
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i].trim();
+        if (cookie.substring(0, 10) === 'csrftoken=') {
+          token = decodeURIComponent(cookie.substring(10));
+          break;
+        }
+      }
+    }
+    if (!token) {
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta && meta.getAttribute('content')) token = meta.getAttribute('content');
+    }
+    if (!token) {
+      var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      if (input && input.value) token = input.value;
+    }
+    return token;
   }
 
   function initBatchActions() {
@@ -185,32 +201,50 @@
           window.App.setButtonLoading(approveBtn, true, 'Approving...');
         }
 
+        var csrf = getCSRF();
         var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf);
         fd.append('action', 'approve');
         ids.forEach(function (id) { fd.append('ids[]', id); });
 
         try {
           var res = await fetch(batchUrl, {
             method: 'POST',
-            headers: { 'X-CSRFToken': getCSRF() },
+            headers: {
+              'X-CSRFToken': csrf,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
             body: fd
           });
-          var data = await res.json();
-          if (res.ok) {
-            if (window.App && window.App.toast) {
-              window.App.toast.success('Successfully approved ' + data.approved + ' students.');
+          var data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+
+          if (res.ok && data) {
+            if (window.App && typeof window.App.toast === 'function') {
+              window.App.toast('success', 'Successfully approved ' + (data.approved || ids.length) + ' student(s).');
             }
             setTimeout(function () { window.location.reload(); }, 600);
           } else {
-            if (window.App && window.App.toast) {
-              window.App.toast.error(data.error || 'Batch approval failed.');
+            var errDetail = (data && data.error) ? data.error : ('Server returned ' + res.status + ' (' + res.statusText + ')');
+            if (window.App && typeof window.App.toast === 'function') {
+              window.App.toast('error', 'Batch approval failed: ' + errDetail);
+            } else {
+              alert('Batch approval failed: ' + errDetail);
             }
             if (window.App && window.App.setButtonLoading) {
               window.App.setButtonLoading(approveBtn, false);
             }
           }
         } catch (err) {
-          if (window.App && window.App.toast) window.App.toast.error('Network error during batch approval.');
+          console.error('Batch approval error:', err);
+          var errMsg = 'Network error during batch approval: ' + (err.message || 'Check connection.');
+          if (window.App && typeof window.App.toast === 'function') {
+            window.App.toast('error', errMsg);
+          } else {
+            alert(errMsg);
+          }
           if (window.App && window.App.setButtonLoading) window.App.setButtonLoading(approveBtn, false);
         }
       });
@@ -253,8 +287,10 @@
 
         var reason = (batchReasonInput ? batchReasonInput.value : '').trim();
         if (!reason) {
-          if (window.App && window.App.toast) {
-            window.App.toast.warning('Please enter a rejection reason.');
+          if (window.App && typeof window.App.toast === 'function') {
+            window.App.toast('warning', 'Please enter a rejection reason.');
+          } else {
+            alert('Please enter a rejection reason.');
           }
           if (batchReasonInput) batchReasonInput.focus();
           return;
@@ -265,7 +301,9 @@
           window.App.setButtonLoading(confirmRejectBtn, true, 'Rejecting...');
         }
 
+        var csrf = getCSRF();
         var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', csrf);
         fd.append('action', 'reject');
         fd.append('reason', reason);
         ids.forEach(function (id) { fd.append('ids[]', id); });
@@ -273,26 +311,42 @@
         try {
           var res = await fetch(batchUrl, {
             method: 'POST',
-            headers: { 'X-CSRFToken': getCSRF() },
+            headers: {
+              'X-CSRFToken': csrf,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
             body: fd
           });
-          var data = await res.json();
-          if (res.ok) {
+          var data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+
+          if (res.ok && data) {
             if (window.closeModal) window.closeModal('batchRejectModal');
-            if (window.App && window.App.toast) {
-              window.App.toast.warning('Rejected ' + data.rejected + ' student registrations.');
+            if (window.App && typeof window.App.toast === 'function') {
+              window.App.toast('warning', 'Rejected ' + (data.rejected || ids.length) + ' student registration(s).');
             }
             setTimeout(function () { window.location.reload(); }, 600);
           } else {
-            if (window.App && window.App.toast) {
-              window.App.toast.error(data.error || 'Batch rejection failed.');
+            var errDetail = (data && data.error) ? data.error : ('Server returned ' + res.status + ' (' + res.statusText + ')');
+            if (window.App && typeof window.App.toast === 'function') {
+              window.App.toast('error', 'Batch rejection failed: ' + errDetail);
+            } else {
+              alert('Batch rejection failed: ' + errDetail);
             }
             if (window.App && window.App.setButtonLoading) {
               window.App.setButtonLoading(confirmRejectBtn, false);
             }
           }
         } catch (err) {
-          if (window.App && window.App.toast) window.App.toast.error('Network error during batch rejection.');
+          console.error('Batch rejection error:', err);
+          var errMsg = 'Network error during batch rejection: ' + (err.message || 'Check connection.');
+          if (window.App && typeof window.App.toast === 'function') {
+            window.App.toast('error', errMsg);
+          } else {
+            alert(errMsg);
+          }
           if (window.App && window.App.setButtonLoading) window.App.setButtonLoading(confirmRejectBtn, false);
         }
       });

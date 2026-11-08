@@ -627,72 +627,88 @@ def batch_validation_action(request):
     // POST body: action=approve|reject, ids[]=pk, ids[]=pk, ... reason=<str>
     // Returns JSON: {approved: N, rejected: N, skipped: N, errors: [...]}
     """
-    if not _check_validation_rate_limit(request, max_requests=30, window_seconds=60):
-        return JsonResponse({'error': 'Rate limit exceeded. Please wait a moment before sending more batch actions.'}, status=429)
+    try:
+        if not _check_validation_rate_limit(request, max_requests=60, window_seconds=60):
+            return JsonResponse({'error': 'Rate limit exceeded. Please wait a moment before sending more batch actions.'}, status=429)
 
-    action = request.POST.get('action', '').strip()
-    raw_ids = request.POST.getlist('ids[]') or request.POST.getlist('ids')
-    reason = request.POST.get('reason', '').strip()
+        action = request.POST.get('action', '').strip()
+        raw_ids = request.POST.getlist('ids[]') or request.POST.getlist('ids')
+        reason = request.POST.get('reason', '').strip()
 
-    if action not in ('approve', 'reject'):
-        return JsonResponse({'error': 'Invalid action.'}, status=400)
+        if action not in ('approve', 'reject'):
+            return JsonResponse({'error': 'Invalid action. Expected approve or reject.'}, status=400)
 
-    if not raw_ids:
-        return JsonResponse({'error': 'No student IDs provided.'}, status=400)
+        if not raw_ids:
+            return JsonResponse({'error': 'No student IDs provided for batch processing.'}, status=400)
 
-    if action == 'reject' and not reason:
-        return JsonResponse({'error': 'A rejection reason is required for batch rejection.'}, status=400)
+        if action == 'reject' and not reason:
+            return JsonResponse({'error': 'A rejection reason is required for batch rejection.'}, status=400)
 
-    pks = []
-    for raw in raw_ids:
-        try:
-            pks.append(int(raw))
-        except (ValueError, TypeError):
-            pass
-
-    profiles = list(Profile.objects.filter(
-        pk__in=pks,
-        role=Profile.ROLE_STUDENT,
-        approval_status=Profile.APPROVAL_PENDING,
-    ).select_related('user'))
-
-    approved_count = 0
-    rejected_count = 0
-    skipped_count = 0
-    errors = []
-
-    # // [Atomicity] All approvals/rejections + the batch audit entry commit or
-    # // roll back together, preventing partial queues on mid-batch failure.
-    with transaction.atomic():
-        for profile in profiles:
+        pks = []
+        for raw in raw_ids:
             try:
-                if action == 'approve':
-                    approve_student_registration(profile, request.user)
-                    approved_count += 1
-                else:
-                    reject_student_registration(profile, request.user, reason)
-                    rejected_count += 1
-            except Exception as exc:
-                errors.append({'id': profile.pk, 'name': profile.user.get_full_name(), 'error': str(exc)})
-                skipped_count += 1
+                pks.append(int(raw))
+            except (ValueError, TypeError):
+                pass
 
-        if approved_count or rejected_count:
-            AuditEvent.objects.create(
-                actor=request.user,
-                action='BATCH_VALIDATION',
-                object_type='Profile',
-                object_id='batch',
-                new_value=(
-                    f'Batch {action} on {approved_count + rejected_count} profile(s): '
-                    f'{approved_count} approved, {rejected_count} rejected, {skipped_count} skipped'
-                ),
-                reason=reason if reason else ('Batch administrative approval' if action == 'approve' else 'Batch rejection'),
-            )
+        if not pks:
+            return JsonResponse({'error': 'Invalid student IDs provided.'}, status=400)
 
-    return JsonResponse({
-        'approved': approved_count,
-        'rejected': rejected_count,
-        'skipped': skipped_count,
-        'errors': errors,
-    })
+        profiles = list(Profile.objects.filter(
+            pk__in=pks,
+            role=Profile.ROLE_STUDENT,
+            approval_status=Profile.APPROVAL_PENDING,
+        ).select_related('user'))
+
+        if not profiles:
+            return JsonResponse({
+                'approved': 0,
+                'rejected': 0,
+                'skipped': len(pks),
+                'errors': [],
+                'message': 'No pending student accounts matched the selection (they may have already been validated).'
+            })
+
+        approved_count = 0
+        rejected_count = 0
+        skipped_count = 0
+        errors = []
+
+        # // [Atomicity] Process registrations safely and emit audit events
+        with transaction.atomic():
+            for profile in profiles:
+                try:
+                    if action == 'approve':
+                        approve_student_registration(profile, request.user)
+                        approved_count += 1
+                    else:
+                        reject_student_registration(profile, request.user, reason)
+                        rejected_count += 1
+                except Exception as exc:
+                    errors.append({'id': profile.pk, 'name': profile.user.get_full_name(), 'error': str(exc)})
+                    skipped_count += 1
+
+            if approved_count or rejected_count:
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    action='BATCH_VALIDATION',
+                    object_type='Profile',
+                    object_id='batch',
+                    new_value=(
+                        f'Batch {action} on {approved_count + rejected_count} profile(s): '
+                        f'{approved_count} approved, {rejected_count} rejected, {skipped_count} skipped'
+                    ),
+                    reason=reason if reason else ('Batch administrative approval' if action == 'approve' else 'Batch rejection'),
+                )
+
+        return JsonResponse({
+            'ok': True,
+            'approved': approved_count,
+            'rejected': rejected_count,
+            'skipped': skipped_count,
+            'errors': errors,
+        })
+    except Exception as exc:
+        logger.exception('Batch validation error: %s', exc)
+        return JsonResponse({'error': f'Batch processing error: {str(exc)}'}, status=500)
 

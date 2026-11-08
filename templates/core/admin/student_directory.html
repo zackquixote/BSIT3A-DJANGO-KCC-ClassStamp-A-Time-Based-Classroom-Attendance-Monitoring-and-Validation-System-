@@ -647,6 +647,14 @@
       <option value="4" {% if selected_year == '4' %}selected{% endif %}>4th Yr</option>
     </select>
 
+    <!-- Entering Batch (cohort) -->
+    <select name="batch" id="filter_batch" class="form-control" style="max-width: 120px;" title="Entering Batch (cohort year)">
+      <option value="">All Batches</option>
+      {% for b in batches %}
+        <option value="{{ b }}" {% if selected_batch == b|stringformat:'s' %}selected{% endif %}>Batch {{ b }}</option>
+      {% endfor %}
+    </select>
+
     <!-- Class Section Input -->
     <input
       type="text"
@@ -809,6 +817,9 @@
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
+            {% if student.entry_year %}
+              <span class="badge badge--info font-semibold" title="Entering batch (cohort)">Batch {{ student.entry_year }}</span>
+            {% endif %}
           </td>
 
           <!-- Enrolled Sections (active academic year) -->
@@ -909,13 +920,13 @@
               No Students Found
             </div>
             <div class="text-secondary text-xs mb-3">
-              {% if query or selected_dept or selected_prog or selected_year or selected_section or selected_status %}
+              {% if query or selected_dept or selected_prog or selected_year or selected_batch or selected_section or selected_status %}
                 No student accounts matched your filter selections.
               {% else %}
                 There are no registered student accounts in the system yet.
               {% endif %}
             </div>
-            {% if query or selected_dept or selected_prog or selected_year or selected_section or selected_status %}
+            {% if query or selected_dept or selected_prog or selected_year or selected_batch or selected_section or selected_status %}
               <a href="{% url 'student_directory' %}" class="btn btn-primary btn-sm">
                 <i class="fas fa-rotate-left"></i> Reset All Filters
               </a>

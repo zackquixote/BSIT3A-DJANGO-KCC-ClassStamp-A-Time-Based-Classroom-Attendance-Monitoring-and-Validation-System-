@@ -21,6 +21,7 @@ from django.views.decorators.http import require_http_methods
 from apps.core.decorators import role_required
 from apps.core.models import (
     AcademicYear,
+    Class,
     Curriculum,
     CurriculumVersion,
     Department,
@@ -315,8 +316,26 @@ def program_curriculum_list(request, program_id):
     """
     program = get_object_or_404(Program.objects.select_related('department'), pk=program_id)
 
+    requested_version = request.GET.get('version_id', '').strip()
+
     version_state = curriculum_version_state(program)
     display_version = version_state['display']
+
+    # Every version (draft, approved, archived) is a selectable "batch": its
+    # effective_from term is the cohort's entering school year. Let the admin
+    # view any batch's matrix, not just the current display version.
+    all_versions = list(
+        CurriculumVersion.objects.filter(program=program)
+        .select_related('effective_from', 'program', 'created_by', 'approved_by')
+        .order_by('-version_number')
+    )
+    if requested_version.isdigit():
+        wanted = int(requested_version)
+        for candidate in all_versions:
+            if candidate.pk == wanted:
+                display_version = candidate
+                break
+
     is_legacy = display_version is None
 
     entries_qs = Curriculum.objects.filter(program=program)
@@ -343,12 +362,33 @@ def program_curriculum_list(request, program_id):
     )
     terms = AcademicYear.objects.order_by('-starts_on')
 
+    active_ay = AcademicYear.objects.filter(is_active=True).first()
+    teachers_by_subject = {}
+    if active_ay:
+        ay_classes = (
+            Class.objects
+            .filter(academic_year=active_ay, is_active=True)
+            .select_related('teacher_profile__user')
+            .values_list('subject_id',
+                         'teacher_profile__user__first_name',
+                         'teacher_profile__user__last_name',
+                         'teacher_profile__user__username')
+        )
+        for sid, fname, lname, uname in ay_classes:
+            full = f'{fname or ""} {lname or ""}'.strip() or uname
+            teachers_by_subject.setdefault(sid, [])
+            if full not in teachers_by_subject[sid]:
+                teachers_by_subject[sid].append(full)
+
     return JsonResponse({
         'ok': True,
         'program': serialize_program(program),
         'years_total': program.years_total,
         'semesters': [{'value': v, 'label': l} for v, l in Curriculum.SEMESTER_CHOICES],
-        'entries': [serialize_curriculum_entry(e) for e in entries],
+        'entries': [
+            serialize_curriculum_entry(e, teachers=teachers_by_subject.get(e.subject_id, []))
+            for e in entries
+        ],
         'subjects': [
             {'id': s.id, 'code': s.code, 'name': s.name}
             for s in subjects
@@ -364,6 +404,10 @@ def program_curriculum_list(request, program_id):
         'approved_version': (
             serialize_curriculum_version(version_state['approved'])
             if version_state['approved'] is not None else None
+        ),
+        'versions': [serialize_curriculum_version(v) for v in all_versions],
+        'selected_version_id': (
+            display_version.pk if display_version is not None else None
         ),
         'can_edit': display_version is None or display_version.status == CurriculumVersion.STATUS_DRAFT,
         'is_legacy': is_legacy,

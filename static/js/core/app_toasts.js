@@ -76,6 +76,17 @@
   // Global alias for quick calling
   window.toast = window.App.toast;
 
+  // Convenience helper methods for toastr-style calls
+  window.App.toast.success = function (message, duration) { return window.App.toast('success', message, duration); };
+  window.App.toast.error = function (message, duration) { return window.App.toast('error', message, duration); };
+  window.App.toast.warning = function (message, duration) { return window.App.toast('warning', message, duration); };
+  window.App.toast.info = function (message, duration) { return window.App.toast('info', message, duration); };
+
+  window.toast.success = window.App.toast.success;
+  window.toast.error = window.App.toast.error;
+  window.toast.warning = window.App.toast.warning;
+  window.toast.info = window.App.toast.info;
+
   // Enhance server-rendered Django toasts on DOMContentLoaded
   function initServerToasts() {
     document.querySelectorAll('.toast').forEach(function (toast) {

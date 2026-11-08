@@ -377,12 +377,17 @@
      data-remove-url-prefix="/programs/curriculum/remove/"
      data-draft-url-template="{% url 'program_curriculum_draft_create' 999999 %}"
      data-approve-url-template="{% url 'program_curriculum_approve' 999999 %}">
-  <div class="modal-dialog" style="max-width: 860px; width: 94%;">
-    <div class="modal-header">
+  <div class="modal-dialog" id="curriculumModalDialog" style="max-width: 1320px; width: 96vw; max-height: 94vh; display: flex; flex-direction: column; transition: all 0.25s ease;">
+    <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between;">
       <h3 class="modal-title" id="curriculumMatrixTitle">Curriculum Matrix</h3>
-      <button type="button" class="modal-close" data-modal-dismiss="curriculumMatrixModal">
-        <i class="fas fa-xmark"></i>
-      </button>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" class="btn btn-outline btn-sm" id="curriculumFullscreenBtn" title="Toggle Fullscreen" style="padding: 5px 12px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; height: 32px; border-color: rgba(245, 158, 11, 0.4); color: var(--gold, #fbbf24);">
+          <i class="fas fa-expand"></i> <span id="curriculumFsLabel">Fullscreen</span>
+        </button>
+        <button type="button" class="modal-close" data-modal-dismiss="curriculumMatrixModal" style="position: static; margin: 0;">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
     </div>
     <div class="modal-body">
       <div id="curriculumMatrixError" class="auth-alert auth-alert--error mb-4" style="display: none;">
@@ -394,6 +399,28 @@
            style="display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--glass-border); border-radius: 10px; margin-bottom: 16px;">
         <div id="curriculumVersionSummary" class="flex items-center gap-2" style="flex-wrap: wrap;"></div>
         <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+          <!-- Batch / Curriculum Version Selector -->
+          <div id="curriculumBatchWrap" class="flex items-center gap-2" style="display: none;">
+            <label for="curriculumBatchSelect" class="text-xs font-semibold text-muted" style="text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">
+              <i class="fas fa-layer-group text-gold"></i> Batch
+            </label>
+            <select id="curriculumBatchSelect" class="form-control" style="min-width: 280px; height: 32px; font-size: 0.78rem;" title="Select which entering batch's curriculum to view"></select>
+          </div>
+
+          <!-- View Mode Switcher -->
+          <div class="btn-group" id="curriculumViewSwitcher" style="display: inline-flex; border: 1px solid var(--glass-border); border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.2);">
+            <button type="button" class="btn btn-sm" id="curriculumViewProspectusBtn" style="padding: 5px 12px; font-size: 0.74rem; border-radius: 0; border: none; background: rgba(59, 130, 246, 0.25); color: #93c5fd;" title="Prospectus View (First Year → First Sem, Second Sem)">
+              <i class="fas fa-file-lines"></i> Prospectus
+            </button>
+            <button type="button" class="btn btn-sm" id="curriculumViewMatrixBtn" style="padding: 5px 12px; font-size: 0.74rem; border-radius: 0; border: none; background: transparent; color: var(--text-muted);" title="Matrix Table Grid">
+              <i class="fas fa-table-cells"></i> Matrix Table
+            </button>
+          </div>
+
+          <!-- Summer Toggle Pill Button -->
+          <button type="button" class="btn btn-outline btn-sm" id="curriculumSummerToggleBtn" style="padding: 5px 12px; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; transition: all 0.15s ease;">
+            <i class="fas fa-sun text-gold"></i> <span id="curriculumSummerToggleText">Summer Term</span>
+          </button>
           <button type="button" class="btn btn-outline" id="curriculumCreateDraftBtn" style="display: none;">
             <i class="fas fa-code-branch"></i> Create Draft
           </button>
@@ -413,43 +440,66 @@
 
       <div id="curriculumGrid" style="overflow-x: auto;"></div>
 
-      <hr style="border-color: var(--glass-border); margin: 20px 0;">
+      <div id="curriculumAssignSection" style="margin-top: 24px;">
+        <hr style="border-color: var(--glass-border); margin: 20px 0;">
 
-      <h4 class="text-sm text-secondary mb-3" style="letter-spacing: 0.04em; text-transform: uppercase;">
-        <i class="fas fa-plus-circle text-gold"></i> Assign Subject to Year Level
-      </h4>
-      <form id="curriculumAddForm" class="flex flex-wrap items-end gap-3">
-        <div class="form-group" style="flex: 1; min-width: 220px;">
-          <label class="form-label" for="curriculumSubjectSelect">Subject <span class="text-danger">*</span></label>
-          <select name="subject_id" id="curriculumSubjectSelect" class="form-control" required>
-            <option value="">Select Subject</option>
-          </select>
-        </div>
-        <div class="form-group" style="flex: 1; min-width: 140px;">
-          <label class="form-label" for="curriculumYearSelect">Year Level <span class="text-danger">*</span></label>
-          <select name="year_level" id="curriculumYearSelect" class="form-control" required>
-            <option value="">Select Year Level</option>
-          </select>
-        </div>
-        <div class="form-group" style="flex: 1; min-width: 160px;">
-          <label class="form-label" for="curriculumSemesterSelect">Semester <span class="text-danger">*</span></label>
-          <select name="semester" id="curriculumSemesterSelect" class="form-control" required>
-            <option value="">Select Semester</option>
-          </select>
-        </div>
-        <div class="form-group" style="flex: 0 0 auto; padding-bottom: 10px;">
-          <label class="flex items-center gap-2 text-sm" for="curriculumMajorCheckbox">
-            <input type="checkbox" name="is_major" id="curriculumMajorCheckbox" value="true">
-            Major subject
-          </label>
-          <span class="form-hint">Leave unchecked for general, core, or other non-major courses.</span>
-        </div>
-        <div class="form-group" style="flex: 0 0 auto;">
-          <button type="submit" class="btn btn-primary" id="curriculumAddBtn">
-            <i class="fas fa-plus"></i> Assign
+        <!-- Locked Notice (Displayed when Approved v1 / Read-only) -->
+        <div id="curriculumFormLockedNotice" class="curriculum-assign-locked" style="display: none; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; flex-wrap: wrap;">
+          <div class="flex items-center gap-3">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; color: #fbbf24; font-size: 1rem; flex-shrink: 0;">
+              <i class="fas fa-lock"></i>
+            </div>
+            <div>
+              <strong style="color: #fbbf24; font-size: 0.92rem;">Assign Subject is Locked (Official Curriculum is Read-Only)</strong>
+              <div class="text-xs text-muted" style="margin-top: 2px;">
+                Naka-lock ang form dahil official/approved ang curriculum. Para makapag-dagdag o makapag-assign ng subjects, i-click ang <strong>Create Draft</strong>.
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm js-create-draft-shortcut" style="padding: 7px 16px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; border-color: rgba(245, 158, 11, 0.5); color: #fbbf24; border-radius: 8px;">
+            <i class="fas fa-code-branch"></i> Create Draft to Edit
           </button>
         </div>
-      </form>
+
+        <!-- Editable Form (Displayed when Draft / canEdit) -->
+        <div id="curriculumFormEditableWrap" style="display: none;">
+          <h4 class="text-sm text-secondary mb-3" style="letter-spacing: 0.04em; text-transform: uppercase;">
+            <i class="fas fa-plus-circle text-gold"></i> Assign Subject to Year Level
+          </h4>
+          <form id="curriculumAddForm" class="flex flex-wrap items-end gap-3">
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+              <label class="form-label" for="curriculumSubjectSelect">Subject <span class="text-danger">*</span></label>
+              <select name="subject_id" id="curriculumSubjectSelect" class="form-control" required>
+                <option value="">Select Subject</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 130px;">
+              <label class="form-label" for="curriculumYearSelect">Year Level <span class="text-danger">*</span></label>
+              <select name="year_level" id="curriculumYearSelect" class="form-control" required>
+                <option value="">Select Year Level</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 140px;">
+              <label class="form-label" for="curriculumSemesterSelect">Semester <span class="text-danger">*</span></label>
+              <select name="semester" id="curriculumSemesterSelect" class="form-control" required>
+                <option value="">Select Semester</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 0 0 auto; padding-bottom: 8px;">
+              <label class="flex items-center gap-2 text-sm" for="curriculumMajorCheckbox">
+                <input type="checkbox" name="is_major" id="curriculumMajorCheckbox" value="true">
+                Major subject
+              </label>
+              <span class="form-hint">Unchecked = Core / GenEd</span>
+            </div>
+            <div class="form-group" style="flex: 0 0 auto;">
+              <button type="submit" class="btn btn-primary" id="curriculumAddBtn" style="height: 42px; padding: 0 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-plus"></i> Assign
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -460,7 +510,7 @@
 <script src="{% static 'js/programs/programs_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261104_v3"></script>
+<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261108_v6"></script>
 
 <style>
 .year-chip {
@@ -490,59 +540,286 @@
   border-color: rgba(59, 130, 246, 0.6);
   color: #93c5fd;
 }
-.curriculum-table {
+/* Prospectus Year-by-Year Hierarchy (KCC Official Style) */
+.curriculum-prospectus {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.curriculum-year-section {
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+.curriculum-year-header {
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.curriculum-year-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.curriculum-year-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--gold, #fbbf24);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+.curriculum-year-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.curriculum-year-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.curriculum-prospectus-sems-wrap {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.curriculum-prospectus-sem {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.curriculum-prospectus-sem.is-summer {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.025);
+}
+.curriculum-prospectus-sem-header {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.curriculum-prospectus-table-wrap {
+  overflow-x: auto;
+}
+.curriculum-prospectus-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 640px;
+  font-size: 0.82rem;
+  min-width: 600px;
+}
+.curriculum-prospectus-table th {
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+  text-align: left;
+}
+.curriculum-prospectus-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+  color: #e2e8f0;
+}
+.curriculum-prospectus-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+.curriculum-prospectus-table tfoot td {
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 600;
+}
+.curriculum-prospectus-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0.7;
+}
+.curriculum-semesters-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  padding: 16px;
+}
+.curriculum-semester-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.curriculum-semester-card.is-summer {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.025);
+}
+.curriculum-semester-header {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.curriculum-semester-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #93c5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.curriculum-semester-card.is-summer .curriculum-semester-title {
+  color: #fbbf24;
+}
+.curriculum-semester-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.curriculum-semester-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.curriculum-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 680px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 .curriculum-table th,
 .curriculum-table td {
   border: 1px solid var(--glass-border);
-  padding: 10px 12px;
+  padding: 12px 14px;
   vertical-align: top;
   text-align: left;
   font-size: 0.82rem;
 }
 .curriculum-table thead th {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-muted);
-  font-weight: 600;
+  background: rgba(15, 23, 42, 0.75);
+  color: #94a3b8;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  font-size: 0.74rem;
+  padding: 12px 14px;
 }
 .curriculum-table tbody th {
   white-space: nowrap;
-  color: var(--accent-gold);
-  font-weight: 600;
-  background: rgba(245, 158, 11, 0.06);
+  color: var(--gold, #fbbf24);
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.07);
+  text-align: center;
+  vertical-align: middle;
+  width: 85px;
+  font-size: 0.85rem;
 }
 .curriculum-cell-empty {
   color: var(--text-muted);
-  opacity: 0.45;
   text-align: center !important;
+  vertical-align: middle !important;
+  background: rgba(0, 0, 0, 0.05);
+}
+.curriculum-empty-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 12px;
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-size: 0.78rem;
+}
+.curriculum-cell-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-wrap: wrap;
 }
 .curriculum-chip-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-.curriculum-chip {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
-  padding: 4px 8px 4px 10px;
-  border-radius: 6px;
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: #93c5fd;
-  font-size: 0.78rem;
-  max-width: 100%;
+  align-items: stretch;
 }
-.curriculum-chip strong {
-  color: #bfdbfe;
-  font-weight: 700;
+.curriculum-subject-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid #3b82f6;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+.curriculum-subject-card:hover {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(59, 130, 246, 0.4);
+  border-left-color: #60a5fa;
+}
+.curriculum-subject-card.is-major {
+  border-left-color: #a855f7;
+  background: rgba(168, 85, 247, 0.05);
+}
+.curriculum-subject-card.is-major:hover {
+  background: rgba(168, 85, 247, 0.1);
+  border-left-color: #c084fc;
+}
+.curriculum-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.curriculum-card-title {
+  font-size: 0.8rem;
+  color: #f1f5f9;
+  font-weight: 500;
+  line-height: 1.35;
 }
 .curriculum-chip-major-toggle {
   border: 0;
@@ -556,9 +833,10 @@
 .curriculum-chip-remove {
   background: transparent;
   border: none;
-  color: #93c5fd;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 0 2px;
+  padding: 0 4px;
+  margin-left: auto;
   font-size: 0.78rem;
   line-height: 1;
   border-radius: 4px;
@@ -566,7 +844,30 @@
 }
 .curriculum-chip-remove:hover {
   color: #f87171;
-  background: rgba(248, 113, 113, 0.15);
+  background: rgba(248, 113, 113, 0.18);
+}
+.curriculum-card-instructor {
+  font-size: 0.72rem;
+  color: #6ee7b7;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding-top: 3px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  margin-top: 2px;
+}
+.modal-dialog.is-fullscreen {
+  max-width: 98vw !important;
+  width: 98vw !important;
+  height: 97vh !important;
+  max-height: 97vh !important;
+  margin: 1.5vh auto !important;
+  border-radius: 12px !important;
+}
+.modal-dialog.is-fullscreen .modal-body {
+  max-height: calc(97vh - 75px) !important;
+  overflow-y: auto !important;
 }
 </style>
 {% endblock %}

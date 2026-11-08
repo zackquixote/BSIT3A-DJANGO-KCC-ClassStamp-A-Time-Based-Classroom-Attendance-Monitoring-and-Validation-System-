@@ -108,6 +108,10 @@ def approve_student_registration(profile: Profile, actor) -> Profile:
     # // Generates a fresh 64-char hex secret for dynamic QR attendance stamping.
     profile.qr_secret = secrets.token_hex(32)
     profile.qr_rotated_at = timezone.now()
+
+    # // Pin the student to their entering-batch prospectus (fills only if missing).
+    from apps.core.services.student_service import apply_batch_fields
+    apply_batch_fields(profile)
     profile.save()
 
     # // [Immutable Audit Logging]

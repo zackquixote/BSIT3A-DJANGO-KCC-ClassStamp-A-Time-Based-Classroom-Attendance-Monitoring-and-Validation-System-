@@ -92,18 +92,31 @@ def serialize_curriculum_version(version) -> dict:
             return ''
         return user.get_full_name() or user.username
 
+    # Batch identity is the entering school year, not the internal revision
+    # counter, so admins read cohorts ("2024-2025") instead of v1/v2/v3.
+    effective_name = version.effective_from.name if version.effective_from else None
+    starts_on = version.effective_from.starts_on if version.effective_from else None
+    batch_year = f'{starts_on.year}-{starts_on.year + 1}' if starts_on else None
+    status_display = version.get_status_display()
+    if batch_year:
+        batch_label = f'{batch_year} ({status_display})'
+    elif version.status == 'DRAFT':
+        batch_label = 'Draft (editing)'
+    else:
+        batch_label = f'Legacy ({status_display})'
+
     return {
         'id': version.id,
         'program_id': version.program_id,
         'program_code': version.program.code if version.program else None,
         'version_number': version.version_number,
         'label': f'v{version.version_number}',
+        'batch_year': batch_year,
+        'batch_label': batch_label,
         'status': version.status,
-        'status_label': version.get_status_display(),
+        'status_label': status_display,
         'effective_from_id': version.effective_from_id,
-        'effective_from': (
-            version.effective_from.name if version.effective_from else None
-        ),
+        'effective_from': effective_name,
         'notes': version.notes or '',
         'created_by': _user_label(version.created_by),
         'approved_by': _user_label(version.approved_by),
@@ -113,7 +126,7 @@ def serialize_curriculum_version(version) -> dict:
     }
 
 
-def serialize_curriculum_entry(entry) -> dict:
+def serialize_curriculum_entry(entry, teachers=None) -> dict:
     """
     // Serializes a Curriculum matrix entry mapping a program, year level, and subject.
     """
@@ -134,6 +147,8 @@ def serialize_curriculum_entry(entry) -> dict:
         'subject_id': entry.subject_id,
         'subject_code': entry.subject.code if entry.subject else None,
         'subject_name': entry.subject.name if entry.subject else None,
+        'subject_units': entry.subject.units if entry.subject else 0,
+        'teachers': teachers if teachers is not None else [],
         'is_major': entry.is_major,
     }
 

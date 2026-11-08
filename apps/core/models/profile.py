@@ -121,6 +121,18 @@ class Profile(models.Model):
         null=True, blank=True,
         help_text="// Student classification (REGULAR, IRREGULAR, TRANSFEREE)"
     )
+    # // Entering batch cohort + the prospectus version this student follows.
+    entry_year = models.PositiveSmallIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="// Entering college batch year (e.g. 2024 from ID 2024-0001); drives batch filters"
+    )
+    curriculum_version = models.ForeignKey(
+        'CurriculumVersion',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='student_profiles',
+        help_text="// Prospectus version this student follows (their entering batch's curriculum)"
+    )
     gender = models.CharField(
         max_length=1,
         choices=GENDER_CHOICES,

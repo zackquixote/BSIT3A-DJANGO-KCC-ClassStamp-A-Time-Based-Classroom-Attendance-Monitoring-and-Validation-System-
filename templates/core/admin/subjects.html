@@ -82,47 +82,59 @@
 </div>
 
 <!-- Filter Bar -->
-<div class="card mb-4" style="padding: 14px 18px;">
-  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
-    <div class="input-wrap" style="flex: 1; min-width: 220px;">
-      <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" id="subjectSearch" class="form-control"
-        placeholder="Search by code or title…" autocomplete="off">
+<div class="card mb-4" style="padding: 16px 20px;">
+  <form method="GET" style="display: flex; flex-direction: column; gap: 12px;">
+    <!-- Top Row: Search Input + Action Buttons (Permanently Grouped) -->
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <div class="input-wrap" style="flex: 1; min-width: 260px;">
+        <i class="fas fa-magnifying-glass input-icon"></i>
+        <input type="text" name="q" value="{{ query }}" id="subjectSearch" class="form-control"
+          placeholder="Search subject code, title, or description…" autocomplete="off">
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+        <button type="submit" class="btn btn-primary" style="padding: 8px 18px; height: 38px; display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fas fa-filter"></i> Filter
+        </button>
+        {% if query or status_filter or program_filter or dept_filter or year_filter or semester_filter %}
+        <a href="{% url 'subject_list' %}" class="btn btn-outline" style="padding: 8px 14px; height: 38px; display: inline-flex; align-items: center; gap: 6px;" title="Reset all filters">
+          <i class="fas fa-rotate-left"></i> Clear
+        </a>
+        {% endif %}
+      </div>
     </div>
-    <select name="department" class="form-control" style="width: 180px;" id="filterDept">
-      <option value="">All Departments</option>
-      {% for d in departments %}
-      <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
-      {% endfor %}
-    </select>
-    <select name="program" class="form-control" style="width: 220px;" id="filterProgram">
-      <option value="">All Programs</option>
-      {% for p in programs %}
-      <option value="{{ p.id }}" data-dept="{{ p.department_id }}" data-years="{{ p.years_total }}" {% if program_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>
-      {% endfor %}
-    </select>
-    <select name="year_level" class="form-control" style="width: 145px;" id="filterYear"
-            data-max-years="{{ max_year_level }}">
-      <option value="">All Years</option>
-      {% for year in year_filter_choices %}
-      <option value="{{ year }}" {% if year_filter == year|stringformat:"s" %}selected{% endif %}>Year {{ year }}</option>
-      {% endfor %}
-    </select>
-    <select name="semester" class="form-control" style="width: 165px;">
-      <option value="">All Semesters</option>
-      {% for value, label in semester_choices %}
-      <option value="{{ value }}" {% if semester_filter == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <select name="status" class="form-control" style="width: 150px;">
-      <option value="">All Status</option>
-      <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
-      <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
-    </select>
-    {% if query or status_filter or program_filter or dept_filter or year_filter or semester_filter %}
-    <a href="{% url 'subject_list' %}" class="btn btn-outline">Clear</a>
-    {% endif %}
-    <button type="submit" class="btn btn-primary">Filter</button>
+
+    <!-- Bottom Row: Filter Dropdowns Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;">
+      <select name="department" class="form-control" id="filterDept">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+        <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
+        {% endfor %}
+      </select>
+      <select name="program" class="form-control" id="filterProgram">
+        <option value="">All Programs</option>
+        {% for p in programs %}
+        <option value="{{ p.id }}" data-dept="{{ p.department_id }}" data-years="{{ p.years_total }}" {% if program_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="year_level" class="form-control" id="filterYear" data-max-years="{{ max_year_level }}">
+        <option value="">All Years</option>
+        {% for year in year_filter_choices %}
+        <option value="{{ year }}" {% if year_filter == year|stringformat:"s" %}selected{% endif %}>Year {{ year }}</option>
+        {% endfor %}
+      </select>
+      <select name="semester" class="form-control">
+        <option value="">All Semesters</option>
+        {% for value, label in semester_choices %}
+        <option value="{{ value }}" {% if semester_filter == value|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="status" class="form-control">
+        <option value="">All Status</option>
+        <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
   </form>
 </div>
 
@@ -277,20 +289,27 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="9" class="text-center text-muted" style="padding: 48px 0;">
-            <i class="fas fa-book-open" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
-            {% if active_filter_labels %}
-            <strong class="text-primary">No subjects match these filters.</strong>
-            <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:12px 0;">
-              {% for filter_label in active_filter_labels %}
-              <span class="badge badge--muted">{{ filter_label }}</span>
-              {% endfor %}
+          <td colspan="9" style="padding: 64px 20px; text-align: center !important; vertical-align: middle;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0 auto; max-width: 580px; gap: 10px;">
+              <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; margin-bottom: 2px;">
+                <i class="fas fa-book-open text-muted" style="font-size: 1.5rem; opacity: 0.6;"></i>
+              </div>
+              {% if active_filter_labels %}
+              <strong class="text-primary" style="font-size: 1.05rem; display: block;">No subjects match these filters.</strong>
+              <div class="text-muted text-xs" style="margin-top: -4px;">No catalogue entries were found matching your selected criteria.</div>
+              <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px; margin: 8px 0;">
+                {% for filter_label in active_filter_labels %}
+                <span class="badge badge--muted">{{ filter_label }}</span>
+                {% endfor %}
+              </div>
+              <a href="{% url 'subject_list' %}" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;">
+                <i class="fas fa-rotate-left"></i> Clear filters
+              </a>
+              {% else %}
+              <strong class="text-primary" style="font-size: 1.05rem; display: block;">No subjects in the catalogue yet.</strong>
+              <div class="text-muted text-sm mt-1">Use Add Subject above to create the first catalogue entry.</div>
+              {% endif %}
             </div>
-            <a href="{% url 'subject_list' %}" class="btn btn-outline btn-sm">Clear filters</a>
-            {% else %}
-            <strong class="text-primary">No subjects in the catalogue yet.</strong>
-            <div class="text-sm mt-2">Use Add Subject above to create the first catalogue entry.</div>
-            {% endif %}
           </td>
         </tr>
         {% endfor %}

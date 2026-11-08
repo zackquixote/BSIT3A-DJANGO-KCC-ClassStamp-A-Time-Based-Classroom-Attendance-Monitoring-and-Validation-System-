@@ -20,25 +20,29 @@
   </div>
 </div>
 
-<div class="card">
+<div class="card" style="overflow: hidden; border: 1px solid var(--glass-border);">
   {% for notification in notifications %}
-    <article class="card-body" style="border-bottom: 1px solid var(--border-color, #e5e7eb);{% if not notification.read_at %} background: var(--surface-muted, #f8fafc);{% endif %}">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h2 class="h4 mb-1">{{ notification.title }}</h2>
-          <p class="mb-1">{{ notification.message }}</p>
-          <small class="text-muted">{{ notification.created_at|date:"M j, Y · g:i A" }}</small>
+    <article class="card-body" style="border-bottom: 1px solid var(--glass-border); padding: 14px 18px;{% if not notification.read_at %} background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;{% endif %}">
+      <div class="flex items-start justify-between gap-3" style="flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px;">
+          <h2 class="h4 mb-1" style="font-size: 0.95rem; font-weight: 600; color: #f1f5f9;">{{ notification.title }}</h2>
+          <p class="mb-1 text-sm text-secondary" style="line-height: 1.45;">{{ notification.message }}</p>
+          <small class="text-muted text-xs"><i class="far fa-clock"></i> {{ notification.created_at|date:"M j, Y · g:i A" }}</small>
         </div>
-        {% if not notification.read_at %}
-          <form method="post" action="{% url 'notification_mark_read' notification.id %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-outline btn-sm" aria-label="Open and mark {{ notification.title }} as read">
-              {% if notification.link %}Open{% else %}Mark read{% endif %}
-            </button>
-          </form>
-        {% elif notification.link %}
-          <a href="{{ notification.link }}" class="btn btn-outline btn-sm">Open</a>
-        {% endif %}
+        <div style="flex-shrink: 0;">
+          {% if not notification.read_at %}
+            <form method="post" action="{% url 'notification_mark_read' notification.id %}" style="margin: 0;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline btn-sm" aria-label="Open and mark {{ notification.title }} as read">
+                {% if notification.link %}<i class="fas fa-arrow-up-right-from-square"></i> Open{% else %}<i class="fas fa-check"></i> Mark read{% endif %}
+              </button>
+            </form>
+          {% elif notification.link %}
+            <a href="{{ notification.link }}" class="btn btn-outline btn-sm">
+              <i class="fas fa-arrow-up-right-from-square"></i> Open
+            </a>
+          {% endif %}
+        </div>
       </div>
     </article>
   {% empty %}

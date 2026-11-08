@@ -28,6 +28,64 @@ User = get_user_model()
 UNASSIGNED_SECTION = '__unassigned__'
 
 
+def parse_entry_year(student_number):
+    """Derive the entering batch year from a KCC student ID (YYYY-NNNN).
+
+    Tolerant: returns None when the prefix is not a plausible year so malformed
+    IDs (e.g. '2342-34553') never poison the batch filter.
+    """
+    if not student_number:
+        return None
+    head = str(student_number).strip().split('-', 1)[0]
+    digits = ''.join(c for c in head if c.isdigit())[:4]
+    if len(digits) == 4:
+        year = int(digits)
+        if 1900 <= year <= 2100:
+            return year
+    return None
+
+
+def resolve_batch_curriculum_version(program, entry_year):
+    """Return the prospectus version effective for a student's entering batch."""
+    if program is None or not entry_year:
+        return None
+    from apps.core.models import CurriculumVersion
+    program_id = getattr(program, 'pk', program)
+    return (
+        CurriculumVersion.objects.filter(
+            program_id=program_id,
+            effective_from__starts_on__year=entry_year,
+            status__in=(CurriculumVersion.STATUS_APPROVED, CurriculumVersion.STATUS_ARCHIVED),
+        )
+        .order_by('-version_number')
+        .first()
+    )
+
+
+def compute_batch_fields(student_number, program):
+    """Return (entry_year, curriculum_version) for a new student profile."""
+    entry_year = parse_entry_year(student_number)
+    return entry_year, resolve_batch_curriculum_version(program, entry_year)
+
+
+def apply_batch_fields(profile):
+    """Fill missing entry_year + curriculum_version in memory; return changed names."""
+    if profile.role != Profile.ROLE_STUDENT:
+        return []
+    changed = []
+    if profile.entry_year is None:
+        entry_year = parse_entry_year(profile.student_number)
+        if entry_year is not None:
+            profile.entry_year = entry_year
+            changed.append('entry_year')
+    if profile.curriculum_version_id is None and profile.entry_year and profile.program_id:
+        version = resolve_batch_curriculum_version(profile.program_id, profile.entry_year)
+        if version is not None:
+            profile.curriculum_version = version
+            changed.append('curriculum_version')
+    return changed
+
+
 # // ==============================================================================
 # // SECTION 1: STUDENT DIRECTORY QUERYSET BUILDER
 # // ==============================================================================
@@ -52,6 +110,7 @@ def build_student_queryset(filters: dict):
     dept_id = filters.get('department', '').strip()
     prog_id = filters.get('program', '').strip()
     year_level = filters.get('year_level', '').strip()
+    batch = filters.get('batch', '').strip()
     section = filters.get('section', '').strip()
     status = filters.get('status', '').strip()
     q = filters.get('q', '').strip()
@@ -97,6 +156,12 @@ def build_student_queryset(filters: dict):
     if year_level:
         try:
             qs = qs.filter(year_level=int(year_level))
+        except ValueError:
+            pass
+
+    if batch:
+        try:
+            qs = qs.filter(entry_year=int(batch))
         except ValueError:
             pass
 
@@ -298,12 +363,15 @@ def import_students_from_csv(
                     username=username, email=email,
                     first_name=first_name, last_name=last_name, password=pwd,
                 )
+                entry_year, curriculum_version = compute_batch_fields(student_no, program)
                 profile = Profile.objects.create(
                     user=user,
                     role=Profile.ROLE_STUDENT,
                     program=program,
                     year_level=year_level,
                     student_number=student_no,
+                    entry_year=entry_year,
+                    curriculum_version=curriculum_version,
                     approval_status=Profile.APPROVAL_APPROVED if auto_approve else Profile.APPROVAL_PENDING,
                     qr_secret=secrets.token_hex(32),
                     approved_by=actor if auto_approve else None,

@@ -64,9 +64,34 @@
     <h1>ClassStamp is temporarily unavailable</h1>
     <p>We can’t reach the system right now. Check your internet or local network, then try again.</p>
     <p class="notice">This page is an offline notice. Attendance and other changes cannot be confirmed until the system is back online.</p>
-    <form method="get">
+    <form method="get" onsubmit="handleTryAgain(event)">
       <button type="submit">Try again</button>
     </form>
   </main>
+  <script>
+    function clearServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) {
+            regs[i].unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var i = 0; i < names.length; i++) {
+            caches.delete(names[i]);
+          }
+        });
+      }
+    }
+    function handleTryAgain(e) {
+      if (e) e.preventDefault();
+      clearServiceWorker();
+      window.location.href = '/dashboard/';
+    }
+    // Auto-clear service worker cache if trapped here
+    clearServiceWorker();
+  </script>
 </body>
 </html>
