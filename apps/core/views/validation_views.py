@@ -711,3 +711,4 @@ def batch_validation_action(request):
     except Exception as exc:
         logger.exception('Batch validation error: %s', exc)
         return JsonResponse({'error': f'Batch processing error: {str(exc)}'}, status=500)
+
