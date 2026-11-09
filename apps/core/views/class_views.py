@@ -11,10 +11,11 @@
 """
 
 import json
-from datetime import time
+from datetime import time, timedelta
 from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
@@ -55,62 +56,148 @@ from apps.core.services.in_app_notification_service import create_notification
 
 
 def _class_setup_checklist(active_ay):
+    """
+    Returns a list of dicts — one per active class that is missing any setup step.
+    Each dict carries:
+      class_obj   – the Class instance
+      missing     – list of (label, severity) tuples
+      actions     – list of {label, action_key, class_id} for JS-driven modal triggers
+      total       – total active class count for progress bar
+      complete    – count of fully configured classes
+    Also returns total/complete counts via the first dict key (see below).
+    Result is cached for 60 s per active-year to avoid repeated heavy queries.
+    """
+    cache_key = f'setup_checklist_{active_ay.pk if active_ay else "none"}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    _now = timezone.now()
+    _stale_threshold = timedelta(days=30)
+    _session_threshold = timedelta(days=7)
+
     classes = Class.objects.filter(is_active=True)
     if active_ay:
         classes = classes.filter(academic_year=active_ay)
-    classes = classes.select_related(
-        'academic_year', 'subject', 'teacher_profile__user',
-    ).prefetch_related('slots').annotate(
-        active_enrolled=Count(
-            'enrollments',
-            filter=Q(enrollments__status=Enrollment.STATUS_ACTIVE),
-        ),
-    ).order_by('class_code')
+    classes = (
+        classes
+        .select_related('academic_year', 'subject', 'teacher_profile__user', 'program')
+        .prefetch_related('slots')
+        .annotate(
+            active_enrolled=Count(
+                'enrollments',
+                filter=Q(enrollments__status=Enrollment.STATUS_ACTIVE),
+            ),
+            pending_enrolled=Count(
+                'enrollments',
+                filter=Q(enrollments__status=Enrollment.STATUS_PENDING),
+            ),
+            session_count=Count('sessions'),
+        )
+        .order_by('class_code')
+    )
 
+    # Pre-fetch session existence per class in one query to avoid N+1
+    total = classes.count()
     checklist = []
+
     for class_obj in classes:
-        missing = []
+        missing = []  # list of (label, severity)  severity: 'danger' | 'warning' | 'info' | 'muted'
+
+        # ── Blocking / critical items ──────────────────────────────────────
         if not class_obj.teacher_profile_id:
-            missing.append('Teacher')
-        active_slots = [slot for slot in class_obj.slots.all() if slot.is_active]
+            missing.append(('No teacher assigned', 'danger'))
+
+        active_slots = [s for s in class_obj.slots.all() if s.is_active]
         if not active_slots:
-            missing.append('Schedule')
-        elif any(
-            not slot.room or slot.room.strip().upper() in {'TBA', 'ASSIGNED ROOM'}
-            for slot in active_slots
-        ):
-            missing.append('Room')
+            missing.append(('No schedule slots', 'danger'))
+        else:
+            tba_rooms = [
+                s for s in active_slots
+                if not s.room or s.room.strip().upper() in {'TBA', 'ASSIGNED ROOM'}
+            ]
+            if tba_rooms:
+                missing.append(('Room TBA', 'warning'))
+
+        # ── Program / year-level linkage ───────────────────────────────────
+        if not class_obj.program_id:
+            missing.append(('No program linked', 'danger'))
+
+        if not class_obj.year_level:
+            missing.append(('No year level set', 'warning'))
+
+        # ── Roster ────────────────────────────────────────────────────────
         if not class_obj.active_enrolled:
-            missing.append('Student roster')
+            missing.append(('Empty student roster', 'warning'))
+
+        if class_obj.pending_enrolled:
+            count = class_obj.pending_enrolled
+            missing.append((f'{count} pending enrollment{"s" if count != 1 else ""}', 'info'))
+
+        # ── Join code ─────────────────────────────────────────────────────
         if not class_obj.join_code_active:
-            missing.append('Student join code')
+            missing.append(('Join code not active', 'info'))
+        elif (
+            class_obj.join_code_created_at
+            and (_now - class_obj.join_code_created_at) > _stale_threshold
+        ):
+            missing.append(('Join code is stale (>30 days)', 'info'))
+
+        # ── Sessions ──────────────────────────────────────────────────────
+        class_age = _now - class_obj.created_at if class_obj.created_at else timedelta(0)
+        if (
+            class_age > _session_threshold
+            and active_slots
+            and class_obj.session_count == 0
+        ):
+            missing.append(('No attendance sessions started', 'muted'))
+
+        # ── Capacity ──────────────────────────────────────────────────────
+        if not class_obj.capacity:
+            missing.append(('Seat capacity not set', 'muted'))
+
         if missing:
-            action_specs = []
-            if 'Teacher' in missing:
-                action_specs.append(('Assign teacher', 'teacher'))
-            if 'Schedule' in missing or 'Room' in missing:
-                action_specs.append(('Set schedule / room', 'schedule'))
-            if 'Student roster' in missing:
-                action_specs.append(('Manage roster', 'roster'))
-            if 'Student join code' in missing:
-                action_specs.append(('Open join code menu', 'join_code'))
+            # Build action list — these trigger JS modals directly (no page reload)
+            actions = []
+            labels_present = {m[0] for m in missing}
+            if 'No teacher assigned' in labels_present:
+                actions.append({'label': 'Assign teacher', 'action_key': 'teacher', 'class_id': class_obj.pk})
+            if any(x in labels_present for x in ('No schedule slots', 'Room TBA')):
+                actions.append({'label': 'Set schedule / room', 'action_key': 'schedule', 'class_id': class_obj.pk})
+            if 'No program linked' in labels_present or 'No year level set' in labels_present or 'Seat capacity not set' in labels_present:
+                actions.append({'label': 'Edit class details', 'action_key': 'teacher', 'class_id': class_obj.pk})
+            if any(x in labels_present for x in ('Empty student roster',)) or any('pending enrollment' in x for x in labels_present):
+                actions.append({'label': 'Manage roster', 'action_key': 'roster', 'class_id': class_obj.pk})
+            if any('Join code' in x for x in labels_present):
+                actions.append({'label': 'Manage join code', 'action_key': 'join_code', 'class_id': class_obj.pk})
+
+            # Deduplicate actions by action_key
+            seen_keys = set()
+            unique_actions = []
+            for a in actions:
+                if a['action_key'] not in seen_keys:
+                    seen_keys.add(a['action_key'])
+                    unique_actions.append(a)
+
             checklist.append({
                 'class_obj': class_obj,
                 'missing': missing,
-                'actions': [
-                    {
-                        'label': label,
-                        'link': '/classes/?' + urlencode({
-                            'ay': 'ALL',
-                            'q': class_obj.class_code,
-                            'setup_class': class_obj.pk,
-                            'setup_action': action,
-                        }),
-                    }
-                    for label, action in action_specs
-                ],
+                'actions': unique_actions,
             })
-    return checklist
+
+    result = {
+        'items': checklist,
+        'total': total,
+        'complete': total - len(checklist),
+    }
+    cache.set(cache_key, result, timeout=60)
+    return result
+
+
+def _invalidate_checklist_cache(active_ay):
+    """Call this after any class/slot/enrollment save to bust the 60s cache."""
+    cache_key = f'setup_checklist_{active_ay.pk if active_ay else "none"}'
+    cache.delete(cache_key)
 
 
 # // ==============================================================================
@@ -195,6 +282,8 @@ def class_list(request):
         .order_by('code')
     )
 
+    _checklist_data = _class_setup_checklist(active_ay)
+
     return render(request, 'core/admin/classes.html', {
         'classes': classes_page,
         'ay_filter': ay_filter,
@@ -213,7 +302,9 @@ def class_list(request):
         'total_slots_count': total_slots_count,
         'total_enrolled_count': total_enrolled_count,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
-        'setup_checklist': _class_setup_checklist(active_ay),
+        'setup_checklist': _checklist_data['items'],
+        'checklist_total': _checklist_data['total'],
+        'checklist_complete': _checklist_data['complete'],
     })
 
 
@@ -308,6 +399,7 @@ def class_save(request):
             '/teacher/classes/',
         )
 
+    _invalidate_checklist_cache(active_ay=class_obj.academic_year)
     return redirect('class_list')
 
 
@@ -350,6 +442,7 @@ def class_toggle(request, pk):
 
     class_obj.is_active = not class_obj.is_active
     class_obj.save(update_fields=['is_active', 'updated_at'])
+    _invalidate_checklist_cache(active_ay=class_obj.academic_year)
 
     status_str = "activated" if class_obj.is_active else "deactivated"
     AuditEvent.objects.create(
@@ -453,6 +546,7 @@ def class_slot_save(request, class_id):
         reason=f"Added slot for {class_obj.class_code}: {slot.get_weekday_display()} {starts_at}-{ends_at}",
     )
 
+    _invalidate_checklist_cache(active_ay=class_obj.academic_year)
     return JsonResponse({
         'success': True,
         'slot': {
@@ -489,6 +583,7 @@ def class_slot_delete(request, slot_id):
             object_id=str(slot_id),
             reason=f"Retired schedule slot {slot_desc} from {class_code} while preserving session history",
         )
+        _invalidate_checklist_cache(active_ay=slot.class_obj.academic_year)
         return JsonResponse({
             'success': True,
             'archived': True,
@@ -504,6 +599,7 @@ def class_slot_delete(request, slot_id):
         reason=f"Removed schedule slot {slot_desc} from {class_code}",
     )
 
+    _invalidate_checklist_cache(active_ay=slot.class_obj.academic_year)
     return JsonResponse({'success': True})
 
 
@@ -738,6 +834,7 @@ def class_roster_enroll(request, class_id):
             '/student/dashboard/',
         )
 
+    _invalidate_checklist_cache(active_ay=class_obj.academic_year)
     return JsonResponse({
         'success': True,
         'student': {
@@ -807,6 +904,7 @@ def class_join_code_manage(request, class_id):
             reason=f'{action.title()}d student join code for {class_obj.class_code}',
         )
 
+    _invalidate_checklist_cache(active_ay=class_obj.academic_year)
     return JsonResponse({
         'success': True,
         'action': action,

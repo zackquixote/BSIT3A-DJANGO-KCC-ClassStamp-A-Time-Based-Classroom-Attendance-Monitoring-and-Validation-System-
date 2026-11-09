@@ -73,49 +73,132 @@
   </div>
 </div>
 
-<div class="card mb-4">
+{% comment %}── Class Setup Checklist Card ─────────────────────────────────────────{% endcomment %}
+<div class="card mb-4" id="setupChecklistCard" style="display:none;">
   <div class="card-body">
-    <div class="flex items-center justify-between gap-3 flex-wrap mb-2">
+
+    {% comment %}── Header row ────────────────────────────────────────{% endcomment %}
+    <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
       <div>
-        <h2 class="h3 mb-1">Class setup checklist</h2>
-        <p class="text-muted mb-0">Finish these details so teachers and students can use each active section.</p>
+        <h2 class="h3 mb-1" style="display:inline-flex;align-items:center;gap:8px;">
+          <i class="fas fa-list-check text-gold"></i> Class Setup Checklist
+        </h2>
+        <p class="text-muted mb-0" style="font-size:0.83rem;">
+          Finish these steps so teachers and students can use each active section.
+        </p>
       </div>
-      <span class="badge {% if setup_checklist %}badge--warning{% else %}badge--success{% endif %}">
-        {% if not setup_checklist %}
-          All sections complete
-        {% elif setup_checklist|length == 1 %}
-          1 section needs attention
+      <div class="flex items-center gap-2">
+        {% if setup_checklist %}
+          <span class="badge badge--warning" style="font-size:0.78rem;">
+            <i class="fas fa-triangle-exclamation"></i>
+            {{ setup_checklist|length }} section{{ setup_checklist|length|pluralize }} need{{ setup_checklist|length|pluralize:"s," }} attention
+          </span>
         {% else %}
-          {{ setup_checklist|length }} sections need attention
+          <span class="badge badge--success" style="font-size:0.78rem;">
+            <i class="fas fa-circle-check"></i> All sections complete
+          </span>
         {% endif %}
-      </span>
+        <button type="button" id="btnDismissChecklist"
+          class="btn btn-outline btn-xs"
+          title="Hide checklist for today"
+          style="font-size:0.72rem;padding:3px 10px;opacity:0.7;">
+          <i class="fas fa-eye-slash"></i> Dismiss
+        </button>
+      </div>
     </div>
+
+    {% comment %}── Progress bar ──────────────────────────────────────{% endcomment %}
+    {% if checklist_total %}
+      {% with pct=checklist_complete|floatformat:0 %}
+      <div style="margin-bottom:14px;">
+        <div class="flex items-center justify-between mb-1" style="font-size:0.78rem;">
+          <span class="text-muted">Configuration progress</span>
+          <span class="font-bold" style="color:{% if checklist_complete == checklist_total %}#4ade80{% else %}#fbbf24{% endif %};">
+            {{ checklist_complete }} / {{ checklist_total }} fully configured
+          </span>
+        </div>
+        <div style="background:var(--glass-border);border-radius:999px;height:7px;overflow:hidden;">
+          <div style="
+            height:100%;
+            border-radius:999px;
+            transition:width 0.4s ease;
+            background:{% if checklist_complete == checklist_total %}#4ade80{% else %}linear-gradient(90deg,#f59e0b,#fbbf24){% endif %};
+            width:{% widthratio checklist_complete checklist_total 100 %}%;
+          "></div>
+        </div>
+      </div>
+      {% endwith %}
+    {% endif %}
+
+    {% comment %}── Checklist table ───────────────────────────────────{% endcomment %}
     {% if setup_checklist %}
       <div class="table-responsive">
-        <table class="table">
-          <thead><tr><th>Section</th><th>Missing setup</th><th>Action</th></tr></thead>
+        <table class="table" style="font-size:0.82rem;">
+          <thead>
+            <tr>
+              <th style="width:22%;">Section</th>
+              <th>What needs attention</th>
+              <th style="width:30%;">Quick action</th>
+            </tr>
+          </thead>
           <tbody>
             {% for item in setup_checklist %}
-              <tr>
-                <td>{{ item.class_obj.class_code }} · {{ item.class_obj.subject.code }}</td>
-                <td>{{ item.missing|join:", " }}</td>
-                <td>
-                  <div class="flex items-center gap-1 flex-wrap">
-                    {% for action in item.actions %}
-                    <a class="btn btn-outline btn-sm" href="{{ action.link }}">{{ action.label }}</a>
-                    {% endfor %}
-                  </div>
-                </td>
-              </tr>
+            <tr>
+              <td>
+                <div class="font-bold text-primary" style="font-size:0.85rem;">{{ item.class_obj.class_code }}</div>
+                <div class="text-xs text-muted">{{ item.class_obj.subject.code }} — {{ item.class_obj.subject.name|truncatechars:28 }}</div>
+              </td>
+              <td>
+                <div class="flex flex-wrap gap-1" style="row-gap:4px;">
+                  {% for label, severity in item.missing %}
+                    {% if severity == 'danger' %}
+                      <span class="badge badge--danger badge--xs" style="font-size:0.68rem;">
+                        <i class="fas fa-circle-xmark"></i> {{ label }}
+                      </span>
+                    {% elif severity == 'warning' %}
+                      <span class="badge badge--warning badge--xs" style="font-size:0.68rem;">
+                        <i class="fas fa-triangle-exclamation"></i> {{ label }}
+                      </span>
+                    {% elif severity == 'info' %}
+                      <span class="badge badge--info badge--xs" style="font-size:0.68rem;">
+                        <i class="fas fa-circle-info"></i> {{ label }}
+                      </span>
+                    {% else %}
+                      <span class="badge badge--muted badge--xs" style="font-size:0.68rem;opacity:0.75;">
+                        <i class="fas fa-circle-dot"></i> {{ label }}
+                      </span>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </td>
+              <td>
+                <div class="flex flex-wrap gap-1" style="row-gap:4px;">
+                  {% for action in item.actions %}
+                  <button type="button"
+                    class="btn btn-outline btn-xs checklist-action-btn"
+                    data-class-id="{{ action.class_id }}"
+                    data-action-key="{{ action.action_key }}"
+                    style="font-size:0.72rem;padding:3px 9px;">
+                    {{ action.label }}
+                  </button>
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     {% else %}
-      <p class="text-success mb-0"><i class="fas fa-circle-check"></i> All active sections in this academic term have a teacher, schedule, room, roster, and join code.</p>
+      <p class="text-success mb-0" style="font-size:0.85rem;">
+        <i class="fas fa-circle-check"></i>
+        All {{ checklist_total }} active section{{ checklist_total|pluralize }} in this academic term
+        {% if checklist_total == 1 %}is{% else %}are{% endif %} fully configured.
+      </p>
     {% endif %}
+
   </div>
-</div>
+</div>{% comment %}/#setupChecklistCard{% endcomment %}
 
 <!-- ── Filter & Search Bar ────────────────────────────────────── -->
 <div class="card mb-4" style="padding: 14px 18px;">
@@ -720,6 +803,69 @@
     })
     .catch(function () { alert('Toggle failed. Please refresh.'); })
     .finally(function () { btn.disabled = false; });
+  });
+
+  /* ── Setup Checklist: dismiss + show logic ──────────────── */
+  (function () {
+    var card   = document.getElementById('setupChecklistCard');
+    var dimBtn = document.getElementById('btnDismissChecklist');
+    if (!card) return;
+
+    var DISMISS_KEY = 'kcc_checklist_dismissed_until';
+
+    function isDismissed() {
+      try {
+        var until = localStorage.getItem(DISMISS_KEY);
+        if (!until) return false;
+        return new Date().getTime() < parseInt(until, 10);
+      } catch (e) { return false; }
+    }
+
+    if (!isDismissed()) {
+      card.style.display = '';
+    }
+
+    if (dimBtn) {
+      dimBtn.addEventListener('click', function () {
+        try {
+          // dismiss until midnight tonight
+          var until = new Date();
+          until.setHours(23, 59, 59, 999);
+          localStorage.setItem(DISMISS_KEY, until.getTime().toString());
+        } catch (e) {}
+        card.style.display = 'none';
+      });
+    }
+  })();
+
+  /* ── Setup Checklist: quick-action buttons (no page reload) ─ */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.checklist-action-btn');
+    if (!btn) return;
+    var classId   = btn.dataset.classId;
+    var actionKey = btn.dataset.actionKey;
+    if (!classId || !actionKey) return;
+
+    // Scroll to and simulate click on the matching table row button
+    var row = document.getElementById('class-' + classId);
+    var actionSelectors = {
+      teacher:   '.btn-edit-class',
+      schedule:  '.btn-manage-slots',
+      roster:    '.btn-manage-roster',
+      join_code: '.action-dropdown-toggle',
+    };
+    var selector = actionSelectors[actionKey];
+    var target = row && selector ? row.querySelector(selector) : null;
+
+    if (target) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(function () { target.click(); }, 150);
+    } else {
+      // Fallback: highlight the section in the search bar and reload
+      var url = '/classes/?ay=ALL&q=' + encodeURIComponent(btn.closest('tr').querySelector('td .font-bold').textContent.trim())
+              + '&setup_class=' + classId + '&setup_action=' + actionKey;
+      window.location.href = url;
+    }
   });
 </script>
 {% endblock %}
