@@ -92,7 +92,7 @@ def _class_setup_checklist(active_ay):
                 'enrollments',
                 filter=Q(enrollments__status=Enrollment.STATUS_PENDING),
             ),
-            session_count=Count('sessions'),
+            session_count=Count('slots__sessions', distinct=True),
         )
         .order_by('class_code')
     )
