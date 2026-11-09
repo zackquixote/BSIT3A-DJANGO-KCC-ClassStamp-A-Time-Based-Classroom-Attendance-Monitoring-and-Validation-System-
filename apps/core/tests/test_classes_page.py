@@ -312,3 +312,17 @@ class ClassDepartmentAndYearFilterTests(ClassBase):
         self.assertNotIn(crim_class.class_code, codes)
         self.assertNotIn(year2_class.class_code, codes)
 
+        # 4. Filter by program, year_level and subject combined
+        res_subj = self.client.get(reverse('class_list'), {
+            'program': str(self.program.pk),
+            'year_level': '1',
+            'subject': str(self.subject.pk),
+        })
+        self.assertEqual(res_subj.status_code, 200)
+        codes = [c.class_code for c in res_subj.context['classes']]
+        self.assertEqual(codes, [self.class_obj.class_code])
+        self.assertTrue(len(res_subj.context['subjects_with_meta']) > 0)
+        first_s = res_subj.context['subjects_with_meta'][0]
+        self.assertIn('programs_json', first_s)
+        self.assertIn('years_json', first_s)
+

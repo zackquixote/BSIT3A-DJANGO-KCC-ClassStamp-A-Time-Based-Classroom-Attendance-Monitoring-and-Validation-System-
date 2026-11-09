@@ -319,6 +319,7 @@ def class_list(request):
 
     selected_dept = departments.filter(id=int(dept_filter)).first() if dept_filter.isdigit() else None
     selected_prog = programs.filter(id=int(prog_filter)).first() if prog_filter.isdigit() else None
+    selected_subject = subjects.filter(id=int(subject_filter)).first() if subject_filter.isdigit() else None
     year_choices = [1, 2, 3, 4]
     is_filtered = bool(
         dept_filter
@@ -330,6 +331,80 @@ def class_list(request):
         or (ay_filter and active_ay and ay_filter != str(active_ay.id))
     )
 
+    # Build Subject metadata for client-side dynamic scoping
+    subject_meta = {}
+    for entry in Curriculum.objects.filter(subject__is_active=True).values(
+        'subject_id', 'program_id', 'program__department_id', 'year_level'
+    ):
+        sid = entry['subject_id']
+        if sid not in subject_meta:
+            subject_meta[sid] = {'departments': set(), 'programs': set(), 'years': set()}
+        if entry['program__department_id']:
+            subject_meta[sid]['departments'].add(entry['program__department_id'])
+        if entry['program_id']:
+            subject_meta[sid]['programs'].add(entry['program_id'])
+        if entry['year_level']:
+            subject_meta[sid]['years'].add(entry['year_level'])
+
+    for row in Class.objects.filter(subject__is_active=True).values(
+        'subject_id', 'program_id', 'program__department_id', 'year_level'
+    ):
+        sid = row['subject_id']
+        if sid not in subject_meta:
+            subject_meta[sid] = {'departments': set(), 'programs': set(), 'years': set()}
+        if row['program__department_id']:
+            subject_meta[sid]['departments'].add(row['program__department_id'])
+        if row['program_id']:
+            subject_meta[sid]['programs'].add(row['program_id'])
+        if row['year_level']:
+            subject_meta[sid]['years'].add(row['year_level'])
+
+    subjects_with_meta = []
+    for s in subjects:
+        meta = subject_meta.get(s.id, {'departments': set(), 'programs': set(), 'years': set()})
+        subjects_with_meta.append({
+            'id': s.id,
+            'code': s.code,
+            'name': s.name,
+            'units': s.units,
+            'departments_json': json.dumps(list(meta['departments'])),
+            'programs_json': json.dumps(list(meta['programs'])),
+            'years_json': json.dumps(list(meta['years'])),
+        })
+
+    # Cohort curriculum subject breakdown (when a program is selected)
+    cohort_curriculum_subjects = []
+    if selected_prog:
+        curr_qs = Curriculum.objects.filter(program=selected_prog).select_related('subject')
+        if year_filter.isdigit():
+            curr_qs = curr_qs.filter(year_level=int(year_filter))
+
+        active_sections_map = {}
+        sec_qs = Class.objects.filter(is_active=True)
+        if active_ay:
+            sec_qs = sec_qs.filter(academic_year=active_ay)
+        sec_qs = sec_qs.filter(program=selected_prog)
+        if year_filter.isdigit():
+            sec_qs = sec_qs.filter(year_level=int(year_filter))
+
+        for sec in sec_qs.values('subject_id', 'class_code'):
+            active_sections_map.setdefault(sec['subject_id'], []).append(sec['class_code'])
+
+        seen_subjs = set()
+        for entry in curr_qs.order_by('year_level', 'semester', 'subject__code'):
+            if entry.subject_id not in seen_subjs:
+                seen_subjs.add(entry.subject_id)
+                offered_codes = active_sections_map.get(entry.subject_id, [])
+                cohort_curriculum_subjects.append({
+                    'subject': entry.subject,
+                    'year_level': entry.year_level,
+                    'semester': entry.semester,
+                    'semester_display': entry.get_semester_display(),
+                    'is_major': entry.is_major,
+                    'offered_codes': offered_codes,
+                    'is_offered': bool(offered_codes),
+                })
+
     _checklist_data = _class_setup_checklist(active_ay)
 
     return render(request, 'core/admin/classes.html', {
@@ -340,6 +415,7 @@ def class_list(request):
         'year_filter': year_filter,
         'selected_dept': selected_dept,
         'selected_prog': selected_prog,
+        'selected_subject': selected_subject,
         'year_choices': year_choices,
         'is_filtered': is_filtered,
         'subject_filter': subject_filter,
@@ -348,6 +424,8 @@ def class_list(request):
         'per_page': str(per_page),
         'academic_years': academic_years,
         'subjects': subjects,
+        'subjects_with_meta': subjects_with_meta,
+        'cohort_curriculum_subjects': cohort_curriculum_subjects,
         'teachers': teachers,
         'departments': departments,
         'programs': programs,

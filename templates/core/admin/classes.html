@@ -285,10 +285,14 @@
         <label class="form-label" style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; display: block;">
           <i class="fas fa-book text-blue"></i> Subject
         </label>
-        <select name="subject" class="form-control" onchange="this.form.submit()">
+        <select name="subject" id="classFilterSubject" class="form-control" onchange="this.form.submit()">
           <option value="">All Subjects</option>
-          {% for subj in subjects %}
-            <option value="{{ subj.id }}" {% if subject_filter == subj.id|stringformat:"s" %}selected{% endif %}>
+          {% for subj in subjects_with_meta %}
+            <option value="{{ subj.id }}"
+                    data-depts="{{ subj.departments_json }}"
+                    data-progs="{{ subj.programs_json }}"
+                    data-years="{{ subj.years_json }}"
+                    {% if subject_filter == subj.id|stringformat:"s" %}selected{% endif %}>
               {{ subj.code }} — {{ subj.name }}
             </option>
           {% endfor %}
@@ -336,7 +340,7 @@
       {% endif %}
       {% if subject_filter %}
         <span class="badge badge--gold badge--xs" style="padding: 3px 8px;">
-          <i class="fas fa-book"></i> Subject Filter
+          <i class="fas fa-book"></i> {% if selected_subject %}{{ selected_subject.code }}{% else %}Subject Filter{% endif %}
         </span>
       {% endif %}
       {% if teacher_filter %}
@@ -354,6 +358,54 @@
     <a href="{% url 'class_list' %}" class="btn btn-outline btn-xs" style="font-size: 0.72rem; padding: 4px 10px;">
       <i class="fas fa-rotate-left"></i> Clear All Filters
     </a>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Cohort Curriculum Subjects Strip ───────────────────────── -->
+{% if cohort_curriculum_subjects %}
+<div class="card mb-4" style="padding: 14px 18px; border-left: 3px solid #6366f1; background: rgba(30, 41, 59, 0.55);">
+  <div class="flex items-center justify-between gap-3 flex-wrap mb-2.5">
+    <div class="flex items-center gap-2">
+      <i class="fas fa-book-bookmark text-gold"></i>
+      <span class="font-bold text-sm text-primary">
+        Curriculum Subjects for {{ selected_prog.code }}{% if year_filter %} · Year {{ year_filter }}{% endif %}
+      </span>
+      <span class="badge badge--dark badge--xs" style="font-size:0.7rem;">
+        {{ cohort_curriculum_subjects|length }} subject{{ cohort_curriculum_subjects|length|pluralize }} in curriculum
+      </span>
+    </div>
+    <div class="text-xs text-muted">
+      Click a subject pill to filter its sections below
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2 flex-wrap">
+    {% for item in cohort_curriculum_subjects %}
+      {% if item.is_offered %}
+        <a href="?ay={{ ay_filter }}&department={{ dept_filter }}&program={{ prog_filter }}&year_level={{ year_filter }}&subject={{ item.subject.id }}"
+           class="badge badge--xs {% if subject_filter == item.subject.id|stringformat:'s' %}badge--gold font-bold{% else %}badge--success{% endif %}"
+           style="padding: 5px 10px; font-size: 0.74rem; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: transform 0.15s ease;"
+           title="{{ item.subject.name }} · {{ item.semester_display }} · Offered in: {{ item.offered_codes|join:', ' }}">
+          <i class="fas fa-circle-check"></i>
+          <span>{{ item.subject.code }}</span>
+          <span style="opacity:0.85; font-size:0.68rem;">({{ item.offered_codes|join:', ' }})</span>
+        </a>
+      {% else %}
+        <span class="badge badge--xs badge--warning"
+              style="padding: 5px 10px; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 5px;"
+              title="{{ item.subject.name }} · {{ item.semester_display }} · No active section offering created yet">
+          <i class="fas fa-triangle-exclamation"></i>
+          <span>{{ item.subject.code }}</span>
+          <a href="{% url 'class_wizard_setup' %}?program_id={{ selected_prog.id }}&year_level={{ item.year_level }}"
+             class="text-gold font-bold hover:underline"
+             style="margin-left: 3px; font-size: 0.68rem; text-decoration: none;"
+             title="Open Section Wizard for {{ item.subject.code }}">
+            <i class="fas fa-plus"></i> Add Section
+          </a>
+        </span>
+      {% endif %}
+    {% endfor %}
   </div>
 </div>
 {% endif %}
@@ -1003,29 +1055,63 @@
     }
   });
 
-  /* ── Filter Bar: Department & Program dynamic sync ─────── */
+  /* ── Filter Bar: Department, Program & Subject dynamic sync ─── */
   (function () {
     var deptSel = document.getElementById('classFilterDept');
     var progSel = document.getElementById('classFilterProg');
-    if (!deptSel || !progSel) return;
+    var yearSel = document.getElementById('classFilterYear');
+    var subjSel = document.getElementById('classFilterSubject');
 
-    function filterPrograms() {
-      var deptId = deptSel.value;
-      var options = progSel.querySelectorAll('option');
-      options.forEach(function (opt) {
-        if (!opt.value) return;
-        var optDept = opt.getAttribute('data-dept');
-        if (!deptId || optDept === deptId) {
-          opt.hidden = false;
-        } else {
-          opt.hidden = true;
-          if (opt.selected) progSel.value = '';
-        }
-      });
+    function syncFilters() {
+      var deptId = deptSel ? deptSel.value : '';
+      var progId = progSel ? progSel.value : '';
+      var yearVal = yearSel ? yearSel.value : '';
+
+      // 1. Sync Program options with Department
+      if (progSel) {
+        var progOptions = progSel.querySelectorAll('option');
+        progOptions.forEach(function (opt) {
+          if (!opt.value) return;
+          var optDept = opt.getAttribute('data-dept');
+          if (!deptId || optDept === deptId) {
+            opt.hidden = false;
+          } else {
+            opt.hidden = true;
+            if (opt.selected) progSel.value = '';
+          }
+        });
+      }
+
+      // 2. Sync Subject options with Department, Program, and Year Level
+      if (subjSel) {
+        var subjOptions = subjSel.querySelectorAll('option');
+        subjOptions.forEach(function (opt) {
+          if (!opt.value) return; // Keep "All Subjects"
+          var depts = [];
+          var progs = [];
+          var years = [];
+          try { depts = JSON.parse(opt.getAttribute('data-depts') || '[]'); } catch (e) {}
+          try { progs = JSON.parse(opt.getAttribute('data-progs') || '[]'); } catch (e) {}
+          try { years = JSON.parse(opt.getAttribute('data-years') || '[]'); } catch (e) {}
+
+          var matchesDept = !deptId || (depts.length === 0 || depts.indexOf(parseInt(deptId, 10)) !== -1);
+          var matchesProg = !progId || (progs.length === 0 || progs.indexOf(parseInt(progId, 10)) !== -1);
+          var matchesYear = !yearVal || (years.length === 0 || years.indexOf(parseInt(yearVal, 10)) !== -1);
+
+          if (matchesDept && matchesProg && matchesYear) {
+            opt.hidden = false;
+          } else {
+            opt.hidden = true;
+            if (opt.selected) subjSel.value = '';
+          }
+        });
+      }
     }
 
-    deptSel.addEventListener('change', filterPrograms);
-    filterPrograms();
+    if (deptSel) deptSel.addEventListener('change', syncFilters);
+    if (progSel) progSel.addEventListener('change', syncFilters);
+    if (yearSel) yearSel.addEventListener('change', syncFilters);
+    syncFilters();
   })();
 </script>
 {% endblock %}
