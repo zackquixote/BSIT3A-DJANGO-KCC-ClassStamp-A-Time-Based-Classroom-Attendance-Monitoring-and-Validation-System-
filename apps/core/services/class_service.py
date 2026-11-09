@@ -64,6 +64,17 @@ def assign_class(
                     f"instead, so past attendance stays attributed correctly."
                 )
 
+    target_program = program
+    if target_program is None and class_obj is not None:
+        target_program = class_obj.program
+
+    if teacher_profile and subject:
+        from apps.core.services.academic_service import validate_teacher_subject_assignment
+        try:
+            validate_teacher_subject_assignment(teacher_profile, subject, program=target_program)
+        except ValueError as exc:
+            raise ClassAssignmentError(str(exc))
+
     with transaction.atomic():
         conflict_qs = Class.objects.select_for_update().filter(
             academic_year=academic_year,

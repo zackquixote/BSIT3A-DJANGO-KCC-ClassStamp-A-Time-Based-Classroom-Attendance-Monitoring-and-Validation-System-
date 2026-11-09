@@ -2,7 +2,7 @@ import json
 import hashlib
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -15,9 +15,11 @@ from apps.core.models import (
     Class,
     ClassSession,
     ClassSlot,
+    Department,
     Enrollment,
     ExcuseSlip,
     Profile,
+    Program,
     PushSubscription,
     RoomVerification,
 )
@@ -138,26 +140,62 @@ def attendance_period_report(request):
     academic_year, error = _resolve_academic_year(request.GET.get('academic_year'))
     if error:
         return error
+
+    dept_id = request.GET.get('department', '').strip()
+    prog_id = request.GET.get('program', '').strip()
+    year_level = request.GET.get('year_level', '').strip()
+
     records = AttendanceRecord.objects.select_related(
         'student_profile__user',
+        'student_profile__program__department',
         'session__slot__class_obj__subject',
+        'session__slot__class_obj__program__department',
     ).filter(session__slot__class_obj__academic_year=academic_year)
+
+    if dept_id.isdigit():
+        d_id = int(dept_id)
+        records = records.filter(
+            Q(session__slot__class_obj__program__department_id=d_id)
+            | Q(student_profile__program__department_id=d_id)
+        )
+
+    if prog_id.isdigit():
+        p_id = int(prog_id)
+        records = records.filter(
+            Q(session__slot__class_obj__program_id=p_id)
+            | Q(student_profile__program_id=p_id)
+        )
+
+    if year_level.isdigit():
+        yr = int(year_level)
+        records = records.filter(
+            Q(session__slot__class_obj__year_level=yr)
+            | Q(student_profile__year_level=yr)
+        )
 
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="classstamp-period-report.csv"'
     writer = SafeCsvWriter(response)
     writer.writerow([
-        'Date', 'Academic Year', 'Class', 'Subject', 'Student Number',
+        'Date', 'Academic Year', 'Department', 'Program', 'Year Level', 'Class', 'Subject', 'Student Number',
         'Student Name', 'Status', 'Method', 'Late Minutes',
     ])
     for record in records.order_by('session__session_date', 'student_profile__student_number'):
+        cls_obj = record.session.slot.class_obj
+        student = record.student_profile
+        prog = cls_obj.program or (student.program if student else None)
+        dept = (prog.department if prog else None) or (student.program.department if student and student.program else None)
+        yr = cls_obj.year_level or (student.year_level if student else '')
         writer.writerow([
             record.session.session_date,
             academic_year.name if academic_year else '',
-            record.session.slot.class_obj.class_code,
-            record.session.slot.class_obj.subject.name,
-            record.student_profile.student_number or '',
-            record.student_profile.user.get_full_name(),
+            dept.code if dept else '',
+            prog.code if prog else '',
+            yr,
+            cls_obj.class_code,
+            cls_obj.subject.name,
+            student.student_number if student else '',
+            student.user.get_full_name() if student else '',
             record.status,
             record.method,
             record.late_minutes,
@@ -173,13 +211,62 @@ def attendance_period_report_page(request):
     selected_year, error = _resolve_academic_year(request.GET.get('academic_year'))
     if error:
         return error
-    record_count = AttendanceRecord.objects.filter(
+
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    programs = Program.objects.filter(is_active=True).select_related('department').order_by('code')
+
+    dept_id = request.GET.get('department', '').strip()
+    prog_id = request.GET.get('program', '').strip()
+    year_level = request.GET.get('year_level', '').strip()
+
+    records_qs = AttendanceRecord.objects.filter(
         session__slot__class_obj__academic_year=selected_year
-    ).count() if selected_year else 0
+    ) if selected_year else AttendanceRecord.objects.none()
+
+    if dept_id.isdigit():
+        d_id = int(dept_id)
+        records_qs = records_qs.filter(
+            Q(session__slot__class_obj__program__department_id=d_id)
+            | Q(student_profile__program__department_id=d_id)
+        )
+
+    if prog_id.isdigit():
+        p_id = int(prog_id)
+        records_qs = records_qs.filter(
+            Q(session__slot__class_obj__program_id=p_id)
+            | Q(student_profile__program_id=p_id)
+        )
+
+    if year_level.isdigit():
+        yr = int(year_level)
+        records_qs = records_qs.filter(
+            Q(session__slot__class_obj__year_level=yr)
+            | Q(student_profile__year_level=yr)
+        )
+
+    record_count = records_qs.count()
+
+    preview_records = (
+        records_qs
+        .select_related(
+            'student_profile__user',
+            'student_profile__program',
+            'session__slot__class_obj__subject',
+            'session__slot__class_obj__program',
+        )
+        .order_by('-session__session_date', 'student_profile__student_number')[:10]
+    )
+
     return render(request, 'core/admin/attendance_period_report.html', {
         'academic_years': academic_years,
         'selected_academic_year': selected_year,
+        'departments': departments,
+        'programs': programs,
+        'selected_dept': dept_id,
+        'selected_prog': prog_id,
+        'selected_year_level': year_level,
         'record_count': record_count,
+        'preview_records': preview_records,
     })
 
 

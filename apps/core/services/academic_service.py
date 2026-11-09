@@ -582,6 +582,61 @@ def validate_subject_program_major(subject: Subject, program: Program, is_major:
         )
 
 
+def validate_teacher_subject_assignment(teacher_profile: Profile, subject: Subject, program: Program | None = None) -> None:
+    """
+    Validates that a faculty instructor's department affiliation aligns with the subject
+    and section being assigned:
+    1. Teachers without an assigned department are unconstrained.
+    2. General Education subjects (GE, GEE, NSTP, PE, etc.) are institution-wide and can be
+       taught by faculty from any college department.
+    3. If the course's discipline prefix (e.g. CRIM, IT, BA) belongs to a program under
+       another department, cross-department assignment is blocked.
+    4. If the course is mapped to curriculum entries exclusively belonging to another department,
+       cross-department assignment is blocked.
+    5. If a specific section program is provided from another department (and subject is not GE),
+       cross-department assignment is blocked.
+    """
+    if not teacher_profile or not teacher_profile.department_id:
+        return
+
+    # GE courses can be instructed by any faculty
+    if is_general_education_subject(subject.code):
+        return
+
+    teacher_dept = teacher_profile.department
+    teacher_name = teacher_profile.user.get_full_name() or teacher_profile.user.username
+
+    # 1. Check discipline code prefix match
+    subject_home_program_code = get_subject_prefix_program(subject.code)
+    if subject_home_program_code:
+        home_prog = Program.objects.filter(code=subject_home_program_code).select_related('department').first()
+        if home_prog and home_prog.department_id and home_prog.department_id != teacher_profile.department_id:
+            raise ValueError(
+                f"Course '{subject.code}' belongs to {home_prog.department.name} ({home_prog.department.code}). "
+                f"Instructor {teacher_name} is affiliated with {teacher_dept.name} ({teacher_dept.code})."
+            )
+
+    # 2. Check mapped curriculum departments
+    curric_depts = set(
+        Curriculum.objects.filter(subject=subject, program__department__isnull=False)
+        .values_list('program__department_id', flat=True)
+    )
+    if curric_depts and teacher_profile.department_id not in curric_depts:
+        other_dept = Department.objects.filter(id__in=curric_depts).first()
+        other_dept_label = f"{other_dept.name} ({other_dept.code})" if other_dept else "a different department"
+        raise ValueError(
+            f"Course '{subject.code}' is offered exclusively under {other_dept_label}. "
+            f"Instructor {teacher_name} is affiliated with {teacher_dept.name} ({teacher_dept.code})."
+        )
+
+    # 3. Check section program if explicitly provided
+    if program and program.department_id and program.department_id != teacher_profile.department_id:
+        raise ValueError(
+            f"Section program '{program.code}' is under {program.department.name} ({program.department.code}), "
+            f"which does not match instructor {teacher_name}'s department ({teacher_dept.name})."
+        )
+
+
 def assign_curriculum_subject(
     actor, program_id: int, year_level: int, subject_id: int, semester: int = 1,
     is_major: bool = False,
@@ -871,7 +926,7 @@ def term_switch_blockers(academic_year):
     }
 
 
-def _advance_approved_students() -> int:
+def _advance_approved_students(department_id: int | None = None, program_id: int | None = None) -> int:
     """
     Advances approved students one year level, capped at program duration.
 
@@ -879,6 +934,8 @@ def _advance_approved_students() -> int:
     standing is earned by subject credits, not by time served: bumping their
     year_level silently moves them into the wrong cohort and every section
     report then follows the wrong year. They need a per-student decision.
+
+    Optionally filters by department_id or program_id to scope promotion.
     """
     promoted_count = 0
     students = (
@@ -893,6 +950,11 @@ def _advance_approved_students() -> int:
         )
         .select_related('program')
     )
+    if program_id:
+        students = students.filter(program_id=program_id)
+    elif department_id:
+        students = students.filter(program__department_id=department_id)
+
     for student in students:
         cap = student.program.years_total if student.program else 0
         if cap and student.year_level < cap:
@@ -902,28 +964,40 @@ def _advance_approved_students() -> int:
     return promoted_count
 
 
-def promote_students(actor) -> dict:
+def promote_students(actor, department_id: int | None = None, program_id: int | None = None) -> dict:
     """
     // [Service] End-of-Year Batch Student Promotion (A-06)
     //
-    // 1-click advance of every APPROVED student to the next year level,
-    // capped at their program's years_total (final-year students stay put).
+    // 1-click advance of approved students to the next year level,
+    // optionally scoped to a Department or Program, capped at their program's
+    // years_total (final-year students stay put).
     """
     with transaction.atomic():
-        promoted_count = _advance_approved_students()
+        promoted_count = _advance_approved_students(
+            department_id=department_id, program_id=program_id
+        )
+
+    scope_desc = 'ALL'
+    if program_id:
+        prog = Program.objects.filter(pk=program_id).first()
+        scope_desc = f'Program:{prog.code if prog else program_id}'
+    elif department_id:
+        dept = Department.objects.filter(pk=department_id).first()
+        scope_desc = f'Dept:{dept.code if dept else department_id}'
 
     AuditEvent.objects.create(
         actor=actor,
         action='PROMOTE_STUDENTS',
         object_type='Student',
-        object_id='ALL',
-        new_value=f'{promoted_count} approved student(s) advanced one year level (capped at program duration)',
-        reason='End-of-year batch promotion (A-06)',
+        object_id=scope_desc,
+        new_value=f'{promoted_count} approved student(s) advanced one year level (capped at program duration, scope={scope_desc})',
+        reason=f'End-of-year batch promotion (A-06, scope: {scope_desc})',
     )
 
+    scope_name = f' ({scope_desc})' if scope_desc != 'ALL' else ''
     return {
         'promoted_count': promoted_count,
-        'message': f'Promoted {promoted_count} approved student(s) to the next year level.',
+        'message': f'Promoted {promoted_count} approved student(s){scope_name} to the next year level.',
     }
 
 

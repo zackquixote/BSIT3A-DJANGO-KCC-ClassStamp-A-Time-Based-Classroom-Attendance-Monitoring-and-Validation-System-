@@ -36,18 +36,35 @@
     if (!btn) return;
 
     btn.addEventListener('click', function () {
+      var progSelect = document.getElementById('filter_prog');
+      var deptSelect = document.getElementById('filter_dept');
+      var progId = progSelect ? progSelect.value : '';
+      var deptId = deptSelect ? deptSelect.value : '';
+
+      var scopeLabel = 'ALL approved students across the institution';
+      if (progId && progSelect.selectedIndex > 0) {
+        scopeLabel = 'approved ' + progSelect.options[progSelect.selectedIndex].text.trim() + ' students';
+      } else if (deptId && deptSelect.selectedIndex > 0) {
+        scopeLabel = 'approved students under ' + deptSelect.options[deptSelect.selectedIndex].text.trim();
+      }
+
       var ok = window.confirm(
-        'Promote ALL approved students to the next year level?\n\n' +
+        'Promote ' + scopeLabel + ' to the next year level?\n\n' +
         'Students at their program\'s final year will not be moved. ' +
         'This action is permanent and fully audited.'
       );
       if (!ok) return;
 
       btn.disabled = true;
-      postForm(btn.getAttribute('data-url'), {})
+      var payload = {};
+      if (progId) payload.program_id = progId;
+      else if (deptId) payload.department_id = deptId;
+
+      postForm(btn.getAttribute('data-url'), payload)
         .then(function (data) {
           if (data.status === 'success') {
             toast(data.message || 'Promotion complete.', 'success');
+            setTimeout(function () { window.location.reload(); }, 1500);
           } else {
             toast(data.error || 'Promotion failed.', 'error');
           }

@@ -128,6 +128,7 @@
 
       e.preventDefault();
       currentLoadTeacherId = loadBtn.dataset.id;
+      var teacherDeptId = loadBtn.dataset.deptId ? parseInt(loadBtn.dataset.deptId, 10) : null;
       var assignIdEl = getEl('assignTeacherId');
       if (assignIdEl) assignIdEl.value = currentLoadTeacherId;
       var codeEl = getEl('assignClassCode');
@@ -136,6 +137,26 @@
       if (errEl) errEl.style.display = 'none';
       var succEl = getEl('assignLoadSuccess');
       if (succEl) succEl.style.display = 'none';
+
+      // Scope subject options to teacher's department or GE courses
+      var assignSubSelect = getEl('assignSubject');
+      if (assignSubSelect) {
+        assignSubSelect.value = '';
+        var opts = assignSubSelect.querySelectorAll('option');
+        opts.forEach(function (opt) {
+          if (!opt.value) return;
+          var isGe = opt.getAttribute('data-is-ge') === '1';
+          var depts = [];
+          try { depts = JSON.parse(opt.getAttribute('data-depts') || '[]'); } catch (e) {}
+          if (!teacherDeptId || isGe || depts.length === 0 || depts.indexOf(teacherDeptId) !== -1) {
+            opt.hidden = false;
+            opt.disabled = false;
+          } else {
+            opt.hidden = true;
+            opt.disabled = true;
+          }
+        });
+      }
 
       refreshTeacherLoadList(currentLoadTeacherId);
 
@@ -157,10 +178,21 @@
         if (!opt || !opt.value) return;
         var subCode = opt.textContent.split('\u2014')[0].trim();
         var codeInput = getEl('assignClassCode');
-        if (codeInput && (!codeInput.value || codeInput.value.startsWith('BSIT-'))) {
-          var match = subCode.match(/\d/);
-          var yr = match ? match[0] : '1';
-          codeInput.value = 'BSIT-' + yr + 'A-' + subCode;
+        if (codeInput && (!codeInput.value || codeInput.value.indexOf('-') !== -1)) {
+          var matchYr = subCode.match(/\d/);
+          var yr = matchYr ? matchYr[0] : '1';
+          var matchProg = subCode.match(/^[A-Z]+/);
+          var prog = matchProg ? matchProg[0] : 'SEC';
+          if (prog === 'IT' || prog === 'CS' || prog === 'IS') prog = 'BSIT';
+          else if (prog === 'CRIM' || prog === 'CDI' || prog === 'LEA') prog = 'BSCRIM';
+          else if (prog === 'BA' || prog === 'BUS' || prog === 'MKT' || prog === 'FM') prog = 'BSBA';
+          else if (prog === 'ACC' || prog === 'BSA') prog = 'BSA';
+          else if (prog === 'ELS') prog = 'AB-ELS';
+          else if (prog === 'PSY' || prog === 'PSYCH') prog = 'AB-PSYCH';
+          else if (prog === 'BEED') prog = 'BEED';
+          else if (prog === 'BSED') prog = 'BSED';
+          else if (prog === 'GE' || prog === 'GEE' || prog === 'PE' || prog === 'NSTP') prog = 'SEC';
+          codeInput.value = prog + '-' + yr + 'A-' + subCode;
         }
       });
     }

@@ -756,7 +756,10 @@
     <datalist id="sectionDatalist">
       <option value="__unassigned__" label="Unassigned (no section)">
       {% for sec in sections %}
-        <option value="{{ sec }}">
+        <option value="{{ sec.section_code|default:sec }}"
+                data-dept="{{ sec.program__department_id|default:'' }}"
+                data-prog="{{ sec.program_id|default:'' }}"
+                data-year="{{ sec.year_level|default:'' }}">
       {% endfor %}
     </datalist>
 
@@ -1378,5 +1381,45 @@ document.querySelectorAll('.curriculum-filter-btn').forEach(function(btn) {
     });
   });
 });
+
+// Dynamic Section Datalist Scoping
+(function () {
+  var deptSelect = document.getElementById('filter_dept');
+  var progSelect = document.getElementById('filter_prog');
+  var yearSelect = document.getElementById('filter_year');
+  var datalist = document.getElementById('sectionDatalist');
+  if (!datalist) return;
+
+  var allOptions = Array.from(datalist.querySelectorAll('option'));
+
+  function syncSections() {
+    var curDept = deptSelect ? deptSelect.value : '';
+    var curProg = progSelect ? progSelect.value : '';
+    var curYear = yearSelect ? yearSelect.value : '';
+
+    allOptions.forEach(function (opt) {
+      if (opt.value === '__unassigned__') return;
+      var optDept = opt.getAttribute('data-dept');
+      var optProg = opt.getAttribute('data-prog');
+      var optYear = opt.getAttribute('data-year');
+
+      var match = true;
+      if (curDept && optDept && optDept !== curDept) match = false;
+      if (curProg && optProg && optProg !== curProg) match = false;
+      if (curYear && optYear && optYear !== curYear) match = false;
+
+      if (match) {
+        if (!opt.parentElement) datalist.appendChild(opt);
+      } else {
+        if (opt.parentElement) opt.remove();
+      }
+    });
+  }
+
+  if (deptSelect) deptSelect.addEventListener('change', syncSections);
+  if (progSelect) progSelect.addEventListener('change', syncSections);
+  if (yearSelect) yearSelect.addEventListener('change', syncSections);
+  syncSections();
+})();
 </script>
 {% endblock %}

@@ -658,10 +658,15 @@
           <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Assigned Faculty Instructor *</label>
           <select name="teacher_profile_id" id="formTeacherId" class="form-control" required style="width: 100%;">
             <option value="">Select Instructor...</option>
-            {% for t in teachers %}
-              <option value="{{ t.id }}">
-                {{ t.user.get_full_name|default:t.user.username }} {% if t.department %}({{ t.department.code }}){% endif %}
-              </option>
+            {% regroup teachers by department as teachers_by_dept %}
+            {% for grp in teachers_by_dept %}
+              <optgroup label="{% if grp.grouper %}{{ grp.grouper.code }} — {{ grp.grouper.name }}{% else %}General Faculty{% endif %}" data-dept-id="{% if grp.grouper %}{{ grp.grouper.id }}{% endif %}">
+                {% for t in grp.list %}
+                  <option value="{{ t.id }}" data-dept-id="{{ t.department_id|default:'' }}" data-dept-code="{{ t.department.code|default:'' }}">
+                    {{ t.user.get_full_name|default:t.user.username }}{% if t.department %} ({{ t.department.code }}){% endif %}
+                  </option>
+                {% endfor %}
+              </optgroup>
             {% endfor %}
           </select>
         </div>
@@ -672,7 +677,7 @@
             <select name="program_id" id="formProgramId" class="form-control" style="width: 100%;">
               <option value="">(Auto-detect from Code)</option>
               {% for p in programs %}
-                <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+                <option value="{{ p.id }}" data-dept-id="{{ p.department_id }}">{{ p.code }} — {{ p.name }}</option>
               {% endfor %}
             </select>
           </div>

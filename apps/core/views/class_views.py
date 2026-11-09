@@ -44,6 +44,8 @@ from apps.core.services import (
     assign_class,
     detect_slot_conflicts,
     eligible_teachers_for,
+    get_subject_prefix_program,
+    is_general_education_subject,
     resolve_curriculum_version,
     student_overlap_conflicts,
     suggest_section_letter,
@@ -308,7 +310,7 @@ def class_list(request):
     teachers = (
         Profile.objects.filter(role=Profile.ROLE_TEACHER, user__is_active=True)
         .select_related('user', 'department')
-        .order_by('user__last_name', 'user__first_name')
+        .order_by('department__name', 'user__last_name', 'user__first_name')
     )
     departments = Department.objects.filter(is_active=True).order_by('name')
     programs = (
@@ -880,6 +882,30 @@ def class_roster_enroll(request, class_id):
             'success': False,
             'message': 'Teachers can only approve pending requests for their own classes.',
         }, status=400)
+
+    # Program scope validation:
+    # If the class belongs to a specific program, and the course is a Major or discipline-specific subject,
+    # prevent accidental cross-program enrollment unless explicitly allowed (allow_cross_program=1).
+    allow_cross_program = request.POST.get('allow_cross_program') == '1' or request.POST.get('force') == '1'
+    if class_obj.program_id and student.program_id and class_obj.program_id != student.program_id and not allow_cross_program:
+        if not is_general_education_subject(class_obj.subject.code):
+            is_major = Curriculum.objects.filter(
+                program_id=class_obj.program_id,
+                subject_id=class_obj.subject_id,
+                is_major=True,
+            ).exists()
+            prefix_prog = get_subject_prefix_program(class_obj.subject.code)
+            if is_major or (prefix_prog and prefix_prog == class_obj.program.code):
+                student_prog_code = student.program.code if student.program else 'another program'
+                class_prog_code = class_obj.program.code if class_obj.program else 'this program'
+                return JsonResponse({
+                    'success': False,
+                    'message': (
+                        f"Student {student.student_number or student.user.username} is enrolled under {student_prog_code}, "
+                        f"while {class_obj.subject.code} is a Major subject designated for {class_prog_code}. "
+                        f"Cross-program enrollment for major subjects is restricted."
+                    ),
+                }, status=400)
 
     # One room, one chair: a student cannot be in two overlapping sections.
     clashes = student_overlap_conflicts(student, class_obj)

@@ -78,7 +78,7 @@ def student_directory(request):
         sections_qs = sections_qs.filter(academic_year=active_ay)
     sections = (
         sections_qs.exclude(section_code='')
-        .values_list('section_code', flat=True)
+        .values('section_code', 'program_id', 'program__department_id', 'year_level')
         .distinct()
         .order_by('section_code')
     )
@@ -349,10 +349,15 @@ def student_profile_update_ajax(request):
 @require_POST
 def student_promote_all(request):
     """
-    // [AJAX] 1-click batch advance of all approved students to the next year
-    // level, capped at each program's duration. Fully audited.
+    // [AJAX] 1-click batch advance of approved students to the next year
+    // level, optionally scoped to a department or program, capped at each program's duration. Fully audited.
     """
-    result = promote_students(request.user)
+    department_id = request.POST.get('department_id') or request.GET.get('department_id')
+    program_id = request.POST.get('program_id') or request.GET.get('program_id')
+    dept_id = int(department_id) if department_id and str(department_id).isdigit() else None
+    prog_id = int(program_id) if program_id and str(program_id).isdigit() else None
+
+    result = promote_students(request.user, department_id=dept_id, program_id=prog_id)
     return JsonResponse({
         'status': 'success',
         'promoted_count': result['promoted_count'],

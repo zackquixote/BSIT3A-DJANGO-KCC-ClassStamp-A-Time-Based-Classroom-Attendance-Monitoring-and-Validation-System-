@@ -38,8 +38,28 @@
       if (formAyId)         formAyId.value         = editBtn.dataset.ayId || '';
       if (formCapacity)     formCapacity.value     = editBtn.dataset.capacity || '';
       if (formGraceMinutes) formGraceMinutes.value = editBtn.dataset.grace || '10';
+      syncTeacherScoping();
       classModal.classList.add('is-open');
     });
+
+    function syncTeacherScoping() {
+      if (!formTeacherId || !formProgramId) return;
+      var selProgOpt = formProgramId.options[formProgramId.selectedIndex];
+      var deptId = selProgOpt ? selProgOpt.getAttribute('data-dept-id') : null;
+      var optgroups = formTeacherId.querySelectorAll('optgroup');
+      optgroups.forEach(function (og) {
+        var ogDeptId = og.getAttribute('data-dept-id');
+        if (!deptId || !ogDeptId || ogDeptId === deptId) {
+          og.style.opacity = '1';
+        } else {
+          og.style.opacity = '0.65';
+        }
+      });
+    }
+
+    if (formProgramId) {
+      formProgramId.addEventListener('change', syncTeacherScoping);
+    }
 
     // Close handlers
     function closeClassModalFn() { classModal.classList.remove('is-open'); }

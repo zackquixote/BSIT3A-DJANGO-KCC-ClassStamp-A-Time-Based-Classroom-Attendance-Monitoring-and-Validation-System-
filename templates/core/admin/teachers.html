@@ -179,7 +179,11 @@
                   <i class="fas fa-ellipsis-vertical"></i>
                 </button>
                 <div class="action-dropdown-menu">
-                  <button type="button" class="action-dropdown-item js-assign-load" data-id="{{ t.id }}" data-name="{{ t.user.get_full_name|default:t.user.username }}">
+                  <button type="button" class="action-dropdown-item js-assign-load"
+                          data-id="{{ t.id }}"
+                          data-name="{{ t.user.get_full_name|default:t.user.username }}"
+                          data-dept-id="{{ t.department.id|default:'' }}"
+                          data-dept-code="{{ t.department.code|default:'' }}">
                     <i class="fas fa-book-bookmark text-gold"></i>
                     <span>Teaching Load</span>
                   </button>
@@ -422,7 +426,9 @@
               <select id="assignSubject" name="subject_id" class="form-control" required>
                 <option value="">Select Subject</option>
                 {% for sub in all_subjects %}
-                <option value="{{ sub.id }}">{{ sub.code }} — {{ sub.name }}</option>
+                <option value="{{ sub.id }}" data-depts="{{ sub.departments_json }}" data-is-ge="{% if sub.is_ge %}1{% else %}0{% endif %}">
+                  {{ sub.code }} — {{ sub.name }}{% if sub.is_ge %} [GE]{% endif %}
+                </option>
                 {% endfor %}
               </select>
             </div>

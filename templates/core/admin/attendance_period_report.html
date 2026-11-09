@@ -12,27 +12,126 @@
 
 <div class="card p-4">
   {% if academic_years %}
-  <form method="get" class="form-grid" style="display:grid;grid-template-columns:minmax(220px,420px) auto;gap:12px;align-items:end;">
+  <form method="get" class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)) auto;gap:12px;align-items:end;">
     <div class="form-group">
-      <label class="form-label" for="reportAcademicYear">Academic year</label>
+      <label class="form-label" for="reportAcademicYear">Academic Term</label>
       <select id="reportAcademicYear" name="academic_year" class="form-control">
         {% for academic_year in academic_years %}
         <option value="{{ academic_year.pk }}" {% if selected_academic_year.pk == academic_year.pk %}selected{% endif %}>{{ academic_year.name }}</option>
         {% endfor %}
       </select>
     </div>
-    <button class="btn btn-primary" type="submit">Preview report</button>
+
+    <div class="form-group">
+      <label class="form-label" for="reportDept">Department / College</label>
+      <select id="reportDept" name="department" class="form-control">
+        <option value="">All Departments</option>
+        {% for d in departments %}
+        <option value="{{ d.id }}" {% if selected_dept == d.id|stringformat:'s' %}selected{% endif %}>{{ d.code }} — {{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="reportProg">Degree Program</label>
+      <select id="reportProg" name="program" class="form-control">
+        <option value="">All Programs</option>
+        {% for p in programs %}
+        <option value="{{ p.id }}" data-dept="{{ p.department_id }}" {% if selected_prog == p.id|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="reportYearLevel">Year Level</label>
+      <select id="reportYearLevel" name="year_level" class="form-control">
+        <option value="">All Years</option>
+        <option value="1" {% if selected_year_level == '1' %}selected{% endif %}>1st Year</option>
+        <option value="2" {% if selected_year_level == '2' %}selected{% endif %}>2nd Year</option>
+        <option value="3" {% if selected_year_level == '3' %}selected{% endif %}>3rd Year</option>
+        <option value="4" {% if selected_year_level == '4' %}selected{% endif %}>4th Year</option>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" type="submit"><i class="fas fa-filter"></i> Filter</button>
+      <a class="btn btn-outline" href="{% url 'attendance_period_report' %}">Reset</a>
+    </div>
   </form>
 
   <div class="mt-4">
     {% if selected_academic_year %}
-    <p><strong>{{ selected_academic_year.name }}</strong>: {{ record_count }} attendance record{{ record_count|pluralize }}.</p>
-    {% if record_count %}
-    <a class="btn btn-outline" href="{% url 'attendance_period_report_export' %}?academic_year={{ selected_academic_year.pk }}">
-      <i class="fas fa-download"></i> Download CSV
-    </a>
-    {% else %}
-    <p class="text-muted">No attendance records found for this academic year.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <p class="mb-0" style="font-size: 0.95rem;">
+          <strong>{{ selected_academic_year.name }}</strong>:
+          <span class="badge badge--purple" style="font-size: 0.8rem; margin-left: 6px;">{{ record_count }} record{{ record_count|pluralize }}</span>
+        </p>
+        {% if selected_dept or selected_prog or selected_year_level %}
+        <p class="text-xs text-muted mb-0 mt-1">
+          Scoped by
+          {% if selected_dept %}Department: <strong class="text-primary">#{{ selected_dept }}</strong>{% endif %}
+          {% if selected_prog %}Program: <strong class="text-primary">#{{ selected_prog }}</strong>{% endif %}
+          {% if selected_year_level %}Year: <strong class="text-primary">{{ selected_year_level }}</strong>{% endif %}
+        </p>
+        {% endif %}
+      </div>
+      {% if record_count %}
+      <a class="btn btn-outline" href="{% url 'attendance_period_report_export' %}?academic_year={{ selected_academic_year.pk }}{% if selected_dept %}&department={{ selected_dept }}{% endif %}{% if selected_prog %}&program={{ selected_prog }}{% endif %}{% if selected_year_level %}&year_level={{ selected_year_level }}{% endif %}">
+        <i class="fas fa-file-csv text-gold"></i> Download Full CSV
+      </a>
+      {% endif %}
+    </div>
+
+    {% if preview_records %}
+    <div style="overflow-x: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); margin-top: 12px;">
+      <table class="table" style="width: 100%; font-size: 0.8rem;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Class / Subject</th>
+            <th>Student</th>
+            <th>Program / Yr</th>
+            <th>Status</th>
+            <th>Method</th>
+            <th>Late</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in preview_records %}
+          <tr>
+            <td>{{ r.session.session_date|date:"M d, Y" }}</td>
+            <td>
+              <span class="font-mono font-bold">{{ r.session.slot.class_obj.class_code }}</span>
+              <div class="text-xs text-muted">{{ r.session.slot.class_obj.subject.code }} — {{ r.session.slot.class_obj.subject.name|truncatechars:24 }}</div>
+            </td>
+            <td>
+              <div class="font-semibold">{{ r.student_profile.user.get_full_name|default:r.student_profile.user.username }}</div>
+              <span class="font-mono text-xs text-muted">{{ r.student_profile.student_number|default:"—" }}</span>
+            </td>
+            <td>
+              <span class="badge badge--dark text-xs">{{ r.student_profile.program.code|default:"—" }}</span>
+              {% if r.student_profile.year_level %}<span class="text-muted text-xs">Yr {{ r.student_profile.year_level }}</span>{% endif %}
+            </td>
+            <td>
+              <span class="badge {% if r.status == 'PRESENT' %}badge--green{% elif r.status == 'LATE' %}badge--gold{% else %}badge--red{% endif %} text-xs">
+                {{ r.status }}
+              </span>
+            </td>
+            <td class="text-xs text-muted">{{ r.method }}</td>
+            <td class="text-xs">{% if r.late_minutes %}{{ r.late_minutes }}m{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if record_count > 10 %}
+    <p class="text-xs text-muted mt-2" style="text-align: right;">
+      Showing latest 10 of {{ record_count }} records. Download CSV for the complete report.
+    </p>
+    {% endif %}
+    {% elif record_count == 0 %}
+    <p class="text-muted mt-3">No attendance records found matching the selected filters.</p>
     {% endif %}
     {% endif %}
   </div>
@@ -40,4 +139,37 @@
   <p class="text-muted">No academic years have been registered. Add one before generating a period report.</p>
   {% endif %}
 </div>
+
+<script>
+// Dynamic cascade: Department -> Program in Report Filter
+(function() {
+  var deptSel = document.getElementById('reportDept');
+  var progSel = document.getElementById('reportProg');
+  if (!deptSel || !progSel) return;
+
+  function syncPrograms() {
+    var deptId = deptSel.value;
+    var opts = progSel.querySelectorAll('option');
+    opts.forEach(function(opt) {
+      if (!opt.value) return; // Keep "All Programs"
+      var pDept = opt.getAttribute('data-dept');
+      if (!deptId || pDept === deptId) {
+        opt.hidden = false;
+        opt.disabled = false;
+      } else {
+        opt.hidden = true;
+        opt.disabled = true;
+      }
+    });
+    // If selected program is now hidden, reset to All Programs
+    var sel = progSel.options[progSel.selectedIndex];
+    if (sel && sel.disabled) {
+      progSel.value = '';
+    }
+  }
+
+  deptSel.addEventListener('change', syncPrograms);
+  syncPrograms();
+})();
+</script>
 {% endblock %}

@@ -10,6 +10,7 @@
 # // ==============================================================================
 """
 
+import json
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -26,9 +27,11 @@ from apps.core.models import (
     AuditEvent,
     Class,
     ClassSession,
+    Curriculum,
     Department,
     Enrollment,
     Profile,
+    Program,
     Subject,
 )
 from apps.core.serializers.teacher_serializers import serialize_teacher, serialize_teacher_summary
@@ -36,6 +39,8 @@ from apps.core.services import (
     ClassAssignmentError,
     assign_class,
     delete_or_deactivate_teacher,
+    get_subject_prefix_program,
+    is_general_education_subject,
     provision_teacher_account,
     reassign_teacher_department,
     reset_teacher_password,
@@ -120,8 +125,26 @@ def teacher_list(request):
     active_load_count = active_load_qs.distinct().count()
 
     departments = Department.objects.filter(is_active=True).order_by('code')
-    all_subjects = Subject.objects.filter(is_active=True).order_by('code')
+    all_subjects = list(Subject.objects.filter(is_active=True).order_by('code'))
     all_academic_years = AcademicYear.objects.all().order_by('-starts_on')
+
+    # Subject metadata for client-side teaching load assignment scoping
+    prog_dept_map = dict(Program.objects.filter(is_active=True).values_list('code', 'department_id'))
+    subject_depts = {}
+    for entry in Curriculum.objects.filter(subject__is_active=True, program__department__isnull=False).values('subject_id', 'program__department_id'):
+        sid = entry['subject_id']
+        subject_depts.setdefault(sid, set()).add(entry['program__department_id'])
+
+    for row in Class.objects.filter(subject__is_active=True, program__department__isnull=False).values('subject_id', 'program__department_id'):
+        sid = row['subject_id']
+        subject_depts.setdefault(sid, set()).add(row['program__department_id'])
+
+    for s in all_subjects:
+        pcode = get_subject_prefix_program(s.code)
+        if pcode and pcode in prog_dept_map:
+            subject_depts.setdefault(s.id, set()).add(prog_dept_map[pcode])
+        s.departments_json = json.dumps(list(subject_depts.get(s.id, set())))
+        s.is_ge = is_general_education_subject(s.code)
 
     # Distinct join years across the whole faculty (unfiltered) for the filter dropdown
     year_choices = sorted(
