@@ -320,3 +320,4 @@ class AcademicHierarchyScopingTests(TestCase):
         self.assertEqual(res.json()['promoted_count'], 1)
         self.student_crim.refresh_from_db()
         self.assertEqual(self.student_crim.year_level, 2)
+
