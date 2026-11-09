@@ -1630,9 +1630,19 @@ svg.lucide,
   transition: transform 0.2s ease, stroke 0.2s ease;
 }
 
-/* Hide fallback fontawesome icon when Lucide SVG replaces element */
-svg.lucide + .lucide-fallback,
-[data-lucide] + .lucide-fallback {
+/* Hide fallback fontawesome icon ONLY after Lucide has actually replaced the
+   element with an <svg>. Using [data-lucide] here hid the FA icon while the
+   <i> tag still existed (between CSS parse and createIcons() firing), causing
+   a brief flash where no icon was visible at all. */
+svg.lucide + .lucide-fallback {
+  display: none !important;
+}
+
+/* While Lucide is still loading (html.lucide-pending is set synchronously in
+   <head> before first paint and removed after createIcons() fires), suppress
+   ALL FA fallback icons so they never appear alongside the Lucide placeholders.
+   This eliminates the double-icon flash entirely. */
+html.lucide-pending .lucide-fallback {
   display: none !important;
 }
 

@@ -1,6 +1,6 @@
 {% load static classstamp_assets %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" {% if sidebar_collapsed %}class="sidebar-collapsed"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,10 +12,11 @@
     try {
       localStorage.removeItem('kcc_theme');
       document.documentElement.removeAttribute('data-theme');
-      if (localStorage.getItem('kcc_sidebar_collapsed') === '1') {
-        document.documentElement.classList.add('sidebar-collapsed');
-      }
     } catch(e){}
+    /* lucide-pending: hides FA fallback icons before Lucide fires createIcons().
+       Set synchronously here so it applies before the first paint.
+       Removed after createIcons() completes. */
+    document.documentElement.classList.add('lucide-pending');
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
   {% comment %}
@@ -34,9 +35,6 @@
     .sidebar { background: linear-gradient(180deg, #091427 0%, #07101f 60%, #050b16 100%); }
     .sidebar-link { color: #94a3b8; text-decoration: none; }
     .sidebar-section-label { text-transform: uppercase; color: #64748b; }
-    /* Both buttons are display:none on desktop and shown by a later media
-       query in sidebar.css, so this only removes the white UA boxes from the
-       pre-CSS paint. */
     .sidebar-collapse-btn, .sidebar-close-btn { display: none; }
   </style>
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
@@ -62,11 +60,6 @@
     {% if request.user.is_authenticated %}
       <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
       {% include 'theme/sidebar.html' %}
-      <script>
-        if (window.lucide && typeof window.lucide.createIcons === 'function') {
-          window.lucide.createIcons();
-        }
-      </script>
     {% endif %}
 
     <main class="main-content {% if not request.user.is_authenticated %}main-content--full{% endif %}">
@@ -240,6 +233,7 @@
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();
       }
+      document.documentElement.classList.remove('lucide-pending');
     });
   </script>
   <!-- Core modules, concatenated in source order by apps/core/services/asset_bundles.py. -->
