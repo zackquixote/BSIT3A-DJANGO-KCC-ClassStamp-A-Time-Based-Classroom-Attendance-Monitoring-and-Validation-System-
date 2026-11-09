@@ -3,6 +3,16 @@
    Official KCC Navy & Gold Institutional Theme · Modern Clean Nav
    ============================================================= */
 
+/* ── No-transition guard: suppresses ALL sidebar animations on
+   initial page load. The class is removed after two rAFs (see
+   sidebar.html inline script) so dropdown clicks still animate. */
+.sidebar--no-transition,
+.sidebar--no-transition *,
+.sidebar--no-transition .sidebar-dropdown-menu {
+  transition: none !important;
+  animation: none !important;
+}
+
 .sidebar {
   width: var(--sidebar-w);
   height: 100vh;
@@ -20,8 +30,11 @@
      pinned at the bottom instead of sliding over the last links. */
   overflow: hidden;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
-  transition: width 0.22s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  container-type: inline-size;
+  /* Width transition removed — sidebar-collapsed is now set server-side so
+     the correct width is in the first byte of HTML. A transition here caused
+     a visible animated slide on every page navigation. Mobile transform
+     transition (drawer open/close) lives in the .sidebar.is-open rule. */
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Brand Header ────────────────────────────────────────────── */
@@ -88,9 +101,7 @@
 .sidebar-brand-text {
   display: block;
   max-width: 100%;
-  /* Fixed px cap: Android text scaling inflates rem values and used to push
-     the wordmark into the toggle button. */
-  font-size: clamp(11.5px, 6.5cqw, 15px);
+  font-size: 13.5px;
   font-weight: 800;
   color: #ffffff;
   line-height: 1.15;
@@ -107,7 +118,7 @@
 .sidebar-brand-tag {
   display: block;
   max-width: 100%;
-  font-size: clamp(8px, 4.4cqw, 9.5px);
+  font-size: 9px;
   font-weight: 700;
   color: #94a3b8;
   letter-spacing: 0.08em;
@@ -606,12 +617,22 @@ html.sidebar-collapsed .sidebar-collapse-btn i { transform: rotate(180deg); }
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  transition: max-height 0.24s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease;
+  will-change: max-height, opacity;
+  contain: layout style;
+  transition: max-height 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease;
 }
 
 .sidebar-dropdown.is-open .sidebar-dropdown-menu {
-  max-height: 380px;
+  max-height: 260px;
   opacity: 1;
+}
+
+.sidebar-dropdown[data-sidebar-dropdown="security"].is-open .sidebar-dropdown-menu {
+  max-height: 90px;
+}
+
+.sidebar-dropdown[data-sidebar-dropdown="oversight"].is-open .sidebar-dropdown-menu {
+  max-height: 220px;
 }
 
 @media (min-width: 901px) {

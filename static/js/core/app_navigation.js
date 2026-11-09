@@ -138,7 +138,15 @@
       syncCollapseButton();
       hideNavTip();
       if (persist) {
-        try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0'); } catch (err) {}
+        try {
+          localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+          // Write a cookie so the server can render the correct class
+          // server-side on next page load — eliminating the flash entirely.
+          var expires = new Date();
+          expires.setFullYear(expires.getFullYear() + 1);
+          document.cookie = 'kcc_sidebar_collapsed=' + (collapsed ? '1' : '0') +
+            '; path=/; expires=' + expires.toUTCString() + '; SameSite=Lax';
+        } catch (err) {}
       }
     }
 
@@ -147,6 +155,9 @@
         applyRailState(!isRailCollapsed(), true);
       });
     }
+    // Server already set sidebar-collapsed on <html> if the cookie was set.
+    // Only call applyRailState here to sync the button aria-label/title —
+    // do NOT pass persist=true so no redundant cookie/localStorage write fires.
     applyRailState(isRailCollapsed(), false);
 
     document.querySelectorAll('.sidebar-link').forEach(function (link) {
@@ -214,8 +225,14 @@
         if (savedScroll !== null) {
           sidebarNavEl.scrollTop = parseInt(savedScroll, 10) || 0;
         }
+        var scrollRaf = null;
         sidebarNavEl.addEventListener('scroll', function () {
-          sessionStorage.setItem('kcc_sidebar_scroll', sidebarNavEl.scrollTop);
+          if (scrollRaf) cancelAnimationFrame(scrollRaf);
+          scrollRaf = requestAnimationFrame(function () {
+            try {
+              sessionStorage.setItem('kcc_sidebar_scroll', sidebarNavEl.scrollTop);
+            } catch (_) {}
+          });
         }, { passive: true });
       } catch (_) {}
     }
@@ -270,17 +287,13 @@
     }
   }
 
-  /* ── Back-Forward Cache (bfcache) Invalidation ───────────────── */
+  /* ── Back-Forward Cache (bfcache) Handling ───────────────── */
   window.addEventListener('pageshow', function (event) {
-    var navEntries = (window.performance && performance.getEntriesByType)
-      ? performance.getEntriesByType('navigation')
-      : [];
-    var isBackForward = event.persisted ||
-      (navEntries.length > 0 && navEntries[0].type === 'back_forward') ||
-      (window.performance && window.performance.navigation && window.performance.navigation.type === 2);
-
-    if (isBackForward) {
-      window.location.reload();
+    if (event.persisted) {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+      document.documentElement.classList.remove('lucide-pending');
     }
   });
 

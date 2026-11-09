@@ -94,7 +94,9 @@ ul {
   flex-direction: column;
   min-height: 100vh;
   min-width: 0; /* Prevents flex children from overflowing */
-  transition: margin-left 0.3s ease, padding 0.3s ease;
+  /* Transition removed — margin-left is set from --sidebar-w which is correct
+     on first paint (server-side cookie). Transition here caused a 300ms
+     animated slide on every page navigation click. */
 }
 
 .main-content--full {
