@@ -1464,6 +1464,23 @@ def class_wizard_options(request):
     except ValueError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
 
+    # Curriculum coverage: total vs already-sectioned subjects this term.
+    curriculum_subject_ids = set(
+        _wizard_curriculum_entries(program, academic_year, year_level, semester)
+        .filter(subject__is_active=True)
+        .values_list('subject_id', flat=True)
+    )
+    subjects_total = len(curriculum_subject_ids)
+    # A "covered" subject already has at least one Class in this AY for
+    # this program/year (regardless of which section letter).
+    subjects_covered = Class.objects.filter(
+        academic_year=academic_year,
+        program=program,
+        year_level=year_level,
+        subject_id__in=curriculum_subject_ids,
+        is_active=True,
+    ).values('subject_id').distinct().count()
+
     return JsonResponse({
         'success': True,
         'academic_year': {'id': academic_year.id, 'name': academic_year.name},
@@ -1480,6 +1497,8 @@ def class_wizard_options(request):
         'suggested_code': suggested_code,
         'existing_codes': existing_codes,
         'existing_sections': existing_sections,
+        'subjects_total': subjects_total,
+        'subjects_covered': subjects_covered,
     })
 
 
@@ -1961,9 +1980,21 @@ def class_wizard_setup(request):
     )
     academic_years = AcademicYear.objects.order_by('-starts_on')
     active_ay = AcademicYear.objects.filter(is_active=True).first()
+    departments = Department.objects.filter(is_active=True).order_by('name')
     programs_json = json.dumps([
-        {'id': p.id, 'code': p.code, 'name': p.name, 'years_total': p.years_total}
+        {
+            'id': p.id,
+            'code': p.code,
+            'name': p.name,
+            'years_total': p.years_total,
+            'department_id': p.department_id,
+            'department_name': p.department.name if p.department else '',
+        }
         for p in programs
+    ])
+    departments_json = json.dumps([
+        {'id': d.id, 'name': d.name, 'code': d.code}
+        for d in departments
     ])
     # Distinct rooms already used in existing slots (for autocomplete)
     existing_rooms = list(
@@ -1974,6 +2005,8 @@ def class_wizard_setup(request):
     return render(request, 'core/admin/class_wizard.html', {
         'programs': programs,
         'programs_json': programs_json,
+        'departments': departments,
+        'departments_json': departments_json,
         'academic_years': academic_years,
         'active_ay': active_ay,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,

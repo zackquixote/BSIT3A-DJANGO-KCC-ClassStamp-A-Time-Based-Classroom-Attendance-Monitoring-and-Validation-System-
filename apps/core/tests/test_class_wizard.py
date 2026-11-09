@@ -270,3 +270,35 @@ class StepperAccessibilityTests(WizardBase):
         self.assertIn('id="wiz-added-offerings-list"', body)
         self.assertIn('data-programs-url="/programs/"', body)
         self.assertIn('data-code-check-url', body)
+
+    def test_setup_page_includes_department_filtering_and_presets(self):
+        response = self.client.get(reverse('class_wizard_setup'))
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode('utf-8')
+        # Department cascade elements
+        self.assertIn('id="wiz-department"', body)
+        self.assertIn('id="wizard-departments"', body)
+        self.assertIn('id="wiz-coverage-banner"', body)
+        # 2-unit presets
+        self.assertIn('data-pattern="MW"', body)
+        # Context variables
+        self.assertIn('departments', response.context)
+        self.assertIn('departments_json', response.context)
+
+
+class CurriculumCoverageTests(WizardBase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.admin_user)
+
+    def test_options_reports_coverage_counts(self):
+        # 3 curriculum subjects set up in WizardBase (IT103, GE101, IT311)
+        payload = self._options().json()
+        self.assertEqual(payload['subjects_total'], 3)
+        self.assertEqual(payload['subjects_covered'], 0)
+
+        # Create one class for IT103
+        self._class('BSIT-1A-IT103')
+        payload2 = self._options().json()
+        self.assertEqual(payload2['subjects_total'], 3)
+        self.assertEqual(payload2['subjects_covered'], 1)

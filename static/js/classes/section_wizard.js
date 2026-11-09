@@ -7,6 +7,7 @@
 
   const $ = (id) => document.getElementById(id);
   const programs = JSON.parse($('wizard-programs').textContent || '[]');
+  const departments = JSON.parse(($('wizard-departments') || { textContent: '[]' }).textContent || '[]');
   const existingRooms = JSON.parse(($('wizard-rooms') || { textContent: '[]' }).textContent || '[]');
   const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const WEEKDAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -167,7 +168,31 @@
     });
   }
 
-  /* ── Step 1: Program/Year cascade ────────────────────────────── */
+  /* ── Step 1: Department / Program / Year cascade ────────────── */
+  function onDepartmentChange() {
+    const deptSel = $('wiz-department');
+    const deptId = deptSel ? deptSel.value : '';
+    const progSel = $('wiz-program');
+    if (!progSel) return;
+    const prevProgId = progSel.value;
+    progSel.innerHTML = '<option value="">Select Program</option>';
+
+    const filtered = deptId
+      ? programs.filter((p) => String(p.department_id) === String(deptId))
+      : programs;
+
+    filtered.forEach((p) => {
+      progSel.appendChild(new Option(`${p.code} · ${p.name}`, String(p.id)));
+    });
+
+    if (filtered.some((p) => String(p.id) === prevProgId)) {
+      progSel.value = prevProgId;
+    } else {
+      progSel.value = '';
+      onProgramChange();
+    }
+  }
+
   function onProgramChange() {
     const yearSel = $('wiz-year');
     const program = programs.find((p) => String(p.id) === $('wiz-program').value);
@@ -234,6 +259,7 @@
       populateSubjects();
       populateTeachers();
       populateExistingCodes(data);
+      renderCoverageIndicator(data);
       $('wiz-code').value = data.suggested_code || '';
       setStep(2);
     } catch (err) {
@@ -241,6 +267,36 @@
     } finally {
       setLoading(false);
     }
+  }
+
+  function renderCoverageIndicator(data) {
+    const banner = $('wiz-coverage-banner');
+    if (!banner) return;
+    if (!data || typeof data.subjects_total !== 'number' || data.subjects_total === 0) {
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+      return;
+    }
+    const total = data.subjects_total;
+    const covered = data.subjects_covered || 0;
+    const pct = Math.min(100, Math.round((covered / total) * 100));
+    const isFull = covered >= total;
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-muted);">
+            <i class="fas fa-chart-pie text-primary"></i> Curriculum Sectioning Progress (This Term)
+          </span>
+          <span class="badge ${isFull ? 'badge--success' : 'badge--gold'} badge--xs">
+            ${covered} of ${total} subjects scheduled (${pct}%)
+          </span>
+        </div>
+        <div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
+          <div style="width:${pct}%; height:100%; background:${isFull ? '#22c55e' : '#6366f1'}; transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+    `;
   }
 
   function populateSubjects() {
@@ -504,6 +560,7 @@
     let targetDays = [];
     if (pattern === 'MWF') targetDays = [0, 2, 4]; // Monday, Wednesday, Friday
     else if (pattern === 'TTH') targetDays = [1, 3]; // Tuesday, Thursday
+    else if (pattern === 'MW') targetDays = [0, 2]; // Monday, Wednesday
     else if (pattern === 'SAT') targetDays = [5]; // Saturday
 
     // Check overlaps
@@ -897,17 +954,55 @@
       $('success-code').textContent =
         `Section ${data.section_code} created with ${data.classes.length} subject offering(s).`;
 
-      /* Populate success summary */
+      /* Populate success summary with quick-action links */
       const sumDiv = $('success-summary');
       sumDiv.innerHTML = '';
-      const list = document.createElement('ul');
-      list.className = 'mb-0';
-      data.classes.forEach((item) => {
-        const row = document.createElement('li');
-        row.textContent = `${item.class_code} · ${item.subject} · ${item.teacher} · ${item.slots.length} schedule slot(s)`;
+      const list = document.createElement('div');
+      list.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+      const classesUrl = boot.dataset.classesUrl || '/classes/';
+      const classesList = data.classes || (data.class_id ? [{
+        class_id: data.class_id,
+        class_code: data.class_code,
+        subject: '',
+        teacher: '',
+        slots: data.slots || [],
+      }] : []);
+
+      classesList.forEach((item) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;flex-wrap:wrap;gap:8px;';
+
+        const info = document.createElement('div');
+        info.innerHTML = `<strong>${escapeHtml(item.class_code)}</strong> &middot; ${escapeHtml(item.subject || '')} &middot; <span class="text-muted">${escapeHtml(item.teacher || '')}</span> &middot; <span class="badge badge--dark badge--xs">${(item.slots || []).length} slot(s)</span>`;
+        row.appendChild(info);
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+        if (item.class_id) {
+          const rosterLink = document.createElement('a');
+          rosterLink.className = 'btn btn-outline btn-xs';
+          rosterLink.href = `${classesUrl}?setup_class=${item.class_id}&setup_action=roster`;
+          rosterLink.innerHTML = '<i class="fas fa-users"></i> Enlist Students';
+          actions.appendChild(rosterLink);
+
+          const joinCodeLink = document.createElement('a');
+          joinCodeLink.className = 'btn btn-outline btn-xs';
+          joinCodeLink.href = `${classesUrl}?setup_class=${item.class_id}&setup_action=joincode`;
+          joinCodeLink.innerHTML = '<i class="fas fa-key"></i> Join Code';
+          actions.appendChild(joinCodeLink);
+        }
+
+        row.appendChild(actions);
         list.appendChild(row);
       });
       sumDiv.appendChild(list);
+
+      const gotoBtn = $('success-goto');
+      if (gotoBtn && data.section_code) {
+        gotoBtn.href = `${classesUrl}?search=${encodeURIComponent(data.section_code)}`;
+      }
 
       const warnBox = $('success-warnings');
       warnBox.innerHTML = '';
@@ -967,9 +1062,20 @@
     }
   }
 
-  /* ── Keyboard: Enter to advance ──────────────────────────────── */
+  /* ── Keyboard: Enter to advance or add slot ─────────────────── */
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+    if (e.key === 'Enter') {
+      if (e.target.tagName === 'TEXTAREA') return;
+
+      // In Step 4 slot input form: Enter adds the slot instead of advancing wizard!
+      if (e.target.closest('#wizard-step-4') && (e.target.id === 'slot-start' || e.target.id === 'slot-end' || e.target.id === 'slot-room' || e.target.id === 'slot-weekday')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const addBtn = $('slot-add');
+        if (addBtn) addBtn.click();
+        return;
+      }
+
       const next = $('wiz-next');
       const create = $('wiz-create');
       if (next && next.style.display !== 'none' && !next.disabled) next.click();
@@ -979,6 +1085,8 @@
 
   /* ── Init ────────────────────────────────────────────────────── */
   function init() {
+    const deptSel = $('wiz-department');
+    if (deptSel) deptSel.addEventListener('change', onDepartmentChange);
     $('wiz-program').addEventListener('change', onProgramChange);
     $('wiz-year').addEventListener('change', onStep1InputModified);
     $('wiz-semester').addEventListener('change', onStep1InputModified);
