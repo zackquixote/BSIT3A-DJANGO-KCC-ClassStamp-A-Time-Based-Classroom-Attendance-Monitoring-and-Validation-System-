@@ -14,7 +14,7 @@
 # //
 # // All controllers are re-exported at package root to maintain 100% backward compatibility
 # // with existing URL routing (`from . import views`) and test suites.
-# // References: docs/01_DEV_PLAN.md | docs/02_SECURITY.md
+# // Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

@@ -70,7 +70,7 @@ KCC-ClassStamp-A-Time-Based-Classroom-Attendance-Monitoring-and-Validation-Syste
 │       │       ├── auth_helpers.py       # Session throttling, lockout counters
 │       │       └── dashboard_helpers.py  # Dashboard statistics & KPI aggregators
 │       │
-�│       ├── decorators/                   # 🛡️ ROUTE & VIEW AUTHORIZATION GUARDS
+�│       ├── decorators/                   # 🛡️ ROUTE & VIEW AUTHORIZATION GUARDS
 │       │   ├── __init__.py               # Re-exports @role_required, @approved_required
 │       │   └── rbac.py                   # Role-based & approved-status route guards
 │       │
@@ -95,7 +95,6 @@ KCC-ClassStamp-A-Time-Based-Classroom-Attendance-Monitoring-and-Validation-Syste
 │       │       ├── __init__.py
 │       │       ├── rotate_qr_seeds.py    # Automated periodic QR secret seed rotation
 │       │       ├── seed_kcc_data.py      # Initial institutional baseline seeder
-│       │       ├── seed_demo_roster.py   # Demo academic dataset seeder
 │       │       └── create_admin.py       # Interactive admin account bootstrapper
 │       │
 │       ├── context_processors.py         # Global template variables (user profiles)
@@ -127,9 +126,8 @@ KCC-ClassStamp-A-Time-Based-Classroom-Attendance-Monitoring-and-Validation-Syste
 │   └── 02_triggers.sql                   # Integrity triggers (trg_cs_profile_bu)
 │
 └── docs/                                 # 📚 ARCHITECTURAL & SECURITY DOCUMENTATION
-    ├── 01_DEV_PLAN.md                    # Roadmap & phase breakdown
+    ├── 02_SECURITY.md                   # Implemented security controls
     ├── 02_SECURITY.md                    # Threat matrix & cryptographic specs
-    ├── 03_UI_DESIGN_SYSTEM.md            # Color tokens, typography, component specs
     ├── 04_MODELS_REFERENCE.md            # Schema ERD & attribute dictionary
     └── 05_ARCHITECTURE_BLUEPRINT.md      # This document
 ```

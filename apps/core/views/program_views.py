@@ -6,7 +6,7 @@
 # // Description: Administrative controllers for managing collegiate programs/courses.
 # // Handles listing, department cascading filters, AJAX creation/editing with
 # // duration validation (1–8 years), and protected soft-deactivation.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2C)
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

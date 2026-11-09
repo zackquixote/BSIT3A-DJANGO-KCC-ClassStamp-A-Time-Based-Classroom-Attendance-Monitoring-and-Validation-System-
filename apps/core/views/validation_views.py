@@ -6,7 +6,7 @@
 # // Description: Administrative queue for reviewing pending self-registered students,
 # // inspecting submitted credentials/ID proofs, approving and provisioning dynamic
 # // QR secrets, and issuing official rejection notices with audit tracking.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2A)
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -711,4 +711,3 @@ def batch_validation_action(request):
     except Exception as exc:
         logger.exception('Batch validation error: %s', exc)
         return JsonResponse({'error': f'Batch processing error: {str(exc)}'}, status=500)
-

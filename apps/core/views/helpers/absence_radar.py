@@ -12,7 +12,6 @@
 # //   pending sessions do not. Denominator is the student's own finalized
 # //   record count for the class (auto-close backfills ABSENT on session close,
 # //   so concluded sessions are complete).
-# // References: docs/09_MASTER_IMPROVEMENTS_ROADMAP.md § T-01
 # // ==============================================================================
 """
 

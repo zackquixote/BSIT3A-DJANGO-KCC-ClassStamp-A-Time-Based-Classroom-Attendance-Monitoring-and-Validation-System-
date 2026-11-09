@@ -7,7 +7,7 @@
 # //   curriculum matrix (program + year level subject mappings).
 # //   All state-changing operations are handled via AJAX JSON endpoints for
 # //   seamless modal interaction; GET views render the management page.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2D)
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -201,6 +201,8 @@ def subject_list(request):
     # Curriculum order (program -> year -> semester) is how a registrar reads the
     # catalogue; alphabetical order is how you look up a code you already know.
     # Aggregates must live in annotate() before order_by() can reference them.
+    if not sort_mode and selected_program:
+        sort_mode = 'placement'
     if sort_mode == 'placement':
         subjects_qs = subjects_qs.annotate(
             _program_code=Min(

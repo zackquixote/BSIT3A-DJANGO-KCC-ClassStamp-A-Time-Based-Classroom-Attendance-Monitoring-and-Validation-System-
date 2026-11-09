@@ -98,6 +98,7 @@
     unitsBadge.title = units + ' Credit Units';
     top.appendChild(unitsBadge);
 
+
     var typeBadge = document.createElement(state.canEdit ? 'button' : 'span');
     typeBadge.className = 'badge badge--' + (entry.is_major ? 'gold' : 'muted') +
       ' badge--xs' + (state.canEdit ? ' curriculum-chip-major-toggle' : '');
@@ -478,7 +479,6 @@
     if (lockedNotice) lockedNotice.style.display = enabled ? 'none' : 'flex';
     if (editableWrap) editableWrap.style.display = enabled ? 'block' : 'none';
     if (note) note.style.display = enabled ? 'none' : 'flex';
-
     if (addForm) {
       addForm.querySelectorAll('select, input, button').forEach(function (el) {
         el.disabled = !enabled;
@@ -865,7 +865,7 @@
         return;
       }
 
-      var draftBtn = e.target.closest('#curriculumCreateDraftBtn');
+      var draftBtn = e.target.closest('#curriculumCreateDraftBtn, .js-create-draft-btn');
       if (draftBtn) {
         e.preventDefault();
         draftBtn.disabled = true;

@@ -134,6 +134,10 @@
         <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
         <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
       </select>
+      <select name="sort" class="form-control" aria-label="Sort subjects">
+        <option value="">Code (A-Z)</option>
+        <option value="placement" {% if sort == 'placement' or selected_program and not sort %}selected{% endif %}>Year &amp; Semester</option>
+      </select>
     </div>
   </form>
 </div>

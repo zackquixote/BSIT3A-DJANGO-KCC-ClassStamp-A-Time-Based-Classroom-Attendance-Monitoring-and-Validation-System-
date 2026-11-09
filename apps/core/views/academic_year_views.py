@@ -6,7 +6,7 @@
 # // Description: Administrative controllers for creating and managing academic
 # //   year / semester term windows. Enforces the single-active-term invariant
 # //   via atomic transactions in the service layer.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2F)
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

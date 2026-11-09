@@ -22,7 +22,7 @@
 # //       academic year-level vs program-length constraints, and
 # //       student ID uniqueness.
 # //
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

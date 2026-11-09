@@ -9,7 +9,7 @@
 //   - High-performance TOTP validation pipeline (pyotp, grace period check).
 //   - Real-time roster grid with instant 1-click manual override.
 //   - Concluded session summary & exportable attendance reports.
-// References: docs/01_DEV_PLAN.md (Phase 4) | docs/02_SECURITY.md
+// Reference: docs/02_SECURITY.md
 // ==============================================================================
 """
 

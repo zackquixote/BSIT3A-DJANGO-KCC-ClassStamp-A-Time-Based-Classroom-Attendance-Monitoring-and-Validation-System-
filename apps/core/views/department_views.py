@@ -6,7 +6,7 @@
 # // Description: Administrative controllers for managing collegiate departments.
 # // Handles listing, search filtering, AJAX creation/editing with code uniqueness,
 # // and protected soft-deactivation when child programs or faculty exist.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2B)
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -160,4 +160,3 @@ def department_delete(request, pk):
 
     messages.success(request, result['message'])
     return redirect('department_list')
-

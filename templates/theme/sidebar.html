@@ -110,8 +110,8 @@
       </div>
 
       {% with cur_view=request.resolver_match.url_name %}
-      <div class="sidebar-dropdown {% if cur_view in 'anomaly_list anomaly_adjudicate admin_calendar excuse_calendar_page attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}is-open{% endif %}" data-sidebar-dropdown="oversight">
-        <button type="button" class="sidebar-dropdown-toggle" aria-expanded="{% if cur_view in 'anomaly_list anomaly_adjudicate admin_calendar excuse_calendar_page attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}true{% else %}false{% endif %}">
+      <div class="sidebar-dropdown {% if cur_view in 'anomaly_list anomaly_adjudicate admin_calendar attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}is-open{% endif %}" data-sidebar-dropdown="oversight">
+        <button type="button" class="sidebar-dropdown-toggle" aria-expanded="{% if cur_view in 'anomaly_list anomaly_adjudicate admin_calendar attendance_period_report attendance_period_report_export attendance_period_report_page admin_audit_log' %}true{% else %}false{% endif %}">
           <span class="sidebar-dropdown-title">Oversight &amp; Security</span>
           {% if open_anomaly_count %}
             <span class="sidebar-badge sidebar-badge--danger sidebar-dropdown-badge">{{ open_anomaly_count }}</span>
@@ -125,15 +125,10 @@
             <span>Security Alerts</span>
             <span class="sidebar-badge sidebar-badge--danger" id="sidebarAnomalyBadge"{% if not open_anomaly_count %} style="display: none;"{% endif %}>{{ open_anomaly_count }}</span>
           </a>
-          <a href="{% url 'admin_calendar' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'admin_calendar' %}active{% endif %}" title="Institutional Calendar & Milestones">
+          <a href="{% url 'admin_calendar' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':14' == 'admin_calendar' %}active{% endif %}" title="Academic &amp; Attendance Calendar">
             <i data-lucide="calendar" class="sidebar-link-icon"></i>
             <i class="fas fa-calendar-alt sidebar-link-icon lucide-fallback"></i>
             <span>Academic Calendar</span>
-          </a>
-          <a href="{% url 'excuse_calendar_page' %}" class="sidebar-link {% if request.resolver_match.url_name == 'excuse_calendar_page' %}active{% endif %}">
-            <i data-lucide="calendar-days" class="sidebar-link-icon"></i>
-            <i class="fas fa-calendar-days sidebar-link-icon lucide-fallback"></i>
-            <span>Excuse Calendar</span>
           </a>
           <a href="{% url 'attendance_period_report' %}" class="sidebar-link {% if request.resolver_match.url_name in 'attendance_period_report attendance_period_report_export attendance_period_report_page' %}active{% endif %}">
             <i data-lucide="chart-no-axes-combined" class="sidebar-link-icon"></i>

@@ -6,7 +6,7 @@
 # // Description: Administrative controllers for managing faculty accounts,
 # //   provisioning new teacher accounts directly, and viewing teaching loads.
 # //   Admin bypasses public registration by directly creating approved accounts.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2E)
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -631,5 +631,4 @@ def teacher_reassign_ajax(request, pk: int):
         return JsonResponse({'ok': True, **result})
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
-
 

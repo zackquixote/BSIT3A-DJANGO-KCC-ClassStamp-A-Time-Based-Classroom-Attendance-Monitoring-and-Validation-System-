@@ -4,11 +4,12 @@ import hashlib
 from django.contrib.auth.decorators import login_required
 from django.db.models import Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.core.decorators import role_required
 from apps.core.models import (
+    AcademicEvent,
     AcademicYear,
     AttendanceRecord,
     Class,
@@ -253,6 +254,10 @@ def push_subscription_delete(request):
 @login_required(login_url='login')
 @require_GET
 def excuse_calendar_page(request):
+    profile = getattr(request.user, 'classstamp_profile', None)
+    # Unified Calendar: Admins are directed to the full Academic & Leave Calendar
+    if request.user.is_superuser or (profile and profile.role == Profile.ROLE_ADMIN):
+        return redirect('admin_calendar')
     return render(request, 'core/excuse_calendar.html', {})
 
 
@@ -270,17 +275,48 @@ def excuse_calendar(request):
     elif profile.role == Profile.ROLE_STUDENT:
         slips = slips.filter(student_profile=profile)
 
-    events = [
-        {
-            'id': slip.pk,
+    events = []
+    for slip in slips.order_by('session__session_date')[:500]:
+        color = '#f59e0b' if slip.status == 'PENDING' else ('#10b981' if slip.status == 'APPROVED' else '#ef4444')
+        events.append({
+            'id': f'excuse-{slip.pk}',
             'title': (
-                f'{slip.student_profile.user.get_full_name() or slip.student_profile.student_number} '
-                f'- {slip.status}'
+                f'[{slip.status}] {slip.student_profile.user.get_full_name() or slip.student_profile.student_number} '
+                f'({slip.session.slot.class_obj.class_code})'
             ),
             'start': slip.session.session_date.isoformat(),
             'status': slip.status,
             'class_code': slip.session.slot.class_obj.class_code,
-        }
-        for slip in slips.order_by('session__session_date')[:500]
-    ]
+            'color': color,
+            'backgroundColor': color,
+            'borderColor': color,
+            'is_excuse': True,
+        })
+
+    # Include institutional milestones & holidays for context
+    vis_filter = [AcademicEvent.VISIBILITY_ALL]
+    if profile.role in (Profile.ROLE_TEACHER, Profile.ROLE_ADMIN):
+        vis_filter.append(AcademicEvent.VISIBILITY_FACULTY)
+
+    academic_events = AcademicEvent.objects.filter(
+        status=AcademicEvent.STATUS_SCHEDULED,
+        visibility__in=vis_filter,
+    ).order_by('start_datetime')[:200]
+
+    for ae in academic_events:
+        meta = ae.category_meta
+        start_val = ae.start_datetime.date().isoformat() if ae.is_all_day else ae.start_datetime.isoformat()
+        end_val = ae.end_datetime.date().isoformat() if ae.is_all_day else ae.end_datetime.isoformat()
+        events.append({
+            'id': f'event-{ae.pk}',
+            'title': ae.title,
+            'start': start_val,
+            'end': end_val,
+            'allDay': ae.is_all_day,
+            'color': meta['color'],
+            'backgroundColor': meta['color'],
+            'borderColor': meta['color'],
+            'is_excuse': False,
+        })
+
     return JsonResponse({'events': events})
