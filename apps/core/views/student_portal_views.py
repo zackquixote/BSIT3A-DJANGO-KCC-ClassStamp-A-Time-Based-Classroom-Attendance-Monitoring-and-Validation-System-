@@ -119,13 +119,25 @@ def student_join_class(request):
                         elif existing and existing.status == Enrollment.STATUS_ACTIVE:
                             error_message = 'You are already enrolled in this class.'
                         elif existing and existing.status == Enrollment.STATUS_PENDING:
-                            error_message = 'Your request to join this class is already awaiting review.'
+                            # Legacy PENDING from join code — auto-upgrade to ACTIVE
+                            existing.status = Enrollment.STATUS_ACTIVE
+                            existing.approved_at = timezone.now()
+                            existing.save(update_fields=['status', 'approved_at', 'updated_at'])
+                            error_message = ''  # treat as success below
+                            request_created = True  # will trigger success message
+                            AuditEvent.objects.create(
+                                actor=request.user,
+                                action='CLASS_JOIN_ENROLL',
+                                object_type='Enrollment',
+                                object_id=str(existing.pk),
+                                reason='Student re-submitted join code; legacy PENDING auto-approved.',
+                            )
                         elif existing and existing.status == Enrollment.STATUS_COMPLETED:
                             error_message = 'Contact an administrator to restore access to this class.'
                         else:
                             reserved = Enrollment.objects.filter(
                                 class_obj=class_obj,
-                                status__in=[Enrollment.STATUS_ACTIVE, Enrollment.STATUS_PENDING],
+                                status=Enrollment.STATUS_ACTIVE,
                             ).count()
                             if class_obj.capacity and reserved >= class_obj.capacity:
                                 error_message = 'This class has no remaining seats.'
@@ -139,9 +151,9 @@ def student_join_class(request):
                                 else:
                                     if existing and existing.status == Enrollment.STATUS_WITHDRAWN:
                                         enrollment = existing
-                                        enrollment.status = Enrollment.STATUS_PENDING
+                                        enrollment.status = Enrollment.STATUS_ACTIVE
                                         enrollment.approved_by = None
-                                        enrollment.approved_at = None
+                                        enrollment.approved_at = timezone.now()
                                         enrollment.save(update_fields=[
                                             'status', 'approved_by', 'approved_at', 'updated_at',
                                         ])
@@ -150,27 +162,34 @@ def student_join_class(request):
                                         enrollment, request_created = Enrollment.objects.get_or_create(
                                             class_obj=class_obj,
                                             student_profile=profile,
-                                            defaults={'status': Enrollment.STATUS_PENDING},
+                                            defaults={'status': Enrollment.STATUS_ACTIVE},
                                         )
                                     if request_created:
                                         AuditEvent.objects.create(
                                             actor=request.user,
-                                            action='CLASS_JOIN_REQUEST',
+                                            action='CLASS_JOIN_ENROLL',
                                             object_type='Enrollment',
                                             object_id=str(enrollment.pk),
-                                            reason='Student requested class enrollment with join code.',
+                                            reason='Student enrolled via join code (auto-approved).',
                                         )
                                         if class_obj.teacher_profile_id:
                                             create_notification(
                                                 class_obj.teacher_profile.user,
                                                 'enrollment',
-                                                'New class join request',
+                                                'Student enrolled via join code',
                                                 (
                                                     f'{profile.user.get_full_name() or profile.student_number} '
-                                                    f'requested to join {class_obj.class_code}.'
+                                                    f'joined {class_obj.class_code} using the class join code.'
                                                 ),
                                                 '/teacher/classes/',
                                             )
+                                        create_notification(
+                                            request.user,
+                                            'enrollment',
+                                            'Class enrollment confirmed',
+                                            f'You are now enrolled in {class_obj.class_code}.',
+                                            '/student/classes/',
+                                        )
                                     else:
                                         error_message = 'Your enrollment status changed. Refresh and check your class list.'
 
@@ -179,7 +198,7 @@ def student_join_class(request):
                         cache.delete(throttle_key)
                         messages.success(
                             request,
-                            'Join request sent. You will be enrolled after your teacher or administrator approves it.',
+                            f'You are now enrolled in {class_obj.class_code}. Check your class list.',
                         )
                     else:
                         messages.success(request, 'Your class enrollment request was processed.')

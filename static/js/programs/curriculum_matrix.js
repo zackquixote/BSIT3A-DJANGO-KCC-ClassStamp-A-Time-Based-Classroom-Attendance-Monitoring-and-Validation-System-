@@ -587,6 +587,42 @@
     setFormEnabled(state.canEdit);
   }
 
+  function updateMajorCheckboxForSubject(subjId) {
+    var majorCb = getEl('curriculumMajorCheckbox');
+    var hint = getEl('curriculumMajorHint');
+    if (!majorCb) return;
+
+    if (!subjId) {
+      majorCb.disabled = false;
+      if (hint) { hint.textContent = 'Unchecked = Core / GenEd'; hint.style.color = ''; }
+      return;
+    }
+
+    var subj = state.subjects.find(function (s) { return String(s.id) === String(subjId); });
+    if (!subj) {
+      majorCb.disabled = false;
+      if (hint) { hint.textContent = 'Unchecked = Core / GenEd'; hint.style.color = ''; }
+      return;
+    }
+
+    var canBeMajor = (subj.can_be_major !== false); // default true if field absent
+    if (!canBeMajor) {
+      majorCb.checked = false;
+      majorCb.disabled = true;
+      if (hint) {
+        hint.textContent = subj.major_restriction_reason || 'Cannot be marked as Major for this program.';
+        hint.style.color = '#f87171';
+      }
+    } else {
+      majorCb.disabled = false;
+      if (hint) {
+        var note = subj.category === 'ge' ? 'General Education subject' : '';
+        hint.textContent = note || 'Unchecked = Core / GenEd';
+        hint.style.color = '';
+      }
+    }
+  }
+
   function populateSelects() {
     var yearSelect = getEl('curriculumYearSelect');
     var semSelect = getEl('curriculumSemesterSelect');
@@ -614,12 +650,51 @@
 
     if (subjSelect) {
       subjSelect.innerHTML = '<option value="">Select Subject</option>';
-      state.subjects.forEach(function (s) {
-        var subOpt = document.createElement('option');
-        subOpt.value = s.id;
-        subOpt.textContent = s.code + ' — ' + s.name;
-        subjSelect.appendChild(subOpt);
-      });
+
+      // Check if subjects carry category info (enriched API)
+      var hasCategories = state.subjects.some(function (s) { return s.category; });
+
+      if (hasCategories) {
+        // Build optgroups: Program Major → General Education → Other
+        var groups = {};
+        var groupOrder = [];
+        state.subjects.forEach(function (s) {
+          var label = s.category_label || 'Other';
+          if (!groups[label]) { groups[label] = []; groupOrder.push(label); }
+          groups[label].push(s);
+        });
+
+        groupOrder.forEach(function (label) {
+          var grp = document.createElement('optgroup');
+          grp.label = label;
+          groups[label].forEach(function (s) {
+            var subOpt = document.createElement('option');
+            subOpt.value = s.id;
+            var suffix = (s.can_be_major === false) ? ' (Non-Major Only)' : '';
+            subOpt.textContent = s.code + ' \u2014 ' + s.name + suffix;
+            grp.appendChild(subOpt);
+          });
+          subjSelect.appendChild(grp);
+        });
+      } else {
+        // Fallback: flat list
+        state.subjects.forEach(function (s) {
+          var subOpt = document.createElement('option');
+          subOpt.value = s.id;
+          subOpt.textContent = s.code + ' \u2014 ' + s.name;
+          subjSelect.appendChild(subOpt);
+        });
+      }
+
+      // Wire up subject-change listener for major checkbox enforcement
+      subjSelect.removeEventListener('change', subjSelect._majorHandler || function(){});
+      subjSelect._majorHandler = function () {
+        updateMajorCheckboxForSubject(this.value);
+      };
+      subjSelect.addEventListener('change', subjSelect._majorHandler);
+
+      // Apply immediately for whatever value is currently selected
+      updateMajorCheckboxForSubject(subjSelect.value);
     }
   }
 

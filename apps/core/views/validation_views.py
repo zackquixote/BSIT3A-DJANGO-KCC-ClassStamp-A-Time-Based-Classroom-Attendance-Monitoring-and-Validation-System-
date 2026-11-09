@@ -652,7 +652,7 @@ def batch_validation_action(request):
                 pass
 
         if not pks:
-            return JsonResponse({'error': 'Invalid student IDs provided.'}, status=400)
+            return JsonResponse({'error': 'Invaxlid student IDs provided.'}, status=400)
 
         profiles = list(Profile.objects.filter(
             pk__in=pks,

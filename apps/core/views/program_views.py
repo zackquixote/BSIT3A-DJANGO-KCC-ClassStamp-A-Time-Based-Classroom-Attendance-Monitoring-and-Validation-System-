@@ -43,6 +43,8 @@ from apps.core.services import (
     export_program_students_csv,
     latest_curriculum_version,
     official_curriculum_filter,
+    get_subject_prefix_program,
+    is_general_education_subject,
 )
 from apps.core.views.helpers import get_program_student_stats
 
@@ -380,6 +382,49 @@ def program_curriculum_list(request, program_id):
             if full not in teachers_by_subject[sid]:
                 teachers_by_subject[sid].append(full)
 
+    # Detect cross-program majors and group subjects by discipline
+    other_majors = {
+        c.subject_id: c.program.code
+        for c in Curriculum.objects.filter(is_major=True).exclude(program=program).select_related('program')
+    }
+
+    subjects_data = []
+    for s in subjects:
+        home_prog = get_subject_prefix_program(s.code)
+        is_ge = is_general_education_subject(s.code)
+        other_major_prog = other_majors.get(s.id)
+
+        if is_ge:
+            category = 'ge'
+            category_label = '📌 General Education & Shared Core'
+            can_be_major = False
+            major_reason = f'{s.code} is a General Education course (Core / Non-major).'
+        elif home_prog == program.code or (not home_prog and not other_major_prog):
+            category = 'program'
+            category_label = f'🎯 {program.code} Recommended Subjects'
+            can_be_major = True
+            major_reason = ''
+        else:
+            foreign_prog = home_prog or other_major_prog or 'another program'
+            category = 'cross_program'
+            category_label = '🏢 Cross-Program Courses (Non-Major Only)'
+            can_be_major = False
+            major_reason = (
+                f'{s.code} belongs to {foreign_prog} and cannot be designated as a Major in {program.code}. '
+                f'It can only be assigned as a Non-Major / Elective.'
+            )
+
+        subjects_data.append({
+            'id': s.id,
+            'code': s.code,
+            'name': s.name,
+            'units': getattr(s, 'units', 3),
+            'category': category,
+            'category_label': category_label,
+            'can_be_major': can_be_major,
+            'major_restriction_reason': major_reason,
+        })
+
     return JsonResponse({
         'ok': True,
         'program': serialize_program(program),
@@ -389,10 +434,7 @@ def program_curriculum_list(request, program_id):
             serialize_curriculum_entry(e, teachers=teachers_by_subject.get(e.subject_id, []))
             for e in entries
         ],
-        'subjects': [
-            {'id': s.id, 'code': s.code, 'name': s.name}
-            for s in subjects
-        ],
+        'subjects': subjects_data,
         'version': (
             serialize_curriculum_version(display_version)
             if display_version is not None else None

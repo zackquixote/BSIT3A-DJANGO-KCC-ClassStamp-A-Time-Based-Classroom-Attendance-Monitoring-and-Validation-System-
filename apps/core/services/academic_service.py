@@ -17,6 +17,7 @@
 """
 
 from datetime import date
+import re
 from django.db import transaction
 from django.db.models import Max, Q
 from django.shortcuts import get_object_or_404
@@ -490,6 +491,97 @@ def delete_or_deactivate_subject(actor, pk: int) -> dict:
 # // SECTION 4: CURRICULUM MATRIX OPERATIONS
 # // ==============================================================================
 
+PROGRAM_PREFIX_MAP = {
+    'IT': 'BSIT',
+    'CS': 'BSIT',
+    'IS': 'BSIT',
+    'CC': 'BSIT',
+    'BA': 'BSBA',
+    'BUS': 'BSBA',
+    'MKT': 'BSBA',
+    'FM': 'BSBA',
+    'MM': 'BSBA',
+    'HRM': 'BSBA',
+    'OM': 'BSBA',
+    'CRIM': 'BSCRIM',
+    'LEA': 'BSCRIM',
+    'CDI': 'BSCRIM',
+    'CLJ': 'BSCRIM',
+    'FS': 'BSCRIM',
+    'CA': 'BSCRIM',
+    'ACC': 'BSA',
+    'ACT': 'BSA',
+    'BSA': 'BSA',
+    'ELS': 'AB-ELS',
+    'PHIL': 'AB-PHIL',
+    'PSY': 'AB-PSYCH',
+    'PSYCH': 'AB-PSYCH',
+    'BEED': 'BEED',
+}
+
+GE_PREFIXES = ('GE', 'GEE', 'NSTP', 'PE', 'PATH', 'CWTS', 'ROTC')
+
+
+def get_subject_prefix_program(code: str) -> str | None:
+    """Extract leading alphabetic discipline tag from course code, e.g. 'IT' from 'IT101' or 'IT 103'."""
+    clean = re.sub(r'[^A-Za-z0-9]', '', str(code).upper())
+    match = re.match(r'^([A-Z]+)', clean)
+    if not match:
+        return None
+    alpha = match.group(1)
+    for prefix in sorted(PROGRAM_PREFIX_MAP.keys(), key=len, reverse=True):
+        if alpha.startswith(prefix):
+            return PROGRAM_PREFIX_MAP[prefix]
+    return None
+
+
+def is_general_education_subject(code: str) -> bool:
+    """Check if course code is General Education or shared institutional core."""
+    clean = re.sub(r'[^A-Za-z0-9]', '', str(code).upper())
+    match = re.match(r'^([A-Z]+)', clean)
+    if not match:
+        return False
+    alpha = match.group(1)
+    for p in sorted(GE_PREFIXES, key=len, reverse=True):
+        if alpha.startswith(p):
+            return True
+    return False
+
+
+def validate_subject_program_major(subject: Subject, program: Program, is_major: bool) -> None:
+    """
+    Ensure a subject cannot be designated as a Major in a program if:
+    1. It is already designated as a Major in a different program.
+    2. Its code prefix belongs to a different specialized program (e.g., IT courses for BSBA).
+
+    Cross-program subjects can still be assigned as non-major / electives (is_major=False).
+    """
+    if not is_major:
+        return
+
+    # 1. Check if subject is already marked as a Major in another program
+    other_major = (
+        Curriculum.objects
+        .filter(subject=subject, is_major=True)
+        .exclude(program=program)
+        .select_related('program')
+        .first()
+    )
+    if other_major:
+        raise ValueError(
+            f"'{subject.code} - {subject.name}' is already designated as a Major subject in {other_major.program.code} "
+            f"({other_major.program.name}). It cannot be assigned as a Major in {program.code}."
+        )
+
+    # 2. Check prefix conflicts for specialized disciplines
+    subject_home_program = get_subject_prefix_program(subject.code)
+    if subject_home_program and subject_home_program != program.code:
+        raise ValueError(
+            f"'{subject.code}' is an Information Technology / {subject_home_program} course and cannot be designated as a Major in {program.code}. "
+            f"You may still assign it as a Non-Major / Elective."
+        )
+
+
 def assign_curriculum_subject(
     actor, program_id: int, year_level: int, subject_id: int, semester: int = 1,
     is_major: bool = False,
@@ -509,6 +601,9 @@ def assign_curriculum_subject(
 
     if semester not in dict(Curriculum.SEMESTER_CHOICES):
         raise ValueError(f'Semester {semester} is invalid. Use 1 (1st Sem), 2 (2nd Sem), or 3 (Summer).')
+
+    if is_major:
+        validate_subject_program_major(subject, program, is_major)
 
     draft = current_draft_version(program)
     if draft is None:
@@ -584,8 +679,10 @@ def remove_curriculum_entry(actor, pk: int) -> dict:
 
 def set_curriculum_major(actor, pk: int, is_major: bool) -> dict:
     """Set whether a curriculum entry is part of the program's major field."""
-    entry = get_object_or_404(Curriculum, pk=pk)
+    entry = get_object_or_404(Curriculum.objects.select_related('subject', 'program'), pk=pk)
     assert_entry_editable(entry)
+    if is_major:
+        validate_subject_program_major(entry.subject, entry.program, is_major)
     previous_value = entry.is_major
     entry.is_major = is_major
     entry.save(update_fields=['is_major'])
