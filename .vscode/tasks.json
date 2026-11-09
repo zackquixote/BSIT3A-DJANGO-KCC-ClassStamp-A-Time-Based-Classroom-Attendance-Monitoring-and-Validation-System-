@@ -1,0 +1,55 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Django Server",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"manage.py",
+				"runserver"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "Run Django Server Audit",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"manage.py",
+				"runserver"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "Run Django Server Audit 2",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"manage.py",
+				"runserver"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "Run Django Server For Admin Audit",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"manage.py",
+				"runserver",
+				"127.0.0.1:8000",
+				"--noreload"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "none"
+		}
+	]
+}

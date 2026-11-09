@@ -125,6 +125,7 @@
       {% for code, label in categories %}
         <option value="{{ code }}">{{ label }}</option>
       {% endfor %}
+      <option value="EXCUSE_SLIP">Student Excuse Slips (Leaves)</option>
     </select>
   </div>
 
@@ -158,6 +159,20 @@
         <option value="{{ code }}">{{ label }}</option>
       {% endfor %}
     </select>
+  </div>
+
+  <!-- Excuse Slips Toggle Layer -->
+  <div class="flex items-center gap-2" style="padding: 0 4px; white-space: nowrap;">
+    <label class="flex items-center gap-2 cursor-pointer mb-0" style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);" title="Toggle student excuse slips display on the calendar">
+      <input type="checkbox" id="toggleExcusesCheckbox" checked
+             style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;">
+      <span><i class="fas fa-file-medical text-warning mr-1"></i> Excuse Slips</span>
+      {% if pending_excuses_count %}
+        <span class="badge badge--warning text-xs font-mono" style="font-size: 0.65rem; padding: 2px 6px;" title="{{ pending_excuses_count }} pending approval">
+          {{ pending_excuses_count }}
+        </span>
+      {% endif %}
+    </label>
   </div>
 
   <!-- Reset Button -->
@@ -505,6 +520,94 @@
           <button type="button" class="btn btn-primary" id="editEventBtn">
             <i class="fas fa-pen-to-square"></i> Edit Event
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Student Excuse Slip Details -->
+<div class="modal" id="excuseDetailModal">
+  <div class="modal-dialog" style="max-width: 550px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title flex items-center gap-2">
+          <i class="fas fa-file-medical text-gold"></i> Student Excuse Slip
+        </h3>
+        <button type="button" class="modal-close" data-modal-dismiss="excuseDetailModal" data-modal-close="excuseDetailModal" aria-label="Close modal">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Top Banner -->
+        <div class="event-detail-banner" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);">
+          <i class="fas fa-user-clock event-detail-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div class="flex items-center gap-2 mb-1">
+              <span id="excuseStatusBadge" class="badge badge--warning">Pending</span>
+              <span class="badge" style="background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); font-size: 0.7rem;">Absence Excuse</span>
+            </div>
+            <h2 id="excuseStudentName" class="text-lg font-bold text-primary mt-1" style="word-break: break-word;">Student Name</h2>
+            <div class="text-xs font-mono text-muted" id="excuseStudentNumber">ID: —</div>
+          </div>
+        </div>
+
+        <div class="event-detail-meta-grid">
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-calendar-day text-gold mr-1"></i> Class Date</div>
+            <div class="event-meta-value text-xs font-mono" id="excuseClassDate">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-clock text-gold mr-1"></i> Class Time</div>
+            <div class="event-meta-value text-xs" id="excuseClassTime">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-chalkboard text-gold mr-1"></i> Class Section</div>
+            <div class="event-meta-value text-xs" id="excuseClassCode">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-book-open text-gold mr-1"></i> Subject</div>
+            <div class="event-meta-value text-xs" id="excuseSubject">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-chalkboard-user text-gold mr-1"></i> Instructor</div>
+            <div class="event-meta-value text-xs" id="excuseInstructor">—</div>
+          </div>
+          <div class="event-meta-item">
+            <div class="event-meta-label"><i class="fas fa-paperclip text-gold mr-1"></i> Supporting Proof</div>
+            <div class="event-meta-value text-xs" id="excuseProofContainer">
+              <span class="text-muted">None attached</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Explanation / Reason Box -->
+        <div class="form-group mb-3">
+          <label class="form-label text-xs uppercase font-semibold text-muted">Reason for Absence</label>
+          <div id="excuseReasonText" class="card" style="padding: 12px 16px; background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); white-space: pre-wrap;">
+            —
+          </div>
+        </div>
+
+        <!-- Reviewer Note (if any) -->
+        <div class="form-group mb-0" id="excuseReviewNoteGroup" style="display: none;">
+          <label class="form-label text-xs uppercase font-semibold text-muted">Faculty Review Note</label>
+          <div id="excuseReviewNoteText" class="card" style="padding: 10px 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); font-size: 0.8rem; color: var(--text-muted); font-style: italic;">
+            —
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <span class="text-xs text-muted">
+          <i class="fas fa-lock text-muted mr-1"></i> Excuse slip dates are bound to class sessions
+        </span>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-outline" data-modal-dismiss="excuseDetailModal" data-modal-close="excuseDetailModal">Close</button>
+          <a href="{% url 'teacher_excuse_slips' %}" class="btn btn-primary" id="excuseManageBtn" title="Review and manage student excuse slips">
+            <i class="fas fa-arrow-up-right-from-square"></i> Open Excuse Queue
+          </a>
         </div>
       </div>
     </div>

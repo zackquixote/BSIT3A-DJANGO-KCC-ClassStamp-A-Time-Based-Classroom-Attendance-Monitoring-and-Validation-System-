@@ -433,14 +433,100 @@
   }
 
   /* ── Year Level Filter Tabs ── */
+  .student-curriculum-card {
+    flex-shrink: 0;
+    max-height: 330px;
+    overflow: hidden;
+    background: var(--card-bg, rgba(30, 41, 59, 0.7));
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 10px);
+  }
+
+  .student-curriculum-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  }
+
+  .student-curriculum-scroll {
+    max-height: 280px;
+    overflow: auto;
+  }
+
+  .student-curriculum-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .student-curriculum-table th,
+  .student-curriculum-table td {
+    border-right: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+    padding: 10px;
+    vertical-align: top;
+  }
+
+  .student-curriculum-table th {
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    text-align: center;
+  }
+
+  .student-curriculum-table th:first-child {
+    width: 88px;
+    text-align: left;
+  }
+
+  .student-curriculum-table tr.student-curriculum-highlight td,
+  .student-curriculum-table tr.student-curriculum-highlight th {
+    background: rgba(245, 158, 11, 0.08);
+  }
+
+  .student-curriculum-subject {
+    padding: 7px 8px;
+    margin-bottom: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .student-curriculum-subject:last-child {
+    margin-bottom: 0;
+  }
+
+  .student-curriculum-subject strong {
+    display: block;
+    color: var(--accent-gold, #f59e0b);
+    font-size: 0.78rem;
+  }
+
+  .student-curriculum-subject span {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .student-curriculum-subject small {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+  }
   .year-filter-tabs {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
     gap: 8px;
-    overflow-x: auto;
-    padding: 2px 0 8px 0;
+    padding: 2px 0 6px 0;
     margin-bottom: 2px;
-    scrollbar-width: thin;
     flex-shrink: 0;
   }
   .year-tab-pill {
@@ -656,41 +742,60 @@
 
 <!-- Year Level Quick Filter Tabs -->
 <div class="year-filter-tabs">
-  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}"
-     class="year-tab-pill {% if not selected_year %}is-active{% endif %}"
-     title="Show students across all year levels">
-    <i class="fas fa-layer-group"></i>
-    <span>All Years</span>
-    <span class="year-tab-count">{{ count_all_years }}</span>
-  </a>
-  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=1"
-     class="year-tab-pill {% if selected_year == '1' %}is-active{% endif %}"
-     title="Show 1st Year students only">
-    <i class="fas fa-graduation-cap"></i>
-    <span>1st Year</span>
-    <span class="year-tab-count">{{ count_y1 }}</span>
-  </a>
-  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=2"
-     class="year-tab-pill {% if selected_year == '2' %}is-active{% endif %}"
-     title="Show 2nd Year students only">
-    <i class="fas fa-graduation-cap"></i>
-    <span>2nd Year</span>
-    <span class="year-tab-count">{{ count_y2 }}</span>
-  </a>
-  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=3"
-     class="year-tab-pill {% if selected_year == '3' %}is-active{% endif %}"
-     title="Show 3rd Year students only">
-    <i class="fas fa-graduation-cap"></i>
-    <span>3rd Year</span>
-    <span class="year-tab-count">{{ count_y3 }}</span>
-  </a>
-  <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=4"
-     class="year-tab-pill {% if selected_year == '4' %}is-active{% endif %}"
-     title="Show 4th Year students only">
-    <i class="fas fa-graduation-cap"></i>
-    <span>4th Year</span>
-    <span class="year-tab-count">{{ count_y4 }}</span>
-  </a>
+  <div class="flex items-center gap-2" style="overflow-x: auto; flex-wrap: nowrap;">
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}"
+       class="year-tab-pill {% if not selected_year %}is-active{% endif %}"
+       title="Show students across all year levels">
+      <i class="fas fa-layer-group"></i>
+      <span>All Years</span>
+      <span class="year-tab-count">{{ count_all_years }}</span>
+    </a>
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=1"
+       class="year-tab-pill {% if selected_year == '1' %}is-active{% endif %}"
+       title="Show 1st Year students only">
+      <i class="fas fa-graduation-cap"></i>
+      <span>1st Year</span>
+      <span class="year-tab-count">{{ count_y1 }}</span>
+    </a>
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=2"
+       class="year-tab-pill {% if selected_year == '2' %}is-active{% endif %}"
+       title="Show 2nd Year students only">
+      <i class="fas fa-graduation-cap"></i>
+      <span>2nd Year</span>
+      <span class="year-tab-count">{{ count_y2 }}</span>
+    </a>
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=3"
+       class="year-tab-pill {% if selected_year == '3' %}is-active{% endif %}"
+       title="Show 3rd Year students only">
+      <i class="fas fa-graduation-cap"></i>
+      <span>3rd Year</span>
+      <span class="year-tab-count">{{ count_y3 }}</span>
+    </a>
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'year_level' and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}year_level=4"
+       class="year-tab-pill {% if selected_year == '4' %}is-active{% endif %}"
+       title="Show 4th Year students only">
+      <i class="fas fa-graduation-cap"></i>
+      <span>4th Year</span>
+      <span class="year-tab-count">{{ count_y4 }}</span>
+    </a>
+  </div>
+  {% if selected_program_object %}
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <button type="button" class="btn btn-outline btn-sm"
+            data-modal-target="studentCurriculumModal"
+            title="View official curriculum matrix for {{ selected_program_object.code }} · {{ selected_program_object.name }}"
+            style="border-color: rgba(245, 158, 11, 0.4); color: var(--accent-gold);">
+      <i class="fas fa-book-open"></i>
+      <span>{{ selected_program_object.code }} Curriculum</span>
+      <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-gold); font-size: 0.7rem; border: 1px solid rgba(245, 158, 11, 0.3);">{{ selected_program_curriculum_total }} subjects · {{ curriculum_total_units }} units</span>
+      {% if curriculum_major_count %}
+        <span class="badge" style="background: rgba(168, 85, 247, 0.18); color: #c084fc; font-size: 0.7rem; border: 1px solid rgba(168, 85, 247, 0.35);" title="{{ curriculum_major_count }} Major Courses">
+          <i class="fas fa-star" style="font-size: 0.6rem; margin-right: 2px;"></i> {{ curriculum_major_count }} Majors
+        </span>
+      {% endif %}
+    </button>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Student Masterlist Viewport Table Card -->
@@ -960,6 +1065,131 @@
     </div>
   </div>
 </div>
+
+{% if selected_program_object %}
+<!-- MODAL: Program Curriculum Preview -->
+<div class="modal" id="studentCurriculumModal">
+  <div class="modal-dialog" style="max-width: 960px; width: 95%;">
+    <div class="modal-header">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-graduation-cap text-gold" style="font-size: 1.25rem;"></i>
+        <div>
+          <h3 class="modal-title" style="margin: 0;">{{ selected_program_object.code }} Official Curriculum</h3>
+          <p class="text-xs text-muted" style="margin: 2px 0 0 0;">{{ selected_program_object.name }}</p>
+        </div>
+      </div>
+      <button type="button" class="modal-close" data-modal-dismiss="studentCurriculumModal" aria-label="Close modal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="modal-body" style="padding: 18px 22px;">
+      <!-- Unit & Major Telemetry Overview Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
+        <div class="card" style="padding: 10px 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+          <div class="text-xs text-muted uppercase font-semibold">Total Credit Units</div>
+          <div class="text-lg font-bold font-mono text-primary mt-1" style="color: var(--accent-gold, #f59e0b);">
+            {{ curriculum_total_units }} <span class="text-xs font-normal text-muted">units ({{ selected_program_curriculum_total }} subjects)</span>
+          </div>
+        </div>
+        <div class="card" style="padding: 10px 14px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: var(--radius-md);">
+          <div class="text-xs uppercase font-semibold" style="color: #c084fc;"><i class="fas fa-star mr-1"></i> Major Subjects</div>
+          <div class="text-lg font-bold font-mono mt-1" style="color: #c084fc;">
+            {{ curriculum_major_count }} <span class="text-xs font-normal" style="color: #d8b4fe;">courses ({{ curriculum_major_units }} units)</span>
+          </div>
+        </div>
+        <div class="card" style="padding: 10px 14px; background: rgba(148, 163, 184, 0.06); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: var(--radius-md);">
+          <div class="text-xs text-muted uppercase font-semibold"><i class="fas fa-book-open mr-1"></i> General Ed / Core</div>
+          <div class="text-lg font-bold font-mono text-secondary mt-1">
+            {{ curriculum_non_major_count }} <span class="text-xs font-normal text-muted">courses ({{ curriculum_non_major_units }} units)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Controls & Quick Action Bar -->
+      <div class="flex items-center justify-between mb-3" style="flex-wrap: wrap; gap: 10px;">
+        <!-- Interactive Filter Pills -->
+        <div class="flex items-center gap-2" id="curriculumFilterPills">
+          <button type="button" class="btn btn-xs btn-primary curriculum-filter-btn is-active" data-filter="all" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 12px;">
+            <i class="fas fa-layer-group mr-1"></i> All Courses ({{ selected_program_curriculum_total }})
+          </button>
+          <button type="button" class="btn btn-xs btn-outline curriculum-filter-btn" data-filter="major" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 12px; border-color: rgba(168, 85, 247, 0.5); color: #c084fc;">
+            <i class="fas fa-star mr-1"></i> Major Only ({{ curriculum_major_count }})
+          </button>
+          <button type="button" class="btn btn-xs btn-outline curriculum-filter-btn" data-filter="non-major" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 12px;">
+            <i class="fas fa-book mr-1"></i> Non-Major Only ({{ curriculum_non_major_count }})
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          {% if curriculum_version_label %}
+            <span class="dir-kpi-chip dir-kpi-chip--approved" style="font-size: 0.75rem;"><i class="fas fa-circle-check mr-1"></i> {{ curriculum_version_label }}</span>
+          {% endif %}
+          <a href="{% url 'program_list' %}?open_curriculum={{ selected_program_object.id }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs" style="font-size: 0.75rem;">
+            <i class="fas fa-pen-to-square mr-1"></i> Edit in Programs &amp; Curriculum
+          </a>
+        </div>
+      </div>
+
+      <div class="student-curriculum-scroll" style="max-height: 55vh; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+        <table class="student-curriculum-table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>First Semester</th>
+              <th>Second Semester</th>
+              <th>Summer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for year in curriculum_rows %}
+            <tr{% if selected_year == year.year_level|stringformat:'s' %} class="student-curriculum-highlight"{% endif %}>
+              <th>Year {{ year.year_level }}</th>
+              {% for semester in year.semesters %}
+              <td>
+                {% for entry in semester.entries %}
+                  <div class="student-curriculum-subject"
+                       data-is-major="{% if entry.is_major %}true{% else %}false{% endif %}"
+                       style="{% if entry.is_major %}border-left: 3px solid #a855f7; background: rgba(168, 85, 247, 0.05);{% endif %}">
+                    <div class="flex items-center justify-between gap-1">
+                      <strong style="color: {% if entry.is_major %}#c084fc{% else %}var(--accent-gold, #f59e0b){% endif %};">{{ entry.subject.code }}</strong>
+                      {% if entry.is_major %}
+                        <span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.45); font-size: 0.65rem; padding: 1px 6px;">
+                          <i class="fas fa-star" style="font-size: 0.58rem; margin-right: 2px;"></i> Major
+                        </span>
+                      {% else %}
+                        <span class="badge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-muted); font-size: 0.65rem; padding: 1px 5px;">
+                          Core
+                        </span>
+                      {% endif %}
+                    </div>
+                    <span>{{ entry.subject.name }}</span>
+                    <div class="flex items-center justify-between mt-1 text-xs text-muted">
+                      <small><i class="fas fa-award mr-1"></i> {{ entry.subject.units }} units</small>
+                    </div>
+                  </div>
+                {% empty %}
+                  <span class="student-curriculum-none text-muted text-xs">—</span>
+                {% endfor %}
+                <span class="student-curriculum-empty-filter text-muted text-xs" style="display: none; font-style: italic;">No courses</span>
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 22px; border-top: 1px solid var(--glass-border);">
+      <span class="text-xs text-muted">
+        <i class="fas fa-info-circle mr-1"></i> Curriculum determines eligible subject enrollments per semester
+      </span>
+      <button type="button" class="btn btn-outline" data-modal-dismiss="studentCurriculumModal">Close</button>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -973,4 +1203,44 @@
 <script src="{% static 'js/student_directory/student_directory.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/student_directory/profile_editor.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/student_directory/directory_bulk_actions.js' %}?v=20261027_v1"></script>
+<script>
+  // Curriculum Modal: Major vs. Non-Major Dynamic Filter
+  document.querySelectorAll('.curriculum-filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var filter = this.getAttribute('data-filter');
+      document.querySelectorAll('.curriculum-filter-btn').forEach(function(b) {
+        b.classList.remove('btn-primary', 'is-active');
+        b.classList.add('btn-outline');
+      });
+      this.classList.remove('btn-outline');
+      this.classList.add('btn-primary', 'is-active');
+
+      document.querySelectorAll('.student-curriculum-subject').forEach(function(card) {
+        var isMajor = card.getAttribute('data-is-major') === 'true';
+        if (filter === 'all') {
+          card.style.display = '';
+        } else if (filter === 'major') {
+          card.style.display = isMajor ? '' : 'none';
+        } else if (filter === 'non-major') {
+          card.style.display = !isMajor ? '' : 'none';
+        }
+      });
+
+      // Update empty indicators in semester cells
+      document.querySelectorAll('.student-curriculum-table td').forEach(function(td) {
+        var subjects = td.querySelectorAll('.student-curriculum-subject');
+        var emptyNotice = td.querySelector('.student-curriculum-empty-filter');
+        var originalNone = td.querySelector('.student-curriculum-none');
+        if (emptyNotice && !originalNone) {
+          var hasVisible = false;
+          subjects.forEach(function(s) {
+            if (s.style.display !== 'none') hasVisible = true;
+          });
+          emptyNotice.style.display = hasVisible ? 'none' : 'inline';
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

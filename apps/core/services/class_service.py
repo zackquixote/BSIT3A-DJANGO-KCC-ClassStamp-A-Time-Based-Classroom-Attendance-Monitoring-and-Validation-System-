@@ -6,7 +6,7 @@
 # // Description: Canonical entry point for creating, updating, and reassigning
 # //   Class sections. Keeps instructor assignment consistent across the Classes
 # //   masterlist and the Teachers teaching-load modal, with one audit trail.
-# // References: docs/01_DEV_PLAN.md (Phase 2G) | apps/core/models/classroom.py
+# // Reference: apps/core/models/classroom.py
 # // ==============================================================================
 """
 

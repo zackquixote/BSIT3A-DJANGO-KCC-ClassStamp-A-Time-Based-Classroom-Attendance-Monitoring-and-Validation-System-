@@ -10,7 +10,7 @@
 # //   4. Drag-and-drop / resize reschedule controller
 # //   5. Server-side validation rules (date boundaries, required title, invalid IDs)
 # //   6. Immutable AuditEvent logging for all state mutations
-# // References: docs/02_SECURITY.md | docs/06_ADMIN_IMPROVEMENTS_ROADMAP.md
+# // Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -583,4 +583,3 @@ class AcademicCalendarTests(TestCase):
 
         count2 = AcademicEvent.objects.filter(category=AcademicEvent.CATEGORY_HOLIDAY).count()
         self.assertEqual(count1, count2)
-

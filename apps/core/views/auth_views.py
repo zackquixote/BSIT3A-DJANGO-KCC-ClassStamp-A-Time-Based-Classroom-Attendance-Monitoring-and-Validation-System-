@@ -6,7 +6,7 @@
 # // Description: Handles credential validation, multi-identifier login (Username /
 # // Email / Student ID), session fixation prevention, session destruction (logout),
 # // and student self-registration workflow with dynamic QR secret provisioning.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

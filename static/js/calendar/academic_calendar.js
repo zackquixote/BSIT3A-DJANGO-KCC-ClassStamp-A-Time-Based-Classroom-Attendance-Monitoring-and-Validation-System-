@@ -21,11 +21,14 @@ document.addEventListener('DOMContentLoaded', function () {
   // DOM Elements
   const eventModal = document.getElementById('eventModal');
   const eventDetailModal = document.getElementById('eventDetailModal');
+  const excuseDetailModal = document.getElementById('excuseDetailModal');
   const eventForm = document.getElementById('eventForm');
   const addEventBtn = document.getElementById('addEventBtn');
   const syncHolidaysBtn = document.getElementById('syncHolidaysBtn');
   const searchInput = document.getElementById('eventSearchInput');
   const categoryFilter = document.getElementById('categoryFilter');
+  const toggleExcusesCheckbox = document.getElementById('toggleExcusesCheckbox');
+  const jumpToDateInput = document.getElementById('jumpToDateInput');
   const academicYearFilter = document.getElementById('academicYearFilter');
   const semesterFilter = document.getElementById('semesterFilter');
   const statusFilter = document.getElementById('statusFilter');
@@ -78,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // Backdrop click closing
-  [eventModal, eventDetailModal].forEach((m) => {
+  [eventModal, eventDetailModal, excuseDetailModal].forEach((m) => {
     if (m) {
       m.addEventListener('click', function (e) {
         if (e.target === m) closeCalendarModal(m);
@@ -89,12 +92,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // Escape key closes modals
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      if (eventModal && (eventModal.classList.contains('is-open') || eventModal.style.display === 'flex')) {
-        closeCalendarModal(eventModal);
-      }
-      if (eventDetailModal && (eventDetailModal.classList.contains('is-open') || eventDetailModal.style.display === 'flex')) {
-        closeCalendarModal(eventDetailModal);
-      }
+      [eventModal, eventDetailModal, excuseDetailModal].forEach((m) => {
+        if (m && (m.classList.contains('is-open') || m.style.display === 'flex')) {
+          closeCalendarModal(m);
+        }
+      });
     }
   });
 
@@ -202,6 +204,7 @@ document.addEventListener('DOMContentLoaded', function () {
         semester: semesterFilter?.value || '',
         status: statusFilter?.value || '',
         q: searchInput?.value || '',
+        include_excuses: (toggleExcusesCheckbox && !toggleExcusesCheckbox.checked) ? '0' : '1',
       });
 
       fetch(`/admin/calendar/events/?${params.toString()}`, {
@@ -228,16 +231,34 @@ document.addEventListener('DOMContentLoaded', function () {
     // Event Click -> Open Detail View Modal
     eventClick: function (info) {
       info.jsEvent.preventDefault();
+      if (info.event.extendedProps && info.event.extendedProps.is_excuse) {
+        openExcuseDetailModal(info.event);
+        return;
+      }
       openEventDetailModal(info.event);
     },
 
     // Drag-and-Drop Reschedule
     eventDrop: function (changeInfo) {
+      if (changeInfo.event.extendedProps && changeInfo.event.extendedProps.is_excuse) {
+        changeInfo.revert();
+        if (window.showToast) {
+          window.showToast('Student excuse slips are date-locked to their class sessions and cannot be rescheduled.', 'warning');
+        }
+        return;
+      }
       handleReschedule(changeInfo.event, changeInfo.revert);
     },
 
     // Event Resize
     eventResize: function (changeInfo) {
+      if (changeInfo.event.extendedProps && changeInfo.event.extendedProps.is_excuse) {
+        changeInfo.revert();
+        if (window.showToast) {
+          window.showToast('Student excuse slips are date-locked to their class sessions and cannot be resized.', 'warning');
+        }
+        return;
+      }
       handleReschedule(changeInfo.event, changeInfo.revert);
     },
 
@@ -428,6 +449,74 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     openCalendarModal(eventDetailModal);
+  }
+
+  // ── Open Student Excuse Detail Modal ─────────────────────────────────────────
+  function openExcuseDetailModal(event) {
+    if (!excuseDetailModal) return;
+    const props = event.extendedProps || {};
+
+    const studentNameEl = document.getElementById('excuseStudentName');
+    if (studentNameEl) studentNameEl.textContent = props.student_name || 'Student';
+
+    const studentNumberEl = document.getElementById('excuseStudentNumber');
+    if (studentNumberEl) studentNumberEl.textContent = props.student_number ? `ID: ${props.student_number}` : 'ID: —';
+
+    const statusBadge = document.getElementById('excuseStatusBadge');
+    if (statusBadge) {
+      statusBadge.textContent = props.status_display || props.status || 'Pending';
+      if (props.status === 'APPROVED') {
+        statusBadge.className = 'badge badge--success';
+      } else if (props.status === 'REJECTED') {
+        statusBadge.className = 'badge badge--danger';
+      } else {
+        statusBadge.className = 'badge badge--warning';
+      }
+    }
+
+    const classDateEl = document.getElementById('excuseClassDate');
+    if (classDateEl) classDateEl.textContent = props.session_date_formatted || props.start_formatted || '—';
+
+    const classTimeEl = document.getElementById('excuseClassTime');
+    if (classTimeEl) classTimeEl.textContent = props.session_time || '—';
+
+    const classCodeEl = document.getElementById('excuseClassCode');
+    if (classCodeEl) classCodeEl.textContent = props.class_code || '—';
+
+    const subjectEl = document.getElementById('excuseSubject');
+    if (subjectEl) {
+      subjectEl.textContent = props.subject_code ? `${props.subject_code} · ${props.subject_name}` : (props.subject_name || '—');
+    }
+
+    const instructorEl = document.getElementById('excuseInstructor');
+    if (instructorEl) instructorEl.textContent = props.teacher_name || '—';
+
+    const proofContainer = document.getElementById('excuseProofContainer');
+    if (proofContainer) {
+      if (props.has_proof && props.proof_url) {
+        proofContainer.innerHTML = `<a href="${props.proof_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-xs" style="color: var(--accent-gold); border-color: rgba(245,158,11,0.4);">
+          <i class="fas fa-file-lines mr-1"></i> View Attached Proof
+        </a>`;
+      } else {
+        proofContainer.innerHTML = '<span class="text-muted">None attached</span>';
+      }
+    }
+
+    const reasonEl = document.getElementById('excuseReasonText');
+    if (reasonEl) reasonEl.textContent = props.reason || 'No detailed explanation provided.';
+
+    const reviewGroup = document.getElementById('excuseReviewNoteGroup');
+    const reviewText = document.getElementById('excuseReviewNoteText');
+    if (reviewGroup && reviewText) {
+      if (props.review_note) {
+        reviewGroup.style.display = 'block';
+        reviewText.textContent = props.review_note;
+      } else {
+        reviewGroup.style.display = 'none';
+      }
+    }
+
+    openCalendarModal(excuseDetailModal);
   }
 
   // ── Edit Event Handler ───────────────────────────────────────────────────────
@@ -667,9 +756,18 @@ document.addEventListener('DOMContentLoaded', function () {
   const refetch = () => calendar.refetchEvents();
 
   if (categoryFilter) categoryFilter.addEventListener('change', refetch);
+  if (toggleExcusesCheckbox) toggleExcusesCheckbox.addEventListener('change', refetch);
   if (academicYearFilter) academicYearFilter.addEventListener('change', refetch);
   if (semesterFilter) semesterFilter.addEventListener('change', refetch);
   if (statusFilter) statusFilter.addEventListener('change', refetch);
+
+  if (jumpToDateInput) {
+    jumpToDateInput.addEventListener('change', function () {
+      if (this.value) {
+        calendar.gotoDate(this.value);
+      }
+    });
+  }
 
   let searchTimeout = null;
   if (searchInput) {
@@ -685,6 +783,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       if (searchInput) searchInput.value = '';
       if (categoryFilter) categoryFilter.value = '';
+      if (toggleExcusesCheckbox) toggleExcusesCheckbox.checked = true;
       if (academicYearFilter) academicYearFilter.value = '';
       if (semesterFilter) semesterFilter.value = '';
       if (statusFilter) statusFilter.value = '';

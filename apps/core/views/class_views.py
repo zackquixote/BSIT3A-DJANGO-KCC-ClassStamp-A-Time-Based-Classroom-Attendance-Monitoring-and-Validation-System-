@@ -6,7 +6,7 @@
 # // Description: Provides administrative facilities to create academic class sections,
 # //   link instructors and subjects, configure recurring weekly schedule slots,
 # //   and manage student roster enlistment / enrollment.
-# // References: docs/01_DEV_PLAN.md (Phase 2G) | apps/core/models/classroom.py
+# // Reference: apps/core/models/classroom.py
 # // ==============================================================================
 """
 

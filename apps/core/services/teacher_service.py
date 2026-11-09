@@ -9,7 +9,7 @@
 # //     - Student fields (program, year_level, student_number) must be NULL
 # //     - Auto-sets approval_status to APPROVED with actor audit trail.
 # //   Handles safe deactivation protecting historical attendance and classes.
-# // References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md (Phase 2E)
+# // Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

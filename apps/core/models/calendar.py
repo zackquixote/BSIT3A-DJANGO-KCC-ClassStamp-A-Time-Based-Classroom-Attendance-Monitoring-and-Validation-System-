@@ -5,7 +5,7 @@
 # // Subsystem: Academic Administration (RBAC: ADMIN ONLY MANAGEMENT)
 # // Description: Defines models for institutional calendar events, term milestones,
 # //   examination windows, holidays, and campus activities.
-# // Security References: docs/02_SECURITY.md | docs/06_ADMIN_IMPROVEMENTS_ROADMAP.md
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 

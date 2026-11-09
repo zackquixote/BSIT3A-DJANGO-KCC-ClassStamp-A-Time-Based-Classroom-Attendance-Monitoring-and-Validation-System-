@@ -11,3 +11,9 @@ A **Django-powered**, QR-code-based attendance system for KCC with 3 role-based 
 
 ## 📄 Concept Paper
 - [KCC ClassStamp - A Time-Based Classroom Attendance Monitoring and Validation System (DOCX)](docs/KCC-ClassStamp-Concept-Paper.docx)
+
+## 🔐 Security
+
+ClassStamp includes defense-in-depth controls for authentication, authorization,
+attendance credentials, uploads, and browser delivery. The implemented controls
+are documented in [02_SECURITY.md](docs/02_SECURITY.md).

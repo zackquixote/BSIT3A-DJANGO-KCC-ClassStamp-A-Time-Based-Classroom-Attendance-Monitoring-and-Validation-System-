@@ -2,5 +2,6 @@
   "editor.wordWrap": "on",
   "html.format.wrapLineLength": 0,
   "html.validate.scripts": false,
-  "html.validate.styles": false
+  "html.validate.styles": false,
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }

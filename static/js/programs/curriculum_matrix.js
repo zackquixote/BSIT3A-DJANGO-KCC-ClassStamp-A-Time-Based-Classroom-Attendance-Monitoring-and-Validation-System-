@@ -68,7 +68,15 @@
     code.textContent = entry.subject_code;
     chip.appendChild(code);
 
-    chip.appendChild(document.createTextNode(' ' + (entry.subject_name || '')));
+    var title = document.createElement('span');
+    title.className = 'curriculum-chip-title';
+    title.textContent = entry.subject_name || '';
+    chip.appendChild(title);
+
+    var units = document.createElement('span');
+    units.className = 'curriculum-chip-units';
+    units.textContent = entry.subject_units ? entry.subject_units + ' units' : '';
+    if (units.textContent) chip.appendChild(units);
     var typeBadge = document.createElement(state.canEdit ? 'button' : 'span');
     typeBadge.className = 'badge badge--' + (entry.is_major ? 'purple' : 'muted') +
       ' badge--xs' + (state.canEdit ? ' curriculum-chip-major-toggle' : '');
@@ -165,6 +173,8 @@
     });
     var note = getEl('curriculumReadOnlyNote');
     if (note) note.style.display = enabled ? 'none' : 'flex';
+    var lockedNotice = getEl('curriculumFormLockedNotice');
+    if (lockedNotice) lockedNotice.style.display = enabled ? 'none' : 'block';
   }
 
   function versionBadge(label, tone) {
@@ -425,7 +435,7 @@
         return;
       }
 
-      var draftBtn = e.target.closest('#curriculumCreateDraftBtn');
+      var draftBtn = e.target.closest('#curriculumCreateDraftBtn, .js-create-draft-btn');
       if (draftBtn) {
         e.preventDefault();
         draftBtn.disabled = true;

@@ -16,7 +16,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--username", default="admin")
         parser.add_argument("--email", default="admin@classstamp.local")
-        parser.add_argument("--password", default="admin12345")
+        parser.add_argument("--password", required=True, help="Password for the administrator account")
 
     def handle(self, *args, **options):
         username = options["username"]
@@ -72,6 +72,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("\nAdmin ready:"))
         self.stdout.write(f"  Username: {username}")
-        self.stdout.write(f"  Password: {password}")
         self.stdout.write(f"  Django admin site: http://127.0.0.1:8000/admin/")
         self.stdout.write(f"  ClassStamp dashboard: http://127.0.0.1:8000/home/")

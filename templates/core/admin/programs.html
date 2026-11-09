@@ -377,7 +377,7 @@
      data-remove-url-prefix="/programs/curriculum/remove/"
      data-draft-url-template="{% url 'program_curriculum_draft_create' 999999 %}"
      data-approve-url-template="{% url 'program_curriculum_approve' 999999 %}">
-  <div class="modal-dialog" style="max-width: 860px; width: 94%;">
+  <div class="modal-dialog" style="max-width: 1100px; width: 94%;">
     <div class="modal-header">
       <h3 class="modal-title" id="curriculumMatrixTitle">Curriculum Matrix</h3>
       <button type="button" class="modal-close" data-modal-dismiss="curriculumMatrixModal">
@@ -391,11 +391,11 @@
       </div>
 
       <div id="curriculumVersionBar"
-           style="display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--glass-border); border-radius: 10px; margin-bottom: 16px;">
+           style="display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid var(--glass-border); border-radius: 10px; margin-bottom: 16px; position: sticky; top: -20px; background: var(--bg-surface, #1e293b); z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.25);">
         <div id="curriculumVersionSummary" class="flex items-center gap-2" style="flex-wrap: wrap;"></div>
         <div class="flex items-center gap-2" style="flex-wrap: wrap;">
-          <button type="button" class="btn btn-outline" id="curriculumCreateDraftBtn" style="display: none;">
-            <i class="fas fa-code-branch"></i> Create Draft
+          <button type="button" class="btn btn-primary btn-sm" id="curriculumCreateDraftBtn" style="display: none;">
+            <i class="fas fa-code-branch"></i> Create Draft to Edit
           </button>
           <div id="curriculumApproveWrap" style="display: none; align-items: center; gap: 8px; flex-wrap: wrap;">
             <select id="curriculumEffectiveTerm" class="form-control" style="min-width: 210px;"></select>
@@ -406,14 +406,32 @@
         </div>
       </div>
 
-      <div id="curriculumReadOnlyNote" class="auth-alert auth-alert--warning mb-4" style="display: none;">
-        <i class="fas fa-lock"></i>
-        <span>This approved curriculum is read-only. Create a draft to change the subject matrix.</span>
+      <div id="curriculumReadOnlyNote" class="auth-alert auth-alert--warning mb-4" style="display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-lock text-warning" style="font-size: 1.1rem;"></i>
+          <span>This approved curriculum is <strong>read-only</strong> to protect active class sections. Click <strong>Create Draft to Edit</strong> to unlock and assign subjects.</span>
+        </div>
+        <button type="button" class="btn btn-warning btn-sm js-create-draft-btn" style="white-space: nowrap;">
+          <i class="fas fa-code-branch"></i> Create Draft to Edit
+        </button>
       </div>
 
       <div id="curriculumGrid" style="overflow-x: auto;"></div>
 
       <hr style="border-color: var(--glass-border); margin: 20px 0;">
+
+      <!-- Lock Notice directly above Assign Form -->
+      <div id="curriculumFormLockedNotice" class="card mb-3" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); padding: 12px 16px; border-radius: var(--radius-md);">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-lock text-warning"></i>
+            <span class="text-xs text-warning font-semibold">The form below is locked because this curriculum is officially approved. Click to unlock and start a working draft.</span>
+          </div>
+          <button type="button" class="btn btn-warning btn-sm js-create-draft-btn">
+            <i class="fas fa-code-branch"></i> Unlock Form (Create Draft)
+          </button>
+        </div>
+      </div>
 
       <h4 class="text-sm text-secondary mb-3" style="letter-spacing: 0.04em; text-transform: uppercase;">
         <i class="fas fa-plus-circle text-gold"></i> Assign Subject to Year Level
@@ -460,7 +478,7 @@
 <script src="{% static 'js/programs/programs_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/programs/program_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/programs/delete_program.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261104_v3"></script>
+<script src="{% static 'js/programs/curriculum_matrix.js' %}?v=20261109_v4"></script>
 
 <style>
 .year-chip {
@@ -529,7 +547,9 @@
   align-items: flex-start;
 }
 .curriculum-chip {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto auto auto;
+  width: 100%;
   align-items: center;
   gap: 8px;
   padding: 4px 8px 4px 10px;
@@ -543,6 +563,15 @@
 .curriculum-chip strong {
   color: #bfdbfe;
   font-weight: 700;
+}
+.curriculum-chip-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.curriculum-chip-units {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 .curriculum-chip-major-toggle {
   border: 0;

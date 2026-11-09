@@ -7,7 +7,7 @@
 # //   schedules, examination periods, holidays, and college events.
 # //   Supports monthly, weekly, daily, and list views with real-time JSON feed,
 # //   drag-and-drop rescheduling, overlap detection, and immutable audit logs.
-# // Security References: docs/02_SECURITY.md | docs/06_ADMIN_IMPROVEMENTS_ROADMAP.md
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -18,6 +18,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_http_methods, require_POST
@@ -27,6 +28,7 @@ from apps.core.models import (
     AcademicEvent,
     AcademicYear,
     AuditEvent,
+    ExcuseSlip,
     Profile,
 )
 from apps.core.services import seed_philippine_holidays
@@ -105,6 +107,80 @@ def _serialize_event(event):
     }
 
 
+def _serialize_excuse_slip(slip):
+    """Formats an ExcuseSlip instance for FullCalendar consumption alongside AcademicEvents."""
+    student_name = slip.student_profile.user.get_full_name() or slip.student_profile.student_number
+    session_date = slip.session.session_date
+    class_code = slip.session.slot.class_obj.class_code if slip.session and slip.session.slot and slip.session.slot.class_obj else 'Class'
+    subject_code = slip.session.slot.class_obj.subject.code if slip.session and slip.session.slot and slip.session.slot.class_obj and slip.session.slot.class_obj.subject else ''
+    subject_name = slip.session.slot.class_obj.subject.name if slip.session and slip.session.slot and slip.session.slot.class_obj and slip.session.slot.class_obj.subject else ''
+
+    teacher_name = 'Assigned Faculty'
+    if slip.session and slip.session.slot and slip.session.slot.class_obj and slip.session.slot.class_obj.teacher_profile:
+        t_user = slip.session.slot.class_obj.teacher_profile.user
+        teacher_name = t_user.get_full_name() or t_user.username
+
+    # Status colors matching design system
+    if slip.status == ExcuseSlip.STATUS_PENDING:
+        color = '#f59e0b'  # amber
+        bg = 'rgba(245, 158, 11, 0.15)'
+        label = 'Pending Excuse'
+    elif slip.status == ExcuseSlip.STATUS_APPROVED:
+        color = '#10b981'  # emerald
+        bg = 'rgba(16, 185, 129, 0.15)'
+        label = 'Approved Excuse'
+    else:
+        color = '#ef4444'  # rose
+        bg = 'rgba(239, 68, 68, 0.15)'
+        label = 'Rejected Excuse'
+
+    date_str = session_date.strftime('%Y-%m-%d')
+    start_time = slip.session.slot.starts_at.strftime('%I:%M %p') if slip.session and slip.session.slot and slip.session.slot.starts_at else ''
+    end_time = slip.session.slot.ends_at.strftime('%I:%M %p') if slip.session and slip.session.slot and slip.session.slot.ends_at else ''
+    time_str = f"{start_time} – {end_time}" if start_time else "Scheduled Class Session"
+
+    has_proof = bool(slip.attachment)
+    proof_url = reverse('excuse_slip_attachment_document', args=[slip.id]) if has_proof else ''
+
+    return {
+        'id': f'excuse_{slip.id}',
+        'title': f'[{slip.status}] {student_name} ({class_code})',
+        'start': date_str,
+        'end': date_str,
+        'allDay': True,
+        'backgroundColor': color,
+        'borderColor': color,
+        'textColor': '#ffffff',
+        'className': f'fc-event--excuse fc-status--{slip.status.lower()}',
+        'extendedProps': {
+            'is_excuse': True,
+            'excuse_id': slip.id,
+            'student_name': student_name,
+            'student_number': slip.student_profile.student_number,
+            'class_code': class_code,
+            'subject_code': subject_code,
+            'subject_name': subject_name,
+            'teacher_name': teacher_name,
+            'session_date_formatted': session_date.strftime('%A, %b %d, %Y'),
+            'session_time': time_str,
+            'reason': slip.reason,
+            'status': slip.status,
+            'status_display': slip.get_status_display(),
+            'review_note': slip.review_note or '',
+            'has_proof': has_proof,
+            'proof_url': proof_url,
+            'category': 'EXCUSE_SLIP',
+            'category_label': label,
+            'category_icon': 'fa-file-medical',
+            'category_color': color,
+            'category_bg': bg,
+            'location': f'{class_code} · {subject_code}' if subject_code else class_code,
+            'start_formatted': session_date.strftime('%b %d, %Y'),
+            'description': slip.reason,
+        }
+    }
+
+
 # // ==============================================================================
 # // VIEW: Admin Academic Calendar Main Dashboard (/admin/calendar/)
 # // ==============================================================================
@@ -154,12 +230,27 @@ def admin_calendar_view(request):
     )
     category_counts = {row['category']: row['cnt'] for row in cat_counts_qs}
 
+    total_excuses_count = ExcuseSlip.objects.count()
+    pending_excuses_count = ExcuseSlip.objects.filter(status=ExcuseSlip.STATUS_PENDING).count()
+    approved_excuses_count = ExcuseSlip.objects.filter(status=ExcuseSlip.STATUS_APPROVED).count()
+    rejected_excuses_count = ExcuseSlip.objects.filter(status=ExcuseSlip.STATUS_REJECTED).count()
+
     # Merge category counts INTO the meta dict so template can use {{ meta.count }}
     category_meta_with_counts = {}
     for code, meta in AcademicEvent.CATEGORY_META.items():
         entry = dict(meta)
         entry['count'] = category_counts.get(code, 0)
         category_meta_with_counts[code] = entry
+
+    # Add unified Excuse Slips category to the legend & filters
+    category_meta_with_counts['EXCUSE_SLIP'] = {
+        'color': '#f59e0b',
+        'bg': 'rgba(245, 158, 11, 0.15)',
+        'icon': 'fa-file-medical',
+        'label': 'Student Excuse Slips',
+        'count': total_excuses_count,
+        'pending_count': pending_excuses_count,
+    }
 
     # Today's events for sidebar "Today" panel
     today_events = list(
@@ -189,6 +280,10 @@ def admin_calendar_view(request):
         'upcoming_events_count': upcoming_events_count,
         'this_month_count': this_month_count,
         'holidays_count': holidays_count,
+        'total_excuses_count': total_excuses_count,
+        'pending_excuses_count': pending_excuses_count,
+        'approved_excuses_count': approved_excuses_count,
+        'rejected_excuses_count': rejected_excuses_count,
         'upcoming_events': upcoming_events,
         'today_events': today_events,
         'category_counts': category_counts,
@@ -218,11 +313,12 @@ def admin_calendar_events_json(request):
     // Query parameters:
     //   start: ISO datetime string (inclusive start of view)
     //   end: ISO datetime string (exclusive end of view)
-    //   category: optional filter by category code
+    //   category: optional filter by category code (includes 'EXCUSE_SLIP')
     //   academic_year: optional filter by academic_year_id
     //   semester: optional filter by semester code
-    //   status: optional filter by status ('SCHEDULED' or 'CANCELED')
-    //   q: search keyword matching title, description, or location
+    //   status: optional filter by status ('SCHEDULED', 'CANCELED', or excuse statuses)
+    //   include_excuses: '1' (default) or '0' to toggle excuse slip layer
+    //   q: search keyword matching title, description, student, or class
     """
     start_str = request.GET.get('start')
     end_str = request.GET.get('end')
@@ -231,47 +327,105 @@ def admin_calendar_events_json(request):
     semester = request.GET.get('semester', '').strip()
     status = request.GET.get('status', '').strip()
     query = request.GET.get('q', '').strip()
+    include_excuses = request.GET.get('include_excuses', '1') != '0'
 
-    qs = AcademicEvent.objects.select_related('academic_year', 'created_by')
+    events_data = []
 
-    # Date range window
-    if start_str:
-        start_dt = parse_datetime(start_str)
-        if not start_dt:
+    # 1. Academic Events (skip if specifically filtering solely for EXCUSE_SLIP)
+    if category != 'EXCUSE_SLIP':
+        qs = AcademicEvent.objects.select_related('academic_year', 'created_by')
+
+        # Date range window
+        start_dt = None
+        if start_str:
+            start_dt = parse_datetime(start_str)
+            if not start_dt:
+                try:
+                    start_dt = timezone.make_aware(datetime.strptime(start_str[:10], '%Y-%m-%d'))
+                except Exception:
+                    start_dt = None
+            if start_dt:
+                qs = qs.filter(end_datetime__gte=start_dt)
+
+        end_dt = None
+        if end_str:
+            end_dt = parse_datetime(end_str)
+            if not end_dt:
+                try:
+                    end_dt = timezone.make_aware(datetime.strptime(end_str[:10], '%Y-%m-%d'))
+                except Exception:
+                    end_dt = None
+            if end_dt:
+                qs = qs.filter(start_datetime__lte=end_dt)
+
+        # Filters
+        if category:
+            qs = qs.filter(category=category)
+        if ay_id:
+            qs = qs.filter(academic_year_id=ay_id)
+        if semester:
+            qs = qs.filter(semester=semester)
+        if status in ('SCHEDULED', 'CANCELED'):
+            qs = qs.filter(status=status)
+        if query:
+            qs = qs.filter(
+                Q(title__icontains=query)
+                | Q(description__icontains=query)
+                | Q(location__icontains=query)
+            )
+
+        events_data.extend([_serialize_event(e) for e in qs])
+
+    # 2. Student Excuse Slips Layer (included when category is empty or EXCUSE_SLIP)
+    if (not category or category == 'EXCUSE_SLIP') and include_excuses:
+        excuse_qs = ExcuseSlip.objects.select_related(
+            'student_profile__user',
+            'session__slot__class_obj__subject',
+            'session__slot__class_obj__teacher_profile__user',
+            'session__slot__class_obj__academic_year',
+        ).filter(session__session_date__isnull=False)
+
+        # Date range window
+        if start_str:
             try:
-                start_dt = timezone.make_aware(datetime.strptime(start_str[:10], '%Y-%m-%d'))
+                start_d = datetime.strptime(start_str[:10], '%Y-%m-%d').date()
+                excuse_qs = excuse_qs.filter(session__session_date__gte=start_d)
             except Exception:
-                start_dt = None
-        if start_dt:
-            qs = qs.filter(end_datetime__gte=start_dt)
+                pass
 
-    if end_str:
-        end_dt = parse_datetime(end_str)
-        if not end_dt:
+        if end_str:
             try:
-                end_dt = timezone.make_aware(datetime.strptime(end_str[:10], '%Y-%m-%d'))
+                end_d = datetime.strptime(end_str[:10], '%Y-%m-%d').date()
+                excuse_qs = excuse_qs.filter(session__session_date__lte=end_d)
             except Exception:
-                end_dt = None
-        if end_dt:
-            qs = qs.filter(start_datetime__lte=end_dt)
+                pass
 
-    # Filters
-    if category:
-        qs = qs.filter(category=category)
-    if ay_id:
-        qs = qs.filter(academic_year_id=ay_id)
-    if semester:
-        qs = qs.filter(semester=semester)
-    if status:
-        qs = qs.filter(status=status)
-    if query:
-        qs = qs.filter(
-            Q(title__icontains=query)
-            | Q(description__icontains=query)
-            | Q(location__icontains=query)
-        )
+        if ay_id:
+            excuse_qs = excuse_qs.filter(session__slot__class_obj__academic_year_id=ay_id)
 
-    events_data = [_serialize_event(e) for e in qs]
+        # Status filter for excuses
+        if status in (ExcuseSlip.STATUS_PENDING, ExcuseSlip.STATUS_APPROVED, ExcuseSlip.STATUS_REJECTED):
+            excuse_qs = excuse_qs.filter(status=status)
+        elif status in ('SCHEDULED', 'CANCELED'):
+            # If specifically looking for AcademicEvent status, do not include excuses
+            if category == 'EXCUSE_SLIP':
+                excuse_qs = excuse_qs.none()
+
+        if query:
+            excuse_qs = excuse_qs.filter(
+                Q(student_profile__student_number__icontains=query)
+                | Q(student_profile__user__first_name__icontains=query)
+                | Q(student_profile__user__last_name__icontains=query)
+                | Q(session__slot__class_obj__class_code__icontains=query)
+                | Q(session__slot__class_obj__subject__code__icontains=query)
+                | Q(reason__icontains=query)
+            )
+
+        events_data.extend([
+            _serialize_excuse_slip(slip)
+            for slip in excuse_qs.order_by('session__session_date')[:300]
+        ])
+
     return JsonResponse(events_data, safe=False)
 
 
@@ -608,4 +762,3 @@ def admin_calendar_sync_holidays(request):
         'created_count': total_created,
         'existing_count': total_existing,
     })
-

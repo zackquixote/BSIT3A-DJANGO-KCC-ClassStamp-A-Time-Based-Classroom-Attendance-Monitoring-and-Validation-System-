@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count, Q
 from apps.core.models.academic import Program
 from apps.core.models.attendance import RoomVerification
 from apps.core.models.notifications import PushSubscription
@@ -16,6 +17,18 @@ class ProgramAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name', 'department__name')
     ordering = ('code',)
     list_per_page = 25
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.annotate(
+            profile_count=Count(
+                'profiles',
+                filter=Q(
+                    profiles__role=Profile.ROLE_STUDENT,
+                    profiles__approval_status=Profile.APPROVAL_APPROVED,
+                ),
+            )
+        )
 
     def student_count(self, obj):
         """Return count of approved students enrolled in this program."""

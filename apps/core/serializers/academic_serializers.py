@@ -134,6 +134,7 @@ def serialize_curriculum_entry(entry) -> dict:
         'subject_id': entry.subject_id,
         'subject_code': entry.subject.code if entry.subject else None,
         'subject_name': entry.subject.name if entry.subject else None,
+        'subject_units': entry.subject.units if entry.subject else None,
         'is_major': entry.is_major,
     }
 

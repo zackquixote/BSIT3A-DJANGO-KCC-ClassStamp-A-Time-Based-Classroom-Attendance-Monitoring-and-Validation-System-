@@ -7,7 +7,7 @@
 # // multi-attribute filters (Department, Program, Standing Year, Class Section),
 # // scalable page sizing (e.g. 40-student section roster view), CSV exports,
 # // and atomic bulk CSV roster ingestion with automatic 64-char QR secret creation.
-# // Security References: docs/02_SECURITY.md | docs/01_DEV_PLAN.md
+# // Security Reference: docs/02_SECURITY.md
 # // ==============================================================================
 """
 
@@ -22,9 +22,10 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.core.decorators import role_required
-from apps.core.models import AcademicYear, AuditEvent, Class, Department, Profile, Program
+from apps.core.models import AcademicYear, AuditEvent, Class, Curriculum, Department, Profile, Program
 from apps.core.services import (
     build_student_queryset,
+    curriculum_version_state,
     export_student_directory_csv,
     export_student_import_sample_csv,
     import_students_from_csv,
@@ -79,6 +80,57 @@ def student_directory(request):
         .distinct()
         .order_by('section_code')
     )
+
+    selected_program = None
+    curriculum_rows = []
+    curriculum_version_label = ''
+    curriculum_total_units = 0
+    curriculum_major_count = 0
+    curriculum_major_units = 0
+    curriculum_non_major_count = 0
+    curriculum_non_major_units = 0
+    if prog_id.isdigit():
+        selected_program = Program.objects.filter(pk=prog_id, is_active=True).first()
+
+    if selected_program:
+        version_state = curriculum_version_state(selected_program)
+        approved_version = version_state['approved']
+        entries_qs = Curriculum.objects.filter(program=selected_program).select_related('subject', 'version')
+
+        if approved_version is not None:
+            entries_qs = entries_qs.filter(version=approved_version)
+            curriculum_version_label = f'Approved v{approved_version.version_number}'
+        else:
+            entries_qs = entries_qs.filter(version__isnull=True)
+            if entries_qs.exists():
+                curriculum_version_label = 'Legacy curriculum'
+
+        entries_qs = entries_qs.order_by('year_level', 'semester', 'subject__code')
+        all_entries = list(entries_qs)
+        curriculum_total_units = sum(e.subject.units for e in all_entries if e.subject)
+        curriculum_major_count = sum(1 for e in all_entries if e.is_major)
+        curriculum_major_units = sum(e.subject.units for e in all_entries if e.is_major and e.subject)
+        curriculum_non_major_count = len(all_entries) - curriculum_major_count
+        curriculum_non_major_units = curriculum_total_units - curriculum_major_units
+
+        entries_by_placement = {}
+        for entry in all_entries:
+            key = (entry.year_level, entry.semester)
+            entries_by_placement.setdefault(key, []).append(entry)
+
+        semester_labels = dict(Curriculum.SEMESTER_CHOICES)
+        for year_level in range(1, selected_program.years_total + 1):
+            curriculum_rows.append({
+                'year_level': year_level,
+                'semesters': [
+                    {
+                        'number': semester_number,
+                        'label': semester_labels[semester_number],
+                        'entries': entries_by_placement.get((year_level, semester_number), []),
+                    }
+                    for semester_number, _ in Curriculum.SEMESTER_CHOICES
+                ],
+            })
 
     # Aggregate counts across all registered students
     total_students = Profile.objects.filter(role=Profile.ROLE_STUDENT).count()
@@ -137,6 +189,19 @@ def student_directory(request):
         'count_y2': count_y2,
         'count_y3': count_y3,
         'count_y4': count_y4,
+        'selected_program_object': selected_program,
+        'curriculum_rows': curriculum_rows,
+        'curriculum_version_label': curriculum_version_label,
+        'curriculum_total_units': curriculum_total_units,
+        'curriculum_major_count': curriculum_major_count,
+        'curriculum_major_units': curriculum_major_units,
+        'curriculum_non_major_count': curriculum_non_major_count,
+        'curriculum_non_major_units': curriculum_non_major_units,
+        'selected_program_curriculum_total': sum(
+            len(semester['entries'])
+            for row in curriculum_rows
+            for semester in row['semesters']
+        ),
     }
     return render(request, 'core/admin/student_directory.html', context)
 
