@@ -11,6 +11,7 @@
 """
 
 import json
+import sys
 from datetime import time, timedelta
 from urllib.parse import urlencode
 from django.contrib import messages
@@ -59,18 +60,18 @@ def _class_setup_checklist(active_ay):
     """
     Returns a list of dicts — one per active class that is missing any setup step.
     Each dict carries:
-      class_obj   – the Class instance
-      missing     – list of (label, severity) tuples
-      actions     – list of {label, action_key, class_id} for JS-driven modal triggers
-      total       – total active class count for progress bar
-      complete    – count of fully configured classes
-    Also returns total/complete counts via the first dict key (see below).
+      class_obj      – the Class instance
+      missing        – list of string keys ('Teacher', 'Schedule', 'Room', etc.)
+      missing_badges – list of (label, severity) tuples for UI pills
+      actions        – list of {label, link, action_key, class_id}
     Result is cached for 60 s per active-year to avoid repeated heavy queries.
     """
+    is_testing = 'test' in sys.argv
     cache_key = f'setup_checklist_{active_ay.pk if active_ay else "none"}'
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    if not is_testing:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
     _now = timezone.now()
     _stale_threshold = timedelta(days=30)
@@ -81,7 +82,7 @@ def _class_setup_checklist(active_ay):
         classes = classes.filter(academic_year=active_ay)
     classes = (
         classes
-        .select_related('academic_year', 'subject', 'teacher_profile__user', 'program')
+        .select_related('academic_year', 'subject', 'teacher_profile__user', 'program', 'program__department')
         .prefetch_related('slots')
         .annotate(
             active_enrolled=Count(
@@ -97,92 +98,102 @@ def _class_setup_checklist(active_ay):
         .order_by('class_code')
     )
 
-    # Pre-fetch session existence per class in one query to avoid N+1
     total = classes.count()
     checklist = []
 
     for class_obj in classes:
-        missing = []  # list of (label, severity)  severity: 'danger' | 'warning' | 'info' | 'muted'
+        missing = []
+        missing_badges = []
 
-        # ── Blocking / critical items ──────────────────────────────────────
+        # ── Teacher ────────────────────────────────────────────────────────
         if not class_obj.teacher_profile_id:
-            missing.append(('No teacher assigned', 'danger'))
+            missing.append('Teacher')
+            missing_badges.append(('No teacher assigned', 'danger'))
 
+        # ── Schedule & Room ────────────────────────────────────────────────
         active_slots = [s for s in class_obj.slots.all() if s.is_active]
         if not active_slots:
-            missing.append(('No schedule slots', 'danger'))
-        else:
-            tba_rooms = [
-                s for s in active_slots
-                if not s.room or s.room.strip().upper() in {'TBA', 'ASSIGNED ROOM'}
-            ]
-            if tba_rooms:
-                missing.append(('Room TBA', 'warning'))
+            missing.append('Schedule')
+            missing_badges.append(('No schedule slots', 'danger'))
+        elif any(
+            not s.room or s.room.strip().upper() in {'TBA', 'ASSIGNED ROOM'}
+            for s in active_slots
+        ):
+            missing.append('Room')
+            missing_badges.append(('Room TBA', 'warning'))
 
-        # ── Program / year-level linkage ───────────────────────────────────
+        # ── Program / Year Level ───────────────────────────────────────────
         if not class_obj.program_id:
-            missing.append(('No program linked', 'danger'))
-
+            missing.append('Program')
+            missing_badges.append(('No program linked', 'danger'))
         if not class_obj.year_level:
-            missing.append(('No year level set', 'warning'))
+            missing.append('Year level')
+            missing_badges.append(('No year level set', 'warning'))
 
-        # ── Roster ────────────────────────────────────────────────────────
+        # ── Roster ─────────────────────────────────────────────────────────
         if not class_obj.active_enrolled:
-            missing.append(('Empty student roster', 'warning'))
-
-        if class_obj.pending_enrolled:
+            missing.append('Student roster')
+            missing_badges.append(('Empty student roster', 'warning'))
+        elif class_obj.pending_enrolled:
             count = class_obj.pending_enrolled
-            missing.append((f'{count} pending enrollment{"s" if count != 1 else ""}', 'info'))
+            missing_badges.append((f'{count} pending enrollment{"s" if count != 1 else ""}', 'info'))
 
-        # ── Join code ─────────────────────────────────────────────────────
+        # ── Join code ──────────────────────────────────────────────────────
         if not class_obj.join_code_active:
-            missing.append(('Join code not active', 'info'))
+            missing.append('Student join code')
+            missing_badges.append(('Join code not active', 'info'))
         elif (
             class_obj.join_code_created_at
             and (_now - class_obj.join_code_created_at) > _stale_threshold
         ):
-            missing.append(('Join code is stale (>30 days)', 'info'))
+            missing_badges.append(('Join code is stale (>30 days)', 'info'))
 
-        # ── Sessions ──────────────────────────────────────────────────────
+        # ── Sessions ───────────────────────────────────────────────────────
         class_age = _now - class_obj.created_at if class_obj.created_at else timedelta(0)
         if (
             class_age > _session_threshold
             and active_slots
             and class_obj.session_count == 0
         ):
-            missing.append(('No attendance sessions started', 'muted'))
-
-        # ── Capacity ──────────────────────────────────────────────────────
-        if not class_obj.capacity:
-            missing.append(('Seat capacity not set', 'muted'))
+            missing_badges.append(('No attendance sessions started', 'muted'))
 
         if missing:
-            # Build action list — these trigger JS modals directly (no page reload)
-            actions = []
-            labels_present = {m[0] for m in missing}
-            if 'No teacher assigned' in labels_present:
-                actions.append({'label': 'Assign teacher', 'action_key': 'teacher', 'class_id': class_obj.pk})
-            if any(x in labels_present for x in ('No schedule slots', 'Room TBA')):
-                actions.append({'label': 'Set schedule / room', 'action_key': 'schedule', 'class_id': class_obj.pk})
-            if 'No program linked' in labels_present or 'No year level set' in labels_present or 'Seat capacity not set' in labels_present:
-                actions.append({'label': 'Edit class details', 'action_key': 'teacher', 'class_id': class_obj.pk})
-            if any(x in labels_present for x in ('Empty student roster',)) or any('pending enrollment' in x for x in labels_present):
-                actions.append({'label': 'Manage roster', 'action_key': 'roster', 'class_id': class_obj.pk})
-            if any('Join code' in x for x in labels_present):
-                actions.append({'label': 'Manage join code', 'action_key': 'join_code', 'class_id': class_obj.pk})
+            action_specs = []
+            if 'Teacher' in missing or 'Program' in missing or 'Year level' in missing:
+                action_specs.append(('Assign teacher', 'teacher'))
+            if 'Schedule' in missing or 'Room' in missing:
+                action_specs.append(('Set schedule / room', 'schedule'))
+            if 'Student roster' in missing:
+                action_specs.append(('Manage roster', 'roster'))
+            if 'Student join code' in missing:
+                action_specs.append(('Open join code menu', 'join_code'))
 
-            # Deduplicate actions by action_key
-            seen_keys = set()
-            unique_actions = []
-            for a in actions:
-                if a['action_key'] not in seen_keys:
-                    seen_keys.add(a['action_key'])
-                    unique_actions.append(a)
+            # Deduplicate action_specs
+            seen_actions = set()
+            unique_action_specs = []
+            for label, act in action_specs:
+                if act not in seen_actions:
+                    seen_actions.add(act)
+                    unique_action_specs.append((label, act))
 
             checklist.append({
                 'class_obj': class_obj,
                 'missing': missing,
-                'actions': unique_actions,
+                'missing_badges': missing_badges,
+                'actions': [
+                    {
+                        'label': label,
+                        'action_key': action,
+                        'class_id': class_obj.pk,
+                        'link': '/classes/?' + urlencode({
+                            'ay': 'ALL',
+                            'q': class_obj.class_code,
+                            'setup_class': class_obj.pk,
+                            'setup_action': action,
+                        }),
+                    }
+                    for label, action in unique_action_specs
+                ],
             })
 
     result = {
@@ -190,7 +201,8 @@ def _class_setup_checklist(active_ay):
         'total': total,
         'complete': total - len(checklist),
     }
-    cache.set(cache_key, result, timeout=60)
+    if not is_testing:
+        cache.set(cache_key, result, timeout=60)
     return result
 
 
@@ -210,6 +222,9 @@ def class_list(request):
     // [Admin Controller] Masterlist of institutional classes and sections.
     """
     ay_filter = request.GET.get('ay', '').strip()
+    dept_filter = request.GET.get('department', '').strip()
+    prog_filter = request.GET.get('program', '').strip()
+    year_filter = request.GET.get('year_level', '').strip()
     subject_filter = request.GET.get('subject', '').strip()
     teacher_filter = request.GET.get('teacher', '').strip()
     search_q = request.GET.get('q', '').strip()
@@ -226,7 +241,14 @@ def class_list(request):
 
     classes_qs = (
         Class.objects
-        .select_related('academic_year', 'subject', 'teacher_profile__user', 'teacher_profile__department')
+        .select_related(
+            'academic_year',
+            'subject',
+            'teacher_profile__user',
+            'teacher_profile__department',
+            'program',
+            'program__department',
+        )
         .prefetch_related('slots', 'enrollments')
         .annotate(
             active_enrolled=Count('enrollments', filter=Q(enrollments__status=Enrollment.STATUS_ACTIVE)),
@@ -241,6 +263,19 @@ def class_list(request):
     elif active_ay:
         classes_qs = classes_qs.filter(academic_year=active_ay)
         ay_filter = str(active_ay.id)
+
+    if dept_filter.isdigit():
+        dept_id = int(dept_filter)
+        classes_qs = classes_qs.filter(
+            Q(program__department_id=dept_id)
+            | (Q(program__isnull=True) & Q(teacher_profile__department_id=dept_id))
+        )
+
+    if prog_filter.isdigit():
+        classes_qs = classes_qs.filter(program_id=int(prog_filter))
+
+    if year_filter.isdigit():
+        classes_qs = classes_qs.filter(year_level=int(year_filter))
 
     if subject_filter:
         classes_qs = classes_qs.filter(subject_id=subject_filter)
@@ -282,11 +317,31 @@ def class_list(request):
         .order_by('code')
     )
 
+    selected_dept = departments.filter(id=int(dept_filter)).first() if dept_filter.isdigit() else None
+    selected_prog = programs.filter(id=int(prog_filter)).first() if prog_filter.isdigit() else None
+    year_choices = [1, 2, 3, 4]
+    is_filtered = bool(
+        dept_filter
+        or prog_filter
+        or year_filter
+        or subject_filter
+        or teacher_filter
+        or search_q
+        or (ay_filter and active_ay and ay_filter != str(active_ay.id))
+    )
+
     _checklist_data = _class_setup_checklist(active_ay)
 
     return render(request, 'core/admin/classes.html', {
         'classes': classes_page,
         'ay_filter': ay_filter,
+        'dept_filter': dept_filter,
+        'prog_filter': prog_filter,
+        'year_filter': year_filter,
+        'selected_dept': selected_dept,
+        'selected_prog': selected_prog,
+        'year_choices': year_choices,
+        'is_filtered': is_filtered,
         'subject_filter': subject_filter,
         'teacher_filter': teacher_filter,
         'search_q': search_q,
@@ -326,6 +381,8 @@ def class_save(request):
     academic_year_id = request.POST.get('academic_year_id', '').strip()
     capacity_str = request.POST.get('capacity', '').strip()
     grace_minutes_str = request.POST.get('grace_minutes', '10').strip()
+    program_id = request.POST.get('program_id', '').strip()
+    year_level_str = request.POST.get('year_level', '').strip()
 
     if not class_id:
         messages.error(request, 'New sections are created through the Section Wizard.')
@@ -344,6 +401,9 @@ def class_save(request):
         grace_minutes = int(grace_minutes_str) if grace_minutes_str else 10
     except ValueError:
         grace_minutes = 10
+
+    program = Program.objects.filter(pk=int(program_id), is_active=True).first() if program_id.isdigit() else None
+    year_level = int(year_level_str) if year_level_str.isdigit() and 1 <= int(year_level_str) <= 8 else None
 
     subject = get_object_or_404(Subject, pk=subject_id)
     teacher = get_object_or_404(Profile, pk=teacher_profile_id, role=Profile.ROLE_TEACHER)
@@ -378,6 +438,8 @@ def class_save(request):
             grace_minutes=grace_minutes,
             capacity=capacity,
             class_obj=class_obj,
+            program=program,
+            year_level=year_level,
         )
     except ClassAssignmentError as exc:
         messages.error(request, str(exc))

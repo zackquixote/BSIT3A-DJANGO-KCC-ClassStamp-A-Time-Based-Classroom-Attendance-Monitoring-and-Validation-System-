@@ -134,6 +134,7 @@ class Class(models.Model):
     def save(self, *args, **kwargs):
         """
         // Fill the section key from the offering code on first write.
+        // Also auto-infers program and year_level from the cohort prefix if unset.
         // An explicit value always wins so a data repair can override a bad
         // legacy code without fighting the model.
         """
@@ -142,6 +143,25 @@ class Class(models.Model):
             update_fields = kwargs.get('update_fields')
             if update_fields is not None and 'section_code' not in update_fields:
                 kwargs['update_fields'] = list(update_fields) + ['section_code']
+
+        if not self.program_id or not self.year_level:
+            target = self.section_code or self.class_code
+            match = re.match(r'^([A-Z]{2,8})-(\d{1,2})', target or '')
+            if match:
+                prog_code, y_val = match.group(1), int(match.group(2))
+                if not self.program_id:
+                    matched_prog = Program.objects.filter(code__iexact=prog_code, is_active=True).first()
+                    if matched_prog:
+                        self.program = matched_prog
+                        update_fields = kwargs.get('update_fields')
+                        if update_fields is not None and 'program' not in update_fields:
+                            kwargs['update_fields'] = list(update_fields) + ['program']
+                if not self.year_level and 1 <= y_val <= 8:
+                    self.year_level = y_val
+                    update_fields = kwargs.get('update_fields')
+                    if update_fields is not None and 'year_level' not in update_fields:
+                        kwargs['update_fields'] = list(update_fields) + ['year_level']
+
         super().save(*args, **kwargs)
 
     def __str__(self):

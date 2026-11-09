@@ -262,3 +262,53 @@ class ClassSetupChecklistTests(ClassBase):
         row_start = html.index(f'<tr id="class-{self.class_obj.pk}">')
         row_end = html.index('</tr>', row_start)
         self.assertIn(self.class_obj.class_code, html[row_start:row_end])
+
+
+class ClassDepartmentAndYearFilterTests(ClassBase):
+    def test_filter_by_department_and_year_level(self):
+        # self.class_obj is BSIT-1A-IT311, department=self.department (CCS), year_level=1
+        other_dept = Department.objects.create(code='COC', name='College of Criminology')
+        crim_prog = Program.objects.create(
+            department=other_dept, code='BSCRIM', name='BS Criminology',
+        )
+        crim_subj = Subject.objects.create(code='CRIM101', name='Intro to Criminology', units=3)
+        crim_teacher_user = User.objects.create_user(username='crim_teacher')
+        crim_teacher = Profile.objects.create(
+            user=crim_teacher_user, role=Profile.ROLE_TEACHER, department=other_dept,
+        )
+        crim_class = Class.objects.create(
+            academic_year=self.year, class_code='BSCRIM-1A', subject=crim_subj,
+            teacher_profile=crim_teacher, program=crim_prog, year_level=1,
+        )
+        year2_class = Class.objects.create(
+            academic_year=self.year, class_code='BSIT-2A', subject=self.other_subject,
+            teacher_profile=self.teacher, program=self.program, year_level=2,
+        )
+
+        # 1. Filter by department only: only CCS classes
+        res_dept = self.client.get(reverse('class_list'), {'department': str(self.department.pk)})
+        self.assertEqual(res_dept.status_code, 200)
+        codes = [c.class_code for c in res_dept.context['classes']]
+        self.assertIn(self.class_obj.class_code, codes)
+        self.assertIn(year2_class.class_code, codes)
+        self.assertNotIn(crim_class.class_code, codes)
+
+        # 2. Filter by year_level only: only Year 1 classes
+        res_year = self.client.get(reverse('class_list'), {'year_level': '1'})
+        self.assertEqual(res_year.status_code, 200)
+        codes = [c.class_code for c in res_year.context['classes']]
+        self.assertIn(self.class_obj.class_code, codes)
+        self.assertIn(crim_class.class_code, codes)
+        self.assertNotIn(year2_class.class_code, codes)
+
+        # 3. Filter by department AND year_level combined: 1 department only Year 1
+        res_both = self.client.get(reverse('class_list'), {
+            'department': str(self.department.pk),
+            'year_level': '1',
+        })
+        self.assertEqual(res_both.status_code, 200)
+        codes = [c.class_code for c in res_both.context['classes']]
+        self.assertIn(self.class_obj.class_code, codes)
+        self.assertNotIn(crim_class.class_code, codes)
+        self.assertNotIn(year2_class.class_code, codes)
+

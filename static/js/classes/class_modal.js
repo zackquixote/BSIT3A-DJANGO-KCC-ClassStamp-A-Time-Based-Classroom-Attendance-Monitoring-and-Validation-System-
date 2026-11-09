@@ -14,6 +14,8 @@
     var formClassCode     = getEl('formClassCode');
     var formSubjectId     = getEl('formSubjectId');
     var formTeacherId     = getEl('formTeacherId');
+    var formProgramId     = getEl('formProgramId');
+    var formYearLevel     = getEl('formYearLevel');
     var formAyId          = getEl('formAyId');
     var formCapacity      = getEl('formCapacity');
     var formGraceMinutes  = getEl('formGraceMinutes');
@@ -31,6 +33,8 @@
       if (formClassCode)    formClassCode.value    = editBtn.dataset.code || '';
       if (formSubjectId)    formSubjectId.value    = editBtn.dataset.subjectId || '';
       if (formTeacherId)    formTeacherId.value    = editBtn.dataset.teacherId || '';
+      if (formProgramId)    formProgramId.value    = editBtn.dataset.programId || '';
+      if (formYearLevel)    formYearLevel.value    = editBtn.dataset.yearLevel || '';
       if (formAyId)         formAyId.value         = editBtn.dataset.ayId || '';
       if (formCapacity)     formCapacity.value     = editBtn.dataset.capacity || '';
       if (formGraceMinutes) formGraceMinutes.value = editBtn.dataset.grace || '10';
