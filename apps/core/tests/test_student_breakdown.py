@@ -1,4 +1,4 @@
-"""
+﻿"""
 # // ==============================================================================
 # // KCC CLASSSTAMP - PER-SUBJECT ATTENDANCE BREAKDOWN TESTS (S-03)
 # // ==============================================================================
@@ -117,7 +117,7 @@ class StudentBreakdownTests(TestCase):
         self.assertContains(res, 'Juan Dela Cruz')
         self.assertContains(res, '75.0%')
         self.assertContains(res, '100.0%')
-        self.assertContains(res, 'No meetings yet')
+        self.assertContains(res, 'No meetings recorded for this section yet.')
         self.assertContains(res, 'Meeting log')
 
     def test_meeting_log_lists_records(self):
@@ -125,3 +125,4 @@ class StudentBreakdownTests(TestCase):
         self.assertContains(res, 'Meeting log (4)')
         self.assertContains(res, 'Meeting log (1)')
         self.assertContains(res, 'Late +7m')
+

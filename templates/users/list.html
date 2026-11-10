@@ -108,7 +108,7 @@
     </div>
 
     <div style="min-width: 140px;">
-      <select name="status" class="form-control" onchange="this.form.submit()">
+      <select name="status" class="form-control" data-autosubmit="1">
         <option value="">Status: All</option>
         <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
         <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
@@ -117,7 +117,7 @@
 
     {% if role_tab == 'students' %}
       <div style="min-width: 160px;">
-        <select name="program" class="form-control" onchange="this.form.submit()">
+        <select name="program" class="form-control" data-autosubmit="1">
           <option value="">Program: All</option>
           {% for p in programs %}
             <option value="{{ p.id }}" {% if prog_filter == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }}</option>
@@ -126,7 +126,7 @@
       </div>
 
       <div style="min-width: 130px;">
-        <select name="year_level" class="form-control" onchange="this.form.submit()">
+        <select name="year_level" class="form-control" data-autosubmit="1">
           <option value="">Year: All</option>
           <option value="1" {% if year_filter == '1' %}selected{% endif %}>1st Year</option>
           <option value="2" {% if year_filter == '2' %}selected{% endif %}>2nd Year</option>
@@ -136,7 +136,7 @@
       </div>
     {% elif role_tab == 'teachers' %}
       <div style="min-width: 170px;">
-        <select name="department" class="form-control" onchange="this.form.submit()">
+        <select name="department" class="form-control" data-autosubmit="1">
           <option value="">Dept: All</option>
           {% for d in departments %}
             <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.code }}</option>
@@ -147,7 +147,7 @@
 
     <!-- Per-page selector -->
     <div style="min-width: 110px; margin-left: auto;" title="Accounts per page">
-      <select name="per_page" class="form-control" onchange="this.form.submit()" title="Rows per page">
+      <select name="per_page" class="form-control" data-autosubmit="1" title="Rows per page">
         <option value="15"  {% if per_page == 15  %}selected{% endif %}>15 / page</option>
         <option value="25"  {% if per_page == 25  %}selected{% endif %}>25 / page</option>
         <option value="50"  {% if per_page == 50  %}selected{% endif %}>50 / page</option>
@@ -171,7 +171,7 @@
 <!-- Feedback Alert Bar -->
 <div id="userAlert" class="toast toast--success mb-4" style="display: none; align-items: center; justify-content: space-between;">
   <span id="userAlertText"></span>
-  <button type="button" onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer;">
+  <button type="button" data-dismiss-parent="1" style="background:none; border:none; color:inherit; cursor:pointer;">
     <i class="fas fa-xmark"></i>
   </button>
 </div>
@@ -767,7 +767,7 @@
 <script src="{% static 'js/users/reset_password_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/users/delete_user.js' %}?v=20261020_v1"></script>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 // Pre-select role in Add User modal based on current tab
 document.addEventListener('DOMContentLoaded', function () {
   var addBtn = document.getElementById('addUserBtn');

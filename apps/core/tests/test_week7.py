@@ -87,7 +87,10 @@ class AssignClassCurriculumContextTests(BaseWeek5FixtureMixin, TestCase):
         self.assertEqual(created['class'].year_level, 2)
 
     def test_assign_without_program_leaves_null(self):
-        result = self._assign()
+        # Class.save() now infers program/year_level from a matching cohort
+        # prefix (e.g. BSIT-3A), so null inference is only observable with a
+        # genuinely non-matching code.
+        result = self._assign(class_code='ZZQW-9A')
         class_obj = Class.objects.get(pk=result['class'].pk)
         self.assertIsNone(class_obj.program)
         self.assertIsNone(class_obj.year_level)
@@ -146,6 +149,10 @@ class BackfillClassProgramTests(BaseWeek5FixtureMixin, TestCase):
         self.assertEqual(self.prefilled_class.year_level, 4)
 
     def test_backfill_dry_run_writes_nothing(self):
+        # Class.save() auto-fills program/year_level from the section code, so
+        # simulate the legacy null row the backfill repairs with a direct
+        # queryset update (bypassing save-time inference).
+        Class.objects.filter(pk=self.bsit_class.pk).update(program=None, year_level=None)
         self._run(dry_run=True)
         self.bsit_class.refresh_from_db()
         self.assertIsNone(self.bsit_class.program)
@@ -395,18 +402,43 @@ class SlotSaveConflictViewTests(BaseWeek5FixtureMixin, TestCase):
         self.assertIn('WV-A', res.json()['message'])
         self.assertEqual(ClassSlot.objects.filter(class_obj=self.class_a).count(), 1)
 
-    def test_room_conflict_warns_but_saves(self):
+    def test_room_conflict_blocks_save_without_override(self):
         ClassSlot.objects.create(
             class_obj=self.class_a, weekday=0,
             starts_at=time(8, 0), ends_at=time(9, 0), room='IT-Lab 1',
         )
         res = self._post(self.class_b, starts='08:30', ends='09:30', room='IT-Lab 1')
+        self.assertEqual(res.status_code, 400)
+        data = res.json()
+        self.assertFalse(data['success'])
+        self.assertTrue(data['override_available'])
+        self.assertIn('WV-A', data['conflicts'][0])
+        self.assertEqual(ClassSlot.objects.filter(class_obj=self.class_b).count(), 0)
+
+    def test_room_conflict_override_saves_and_audits(self):
+        ClassSlot.objects.create(
+            class_obj=self.class_a, weekday=0,
+            starts_at=time(8, 0), ends_at=time(9, 0), room='IT-Lab 1',
+        )
+        res = self.client.post(
+            reverse('class_slot_save', args=[self.class_b.pk]),
+            data={
+                'weekday': 0, 'starts_at': '08:30', 'ends_at': '09:30',
+                'room': 'IT-Lab 1', 'override_conflicts': '1',
+            },
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data['success'])
         self.assertTrue(data['warnings'])
         self.assertIn('WV-A', data['warnings'][0])
         self.assertEqual(ClassSlot.objects.filter(class_obj=self.class_b).count(), 1)
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='CLASS_SLOT_CONFLICT_OVERRIDE',
+                object_type='ClassSlot',
+            ).exists()
+        )
 
     def test_clean_save_has_no_warnings(self):
         res = self._post(self.class_b, weekday=2, starts='08:00', ends='09:00', room='RM-2')
@@ -642,18 +674,42 @@ class WizardSaveTests(BaseWeek5FixtureMixin, TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json()['success'])
 
-    def test_room_conflict_warns_but_saves(self):
+    def test_room_conflict_blocks_save_without_override(self):
         existing = self._make_class(self.teacher_b, code='SAVE-ROOM')
         self._slot(existing, weekday=0, start_h=8, end_h=9, room='IT-Lab 1')
         res = self._post(slots=json.dumps([
             {'weekday': 0, 'starts_at': '08:30', 'ends_at': '09:30', 'room': 'IT-Lab 1'},
             {'weekday': 2, 'starts_at': '08:00', 'ends_at': '10:00', 'room': 'IT-Lab 1'},
         ]))
+        self.assertEqual(res.status_code, 400)
+        data = res.json()
+        self.assertFalse(data['success'])
+        self.assertTrue(data['override_available'])
+        self.assertIn('SAVE-ROOM', data['conflicts'][0])
+        self.assertFalse(Class.objects.filter(class_code='BSIT-3Z').exists())
+        self.assertEqual(ClassSlot.objects.filter(class_obj__class_code='BSIT-3Z').count(), 0)
+
+    def test_room_conflict_override_saves_and_audits(self):
+        existing = self._make_class(self.teacher_b, code='SAVE-ROOM')
+        self._slot(existing, weekday=0, start_h=8, end_h=9, room='IT-Lab 1')
+        res = self._post(
+            override_conflicts='1',
+            slots=json.dumps([
+                {'weekday': 0, 'starts_at': '08:30', 'ends_at': '09:30', 'room': 'IT-Lab 1'},
+                {'weekday': 2, 'starts_at': '08:00', 'ends_at': '10:00', 'room': 'IT-Lab 1'},
+            ]),
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertTrue(data['success'])
         self.assertTrue(data['warnings'])
         self.assertIn('SAVE-ROOM', data['warnings'][0])
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='WIZARD_ROOM_CONFLICT_OVERRIDE',
+                object_type='Class',
+            ).exists()
+        )
 
     def test_bad_slots_json_400(self):
         res = self._post(slots='not-json')

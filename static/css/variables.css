@@ -1,7 +1,7 @@
 /* =============================================================
-   KCC ClassStamp — Design Tokens & Variables
-   Solar-Boosted High-Contrast Obsidian Dark Design System
-   Optimized for Direct Outdoor Sunlight Visibility & Anti-Glare
+   KCC ClassStamp — Design Tokens
+   Restrained institutional console: one accent, hairline borders,
+   semantic color reserved for status. No glows, no gradient text.
    ============================================================= */
 
 /* ── Fonts ───────────────────────────────────────────────────── */
@@ -9,67 +9,82 @@
 
 /* ── CSS Custom Properties ───────────────────────────────────── */
 :root {
-  /* Backgrounds — Solar-Boosted Obsidian Navy (Solid, Anti-Glare in Sunlight) */
-  --bg-base:             #0b1220;
-  --bg-surface:          #101b2f;
-  --bg-elevated:         #1a2a46;
-  --bg-card:             #142036;
-  --bg-card-hover:       #192844;
+  /* Canvas — flat navy, no decorative gradients */
+  --bg-base:             #0a0f18;
+  --bg-surface:          #0e1520;
+  --bg-elevated:         #131b27;
+  --bg-card:             #101825;
+  --bg-card-hover:       #141d2b;
 
-  /* Crisp Structural Outlines & Visible Card Borders (Anti-Glare) */
-  --glass-bg:            rgba(255, 255, 255, 0.06);
-  --glass-bg-hover:      rgba(255, 255, 255, 0.10);
-  --glass-border:        rgba(255, 255, 255, 0.20);
-  --glass-border-hover:  rgba(255, 255, 255, 0.35);
-  --glass-border-gold:   rgba(245, 158, 11, 0.55);
-  --glass-blur:          blur(16px);
+  /* Hairline structure. Glass aliases stay for templates that still use them. */
+  --border:              rgba(255, 255, 255, 0.075);
+  --border-strong:       rgba(255, 255, 255, 0.13);
+  --glass-bg:            rgba(255, 255, 255, 0.04);
+  --glass-bg-hover:      rgba(255, 255, 255, 0.07);
+  --glass-border:        var(--border);
+  --glass-border-hover:  var(--border-strong);
+  --glass-border-gold:   rgba(216, 169, 68, 0.45);
+  --glass-blur:          blur(10px);
 
-  /* Accents — Vibrant Sungold & Royal Electric Blue (High Sunlight Punch) */
-  --accent-gold:         #f59e0b;
-  --accent-gold-h:       #fbbf24;
-  --accent-gold-dark:    #d97706;
-  --accent-gold-glow:    rgba(245, 158, 11, 0.32);
-  --accent-blue:         #3b82f6;
-  --accent-blue-h:       #60a5fa;
-  --accent-blue-glow:    rgba(59, 130, 246, 0.32);
+  /* Accent — muted institutional gold, used for action and state only */
+  --accent-gold:         #d8a944;
+  --accent-gold-h:       #e6ba5c;
+  --accent-gold-dark:    #b68a30;
+  --accent-gold-glow:    transparent;
+  --accent-ink:          #0a0f18;
+  --accent-blue:         #6b93c9;
+  --accent-blue-h:       #8aabe0;
+  --accent-blue-glow:    transparent;
 
-  /* Status Colors with Vibrant Daylight Saturation */
-  --success:             #22c55e;
-  --success-glow:        rgba(34, 197, 94, 0.28);
-  --warning:             #f59e0b;
-  --warning-glow:        rgba(245, 158, 11, 0.28);
-  --danger:              #ef4444;
-  --danger-glow:         rgba(239, 68, 68, 0.28);
-  --info:                #38bdf8;
-  --info-glow:           rgba(56, 189, 248, 0.28);
+  /* Status — desaturated so they read as labels, not decoration */
+  --success:             #4ea87a;
+  --success-glow:        transparent;
+  --warning:             #d8a944;
+  --warning-glow:        transparent;
+  --danger:              #d96666;
+  --danger-glow:         transparent;
+  --info:                #6b93c9;
+  --info-glow:           transparent;
 
-  /* Text Typography — Solar High-Contrast Boost (Crisp, High Luminance) */
-  --text-primary:        #ffffff;
-  --text-secondary:      #e2e8f0;
-  --text-muted:          #94a3b8;
-  --text-dim:            #64748b;
+  /* Text */
+  --text-primary:        #f1f4f9;
+  --text-secondary:      #b3bdcb;
+  --text-muted:          #7f8b9c;
+  --text-dim:            #5b6675;
 
-  /* Role Badges */
-  --role-admin:          #c084fc;
-  --role-teacher:        #fbbf24;
-  --role-student:        #4ade80;
+  /* Role labels */
+  --role-admin:          #a58cd4;
+  --role-teacher:        #d8a944;
+  --role-student:        #4ea87a;
 
   /* Sizing & Borders */
-  --sidebar-w:           218px;
-  --radius-xs:           6px;
-  --radius-sm:           8px;
-  --radius-md:           12px;
-  --radius-lg:           16px;
-  --radius-xl:           24px;
+  --sidebar-w:           232px;
+  --radius-xs:           4px;
+  --radius-sm:           6px;
+  --radius-md:           8px;
+  --radius-lg:           10px;
+  --radius-xl:           12px;
   --radius-full:         9999px;
+  --control-h:           36px;
 
-  /* Shadows & Elevations */
-  --shadow-sm:           0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-md:           0 6px 20px rgba(0, 0, 0, 0.45);
-  --shadow-lg:           0 12px 40px rgba(0, 0, 0, 0.55);
-  --shadow-gold:         0 0 24px rgba(245, 158, 11, 0.30);
+  /* Spacing scale (4px grid) */
+  --space-1:             4px;
+  --space-2:             8px;
+  --space-3:             12px;
+  --space-4:             16px;
+  --space-5:             20px;
+  --space-6:             24px;
 
-  /* Transitions */
-  --transition:          all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-fast:     all 0.12s ease;
+  /* Shadows — only for floating layers */
+  --shadow-sm:           0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md:           0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg:           0 18px 48px rgba(0, 0, 0, 0.55);
+  --shadow-gold:         none;
+
+  /* Motion */
+  --transition:          background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  --transition-fast:     background-color 0.12s ease, border-color 0.12s ease;
+
+  /* Numeric type — figures line up in tables and KPI strips */
+  --font-num:            'Inter', ui-monospace, 'SF Mono', Menlo, monospace;
 }

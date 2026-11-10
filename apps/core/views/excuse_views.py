@@ -31,6 +31,8 @@ from apps.core.models import (
     ExcuseSlip,
     Profile,
 )
+from apps.core.services.excuse_service import review_excuse_slip
+from apps.core.services.permission_service import PermissionService
 from apps.core.services.notification_service import notify_excuse_decision
 from apps.core.services.in_app_notification_service import create_notification
 from apps.core.validators import validate_uploaded_document
@@ -46,18 +48,14 @@ def _can_review_excuse(request, class_obj) -> bool:
     """
     // Object-level authorization: only the assigned instructor, an ADMIN, or a
     // superuser may adjudicate excuse slips for a class section.
+    //
+    // Kept as a thin adapter for dispute_resolve, which holds an
+    // AttendanceDispute rather than an ExcuseSlip. Single-slip review now
+    // calls PermissionService.can_user_approve_excuse directly.
     """
     if request.user.is_superuser:
         return True
-    profile = getattr(request.user, 'classstamp_profile', None)
-    if profile is None:
-        return False
-    if profile.role == Profile.ROLE_ADMIN:
-        return True
-    return (
-        profile.role == Profile.ROLE_TEACHER
-        and class_obj.teacher_profile_id == profile.id
-    )
+    return PermissionService.can_user_access_class(request.user, class_obj)
 
 
 # // ==============================================================================
@@ -97,12 +95,7 @@ def student_excuse_slips(request):
             return redirect('student_excuse_slips')
 
         # Only a meeting the student is actually enrolled in can be excused.
-        enrolled = Enrollment.objects.filter(
-            student_profile=profile,
-            class_obj=session.slot.class_obj,
-            status=Enrollment.STATUS_ACTIVE,
-        ).exists()
-        if not enrolled:
+        if not PermissionService.can_user_access_class(request.user, session.slot.class_obj):
             messages.error(request, 'You are not enrolled in that class section.')
             return redirect('student_excuse_slips')
 
@@ -310,7 +303,7 @@ def excuse_slip_review_ajax(request, slip_id):
     )
     class_obj = slip.session.slot.class_obj
 
-    if not _can_review_excuse(request, class_obj):
+    if not PermissionService.can_user_approve_excuse(request.user, slip):
         return JsonResponse({'ok': False, 'error': 'You are not authorized to review this excuse slip.'}, status=403)
 
     if slip.status != ExcuseSlip.STATUS_PENDING:
@@ -319,67 +312,23 @@ def excuse_slip_review_ajax(request, slip_id):
     action = request.POST.get('action', '').strip()
     note = request.POST.get('note', '').strip()
 
-    if action == 'approve':
-        with transaction.atomic():
-            record, created = AttendanceRecord.objects.get_or_create(
-                session=slip.session,
-                student_profile=slip.student_profile,
-                defaults={
-                    'status': AttendanceRecord.STATUS_EXCUSED,
-                    'method': AttendanceRecord.METHOD_MANUAL,
-                    'stamped_at': timezone.now(),
-                    'late_minutes': 0,
-                    'correction_reason': f'Excuse slip approved: {slip.reason[:200]}',
-                    'marked_by': request.user,
-                },
-            )
-            if not created:
-                record.status = AttendanceRecord.STATUS_EXCUSED
-                record.method = AttendanceRecord.METHOD_MANUAL
-                record.late_minutes = 0
-                record.correction_reason = f'Excuse slip approved: {slip.reason[:200]}'
-                record.marked_by = request.user
-                record.save()
-
-            slip.status = ExcuseSlip.STATUS_APPROVED
-            slip.review_note = note or None
-            slip.reviewed_by = request.user
-            slip.reviewed_at = timezone.now()
-            slip.save()
-
-            AuditEvent.objects.create(
-                actor=request.user,
-                action='EXCUSE_APPROVED',
-                object_type='ExcuseSlip',
-                object_id=str(slip.pk),
-                old_value=f'ABSENT -> EXCUSED for {slip.student_profile.student_number}',
-                new_value=f'Approved: {class_obj.class_code} on {slip.session.session_date}',
-            )
-            notify_excuse_decision(slip, approved=True, note=note)
-        return JsonResponse({'ok': True, 'message': 'Excuse slip approved — attendance marked EXCUSED.'})
-
-    if action == 'reject':
-        if not note:
-            return JsonResponse({'ok': False, 'error': 'A review note is required when rejecting a slip.'}, status=400)
-
-        slip.status = ExcuseSlip.STATUS_REJECTED
-        slip.review_note = note
-        slip.reviewed_by = request.user
-        slip.reviewed_at = timezone.now()
-        slip.save()
-
-        AuditEvent.objects.create(
-            actor=request.user,
-            action='EXCUSE_REJECTED',
-            object_type='ExcuseSlip',
-            object_id=str(slip.pk),
-            old_value=f'ABSENT kept for {slip.student_profile.student_number}',
-            new_value=f'Rejected: {note[:200]}',
+    # Task 4.5: the single-slip endpoint keeps its contract but no longer
+    # owns the status transition; the shared service does.
+    result = review_excuse_slip(
+        actor=request.user, slip=slip, action=action, note=note,
+    )
+    if not result['ok']:
+        status_map = {
+            'not_authorized': 403,
+            'already_reviewed': 400,
+            'note_required': 400,
+            'invalid_action': 400,
+        }
+        return JsonResponse(
+            {'ok': False, 'error': result['message']},
+            status=status_map.get(result['error'], 400),
         )
-        notify_excuse_decision(slip, approved=False, note=note)
-        return JsonResponse({'ok': True, 'message': 'Excuse slip rejected.'})
-
-    return JsonResponse({'ok': False, 'error': 'Invalid action.'}, status=400)
+    return JsonResponse({'ok': True, 'message': result['message']})
 
 
 # // ==============================================================================
@@ -463,3 +412,89 @@ def dispute_resolve(request, dispute_id):
     )
     messages.success(request, f'Dispute {outcome}.')
     return redirect('teacher_excuse_slips')
+
+
+# // ==============================================================================
+# // AJAX: Bulk Approve Excuse Slips (/teacher/excuse-slips/bulk-approve/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
+@require_POST
+def teacher_excuse_bulk_approve(request):
+    """
+    // [AJAX Mutation] Bulk-approve selected pending excuse slips (Req 13).
+    // POST params: slip_ids (multi-value or comma-separated)
+    //
+    // Every slip is reviewed through the shared service (permission is
+    // re-checked per slip — never inferred from a selected ID). Slips are
+    // processed independently so one failure does not prevent the remaining
+    // valid approvals. Individual student notifications are sent by the
+    // service; a bulk AuditEvent records approved/error counts.
+    """
+    ids = []
+    for chunk in request.POST.getlist('slip_ids'):
+        for piece in str(chunk).split(','):
+            piece = piece.strip()
+            if piece.isdigit():
+                ids.append(int(piece))
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return JsonResponse(
+            {'ok': False, 'error': 'Select at least one excuse slip.'},
+            status=400,
+        )
+    if len(ids) > 100:
+        return JsonResponse(
+            {'ok': False, 'error': 'Approve at most 100 slips at a time.'},
+            status=400,
+        )
+
+    approved = 0
+    failed = 0
+    results = []
+    for slip_id in ids:
+        slip = (
+            ExcuseSlip.objects
+            .select_related(
+                'session',
+                'session__slot',
+                'session__slot__class_obj',
+                'student_profile',
+                'student_profile__user',
+            )
+            .filter(pk=slip_id)
+            .first()
+        )
+        if slip is None:
+            failed += 1
+            results.append({
+                'slip_id': slip_id,
+                'ok': False,
+                'message': 'Excuse slip not found.',
+            })
+            continue
+        result = review_excuse_slip(
+            actor=request.user, slip=slip, action='approve', note='',
+        )
+        if result['ok']:
+            approved += 1
+        else:
+            failed += 1
+        results.append({'slip_id': slip_id, **result})
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='EXCUSE_BULK_APPROVED',
+        object_type='ExcuseSlip',
+        object_id='BULK',
+        new_value=f'approved={approved}; errors={failed}; requested={len(ids)}',
+        reason='Bulk excuse approval',
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'approved': approved,
+        'failed': failed,
+        'results': results,
+        'message': f'Approved {approved} excuse slip(s); {failed} not approved.',
+    })

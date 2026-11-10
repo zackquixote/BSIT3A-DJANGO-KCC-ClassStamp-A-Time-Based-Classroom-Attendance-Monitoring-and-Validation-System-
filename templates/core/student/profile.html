@@ -497,7 +497,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function () {
   var trigger = document.getElementById('avatarTrigger');
   var menu = document.getElementById('avatarMenu');

@@ -263,7 +263,8 @@
       $('wiz-code').value = data.suggested_code || '';
       setStep(2);
     } catch (err) {
-      showError('Network error while loading options.');
+      console.error('Unable to load class setup options:', err);
+      showError('Unable to prepare setup options. Please retry or reload the page.');
     } finally {
       setLoading(false);
     }
@@ -297,6 +298,55 @@
         </div>
       </div>
     `;
+  }
+
+  function renderAddedOfferings() {
+    const container = $('wiz-added-offerings');
+    const list = $('wiz-added-offerings-list');
+    if (!container || !list) return;
+    list.innerHTML = '';
+    if (!state.offerings.length) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = '';
+    const message = container.querySelector('span');
+    if (message) {
+      message.textContent =
+        `${state.offerings.length} subject offering${state.offerings.length === 1 ? '' : 's'} saved for ${state.sectionCode}. You can remove one before creating the section.`;
+    }
+
+    state.offerings.forEach((offering, index) => {
+      const subject = (state.options.subjects || []).find(
+        (item) => String(item.id) === String(offering.subject_id)
+      );
+      const teacher = (state.options.teachers || []).find(
+        (item) => String(item.profile_id) === String(offering.teacher_profile_id)
+      );
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid rgba(255,255,255,.08);';
+
+      const details = document.createElement('span');
+      details.textContent = `${subject ? subject.code : 'Subject'} · ${teacher ? teacher.name : 'Teacher'} · ${(offering.slots || []).length} schedule slot(s)`;
+      row.appendChild(details);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'btn btn-outline btn-xs';
+      removeButton.style.marginLeft = 'auto';
+      removeButton.textContent = 'Remove';
+      removeButton.setAttribute(
+        'aria-label',
+        `Remove ${subject ? subject.code : 'subject'} offering`
+      );
+      removeButton.addEventListener('click', () => {
+        state.offerings.splice(index, 1);
+        populateSubjects();
+      });
+      row.appendChild(removeButton);
+      list.appendChild(row);
+    });
   }
 
   function populateSubjects() {
@@ -354,54 +404,6 @@
       return;
     }
 
-    function renderAddedOfferings() {
-      const container = $('wiz-added-offerings');
-      const list = $('wiz-added-offerings-list');
-      if (!container || !list) return;
-      list.innerHTML = '';
-      if (!state.offerings.length) {
-        container.style.display = 'none';
-        return;
-      }
-
-      container.style.display = '';
-      const message = container.querySelector('span');
-      if (message) {
-        message.textContent =
-          `${state.offerings.length} subject offering${state.offerings.length === 1 ? '' : 's'} saved for ${state.sectionCode}. You can remove one before creating the section.`;
-      }
-
-      state.offerings.forEach((offering, index) => {
-        const subject = (state.options.subjects || []).find(
-          (item) => String(item.id) === String(offering.subject_id)
-        );
-        const teacher = (state.options.teachers || []).find(
-          (item) => String(item.profile_id) === String(offering.teacher_profile_id)
-        );
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid rgba(255,255,255,.08);';
-
-        const details = document.createElement('span');
-        details.textContent = `${subject ? subject.code : 'Subject'} · ${teacher ? teacher.name : 'Teacher'} · ${(offering.slots || []).length} schedule slot(s)`;
-        row.appendChild(details);
-
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.className = 'btn btn-outline btn-xs';
-        removeButton.style.marginLeft = 'auto';
-        removeButton.textContent = 'Remove';
-        removeButton.setAttribute(
-          'aria-label',
-          `Remove ${subject ? subject.code : 'subject'} offering`
-        );
-        removeButton.addEventListener('click', () => {
-          state.offerings.splice(index, 1);
-          populateSubjects();
-        });
-        row.appendChild(removeButton);
-        list.appendChild(row);
-      });
-    }
     sel.appendChild(new Option('Select teacher', ''));
     teachers.forEach((t) => {
       const load = `${t.active_classes} class(es), ${t.active_slots} slot(s)/week`;
@@ -907,15 +909,23 @@
 
     const warnings = $('review-warnings');
     warnings.innerHTML = '';
+    let hasRoomConflicts = false;
     state.conflicts.forEach((c) => {
       (c.room || []).forEach((text) => {
+        hasRoomConflicts = true;
         const div = document.createElement('div');
         div.className = 'badge badge--gold';
         div.style.cssText = 'display:block;margin:8px 0 0;padding:8px 12px;';
-        div.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Room warning (allowed): ${text}`;
+        div.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Room conflict (blocks saving): ${text}`;
         warnings.appendChild(div);
       });
     });
+    const overrideBox = $('review-override');
+    if (overrideBox) {
+      overrideBox.style.display = hasRoomConflicts ? '' : 'none';
+      const overrideCheck = $('wiz-override-room');
+      if (overrideCheck && !hasRoomConflicts) overrideCheck.checked = false;
+    }
   }
 
   /* ── Create Section ─────────────────────────────────────────── */
@@ -933,6 +943,8 @@
       body.set('class_code', state.sectionCode || $('wiz-code').value.trim().toUpperCase());
       body.set('capacity', $('wiz-capacity').value);
       body.set('grace_minutes', $('wiz-grace').value || '10');
+      const overrideRoom = $('wiz-override-room');
+      body.set('override_conflicts', overrideRoom && overrideRoom.checked ? '1' : '0');
       body.set('offerings', JSON.stringify(
         state.offerings.concat(state.finalOffering ? [state.finalOffering] : [])
       ));

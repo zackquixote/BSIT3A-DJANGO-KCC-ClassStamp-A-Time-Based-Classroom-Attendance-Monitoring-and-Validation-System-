@@ -107,21 +107,21 @@ class SuperuserProtectionTests(TestCase):
         self.client.force_login(self.other_superuser)
         response = self.client.post(
             reverse('users:user_reset_password_ajax', args=[self.superuser.pk]),
-            {'password': 'legitnewpass1'},
+            {'password': 'Legit-NewPass-1'},
         )
         self.assertEqual(response.status_code, 200)
         self.superuser.refresh_from_db()
-        self.assertTrue(self.superuser.check_password('legitnewpass1'))
+        self.assertTrue(self.superuser.check_password('Legit-NewPass-1'))
 
     def test_admin_can_still_reset_non_superuser(self):
         self.client.force_login(self.admin_user)
         response = self.client.post(
             reverse('users:user_reset_password_ajax', args=[self.plain_user.pk]),
-            {'password': 'resetme123'},
+            {'password': 'Reset-Me-2026'},
         )
         self.assertEqual(response.status_code, 200)
         self.plain_user.refresh_from_db()
-        self.assertTrue(self.plain_user.check_password('resetme123'))
+        self.assertTrue(self.plain_user.check_password('Reset-Me-2026'))
 
 
 class AdminPasswordPolicyTests(TestCase):

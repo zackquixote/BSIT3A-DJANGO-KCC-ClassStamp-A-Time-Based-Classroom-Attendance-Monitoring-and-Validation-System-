@@ -8,7 +8,7 @@
   {% include "theme/favicons.html" %}
   <meta name="csrf-token" content="{{ csrf_token }}">
   <meta name="web-push-public-key" content="{{ web_push_public_key }}">
-  <script>
+  <script nonce="{{ request.csp_nonce }}">
     try {
       localStorage.removeItem('kcc_theme');
       document.documentElement.removeAttribute('data-theme');
@@ -17,6 +17,40 @@
        Set synchronously here so it applies before the first paint.
        Removed after createIcons() completes. */
     document.documentElement.classList.add('lucide-pending');
+    // CSP (task 1.5/6.3): delegated replacements for former inline on* handlers
+    // so script-src-attr can stay clean without 'unsafe-inline'.
+    document.addEventListener('change', function (e) {
+      var el = e.target;
+      if (el && el.matches && el.matches('[data-autosubmit]') && el.form) {
+        el.form.submit();
+      }
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!(t instanceof Element)) return;
+      var dismiss = t.closest('[data-dismiss-parent]');
+      if (dismiss) {
+        if (dismiss.parentElement) dismiss.parentElement.style.display = 'none';
+        return;
+      }
+      if (t.closest('[data-print]')) {
+        window.print();
+        return;
+      }
+      var confirmBtn = t.closest('[data-confirm]');
+      if (confirmBtn && !window.confirm(confirmBtn.getAttribute('data-confirm'))) {
+        e.preventDefault();
+      }
+      var ov = t.closest('[data-open-override]');
+      if (ov && typeof window.openOverrideModal === 'function') {
+        window.openOverrideModal(
+          ov.getAttribute('data-student-id'),
+          ov.getAttribute('data-full-name'),
+          ov.getAttribute('data-student-number'),
+          ov.getAttribute('data-status')
+        );
+      }
+    });
   </script>
   <title>{% block title %}KCC ClassStamp{% endblock %}</title>
   {% comment %}
@@ -228,7 +262,7 @@
   </div>
 
   <!-- Modern Icon System (Lucide) & KCC ClassStamp Core Modules -->
-  <script>
+  <script nonce="{{ request.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
         window.lucide.createIcons();

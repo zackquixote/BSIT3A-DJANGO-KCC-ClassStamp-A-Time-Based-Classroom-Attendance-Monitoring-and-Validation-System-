@@ -1,0 +1,42 @@
+{% extends "theme/base.html" %}
+{% block title %}Account Approval — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h1 class="page-title">Account Approval</h1>
+    <p class="page-subtitle">KCC ClassStamp student portal access</p>
+  </div>
+</div>
+
+<div class="card p-6 max-w-xl">
+  {% if approval_status == 'REJECTED' %}
+    <h2 class="text-lg font-semibold text-red-600 mb-2">Registration rejected</h2>
+    <p class="mb-3">
+      Your account registration was <strong>rejected</strong> by the administration.
+    </p>
+    {% if approval_note %}
+      <p class="mb-3"><strong>Reason:</strong> {{ approval_note }}</p>
+    {% endif %}
+    <p class="mb-4">
+      Please contact the registrar's office if you believe this is a mistake, or
+      to re-apply.
+    </p>
+  {% else %}
+    <h2 class="text-lg font-semibold text-amber-600 mb-2">Waiting for approval</h2>
+    <p class="mb-3">
+      Your account is <strong>pending approval</strong> by the administration.
+    </p>
+    <p class="mb-4">
+      You will be able to use the student portal — classes, QR attendance, excuse
+      slips, and records — as soon as an administrator approves your registration.
+      You do not need to do anything else right now.
+    </p>
+  {% endif %}
+
+  <form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline">Sign out</button>
+  </form>
+</div>
+{% endblock %}

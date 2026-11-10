@@ -16,6 +16,9 @@
     <button type="button" class="btn btn-outline" id="rolloverWizardBtn" title="Guided Term Rollover">
       <i class="fas fa-forward"></i> Term Rollover
     </button>
+    <button type="button" class="btn btn-outline" id="cloneClassesBtn" title="Copy class sections and weekly slots into another term">
+      <i class="fas fa-copy"></i> Clone Classes
+    </button>
     <button type="button" class="btn btn-primary" id="addAyBtn" data-mode="create">
       <i class="fas fa-plus-circle"></i> Add Academic Year
     </button>
@@ -255,6 +258,55 @@
   </div>
 </div>
 
+<!-- Clone Class Structure Modal (Req 12) -->
+<div class="modal" id="ayCloneModal"
+     data-clone-url="{% url 'academic_year_clone' %}">
+  <div class="modal-dialog" style="max-width: 560px;">
+    <div class="modal-header">
+      <h2 class="modal-title"><i class="fas fa-copy text-gold"></i> Clone Class Structure</h2>
+      <button type="button" class="modal-close" data-modal-dismiss="ayCloneModal"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted text-xs mb-3">
+        Copies every active class section and its weekly slots from one term into another.
+        Enrollments, sessions, attendance, and join codes are never copied; cloned sections
+        start with join codes disabled.
+      </p>
+      <div class="form-group mb-3">
+        <label class="form-label" for="cloneSource">Source term <span class="text-danger">*</span></label>
+        <select id="cloneSource" class="form-control">
+          <option value="">— Choose source term —</option>
+          {% for ay in academic_years %}
+            <option value="{{ ay.pk }}" {% if active_term and ay.pk == active_term.pk %}selected{% endif %}>
+              {{ ay.name }}{% if ay.is_active %} (active){% endif %} — {{ ay.class_count }} class(es)
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label" for="cloneTarget">Target term <span class="text-danger">*</span></label>
+        <select id="cloneTarget" class="form-control">
+          <option value="">— Choose target term —</option>
+          {% for ay in academic_years %}
+            <option value="{{ ay.pk }}">{{ ay.name }}{% if ay.is_active %} (active){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="cloneError" class="toast toast--error mt-3" style="display: none;"></div>
+      <div id="cloneResults" style="display: none;">
+        <div id="cloneSummary" class="auth-alert auth-alert--success mb-2"></div>
+        <div id="cloneErrors" class="text-xs"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-modal-dismiss="ayCloneModal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="cloneExecuteBtn">
+        <i class="fas fa-copy"></i> Clone Classes
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Term Rollover Wizard Modal -->
 <div class="modal" id="ayRolloverModal"
      data-rollover-url="{% url 'academic_year_rollover' %}"
@@ -360,6 +412,7 @@
 <script src="{% static 'js/academic_years/ay_set_active.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/academic_years/ay_delete.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/academic_years/ay_rollover.js' %}?v=20261026_v1"></script>
+<script src="{% static 'js/academic_years/ay_clone.js' %}?v=20261109_v1"></script>
 
 <style>
 .rollover-steps {

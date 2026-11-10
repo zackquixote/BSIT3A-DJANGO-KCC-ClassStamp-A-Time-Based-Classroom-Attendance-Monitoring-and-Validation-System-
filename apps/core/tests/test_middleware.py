@@ -66,7 +66,12 @@ class SecurityHeadersMiddlewareTests(TestCase):
         self.assertEqual(response.headers.get('Cross-Origin-Opener-Policy'), 'same-origin')
         self.assertEqual(response.headers.get('X-XSS-Protection'), '0')
         self.assertIn('camera=(self)', response.headers.get('Permissions-Policy', ''))
-        self.assertIn("default-src 'self'", response.headers.get('Content-Security-Policy', ''))
+        # Enforced since browser verification (task 6.3).
+        csp = response.headers.get('Content-Security-Policy', '')
+        self.assertIn("default-src 'self'", csp)
+        self.assertIn('nonce-', csp)
+        self.assertIn('script-src', csp)
+        self.assertNotIn("'unsafe-inline'", csp.split('script-src')[1].split(';')[0])
 
 
 class RequestCorrelationIdMiddlewareTests(TestCase):

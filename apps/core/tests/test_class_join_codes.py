@@ -7,7 +7,10 @@ from django.urls import reverse
 
 from apps.core.models import (
     AcademicYear,
+    AuditEvent,
     Class,
+    Curriculum,
+    CurriculumVersion,
     Department,
     Enrollment,
     Profile,
@@ -30,6 +33,20 @@ class ClassJoinCodeTests(TestCase):
             name='Information Technology',
         )
         self.subject = Subject.objects.create(code='IT311', name='Web Development')
+        # Req 1: join-code enrollment validates the student's curriculum
+        # version, so fixtures must place the subject inside that version.
+        self.curriculum_version = CurriculumVersion.objects.create(
+            program=self.program,
+            version_number=1,
+            status=CurriculumVersion.STATUS_APPROVED,
+        )
+        Curriculum.objects.create(
+            program=self.program,
+            version=self.curriculum_version,
+            year_level=3,
+            semester=1,
+            subject=self.subject,
+        )
         self.term = AcademicYear.objects.create(
             name='2026-2027',
             starts_on=date(2026, 6, 1),
@@ -51,6 +68,7 @@ class ClassJoinCodeTests(TestCase):
             student_number='2026-1001',
             program=self.program,
             year_level=3,
+            curriculum_version=self.curriculum_version,
             approval_status=Profile.APPROVAL_APPROVED,
         )
         self.class_obj = Class.objects.create(
@@ -76,7 +94,7 @@ class ClassJoinCodeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.json()['join_code']
 
-    def test_admin_generates_hashed_code_and_student_requests_enrollment(self):
+    def test_admin_generates_hashed_code_and_student_enrolls_directly(self):
         join_code = self._issue_code()
         self.class_obj.refresh_from_db()
 
@@ -93,23 +111,19 @@ class ClassJoinCodeTests(TestCase):
 
         self.assertRedirects(response, reverse('student_join_class'))
         enrollment = Enrollment.objects.get(class_obj=self.class_obj, student_profile=self.student)
-        self.assertEqual(enrollment.status, Enrollment.STATUS_PENDING)
+        # The current join flow deliberately auto-activates enrollment; there
+        # is no teacher approval step for join-code requests anymore.
+        self.assertEqual(enrollment.status, Enrollment.STATUS_ACTIVE)
 
         self.client.force_login(self.admin_user)
         roster = self.client.get(reverse('class_roster_get', args=[self.class_obj.pk])).json()
-        self.assertEqual(roster['pending_count'], 1)
-        self.assertEqual(roster['pending'][0]['profile_id'], self.student.pk)
-        self.assertEqual(roster['available'], [])
+        self.assertEqual(roster['enrolled_count'], 1)
+        self.assertEqual(roster['pending_count'], 0)
+        self.assertEqual(roster['enrolled'][0]['student_id'], self.student.student_number)
+        # The now-enrolled student no longer appears in the available list.
+        self.assertNotIn(self.student.pk, [entry['profile_id'] for entry in roster['available']])
 
-        approved = self.client.post(
-            reverse('class_roster_enroll', args=[self.class_obj.pk]),
-            {'profile_id': self.student.pk},
-        )
-        self.assertEqual(approved.status_code, 200)
-        enrollment.refresh_from_db()
-        self.assertEqual(enrollment.status, Enrollment.STATUS_ACTIVE)
-
-    def test_assigned_teacher_can_generate_code_and_approve_join_request(self):
+    def test_assigned_teacher_code_enrolls_student_directly(self):
         self.client.force_login(self.teacher_user)
         generated = self.client.post(
             reverse('class_join_code_manage', args=[self.class_obj.pk]),
@@ -123,18 +137,17 @@ class ClassJoinCodeTests(TestCase):
         self.client.force_login(self.student_user)
         self.client.post(reverse('student_join_class'), {'join_code': join_code})
         enrollment = Enrollment.objects.get(class_obj=self.class_obj, student_profile=self.student)
-        self.assertEqual(enrollment.status, Enrollment.STATUS_PENDING)
-
-        self.client.force_login(self.teacher_user)
-        approved = self.client.post(
-            reverse('class_roster_enroll', args=[self.class_obj.pk]),
-            {'profile_id': self.student.pk},
-        )
-
-        self.assertEqual(approved.status_code, 200)
-        enrollment.refresh_from_db()
+        # Join codes auto-activate: no pending request and no manual approval.
         self.assertEqual(enrollment.status, Enrollment.STATUS_ACTIVE)
-        self.assertEqual(enrollment.approved_by, self.teacher_user)
+
+        # The self-service join is audited with the student as the actor.
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='CLASS_JOIN_ENROLL',
+                object_type='Enrollment',
+                object_id=str(enrollment.pk),
+            ).exists()
+        )
 
     def test_teacher_cannot_manage_another_teachers_class(self):
         other_user = User.objects.create_user(username='other_join_teacher')
@@ -243,7 +256,9 @@ class ClassJoinCodeTests(TestCase):
             Enrollment.objects.filter(class_obj=self.class_obj, student_profile=self.student).exists()
         )
 
-    def test_pending_requests_reserve_capacity(self):
+    def test_active_enrollment_consumes_capacity(self):
+        # Capacity is consumed by the auto-activated enrollment itself, so the
+        # second student is refused when the class is full.
         self.class_obj.capacity = 1
         self.class_obj.save(update_fields=['capacity', 'updated_at'])
         join_code = self._issue_code()
@@ -257,6 +272,7 @@ class ClassJoinCodeTests(TestCase):
             student_number='2026-1002',
             program=self.program,
             year_level=3,
+            curriculum_version=self.curriculum_version,
             approval_status=Profile.APPROVAL_APPROVED,
         )
         self.client.force_login(other_user)
@@ -265,7 +281,7 @@ class ClassJoinCodeTests(TestCase):
         self.assertEqual(
             Enrollment.objects.filter(
                 class_obj=self.class_obj,
-                status=Enrollment.STATUS_PENDING,
+                status=Enrollment.STATUS_ACTIVE,
             ).count(),
             1,
         )

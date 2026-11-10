@@ -1,4 +1,4 @@
-/* KCC ClassStamp — Teacher: Excuse Slip Adjudication (S-08) */
+﻿/* KCC ClassStamp â€” Teacher: Excuse Slip Adjudication (S-08) */
 (function (window) {
   'use strict';
 
@@ -93,7 +93,7 @@
     rejectBtns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         activeSlipId = btn.getAttribute('data-slip-id');
-        getEl('rejectStudentName').textContent = btn.getAttribute('data-student') || '—';
+        getEl('rejectStudentName').textContent = btn.getAttribute('data-student') || 'â€”';
         getEl('rejectNote').value = '';
         getEl('rejectSlipError').style.display = 'none';
         showModal('rejectSlipModal');
@@ -129,6 +129,65 @@
         errEl.style.display = 'block';
       });
     });
+
+    // Task 4.6: bulk approve selected pending slips.
+    var bulkBtn = getEl('bulkApproveBtn');
+    if (bulkBtn) {
+      var updateBulkCount = function () {
+        var boxes = document.querySelectorAll('.js-bulk-slip:checked');
+        var countEl = getEl('bulkSelectedCount');
+        if (countEl) countEl.textContent = String(boxes.length);
+        bulkBtn.disabled = boxes.length === 0;
+      };
+      document.addEventListener('change', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('js-bulk-slip')) {
+          updateBulkCount();
+        }
+        if (e.target && e.target.id === 'bulkSelectAll') {
+          var checked = e.target.checked;
+          document.querySelectorAll('.js-bulk-slip').forEach(function (box) {
+            box.checked = checked;
+          });
+          updateBulkCount();
+        }
+      });
+      bulkBtn.addEventListener('click', function () {
+        var ids = Array.prototype.map.call(
+          document.querySelectorAll('.js-bulk-slip:checked'),
+          function (box) { return box.value; }
+        );
+        if (!ids.length) return;
+        var proceed = window.confirm(
+          'Approve ' + ids.length + ' selected excuse slip(s)? Attendance for each will be marked EXCUSED.'
+        );
+        if (!proceed) return;
+        bulkBtn.disabled = true;
+        var body = new URLSearchParams();
+        ids.forEach(function (id) { body.append('slip_ids', id); });
+        fetch('/teacher/excuse-slips/bulk-approve/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCSRF(),
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          },
+          body: body.toString(),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (typeof window.toast === 'function') {
+            window.toast(data.failed ? 'warning' : 'success', data.message || 'Bulk approval complete.');
+          } else {
+            showAlert(data.message || 'Bulk approval complete.');
+          }
+          setTimeout(function () { window.location.reload(); }, 800);
+        })
+        .catch(function () {
+          showAlert('Network error during bulk approval.');
+          bulkBtn.disabled = false;
+        });
+      });
+    }
   }
 
   if (document.readyState === 'loading') {

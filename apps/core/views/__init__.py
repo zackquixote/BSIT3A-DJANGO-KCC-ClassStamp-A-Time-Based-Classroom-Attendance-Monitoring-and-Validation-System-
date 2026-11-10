@@ -63,6 +63,7 @@ from .dashboard_views import (
 # // ------------------------------------------------------------------------------
 from .student_portal_views import (
     student_join_class,
+    student_approval_waiting,
     student_attendance_log,
     student_dispute_open,
     student_term_record,
@@ -71,6 +72,7 @@ from .student_portal_views import (
     student_qr_token_api,
     student_offline_badge_issue,
 )
+from .system_views import csp_report
 
 # // ------------------------------------------------------------------------------
 # // 2c. Protected Document Delivery (identity proofs & excuse attachments)
@@ -131,7 +133,13 @@ from .excuse_views import (
     dispute_resolve,
     excuse_slip_review_ajax,
     student_excuse_slips,
+    teacher_excuse_bulk_approve,
     teacher_excuse_slips,
+)
+from .messaging_views import (
+    message_compose,
+    message_inbox,
+    message_thread,
 )
 
 # // ------------------------------------------------------------------------------
@@ -229,6 +237,7 @@ from .academic_year_views import (
     academic_year_delete,
     academic_year_get,
     academic_year_rollover,
+    academic_year_clone,
 )
 from .readiness_views import (
     curriculum_readiness_export,
@@ -327,6 +336,8 @@ __all__ = [
     'teacher_dashboard',
     'teacher_classes',
     'student_dashboard',
+    'student_approval_waiting',
+    'csp_report',
     'student_qr_badge',
     'student_qr_token_api',
     'student_offline_badge_issue',
@@ -367,6 +378,10 @@ __all__ = [
     'program_students_per_year',
     'student_excuse_slips',
     'teacher_excuse_slips',
+    'teacher_excuse_bulk_approve',
+    'message_inbox',
+    'message_compose',
+    'message_thread',
     'excuse_slip_review_ajax',
     'dispute_resolve',
     'program_curriculum_list',
@@ -419,6 +434,7 @@ __all__ = [
     'academic_year_delete',
     'academic_year_get',
     'academic_year_rollover',
+    'academic_year_clone',
     'curriculum_readiness_report',
     'curriculum_readiness_export',
 

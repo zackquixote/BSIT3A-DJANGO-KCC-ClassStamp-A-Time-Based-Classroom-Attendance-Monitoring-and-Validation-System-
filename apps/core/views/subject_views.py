@@ -176,8 +176,18 @@ def subject_list(request):
     if status_filter in {'active', 'inactive'}:
         active_filter_labels.append(f'Status: {status_filter.title()}')
 
+    active_ay = AcademicYear.objects.filter(is_active=True).first()
+
+    # "Classes" column: active sections of this subject in the active academic
+    # year. The template has always rendered s.class_count; the list queryset
+    # never annotated it, so every cell rendered as an empty badge.
+    class_scope = Q(classes__is_active=True)
+    if active_ay:
+        class_scope &= Q(classes__academic_year=active_ay)
+
     subjects_qs = (
         Subject.objects
+        .annotate(class_count=Count('classes', filter=class_scope, distinct=True))
         .order_by('code')
     )
 
@@ -260,7 +270,6 @@ def subject_list(request):
 
     # Build a dict of subject_id → unique teacher display names for the active AY.
     # One bulk query — no N+1.
-    active_ay = AcademicYear.objects.filter(is_active=True).first()
     teachers_by_subject: dict[int, list[str]] = {}
     if active_ay:
         ay_classes = (

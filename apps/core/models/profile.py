@@ -274,3 +274,32 @@ class Profile(models.Model):
 
     def __str__(self):
         return f'{self.user.get_full_name() or self.user.username} ({self.role})'
+
+
+class PasswordHistory(models.Model):
+    """
+    // [Model] Password History (task 1.7)
+    // Stores Django password hashes only — never plaintext — so a candidate
+    // password can be rejected if it matches any of the last five hashes.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='password_history',
+        help_text='// Account that used this password',
+    )
+    password_hash = models.CharField(
+        max_length=255,
+        help_text='// Django password hash (never plaintext)',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = 'core'
+        db_table = 'tblcs_password_history'
+        ordering = ['-created_at']
+        verbose_name_plural = 'password histories'
+
+    def __str__(self):
+        return f'{self.user} @ {self.created_at:%Y-%m-%d %H:%M}'

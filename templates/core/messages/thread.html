@@ -1,0 +1,53 @@
+{% extends "theme/base.html" %}
+{% block title %}{{ other.get_full_name|default:other.get_username }} — Messages{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ other.get_full_name|default:other.get_username }}</h1>
+    <p class="page-subtitle">@{{ other.username }}</p>
+  </div>
+  <a href="{% url 'message_inbox' %}" class="btn btn-outline">
+    <i class="fas fa-arrow-left"></i> Inbox
+  </a>
+</div>
+
+<div class="card mb-4" style="max-width: 860px; padding: 16px; max-height: 55vh; overflow-y: auto;">
+  {% if messages %}
+    {% for message in messages %}
+      <div style="margin-bottom:14px; {% if message.sender_id == other.pk and not message.is_read %}border-left:3px solid #3b82f6; padding-left:10px;{% endif %}">
+        <div class="text-xs text-muted mb-1">
+          <strong>{{ message.sender.get_full_name|default:message.sender.get_username }}</strong>
+          · {{ message.created_at|date:"M d, Y h:i A" }}
+          {% if message.sender_id == request.user.pk %}(you){% endif %}
+        </div>
+        <div class="font-semibold text-primary text-sm">{{ message.subject }}</div>
+        <div class="text-sm text-secondary" style="white-space:pre-wrap;">{{ message.body }}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted text-sm mb-0">No messages in this conversation yet.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="max-width: 860px; padding: 20px;">
+  {% if error %}
+    <div class="toast toast--error mb-3">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="{% url 'message_thread' other.pk %}">
+    {% csrf_token %}
+    <div class="form-group mb-3">
+      <label class="form-label" for="subject">Subject</label>
+      <input type="text" id="subject" name="subject" class="form-control" maxlength="{{ max_subject }}"
+             value="{% if messages %}Re: {{ messages.0.subject }}{% endif %}">
+    </div>
+    <div class="form-group mb-3">
+      <label class="form-label" for="body">Reply <span class="text-danger">*</span></label>
+      <textarea id="body" name="body" class="form-control" rows="5" maxlength="{{ max_body }}" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-paper-plane"></i> Send reply
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -18,6 +18,7 @@ from .auth_signals import (
     log_user_logout,
 )
 from .file_signals import cleanup_profile_proof_file
+from .holiday_signals import auto_cancel_sessions_on_holiday
 
 __all__ = [
     'log_user_login',

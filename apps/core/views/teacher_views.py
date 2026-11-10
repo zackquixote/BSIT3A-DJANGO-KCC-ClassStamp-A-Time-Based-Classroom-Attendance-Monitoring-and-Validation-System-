@@ -292,9 +292,18 @@ def admin_reset_teacher_password(request, pk: int):
         )
         user = profile.user
 
-        # Generate secure random password
-        new_password = secrets.token_urlsafe(12)
-        user.set_password(new_password)
+        from apps.core.services.credential_service import (
+            generate_compliant_password,
+            set_user_password,
+        )
+        new_password = generate_compliant_password(12)
+        set_user_password(
+            user,
+            new_password,
+            validate=True,
+            actor=request.user,
+            audit_action='ADMIN_PASSWORD_RESET',
+        )
         user.save()
 
         # Send password via email (optional - commented out for safety)

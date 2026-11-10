@@ -37,6 +37,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
 from apps.core.decorators import role_required
+from apps.core.services.permission_service import PermissionService
 from apps.core.views.helpers.auth_helpers import client_ip
 from apps.core.models import (
     AcademicEvent,
@@ -59,9 +60,13 @@ from apps.core.services.anomaly_service import (
     detect_token_bruteforce,
     detect_token_replay,
 )
-from apps.core.services.attendance_policy import policy_value
+from apps.core.services.attendance_policy import absence_threshold_percent, policy_value
 from apps.core.services.attendance_service import build_attendance_matrix
-from apps.core.services.export_service import SafeCsvWriter, safe_spreadsheet_cell
+from apps.core.services.analytics_service import (
+    PREDICTION_ALGORITHM_VERSION,
+    AnalyticsService,
+)
+from apps.core.services.export_service import SafeCsvWriter, build_attendance_matrix_pdf, safe_spreadsheet_cell
 from apps.core.services.in_app_notification_service import (
     create_notification,
     notify_absent_students,
@@ -80,18 +85,14 @@ def _teacher_can_manage(request, class_obj):
     """
     // Object-level authorization: only the assigned teacher, an ADMIN, or a
     // superuser may manage attendance for a given class section.
+    //
+    // Delegates to PermissionService so class-access rules live in one place.
+    // Every caller sits behind @role_required(TEACHER, ADMIN), so the service's
+    // student-enrolled branch is unreachable from this helper.
     """
     if request.user.is_superuser:
         return True
-    profile = getattr(request.user, 'classstamp_profile', None)
-    if profile is None:
-        return False
-    if profile.role == Profile.ROLE_ADMIN:
-        return True
-    return (
-        profile.role == Profile.ROLE_TEACHER
-        and class_obj.teacher_profile_id == profile.id
-    )
+    return PermissionService.can_user_access_class(request.user, class_obj)
 
 
 # // ------------------------------------------------------------------------------
@@ -1755,6 +1756,7 @@ def teacher_attendance_matrix(request, class_id):
     // [Teacher Report View] Read-only 2D attendance grid (students x sessions)
     // for a class section the requesting teacher is assigned to.
     // Supports CSV export via ?format=csv.
+    // Includes advisory per-student attendance predictions (task 5.2).
     """
     class_obj = get_object_or_404(
         Class.objects.select_related('subject', 'academic_year', 'teacher_profile__user'),
@@ -1790,7 +1792,62 @@ def teacher_attendance_matrix(request, class_id):
 
         return response
 
+    # PDF export (task 4.7): same matrix dataset as the CSV path.
+    if request.GET.get('format') == 'pdf':
+        try:
+            pdf_bytes = build_attendance_matrix_pdf(
+                class_obj, matrix, generated_by=request.user,
+            )
+        except Exception:
+            messages.error(request, 'Unable to generate the PDF export.')
+            return redirect('teacher_attendance_matrix', class_id=class_obj.pk)
+        filename = (
+            f"attendance_matrix_{class_obj.class_code}_"
+            f"{timezone.localdate().strftime('%Y%m%d')}.pdf"
+        )
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    AnalyticsService.ensure_algorithm_version_audited()
+
+    # // Task 5.2: attach each student's advisory prediction to their row,
+    # // then optionally filter to students projected below the institutional
+    # // passing threshold (100% - absence threshold). The threshold is derived
+    # // from the existing absence policy — no duplicate threshold setting.
+    predictions = AnalyticsService.predict_class_attendance(class_obj)
+    pred_by_profile = {p['student_profile_id']: p for p in predictions}
+    threshold = 100.0 - absence_threshold_percent()
+
+    student_rows = matrix['student_rows']
+    for row in student_rows:
+        pred = pred_by_profile.get(row['student_id'])
+        row['prediction'] = pred['prediction'] if pred else None
+        row['prediction_insufficient'] = bool(pred and pred['insufficient_data'])
+
+    at_risk_count = sum(
+        1 for row in student_rows
+        if row['prediction'] is not None and row['prediction'] < threshold
+    )
+
+    at_risk_only = request.GET.get('at_risk_only') == '1'
+    if at_risk_only:
+        student_rows = [
+            row for row in student_rows
+            if row['prediction'] is not None and row['prediction'] < threshold
+        ]
+
     return render(request, 'core/teacher/matrix.html', {
         'class_obj': class_obj,
         **matrix,
+        'student_rows': student_rows,
+        'prediction_passing_threshold': threshold,
+        'prediction_algorithm_version': PREDICTION_ALGORITHM_VERSION,
+        'prediction_note': (
+            'Predictions are advisory, not an official pass/fail decision. '
+            'Linear regression on cumulative attendance assumes ~85% of the '
+            'term length as the final-session estimate.'
+        ),
+        'at_risk_only': at_risk_only,
+        'at_risk_count': at_risk_count,
     })

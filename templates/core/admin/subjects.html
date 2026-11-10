@@ -174,7 +174,7 @@
           <th scope="col">Code</th>
           <th scope="col">Descriptive Title</th>
           <th scope="col" title="Credit units (1 unit = 1 class hour per week)">Units</th>
-          <th scope="col" title="Active class sections this semester">Classes</th>
+          <th scope="col" title="Active class sections in the active academic year">Classes</th>
           <th scope="col" title="Teachers handling this subject in the active AY">
             Handled By
             {% if active_ay %}<span class="text-muted text-xs font-normal">({{ active_ay.name }})</span>{% endif %}
@@ -465,7 +465,7 @@
 <script src="{% static 'js/subjects/edit_subject.js' %}?v=20261104_v3"></script>
 <script src="{% static 'js/subjects/delete_subject.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/subjects/toggle_subject.js' %}?v=20261029_v1"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
   /* Action Dropdown toggle */
   document.addEventListener('click', function (e) {
     var toggle = e.target.closest('.action-dropdown-toggle');

@@ -31,7 +31,7 @@ from .academic import (
 )
 
 # // Identity & RBAC
-from .profile import Profile
+from .profile import PasswordHistory, Profile
 
 # // Classroom Structure & Rosters
 from .classroom import (
@@ -70,6 +70,9 @@ from .policy import SystemPolicy
 from .two_factor import RecoveryCode
 from .notifications import Notification, PushSubscription
 
+# // Internal Messaging
+from .messaging import Message
+
 __all__ = [
     # Academic
     'AcademicYear',
@@ -103,4 +106,6 @@ __all__ = [
     'ReviewAction',
     'Notification',
     'PushSubscription',
+    # Messaging
+    'Message',
 ]

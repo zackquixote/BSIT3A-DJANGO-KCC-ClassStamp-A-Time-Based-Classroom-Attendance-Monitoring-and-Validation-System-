@@ -7,7 +7,6 @@
 
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=20261029_modern_icons">
 {% endblock %}
 
 
@@ -628,7 +627,7 @@
 
 
 
-{{ chart_data|json_script:"dashChartData" }}
+<script nonce="{{ request.csp_nonce }}" id="dashChartData" type="application/json">{{ chart_data_json|safe }}</script>
 
 
 
@@ -1223,7 +1222,7 @@
 
 <script src="{% static 'js/admin_dashboard.js' %}?v=20261026_v1"></script>
 
-{{ mini_calendar_events_json|json_script:"mini-calendar-events-data" }}
+<script nonce="{{ request.csp_nonce }}" id="mini-calendar-events-data" type="application/json">{{ mini_calendar_events_json|safe }}</script>
 <script src="{% static 'js/calendar/mini_calendar.js' %}?v=20261026_v2"></script>
 {% endblock %}
 

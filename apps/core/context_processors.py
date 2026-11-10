@@ -6,7 +6,7 @@
 # // Provides live indicators such as the pending validation queue counter for admins.
 # // ==============================================================================
 """
-from .models import AnomalyFlag, Notification, Profile
+from .models import AnomalyFlag, Message, Notification, Profile
 from django.conf import settings
 
 
@@ -40,8 +40,12 @@ def pending_approval_count(request):
         is_admin = user.is_superuser or (profile is not None and profile.role == Profile.ROLE_ADMIN)
         if is_admin:
             return {
-                'web_push_public_key': getattr(settings, 'WEB_PUSH_PUBLIC_KEY', ''),
+                'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
                 'unread_notification_count': unread_notification_count,
+                'unread_message_count': Message.objects.filter(
+                    recipient=user,
+                    is_read=False,
+                ).count(),
                 'pending_approval_count': Profile.objects.filter(
                     role=Profile.ROLE_STUDENT,
                     approval_status=Profile.APPROVAL_PENDING,
@@ -52,15 +56,20 @@ def pending_approval_count(request):
                 'sidebar_collapsed': sidebar_collapsed,
             }
         return {
-            'web_push_public_key': getattr(settings, 'WEB_PUSH_PUBLIC_KEY', ''),
+            'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
             'unread_notification_count': unread_notification_count,
+            'unread_message_count': Message.objects.filter(
+                recipient=user,
+                is_read=False,
+            ).count(),
             'pending_approval_count': 0,
             'open_anomaly_count': 0,
             'sidebar_collapsed': sidebar_collapsed,
         }
     return {
-        'web_push_public_key': getattr(settings, 'WEB_PUSH_PUBLIC_KEY', ''),
+        'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
         'unread_notification_count': 0,
+        'unread_message_count': 0,
         'pending_approval_count': 0,
         'open_anomaly_count': 0,
         'sidebar_collapsed': sidebar_collapsed,

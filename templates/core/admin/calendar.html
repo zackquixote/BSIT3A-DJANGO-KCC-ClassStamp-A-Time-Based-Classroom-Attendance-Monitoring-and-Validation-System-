@@ -4,7 +4,6 @@
 {% block title %}Academic Calendar — Institutional Schedule — KCC ClassStamp{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/calendar.css' %}?v=20261026_layout1">
 {% endblock %}
 
 {% block content %}
@@ -620,7 +619,7 @@
 <script src="{% static 'libs/fullcalendar/index.global.min.js' %}"></script>
 <!-- KCC ClassStamp Academic Calendar Controller -->
 <script src="{% static 'js/calendar/academic_calendar.js' %}?v=20261026_v1"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
   /* Apply data-* color attributes as real inline styles (avoids IDE CSS false-positives) */
   document.querySelectorAll('.upcoming-event-datebox[data-bg]').forEach(function(el) {
     var bg    = el.getAttribute('data-bg');

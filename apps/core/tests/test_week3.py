@@ -167,7 +167,7 @@ class AuditActorFilterTests(TestCase):
         Profile.objects.create(user=intruder, role=Profile.ROLE_TEACHER, department=Department.objects.create(code='X', name='X'))
         self.client.force_login(intruder)
         res = self.client.get(reverse('admin_audit_log'))
-        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.status_code, 403)
 
 
 # // ==============================================================================
@@ -386,7 +386,7 @@ class StudentTimetableGridTests(TestCase, BaseDashboardFixtureMixin):
         self.client.force_login(self.student_user)
         res = self.client.get(reverse('student_dashboard'))
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, 'Weekly Class Grid')
+        self.assertContains(res, 'This week')  # weekly grid panel (renamed in the 2026-11 UI pass)
 
 
 # // ==============================================================================

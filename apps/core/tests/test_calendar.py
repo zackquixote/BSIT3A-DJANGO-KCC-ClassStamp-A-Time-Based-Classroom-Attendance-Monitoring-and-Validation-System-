@@ -16,6 +16,8 @@
 
 from datetime import datetime, timedelta
 
+import json
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -161,8 +163,8 @@ class AcademicCalendarTests(TestCase):
         """Teacher role cannot access admin calendar view or modification APIs."""
         self.client.force_login(self.teacher_user)
         r_view = self.client.get(reverse('admin_calendar'))
-        # role_required redirects non-authorized roles to their appropriate dashboard
-        self.assertEqual(r_view.status_code, 302)
+        # RBAC middleware 403s authenticated role mismatches.
+        self.assertEqual(r_view.status_code, 403)
 
         r_save = self.client.post(reverse('admin_calendar_event_save'), {
             'title': 'Faculty Incursion',
@@ -170,16 +172,16 @@ class AcademicCalendarTests(TestCase):
             'end_datetime': '2026-10-25T17:00',
             'category': AcademicEvent.CATEGORY_COLLEGE_ACTIVITY
         })
-        self.assertEqual(r_save.status_code, 302)
+        self.assertEqual(r_save.status_code, 403)
 
     def test_student_cannot_access_calendar_admin(self):
         """Student role cannot access admin calendar view or modification APIs."""
         self.client.force_login(self.student_user)
         r_view = self.client.get(reverse('admin_calendar'))
-        self.assertEqual(r_view.status_code, 302)
+        self.assertEqual(r_view.status_code, 403)
 
         r_save = self.client.post(reverse('admin_calendar_event_save'), {'title': 'Student Hack'})
-        self.assertEqual(r_save.status_code, 302)
+        self.assertEqual(r_save.status_code, 403)
 
     # --------------------------------------------------------------------------
     # 2. EVENT RETRIEVAL & FILTERING
@@ -431,8 +433,12 @@ class AcademicCalendarTests(TestCase):
         self.assertIn('upcoming_calendar_events', stats)
         self.assertIn('mini_calendar_events_json', stats)
         self.assertIn('today_events', stats)
-        if stats['mini_calendar_events_json']:
-            evt = stats['mini_calendar_events_json'][0]
+        # The helper returns a JSON string for the template's
+        # <script type="application/json"> island, so parse it here.
+        events = json.loads(stats['mini_calendar_events_json'] or '[]')
+        self.assertIsInstance(events, list)
+        if events:
+            evt = events[0]
             self.assertIn('title', evt)
             self.assertIn('start_date', evt)
             self.assertIn('category_color', evt)

@@ -58,8 +58,7 @@ class PolicyPageTests(TestCase):
 
         response = self.client.get(reverse('admin_policy'))
 
-        self.assertEqual(response.status_code, 302)
-        self.assertNotEqual(response.url, reverse('admin_policy'))
+        self.assertEqual(response.status_code, 403)
 
     def test_saving_persists_and_audits(self):
         self.client.force_login(self.admin_user)

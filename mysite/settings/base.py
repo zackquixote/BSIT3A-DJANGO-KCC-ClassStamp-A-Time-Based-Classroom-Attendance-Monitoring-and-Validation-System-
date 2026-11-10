@@ -30,7 +30,15 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
 DEBUG = False  # overridden per-environment (dev.py / prod.py)
 
 ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1')
-WEB_PUSH_PUBLIC_KEY = os.environ.get('WEB_PUSH_PUBLIC_KEY', '')
+
+# Web Push Notifications (VAPID keys) — single source of truth (task 4.1).
+# Generate VAPID keys with: python -c "from pywebpush import webpush; print(webpush.generate_vapid_keys())"
+# Or use the CLI: vapid --gen
+# These are deployment secrets: never generate the private key at application
+# startup, and never commit real keys to source control.
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_ADMIN_EMAIL = os.environ.get('VAPID_ADMIN_EMAIL', 'admin@classstamp.local')
 
 
 # Application definition
@@ -55,12 +63,19 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # NEW: Role-based access control enforced before view decorators
+    # (defense in depth). Actual portal prefixes: /admin/, /teacher/, /student/.
+    'apps.core.middleware.RoleBasedAccessMiddleware',
+    # NEW: Approval status checking for student portal access.
+    'apps.core.middleware.ApprovalCheckMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'apps.core.middleware.AttachProfileMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.core.middleware.DisableBrowserCacheMiddleware',
     'apps.core.middleware.SessionInactivityTimeoutMiddleware',
     'apps.core.middleware.SecurityHeadersMiddleware',
+    # NEW: API-wide fixed-window rate limiting (last; fail-safe).
+    'apps.core.middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'mysite.urls'
@@ -125,12 +140,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'apps.core.validators.password_validators.CompositionPasswordValidator',
     },
 ]
 
@@ -191,6 +210,104 @@ EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 
 # Campus Kiosk Security: Inactivity timeout in seconds (30 minutes)
 SESSION_INACTIVITY_TIMEOUT = 1800
+
+
+# Content Security Policy (CSP)
+# Protects against XSS and code injection attacks.
+# These tuples are the single source of truth consumed by
+# SecurityHeadersMiddleware.
+# CSP_ENFORCE=True sends Content-Security-Policy; setting it to False ships the
+# same policy as Content-Security-Policy-Report-Only (staged rollouts).
+# Browser verification (task 6.3, 2026-11-10) found no inline-script violations
+# once every portal page had a per-request nonce, so the policy is enforced; it
+# still reports violations to /api/csp-report/ so regressions stay auditable.
+CSP_ENABLED = True
+CSP_ENFORCE = True
+CSP_REPORTING = True
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'",)  # Per-request nonce added by middleware; no 'unsafe-inline'
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")  # Inline styles: Django admin + legacy blocks
+CSP_IMG_SRC = ("'self'", "data:", "blob:", "https:")
+CSP_FONT_SRC = ("'self'", "data:")
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_ANCESTORS = ("'none'",)
+CSP_BASE_URI = ("'self'",)
+CSP_FORM_ACTION = ("'self'",)
+
+# Rate Limiting (RateLimitMiddleware)
+# Fixed-window limits per minute on /api/ (including /api/attendance/scan/).
+# The stricter per-operator/per-IP scan throttle in session_views stays as an
+# additional layer. Production must use a shared cache backend.
+RATE_LIMIT_ENABLE = True
+RATE_LIMIT_AUTHENTICATED = 100  # requests per minute for authenticated users
+RATE_LIMIT_ANONYMOUS = 20  # requests per minute for anonymous users
+
+# Session Security
+# Hardened session cookie settings to prevent hijacking
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SECURE = False  # Set to True in production (requires HTTPS)
+SESSION_COOKIE_SAMESITE = 'Lax'  # Prevent CSRF attacks
+SESSION_COOKIE_AGE = 14400  # 4 hours automatic timeout
+# Persists the session (and re-sends the cookie) on every request. This does
+# NOT rotate the session key. Login-time rotation lives in auth_views
+# (cycle_key before the 2FA park and after login()). Do not treat this flag
+# as a session-fixation defense.
+SESSION_SAVE_EVERY_REQUEST = True
+
+# CSRF Security
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = False  # Set to True in production (requires HTTPS)
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Clickjacking Protection
+X_FRAME_OPTIONS = 'DENY'
+
+# Content Type Sniffing Protection
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Browser XSS Protection
+SECURE_BROWSER_XSS_FILTER = True
+
+# Referrer Policy
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Permissions Policy (formerly Feature Policy)
+PERMISSIONS_POLICY = {
+    'geolocation': [],
+    'microphone': [],
+    'camera': [],
+}
+
+# Notifications
+NOTIFICATIONS_ENABLED = os.environ.get('NOTIFICATIONS_ENABLED', 'True').lower() in ('true', '1', 'yes')
+
+# Middleware exemptions
+# ROLE_EXEMPT_PREFIXES: paths that skip RoleBasedAccessMiddleware portal gates.
+# The root path '/' is always an exact-match exemption (a startswith '/'
+# would exempt every URL). Django's /admin/ is NOT exempt: it requires the
+# ADMIN role or superuser/staff (Django admin still enforces its own auth).
+ROLE_EXEMPT_PREFIXES = [
+    '/login/',
+    '/logout/',
+    '/static/',
+    '/media/',
+    '/service-worker.js',
+    '/favicon.ico',
+    '/info/',
+    '/users/',
+]
+
+# APPROVAL_EXEMPT_PREFIXES: paths that skip ApprovalCheckMiddleware.
+APPROVAL_EXEMPT_PREFIXES = [
+    '/login/',
+    '/logout/',
+    '/static/',
+    '/media/',
+    '/service-worker.js',
+    '/favicon.ico',
+    '/student/approval-waiting/',
+    '/admin/',
+]
 
 
 # Cache

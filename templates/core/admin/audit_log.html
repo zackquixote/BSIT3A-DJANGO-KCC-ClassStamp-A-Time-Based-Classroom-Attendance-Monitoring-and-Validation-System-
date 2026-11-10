@@ -83,7 +83,7 @@
     <!-- Action Filter Dropdown -->
     <div class="input-wrap" style="width: 155px; min-width: 135px;">
       <i class="fas fa-filter input-icon"></i>
-      <select name="action" class="form-control" onchange="this.form.submit()">
+      <select name="action" class="form-control" data-autosubmit="1">
         <option value="">All Action Types</option>
         {% for a in action_choices %}
           <option value="{{ a }}" {% if a == action_filter %}selected{% endif %}>{{ a }}</option>
@@ -94,7 +94,7 @@
     <!-- Actor Filter Dropdown -->
     <div class="input-wrap" style="width: 145px; min-width: 125px;">
       <i class="fas fa-user-shield input-icon"></i>
-      <select name="actor" class="form-control" onchange="this.form.submit()">
+      <select name="actor" class="form-control" data-autosubmit="1">
         <option value="">All Actors</option>
         {% for a in actor_choices %}
           <option value="{{ a.actor__username }}" {% if a.actor__username == actor_filter %}selected{% endif %}>
@@ -112,13 +112,13 @@
              class="form-control"
              value="{{ date_filter }}"
              title="Filter events by specific date"
-             onchange="this.form.submit()">
+             data-autosubmit="1">
     </div>
 
     <!-- Page Size Selector -->
     <div class="input-wrap" style="width: 125px; min-width: 105px;">
       <i class="fas fa-list-ol input-icon"></i>
-      <select name="per_page" class="form-control" onchange="this.form.submit()">
+      <select name="per_page" class="form-control" data-autosubmit="1">
         <option value="25" {% if per_page == '25' %}selected{% endif %}>25 per page</option>
         <option value="50" {% if per_page == '50' %}selected{% endif %}>50 per page</option>
         <option value="100" {% if per_page == '100' %}selected{% endif %}>100 per page</option>

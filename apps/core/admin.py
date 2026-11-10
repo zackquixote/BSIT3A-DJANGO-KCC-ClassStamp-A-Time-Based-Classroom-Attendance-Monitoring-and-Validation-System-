@@ -4,6 +4,7 @@ from apps.core.models.academic import Program
 from apps.core.models.attendance import RoomVerification
 from apps.core.models.notifications import PushSubscription
 from apps.core.models.profile import Profile
+from apps.core.models.messaging import Message
 
 
 @admin.register(Program)
@@ -63,3 +64,36 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    """
+    Admin interface for internal messaging system.
+    Displays message details with sender, recipient, and read status.
+    """
+    list_display = ('subject', 'sender', 'recipient', 'is_read', 'created_at')
+    list_filter = ('is_read', 'created_at')
+    search_fields = ('subject', 'body', 'sender__username', 'sender__first_name', 'sender__last_name', 
+                     'recipient__username', 'recipient__first_name', 'recipient__last_name')
+    readonly_fields = ('sender', 'recipient', 'created_at', 'updated_at', 'read_at')
+    ordering = ('-created_at',)
+    list_per_page = 50
+    
+    fieldsets = (
+        ('Message Details', {
+            'fields': ('sender', 'recipient', 'subject', 'body')
+        }),
+        ('Status', {
+            'fields': ('is_read', 'read_at')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Messages should be created through the messaging interface, not admin
+        return False
+

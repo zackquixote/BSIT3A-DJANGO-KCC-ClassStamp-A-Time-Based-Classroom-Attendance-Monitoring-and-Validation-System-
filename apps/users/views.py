@@ -397,6 +397,9 @@ def user_save_ajax(request):
                 else:
                     new_user.password = old_password_hash
                 new_user.save()
+                if password:
+                    from apps.core.services.credential_service import record_password_history
+                    record_password_history(new_user)
                 user = new_user
                 profile = None
             else:
@@ -406,9 +409,25 @@ def user_save_ajax(request):
                 user.email = email
                 user.is_active = is_active
                 user.is_staff = (role == Profile.ROLE_ADMIN)
+                is_new_account = not user.pk
                 if password:
-                    user.set_password(password)
+                    if is_new_account:
+                        # A new User has no primary key yet; set_user_password
+                        # would force-update a nonexistent row.
+                        user.set_password(password)
+                    else:
+                        from apps.core.services.credential_service import set_user_password
+                        set_user_password(
+                            user,
+                            password,
+                            validate=True,
+                            actor=request.user,
+                            audit_action='PASSWORD_CHANGED',
+                        )
                 user.save()
+                if password and is_new_account:
+                    from apps.core.services.credential_service import record_password_history
+                    record_password_history(user)
 
             if not profile:
                 from apps.core.services.student_service import compute_batch_fields
@@ -607,22 +626,27 @@ def user_reset_password_ajax(request, pk):
             }, status=400)
         new_password = custom_pwd
     else:
-        # Generate 10-char high-entropy temporary password
-        chars = string.ascii_letters + string.digits
-        rnd = ''.join(secrets.choice(chars) for _ in range(8))
-        new_password = f"KCC-{rnd}"
+        from apps.core.services.credential_service import generate_compliant_password
+        new_password = generate_compliant_password(12)
 
-    target_user.set_password(new_password)
-    target_user.save(update_fields=['password'])
+    from apps.core.services.credential_service import set_user_password
+    try:
+        set_user_password(
+            target_user,
+            new_password,
+            validate=bool(custom_pwd),
+            actor=request.user,
+            audit_action='RESET_PASSWORD',
+            reason=f'Administrative password reset for {target_user.username}',
+        )
+    except ValueError as exc:
+        return JsonResponse({
+            'status': 'error',
+            'errors': [str(exc)],
+            'message': str(exc),
+        }, status=400)
 
     display_name = target_user.get_full_name() or target_user.username
-    AuditEvent.objects.create(
-        actor=request.user,
-        action='RESET_PASSWORD',
-        object_type='User',
-        object_id=str(target_user.pk),
-        new_value=f"Administrative password reset for {display_name} ({target_user.email})",
-    )
 
     return JsonResponse({
         "status": "success",

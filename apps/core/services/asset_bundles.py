@@ -31,6 +31,8 @@ CSS_SOURCES = [
     'css/validation.css',
     'css/dashboard.css',
     'css/app.css',
+    # Last: the refinement layer that enforces the visual system.
+    'css/refine.css',
 ]
 
 JS_SOURCES = [

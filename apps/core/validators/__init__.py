@@ -26,6 +26,10 @@ from .academic_validators import (
     validate_class_section_code,
     validate_program_duration,
 )
+from .password_validators import (
+    CompositionPasswordValidator,
+    MIN_PASSWORD_LENGTH,
+)
 from .identity_validators import (
     ALLOWED_PROOF_EXTENSIONS,
     MAX_PROOF_FILE_SIZE_BYTES,

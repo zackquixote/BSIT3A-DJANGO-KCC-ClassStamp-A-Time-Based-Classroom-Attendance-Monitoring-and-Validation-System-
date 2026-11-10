@@ -533,7 +533,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
   const tabPendingBtn = document.getElementById('tabPendingBtn');
   const tabReviewedBtn = document.getElementById('tabReviewedBtn');
@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function () {
   </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 // Batch Validation JavaScript Controller
 document.addEventListener('DOMContentLoaded', function () {
   const selectAll = document.getElementById('batchSelectAll');

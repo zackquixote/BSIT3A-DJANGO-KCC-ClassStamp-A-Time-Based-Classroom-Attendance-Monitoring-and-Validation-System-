@@ -146,7 +146,7 @@ class TeacherAttendanceMatrixTests(TestCase):
             reverse('teacher_attendance_matrix', args=[self.class_obj.pk])
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
 
     def test_matrix_anonymous_redirects_to_login(self):
         self.client.logout()

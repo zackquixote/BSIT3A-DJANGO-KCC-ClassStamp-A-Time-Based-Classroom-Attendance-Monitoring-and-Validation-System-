@@ -19,9 +19,16 @@
 
 <!-- Pending Queue -->
 <div class="card mb-6" style="padding: 0; overflow: hidden;" data-review-url-prefix="{% url 'excuse_slip_review_ajax' 0 %}">
-  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
     <div class="font-semibold text-primary"><i class="fas fa-inbox text-gold"></i> Pending Review</div>
-    <span class="badge badge--warning">{{ pending_slips|length }} pending</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="badge badge--warning">{{ pending_slips|length }} pending</span>
+      {% if pending_slips %}
+      <button type="button" class="btn btn-success btn-sm" id="bulkApproveBtn" disabled title="Approve all selected pending slips">
+        <i class="fas fa-layer-group"></i> Approve selected (<span id="bulkSelectedCount">0</span>)
+      </button>
+      {% endif %}
+    </div>
   </div>
 
   {% if pending_slips %}
@@ -29,6 +36,9 @@
     <table class="table" style="margin-bottom: 0;">
       <thead>
         <tr>
+          <th scope="col" style="width: 36px;">
+            <input type="checkbox" id="bulkSelectAll" aria-label="Select all pending excuse slips">
+          </th>
           <th scope="col">Student</th>
           <th scope="col">Session</th>
           <th scope="col">Reason</th>
@@ -40,6 +50,9 @@
       <tbody>
         {% for slip in pending_slips %}
         <tr data-slip-id="{{ slip.id }}">
+          <td>
+            <input type="checkbox" class="js-bulk-slip" value="{{ slip.id }}" aria-label="Select excuse slip {{ slip.id }}">
+          </td>
           <td>
             <div class="font-semibold text-primary text-sm">{{ slip.student_profile.user.get_full_name|default:slip.student_profile.user.get_username }}</div>
             <div class="text-muted text-xs font-mono">{{ slip.student_profile.student_number }}</div>

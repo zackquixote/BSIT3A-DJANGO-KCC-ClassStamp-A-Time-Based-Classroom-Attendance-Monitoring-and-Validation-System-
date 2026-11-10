@@ -391,9 +391,9 @@
   data-code-check-url="{% url 'class_wizard_code_check' %}"
   data-programs-url="{% url 'program_list' %}"
   data-classes-url="{% url 'class_list' %}"></div>
-<script id="wizard-programs" type="application/json">{{ programs_json|safe }}</script>
-<script id="wizard-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
-<script id="wizard-departments" type="application/json">{{ departments_json|safe }}</script>
+<script nonce="{{ request.csp_nonce }}" id="wizard-programs" type="application/json">{{ programs_json|safe }}</script>
+<script nonce="{{ request.csp_nonce }}" id="wizard-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
+<script nonce="{{ request.csp_nonce }}" id="wizard-departments" type="application/json">{{ departments_json|safe }}</script>
 
 <div class="wiz-head">
   <div>
@@ -612,7 +612,7 @@
       </div>
       <button type="button" class="btn btn-primary" id="slot-add" style="padding:9px 14px;"><i class="fas fa-plus"></i> Add</button>
     </div>
-    <p class="form-hint" style="margin-top:8px;">Teacher clashes block saving; room clashes only warn. Overlapping slots in this list are not allowed.</p>
+    <p class="form-hint" style="margin-top:8px;">Teacher and room clashes both block saving. Room double-bookings can be explicitly confirmed on the review step; overlapping slots in this list are never allowed.</p>
 
     <!-- ── Visual Weekly Timetable Grid Preview ────────────── -->
     <div class="wizard-timetable-box mb-3">
@@ -639,6 +639,12 @@
     <p class="text-muted text-xs mb-3">Review all subjects, instructors, and schedules. The section and its offerings will be created together.</p>
     <div id="review-summary"></div>
     <div id="review-warnings"></div>
+    <div id="review-override" style="display:none;margin-top:12px;padding:10px 14px;border:1px solid rgba(250,204,21,0.4);border-radius:10px;background:rgba(250,204,21,0.08);">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#fde68a;font-size:0.85rem;">
+        <input type="checkbox" id="wiz-override-room" style="accent-color:#f59e0b;">
+        I confirm these room double-bookings are intentional. Save anyway (recorded in the audit log).
+      </label>
+    </div>
   </section>
 
   <div id="wiz-error" style="display:none;margin-top:14px;padding:10px 14px;border:1px solid rgba(239,68,68,0.5);border-radius:10px;background:rgba(239,68,68,0.12);color:#fca5a5;font-size:0.9rem;"></div>
@@ -672,5 +678,5 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/classes/section_wizard.js' %}?v=20261104_v2"></script>
+<script src="{% static 'js/classes/section_wizard.js' %}?v=20261110_v1"></script>
 {% endblock %}

@@ -140,7 +140,7 @@
   {% endif %}
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 // Dynamic cascade: Department -> Program in Report Filter
 (function() {
   var deptSel = document.getElementById('reportDept');

@@ -235,6 +235,12 @@
         <span>Notifications</span>
         <span class="sidebar-badge" id="sidebarUnreadBadge"{% if not unread_notification_count %} style="display: none;"{% endif %}>{{ unread_notification_count }}</span>
       </a>
+      <a href="{% url 'message_inbox' %}" class="sidebar-link {% if request.resolver_match.url_name in 'message_inbox message_compose message_thread' %}active{% endif %}">
+        <i data-lucide="mail" class="sidebar-link-icon"></i>
+        <i class="fas fa-envelope sidebar-link-icon lucide-fallback"></i>
+        <span>Messages</span>
+        <span class="sidebar-badge" id="sidebarMessagesBadge"{% if not unread_message_count %} style="display: none;"{% endif %}>{{ unread_message_count }}</span>
+      </a>
 
   </nav>
 

@@ -68,9 +68,11 @@ def detect_slot_conflicts(
 
     conflicts = []
     for slot in overlapping:
+        # A single existing slot can be both a teacher clash and a room clash;
+        # using elif here silently dropped the room record in that case (Req 18.3).
         if slot.class_obj.teacher_profile_id == teacher_profile_id:
             conflicts.append(_conflict_dict(slot, 'teacher'))
-        elif check_room and (slot.room or '').strip().lower() == proposed_room:
+        if check_room and (slot.room or '').strip().lower() == proposed_room:
             conflicts.append(_conflict_dict(slot, 'room'))
     return conflicts
 

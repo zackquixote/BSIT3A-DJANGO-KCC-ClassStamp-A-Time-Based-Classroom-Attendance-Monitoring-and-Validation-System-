@@ -21,6 +21,10 @@
   </div>
 
   <div class="flex items-center gap-2">
+    <a href="{% if at_risk_only %}{% url 'teacher_attendance_matrix' class_obj.id %}{% else %}{% url 'teacher_attendance_matrix' class_obj.id %}?at_risk_only=1{% endif %}" class="btn {% if at_risk_only %}btn-danger{% else %}btn-outline{% endif %}" title="Show only students whose predicted final attendance is below the institutional threshold">
+      <i class="fas fa-triangle-exclamation"></i>
+      {% if at_risk_only %}Showing {{ at_risk_count }} at-risk — show all{% else %}At-risk only ({{ at_risk_count }}){% endif %}
+    </a>
     <a href="{% url 'teacher_class_term_export' class_obj.id %}" class="btn btn-primary">
       <i class="fas fa-file-excel"></i> Term Excel
     </a>
@@ -32,6 +36,9 @@
     </a>
     <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?format=csv" class="btn btn-outline">
       <i class="fas fa-file-csv"></i> Export CSV
+    </a>
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?format=pdf" class="btn btn-outline" title="Same matrix dataset as the CSV export, rendered as PDF">
+      <i class="fas fa-file-pdf"></i> Export PDF
     </a>
   </div>
 </div>
@@ -110,6 +117,7 @@
           <th scope="col" style="text-align: center;">A</th>
           <th scope="col" style="text-align: center;">E</th>
           <th scope="col" style="text-align: center;">Rate</th>
+          <th scope="col" style="text-align: center;" title="Advisory linear-regression projection of final attendance — not an official pass/fail decision.">Predicted</th>
         </tr>
       </thead>
       <tbody>
@@ -150,10 +158,21 @@
               <span class="badge badge--danger font-mono text-xs">{{ row.rate }}%</span>
             {% endif %}
           </td>
+          <td style="text-align: center;">
+            {% if row.prediction_insufficient or row.prediction is None %}
+              <span class="text-muted font-mono text-xs" title="Fewer than five closed sessions — not enough data to project.">— data</span>
+            {% elif row.prediction < prediction_passing_threshold %}
+              <span class="badge badge--danger font-mono text-xs" title="Projected final attendance is below the {{ prediction_passing_threshold|floatformat:0 }}% passing threshold (advisory).">
+                <i class="fas fa-triangle-exclamation"></i> {{ row.prediction|floatformat:1 }}%
+              </span>
+            {% else %}
+              <span class="badge badge--success font-mono text-xs" title="Projected final attendance (advisory).">{{ row.prediction|floatformat:1 }}%</span>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="{{ session_list|length|add:7 }}" style="text-align: center; padding: 42px 16px;" class="text-muted text-sm">
+          <td colspan="{{ session_list|length|add:8 }}" style="text-align: center; padding: 42px 16px;" class="text-muted text-sm">
             <i class="fas fa-user-graduate" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--text-muted);"></i>
             No active students are enrolled in this class section yet.
           </td>
@@ -169,5 +188,11 @@
     No class meetings have been recorded for this section yet. Open a session from the dashboard to begin.
   </div>
   {% endif %}
+
+  <div style="padding: 12px 20px; border-top: 1px solid var(--glass-border);" class="text-muted text-xs">
+    <i class="fas fa-wand-magic-sparkles text-gold"></i>
+    {{ prediction_note }} Algorithm: <span class="font-mono">{{ prediction_algorithm_version }}</span>.
+    Passing threshold {{ prediction_passing_threshold|floatformat:0 }}% follows the institutional absence policy.
+  </div>
 </div>
 {% endblock %}

@@ -1,7 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand
 
 from apps.core.models import Profile
+from apps.core.services.credential_service import record_password_history
 
 User = get_user_model()
 
@@ -28,16 +31,31 @@ class Command(BaseCommand):
             defaults={"email": email, "is_staff": True, "is_superuser": True},
         )
 
+        try:
+            validate_password(password)
+        except ValidationError as exc:
+            raise SystemExit(
+                'Password does not meet the policy: ' + ' '.join(exc.messages)
+            )
+
         if created:
             user.set_password(password)
             user.is_staff = True
             user.is_superuser = True
             user.save()
+            record_password_history(user)
             self.stdout.write(self.style.SUCCESS(f"Created superuser '{username}'"))
         else:
             # Always reset password + privileges on re-run so the command is idempotent.
             user.email = email
-            user.set_password(password)
+            from apps.core.services.credential_service import set_user_password
+            set_user_password(
+                user,
+                password,
+                validate=False,  # validated above
+                audit_action='ADMIN_PASSWORD_RESET',
+                reason=f'create_admin re-run password reset for {username}',
+            )
             user.is_staff = True
             user.is_superuser = True
             user.save()

@@ -17,6 +17,7 @@
 # // ==============================================================================
 """
 
+import json
 from datetime import datetime, timedelta
 
 from django.db.models import Count, Q
@@ -235,7 +236,7 @@ def _admin_dashboard_stats():
         'pending_delta': pending_count - pending_count_yesterday,
         'session_delta': open_session_count - session_count_yesterday,
         # // Chart, heatmap & feed
-        'chart_data': chart_data,
+        'chart_data_json': json.dumps(chart_data).replace('</', '<\\'),
         'heatmap_data': get_attendance_heatmap_data(days=35),
         'activity_feed': activity_feed,
         'active_academic_year': active_academic_year,
@@ -247,7 +248,7 @@ def _admin_dashboard_stats():
         'upcoming_calendar_events': upcoming_calendar_events,
         'today_events': today_events,
         'today_holiday': today_holiday,
-        'mini_calendar_events_json': mini_calendar_events,
+        'mini_calendar_events_json': json.dumps(mini_calendar_events).replace('</', '<\\'),
         'today_date': today,
     }
 

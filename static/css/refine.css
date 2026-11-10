@@ -1,0 +1,2611 @@
+/* =============================================================
+   KCC ClassStamp — Interface refinement layer
+   =============================================================
+   Loaded last in classstamp.bundle.css. This file is the single place
+   where the visual system is enforced, so individual page sheets can stay
+   focused on layout.
+
+   Rules of the system:
+   1. One accent (gold) for actions, focus and the active nav item.
+      Green/amber/red/blue mean status — never decoration.
+   2. Structure comes from 1px hairlines and spacing, not glows, gradients
+      or drop shadows. Shadows belong to floating layers only (menus,
+      modals, dropdowns).
+   3. One radius family: 6px controls, 8px buttons/inputs, 10px surfaces.
+   4. Uppercase micro-labels are 11px/600 with 0.06em tracking and muted
+      ink. Everything else is sentence case.
+   5. Icons are 16px monochrome line icons. No icon chips, no icons inside
+      table headers, no icons inside badges, no emoji.
+   6. Numbers are tabular and set in the same family as the UI.
+   ============================================================= */
+
+/* ── 1. Base canvas ───────────────────────────────────────────── */
+
+body {
+  background-color: var(--bg-base);
+  background-image: none;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+}
+
+::selection {
+  background: rgba(216, 169, 68, 0.28);
+  color: #fff;
+}
+
+a { color: var(--accent-gold-h); }
+a:hover { color: var(--accent-gold); }
+
+:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); background-clip: content-box; }
+
+/* ── 2. Typography ────────────────────────────────────────────── */
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: 0.95rem; }
+
+.text-muted { color: var(--text-muted); }
+
+/* Page headers: title, one line of context, actions. No gradient ink. */
+.dash-page-title,
+.page-title,
+.page-header h1 {
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text-primary) !important;
+}
+
+.dash-page-title span,
+.page-title span {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--text-secondary) !important;
+  background-clip: border-box !important;
+}
+
+.dash-page-subtitle,
+.page-subtitle {
+  font-size: 0.82rem !important;
+  color: var(--text-muted) !important;
+  margin-top: 4px !important;
+  letter-spacing: 0 !important;
+}
+
+/* Eyebrow/ribbon chips that sat above every H1 are now inline meta text. */
+.page-eyebrow,
+.dash-header-meta .badge {
+  font-size: 0.75rem;
+}
+
+/* ── 3. Surfaces ──────────────────────────────────────────────── */
+
+.card,
+.dash-panel,
+.panel,
+.dashboard-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.card { padding: 18px; }
+
+.card:hover,
+.dash-panel:hover {
+  border-color: var(--border-strong);
+}
+
+.card--hoverable:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border-strong);
+}
+
+.dash-panel-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  min-height: 0;
+}
+
+.dash-panel-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.dash-panel-title i { color: var(--text-muted); font-size: 0.8rem; opacity: 1; }
+.dash-panel-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.dash-panel-body { padding: 14px 16px; }
+
+.dash-panel-action {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+.dash-panel-action:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-strong);
+}
+
+/* ── 4. KPI strip ─────────────────────────────────────────────── */
+
+.dash-kpi-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 14px 16px 12px !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  transition: border-color 0.16s ease, background-color 0.16s ease !important;
+}
+
+.dash-kpi-card::before { content: none !important; }
+
+.dash-kpi-card:hover {
+  border-color: var(--border-strong) !important;
+  background: var(--bg-card-hover) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.dash-kpi-card--pulse { animation: none !important; border-color: var(--border) !important; }
+
+.dash-kpi-value {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.1 !important;
+  color: var(--text-primary) !important;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 2px 0 !important;
+}
+
+.dash-kpi-label {
+  font-size: 0.69rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase !important;
+  margin: 0 !important;
+  gap: 5px;
+}
+
+/* Label icons read as part of the caption, not as a feature chip. */
+.dash-kpi-label i,
+.dash-kpi-label svg {
+  font-size: 0.7rem !important;
+  width: 12px !important;
+  height: 12px !important;
+  color: var(--text-dim) !important;
+  opacity: 1 !important;
+}
+
+.dash-kpi-delta {
+  margin-top: 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  gap: 4px !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-kpi-delta--up { color: var(--success) !important; }
+.dash-kpi-delta--down { color: var(--danger) !important; }
+.dash-kpi-delta--flat { color: var(--text-dim) !important; }
+.dash-kpi-delta span { color: var(--text-muted); font-weight: 400; }
+
+/* The "Action needed" flag becomes a quiet gold marker in the corner. */
+.dash-kpi-badge {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  color: var(--accent-gold) !important;
+  font-size: 0.66rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase;
+}
+
+.dash-kpi-badge i { display: none !important; }
+
+/* Generic stat cards (classes, teachers, directory) */
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  box-shadow: none;
+  gap: 12px;
+}
+
+.stat-card:hover {
+  border-color: var(--border-strong);
+  transform: none;
+  box-shadow: none;
+}
+
+.stat-icon,
+.stat-icon--gold,
+.stat-icon--green,
+.stat-icon--blue,
+.stat-icon--purple,
+.stat-icon--info,
+.stat-icon--danger {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--text-dim) !important;
+  font-size: 0.9rem !important;
+}
+
+.stat-card:hover .stat-icon { transform: none !important; color: var(--text-muted) !important; }
+
+.stat-value {
+  font-size: 1.35rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15 !important;
+}
+
+.stat-label {
+  font-size: 0.69rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase;
+  color: var(--text-muted) !important;
+}
+
+/* ── 5. Quick launcher ────────────────────────────────────────── */
+
+.dash-launcher-grid {
+  gap: 2px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dash-launcher-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 9px 10px;
+  gap: 10px;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.dash-launcher-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border);
+  transform: none;
+  box-shadow: none;
+}
+
+.dash-launcher-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--text-dim) !important;
+  font-size: 0.85rem !important;
+}
+
+.dash-launcher-btn:hover .dash-launcher-icon {
+  background: none !important;
+  color: var(--text-secondary) !important;
+  transform: none !important;
+}
+
+.dash-launcher-label {
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.005em;
+}
+
+.dash-launcher-sub {
+  font-size: 0.72rem !important;
+  color: var(--text-muted) !important;
+  margin-top: 1px;
+}
+
+/* ── 6. Buttons ───────────────────────────────────────────────── */
+
+.btn {
+  height: var(--control-h);
+  padding: 0 13px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+  gap: 7px;
+  border: 1px solid transparent;
+  box-shadow: none !important;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  white-space: nowrap;
+}
+
+.btn i, .btn svg { font-size: 0.82rem; }
+
+.btn-primary {
+  background: var(--accent-gold);
+  color: var(--accent-ink) !important;
+  border-color: var(--accent-gold);
+}
+
+.btn-primary:hover {
+  background: var(--accent-gold-h);
+  border-color: var(--accent-gold-h);
+  color: var(--accent-ink) !important;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary,
+.btn-outline {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--text-secondary) !important;
+}
+
+.btn-secondary:hover,
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary) !important;
+  transform: none;
+}
+
+.btn-danger {
+  background: rgba(217, 102, 102, 0.12);
+  border-color: rgba(217, 102, 102, 0.32);
+  color: #e79292 !important;
+}
+
+.btn-danger:hover {
+  background: rgba(217, 102, 102, 0.18);
+  border-color: rgba(217, 102, 102, 0.45);
+  color: #f0a5a5 !important;
+}
+
+.btn-success {
+  background: rgba(78, 168, 122, 0.14);
+  border-color: rgba(78, 168, 122, 0.32);
+  color: #7cc4a0 !important;
+}
+
+.btn-success:hover {
+  background: rgba(78, 168, 122, 0.2);
+  border-color: rgba(78, 168, 122, 0.45);
+}
+
+.btn-sm { height: 30px; padding: 0 10px; font-size: 0.76rem; }
+.btn-xs { height: 26px; padding: 0 8px; font-size: 0.72rem; border-radius: var(--radius-xs); }
+
+.btn-icon-xs,
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted) !important;
+}
+
+.btn-icon-xs:hover,
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+  color: var(--text-primary) !important;
+}
+
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── 7. Forms ─────────────────────────────────────────────────── */
+
+.form-label {
+  font-size: 0.76rem;
+  font-weight: 550;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.form-control,
+select.form-control,
+textarea.form-control {
+  height: var(--control-h);
+  padding: 0 11px;
+  background: #0c1421;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  box-shadow: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+select.form-control {
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237f8b9c' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+textarea.form-control { height: auto; padding: 9px 11px; line-height: 1.5; }
+
+.form-control:focus,
+select.form-control:focus,
+textarea.form-control:focus {
+  outline: none;
+  border-color: rgba(216, 169, 68, 0.55);
+  box-shadow: 0 0 0 3px rgba(216, 169, 68, 0.14);
+}
+
+.form-control::placeholder { color: var(--text-dim); }
+.form-hint { font-size: 0.72rem; color: var(--text-muted); }
+
+/* ── 8. Badges ────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-xs);
+  font-size: 0.69rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+/* Badges are labels. A status colour plus the words is enough. */
+.badge i,
+.badge svg { display: none !important; }
+
+.badge--success { background: rgba(78, 168, 122, 0.12); border-color: rgba(78, 168, 122, 0.26); color: #8ecfae; }
+.badge--warning { background: rgba(216, 169, 68, 0.12); border-color: rgba(216, 169, 68, 0.26); color: #e3c072; }
+.badge--danger  { background: rgba(217, 102, 102, 0.12); border-color: rgba(217, 102, 102, 0.26); color: #e59292; }
+.badge--info    { background: rgba(107, 147, 201, 0.12); border-color: rgba(107, 147, 201, 0.26); color: #9ab6dd; }
+.badge--purple  { background: rgba(165, 140, 212, 0.12); border-color: rgba(165, 140, 212, 0.26); color: #bda6e4; }
+.badge--muted   { background: rgba(255, 255, 255, 0.05); border-color: var(--border); color: var(--text-muted); }
+.badge--outline { background: transparent; border-color: var(--border-strong); color: var(--text-secondary); }
+
+/* Role and count pills keep their meaning but lose the full-round shelf. */
+.role-badge {
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-xs);
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+}
+
+/* ── 9. Tabs & segmented controls ─────────────────────────────── */
+
+.dash-tab-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.dash-tab-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 550;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dash-tab-btn i, .dash-tab-btn svg { display: none; }
+
+.dash-tab-btn:hover { color: var(--text-primary); }
+
+.dash-tab-btn.is-active,
+.dash-tab-btn[aria-selected="true"] {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.dash-tab-pulse-dot { display: none; }
+
+/* ── 10. Tables ───────────────────────────────────────────────── */
+
+.table {
+  font-size: 0.8rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table thead th {
+  padding: 9px 12px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* Table headers are labels. Icons there were pure decoration. */
+.table thead th i,
+.table thead th svg { display: none !important; }
+
+.table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.table tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
+.table tbody tr:last-child td { border-bottom: 0; }
+
+.table .col-actions { text-align: right; }
+
+.table-actions-cluster { gap: 2px; justify-content: flex-end; }
+
+/* Numbers in tables line up */
+.table td .font-mono,
+.table td[data-numeric] { font-variant-numeric: tabular-nums; }
+
+/* ── 11. Sidebar ──────────────────────────────────────────────── */
+
+.sidebar {
+  background: #0b111b;
+  border-right: 1px solid var(--border);
+  box-shadow: none;
+  padding: 0 10px 10px;
+}
+
+.sidebar-brand {
+  padding: 14px 6px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.sidebar-brand-text {
+  font-size: 0.84rem;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+}
+
+.sidebar-brand-tag {
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.sidebar-brand-left:hover .sidebar-brand-logo { transform: none; }
+
+.sidebar-section-label {
+  font-size: 0.62rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.09em !important;
+  color: var(--text-dim) !important;
+  margin: 14px 8px 4px !important;
+}
+
+.sidebar-link {
+  min-height: 34px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  gap: 9px;
+  position: relative;
+}
+
+.sidebar-link i,
+.sidebar-link svg {
+  font-size: 0.86rem;
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+  opacity: 1;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+}
+
+.sidebar-link:hover i,
+.sidebar-link:hover svg { color: var(--text-secondary); }
+
+.sidebar-link.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  box-shadow: none;
+  font-weight: 550;
+}
+
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent-gold);
+}
+
+.sidebar-link.active i,
+.sidebar-link.active svg { color: var(--accent-gold); }
+
+.sidebar-badge {
+  min-width: 18px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 600;
+  border: 0;
+  box-shadow: none;
+}
+
+.sidebar-link.active .sidebar-badge {
+  background: rgba(216, 169, 68, 0.16);
+  color: var(--accent-gold-h);
+}
+
+.sidebar-user-card,
+.sidebar-footer {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── 12. Topbar, bell, avatars ────────────────────────────────── */
+
+.mobile-topbar {
+  background: rgba(10, 15, 24, 0.92);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.btn-bell-notification,
+.mobile-bell-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  box-shadow: none !important;
+}
+
+.btn-bell-notification:hover,
+.mobile-bell-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.btn-bell--idle { background: transparent; border-color: transparent; }
+
+.notif-unread-dot { display: none !important; }
+
+.bell-badge-count {
+  top: -5px !important;
+  right: -5px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: var(--danger) !important;
+  color: #fff !important;
+  font-size: 0.6rem !important;
+  font-weight: 600 !important;
+  border: 2px solid #0b111b !important;
+  box-shadow: none !important;
+}
+
+.notif-dropdown {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: none;
+}
+
+/* ── 13. Right rail lists ─────────────────────────────────────── */
+
+.dash-approved-list,
+.dash-dept-list {
+  max-height: 264px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.dash-approved-row,
+.dash-dept-row {
+  border: 1px solid transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 0;
+  padding: 9px 6px;
+  background: transparent;
+}
+
+.dash-approved-row:hover,
+.dash-dept-row:hover { background: rgba(255, 255, 255, 0.03); }
+
+.dash-approved-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+
+.dash-approved-name { font-size: 0.8rem; font-weight: 550; }
+.dash-approved-sub,
+.dash-approved-time { font-size: 0.7rem; color: var(--text-muted); }
+
+/* Every row said "Approved"; the list is defined as approved students. */
+.dash-approved-row .badge--success {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  padding: 0;
+  height: auto;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.dash-dept-badge { font-size: 0.68rem !important; }
+
+/* ── 14. Empty states ─────────────────────────────────────────── */
+
+.dash-empty {
+  padding: 22px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+}
+
+.dash-empty i { color: var(--text-dim); opacity: 1; }
+
+/* ── 15. Notices ──────────────────────────────────────────────── */
+
+.dash-holiday-banner,
+.alert {
+  background: rgba(216, 169, 68, 0.06);
+  border: 1px solid rgba(216, 169, 68, 0.22);
+  border-left-width: 2px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* ── 16. Auth pages ───────────────────────────────────────────── */
+
+.kcc-glow-radial,
+.kcc-ring-accent,
+.kcc-grid-overlay { display: none !important; }
+
+.kcc-hero-title,
+.kcc-headline {
+  letter-spacing: -0.03em;
+}
+
+.kcc-hero-accent { color: var(--accent-gold) !important; }
+
+.kcc-auth-page .form-control {
+  height: 40px;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-strong);
+}
+
+.kcc-auth-page .btn-primary {
+  height: 42px;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+/* ── 17. Motion ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ── 18. Second pass: dashboard chrome ────────────────────────── */
+
+/* KPI: the flag sits under the figure instead of covering the label. */
+.dash-kpi-card { display: flex !important; flex-direction: column !important; }
+.dash-kpi-body { flex: 1 1 auto !important; }
+
+.dash-kpi-badge {
+  position: static !important;
+  align-self: flex-start !important;
+  margin-top: 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  color: var(--accent-gold) !important;
+  font-size: 0.65rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  line-height: 1.2 !important;
+  opacity: 1 !important;
+}
+
+.dash-kpi-badge.badge--info { color: var(--info) !important; }
+.dash-kpi-badge i { display: none !important; }
+
+/* Quick launcher: one menu column, full-row hit area, no nested cards. */
+.dash-launcher-grid {
+  grid-template-columns: 1fr !important;
+  gap: 0 !important;
+}
+
+.dash-launcher-btn {
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045) !important;
+  padding: 8px 2px !important;
+  min-height: 42px;
+}
+
+.dash-launcher-btn:last-child { border-bottom: 0 !important; }
+
+.dash-launcher-btn:hover {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.045) !important;
+}
+
+.dash-launcher-label { font-size: 0.8rem !important; }
+.dash-launcher-sub { font-size: 0.7rem !important; }
+
+/* Panel heads wrap instead of squeezing the title into two lines. */
+.dash-panel-head {
+  flex-wrap: wrap !important;
+  row-gap: 8px !important;
+  align-items: center !important;
+}
+
+.dash-panel-title { white-space: nowrap; }
+
+/* Header meta: metadata is text, not a shelf of pills. */
+.dash-header-meta { gap: 14px !important; margin-top: 8px !important; }
+
+.dash-term-pill,
+.dash-rate-pill,
+.dash-clock-pill {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font-size: 0.76rem !important;
+  font-weight: 500 !important;
+  gap: 6px !important;
+}
+
+.dash-term-pill { color: var(--text-secondary) !important; }
+.dash-term-pill:hover { color: var(--text-primary) !important; transform: none !important; text-decoration: underline; text-underline-offset: 3px; }
+.dash-rate-pill { color: var(--success) !important; }
+.dash-clock-pill { color: var(--text-muted) !important; }
+
+.dash-term-pill i,
+.dash-rate-pill i,
+.dash-clock-pill i { font-size: 0.72rem; color: var(--text-dim); }
+.dash-rate-pill i { color: var(--success); }
+
+/* Chart toolbar: two segmented groups, flat date field, plain legend. */
+.dash-chart-card,
+.dash-trend-card {
+  border: 1px solid var(--border) !important;
+  background: var(--bg-card) !important;
+  backdrop-filter: none !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+.dash-chart-card:hover { border-color: var(--border) !important; box-shadow: none !important; }
+
+.dash-chart-meta { gap: 8px !important; flex-wrap: wrap; }
+
+.dash-view-switcher,
+.dash-chart-ranges {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.dash-view-btn,
+.dash-chart-range-btn {
+  height: 24px !important;
+  padding: 0 9px !important;
+  border: 0 !important;
+  border-radius: var(--radius-xs) !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  font-size: 0.72rem !important;
+  font-weight: 550 !important;
+  box-shadow: none !important;
+}
+
+.dash-view-btn i { display: none !important; }
+
+.dash-view-btn:hover,
+.dash-chart-range-btn:hover { color: var(--text-primary) !important; }
+
+.dash-view-btn.is-active,
+.dash-chart-range-btn.is-active {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+}
+
+.dash-chart-picker-wrap {
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0 8px;
+}
+
+.dash-chart-date-input {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.72rem !important;
+  height: 26px;
+}
+
+.dash-chart-picker-wrap i { color: var(--text-dim); font-size: 0.72rem; }
+
+.dash-chart-legend { gap: 12px !important; }
+.dash-chart-leg-item { font-size: 0.72rem !important; color: var(--text-muted) !important; gap: 5px; }
+.dash-chart-dot { width: 7px !important; height: 7px !important; border-radius: 2px !important; }
+
+/* Decorative "Live Feed" tag had no action behind it. */
+.dash-chart-live-badge { display: none !important; }
+
+/* ── 19. Sidebar footer ──────────────────────────────────────── */
+
+.sidebar-user,
+.sidebar-user-card,
+.sidebar-profile {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+.sidebar-user-name { font-size: 0.78rem !important; font-weight: 550 !important; }
+.sidebar-user-role,
+.sidebar-user .role-badge { font-size: 0.6rem !important; letter-spacing: 0.06em; }
+
+/* ── 20. Third pass: rails, agenda, launcher density ──────────── */
+
+/* Launcher: two columns of single-line entries. */
+.dash-launcher-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 6px !important;
+}
+
+.dash-launcher-btn {
+  border-bottom: 0 !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 7px 6px !important;
+  min-height: 40px;
+}
+
+.dash-launcher-btn:hover { background: rgba(255, 255, 255, 0.04) !important; }
+
+.dash-launcher-label {
+  font-size: 0.76rem !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-launcher-sub {
+  font-size: 0.66rem !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Panel actions read as links, not as a third button style. */
+.dash-panel-action {
+  border: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  background: none !important;
+  color: var(--text-muted) !important;
+  font-size: 0.74rem !important;
+  font-weight: 500 !important;
+}
+
+.dash-panel-action:hover {
+  color: var(--text-primary) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Agenda rows: hairlines instead of a card per row. */
+.dash-cal-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045) !important;
+  border-radius: 0 !important;
+  padding: 7px 2px !important;
+}
+
+.dash-cal-row:last-child { border-bottom: 0 !important; }
+.dash-cal-row:hover { background: rgba(255, 255, 255, 0.03) !important; transform: none !important; }
+
+.dash-cal-date-pill {
+  width: 30px;
+  height: 30px;
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+  border-radius: var(--radius-xs);
+}
+
+.dash-cal-date-pill--today {
+  border-color: rgba(216, 169, 68, 0.5) !important;
+  color: var(--accent-gold-h) !important;
+  background: rgba(216, 169, 68, 0.08) !important;
+}
+
+.dash-cal-d { font-weight: 600 !important; font-size: 0.8rem !important; }
+.dash-cal-m { font-size: 0.52rem; letter-spacing: 0.06em; color: var(--text-muted); }
+.dash-cal-name { font-weight: 550 !important; font-size: 0.76rem !important; }
+.dash-cal-sub { font-size: 0.68rem !important; }
+
+.dash-cal-today-empty {
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 2px solid rgba(216, 169, 68, 0.4) !important;
+  border-radius: 0 !important;
+  padding: 8px 12px !important;
+}
+
+/* Department and approval rows: one hairline between rows, no boxes. */
+.dash-dept-row,
+.dash-approved-row {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 8px 2px !important;
+}
+
+.dash-dept-row:last-child,
+.dash-approved-row:last-child { border-bottom: 0 !important; }
+
+.dash-dept-row:hover,
+.dash-approved-row:hover { background: rgba(255, 255, 255, 0.03) !important; }
+
+.dash-approved-avatar {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+}
+
+/* ── 21. Fourth pass: equal-height bento, no truncated labels ── */
+
+/* Cards in a row share a height, so the grid stops looking ragged. */
+.dash-panel-grid { align-items: stretch !important; }
+.dash-panel { height: 100%; }
+.dash-panel-body { flex: 1 1 auto; }
+
+.dash-panel-head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dash-panel-subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Launcher: full-width rows, so long module names never ellipsize. */
+.dash-launcher-grid { grid-template-columns: 1fr !important; gap: 0 !important; }
+
+.dash-launcher-btn {
+  min-height: 38px;
+  padding: 6px 4px !important;
+  border-radius: var(--radius-sm) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+.dash-launcher-btn:last-child { border-bottom: 0 !important; }
+
+.dash-launcher-label { font-size: 0.78rem !important; }
+.dash-launcher-sub { font-size: 0.68rem !important; }
+
+/* Lists show their rows; no clipped fifth row behind a max-height. */
+.dash-approved-list,
+.dash-dept-list {
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+/* The rail is titled "Approved"; repeating the word on every row is noise. */
+.dash-approved-row .badge { display: none !important; }
+
+.dash-approved-name { font-size: 0.78rem !important; }
+.dash-approved-sub { font-size: 0.68rem !important; }
+.dash-approved-time { font-size: 0.66rem !important; }
+
+.dash-dept-name { font-size: 0.76rem !important; line-height: 1.3 !important; }
+.dash-dept-code { font-size: 0.62rem !important; letter-spacing: 0.04em; }
+.dash-dept-meta { font-size: 0.66rem !important; }
+.dash-dept-badge { font-size: 0.64rem !important; }
+
+/* Rail width: give the approval list room for a name and a timestamp. */
+@media (min-width: 1200px) {
+  .dash-panel-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.12fr); }
+}
+
+/* Bell badge: smaller, inside the tap target. */
+.bell-badge-count {
+  min-width: 15px !important;
+  height: 15px !important;
+  font-size: 0.56rem !important;
+  top: -4px !important;
+  right: -4px !important;
+  border-width: 2px !important;
+}
+
+/* ── 22. Fifth pass: header meta, alignment, auth composition ── */
+
+/* Page-header ribbons become inline meta text above the title. */
+.page-header .badge,
+.page-header .badge--purple,
+.page-header .badge--success,
+.page-header .badge--info {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  color: var(--text-muted) !important;
+  font-size: 0.73rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.page-header .badge i { display: none !important; }
+
+/* Headings carry one muted icon at most — colour belongs to actions. */
+.card h2 i,
+.card h3 i,
+.h3 i,
+h2 > i.text-gold,
+h3 > i.text-gold { color: var(--text-muted) !important; }
+
+/* Filter and form labels are words, not icon+word pairs. */
+.form-label i,
+.form-label svg,
+label.form-label i { display: none !important; }
+
+/* KPI deltas share one baseline; the flag sits under it. */
+.dash-kpi-delta { margin-top: auto !important; }
+
+/* Panel head: the title block yields space so trailing actions never wrap. */
+.dash-panel-head > div:first-child { flex: 1 1 0 !important; }
+
+/* ── Auth: centre the form, strengthen the split ─────────────── */
+
+.kcc-form-panel {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.kcc-form-container { width: 100%; max-width: 372px; margin: 0 auto; }
+
+.kcc-form-header { margin-bottom: 22px; }
+
+.kcc-form-title {
+  font-size: 1.45rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  margin-bottom: 4px !important;
+}
+
+.kcc-form-subtitle { font-size: 0.82rem !important; color: var(--text-muted) !important; }
+
+.kcc-auth-page .form-group { margin-bottom: 14px; }
+.kcc-auth-page .form-label { font-size: 0.75rem; }
+
+.kcc-form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  margin: 2px 0 16px;
+}
+
+/* The hero eyebrow loses the pill; it reads as a kicker. */
+.kcc-hero-tag,
+.kcc-hero-badge,
+.kcc-tagline-pill {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  color: var(--accent-gold) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase;
+}
+
+.kcc-hero-tag i,
+.kcc-hero-badge i { display: none !important; }
+
+.kcc-auth-footer { margin-top: 18px; font-size: 0.78rem; }
+
+/* ── 23. Sixth pass: empty states, stat ink, live strips ──────── */
+
+/* Empty states are information, not illustration. */
+.empty-state {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 26px 16px !important;
+}
+
+.empty-state-icon {
+  width: auto !important;
+  height: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: var(--text-dim) !important;
+  font-size: 1.3rem !important;
+  margin-bottom: 6px !important;
+}
+
+.empty-state-title {
+  font-size: 0.84rem !important;
+  font-weight: 550 !important;
+  color: var(--text-secondary) !important;
+}
+
+.empty-state-text {
+  font-size: 0.75rem !important;
+  color: var(--text-muted) !important;
+  max-width: 320px;
+}
+
+/* Stat figures stay neutral; status colour belongs to the caption. */
+.stat-value,
+.stat-card .stat-value,
+.stat-info .stat-value {
+  color: var(--text-primary) !important;
+}
+
+.stat-card .stat-icon i,
+.stat-icon i {
+  color: var(--text-dim) !important;
+  font-size: 0.9rem !important;
+}
+
+/* Live session strip: neutral card, one green marker. */
+.session-live-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-left: 2px solid rgba(78, 168, 122, 0.7) !important;
+  padding: 14px 18px !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.session-live-card .stat-icon {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  color: var(--success) !important;
+  font-size: 0.85rem !important;
+}
+
+.session-live-card i.fa-spin { animation: none !important; }
+
+.session-live-card .badge--success {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  color: var(--success) !important;
+  font-size: 0.66rem !important;
+  letter-spacing: 0.07em !important;
+}
+
+/* ── Panel heads: wrap only when the controls truly do not fit ─ */
+
+.dash-panel-head { flex-wrap: wrap !important; }
+
+.dash-panel-head > div:first-child {
+  flex: 1 1 150px !important;
+  min-width: 0 !important;
+}
+
+.dash-panel-subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── Auth kicker: a rule, not a pill ─────────────────────────── */
+
+.kcc-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+}
+
+.kcc-pill-dot {
+  width: 22px !important;
+  height: 1px !important;
+  border-radius: 0 !important;
+  background: var(--accent-gold) !important;
+  box-shadow: none !important;
+}
+
+.kcc-tag-pill span:last-child {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+}
+
+/* ── 24. Final adjustments ───────────────────────────────────── */
+
+/* Two-line subtitles are fine; a mid-word ellipsis is not. */
+.dash-panel-subtitle {
+  white-space: normal !important;
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
+  text-overflow: clip !important;
+}
+
+/* Excuse-slip accents: a marker, not a coloured panel edge. */
+.card[style*="border-left"] {
+  border-left-width: 2px !important;
+}
+
+/* Table row links inherit row ink instead of gold everywhere. */
+.table tbody a:not(.btn):not(.badge) {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.table tbody a:not(.btn):not(.badge):hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--text-primary);
+}
+
+/* ── 25. Small screens: header meta must wrap, never clip ────── */
+
+@media (max-width: 900px) {
+  .dash-header-meta {
+    gap: 6px 14px !important;
+    flex-wrap: wrap !important;
+    max-width: 100%;
+  }
+
+  .dash-header-meta > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dash-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dash-page-header { row-gap: 10px; }
+
+  .dash-panel-grid { grid-template-columns: 1fr !important; }
+
+  .dash-kpi-badge { margin-top: 6px !important; }
+}
+
+@media (max-width: 640px) {
+  .main-content { padding: 14px 12px 88px !important; }
+  .page-header h1,
+  .dash-page-title { font-size: 1.15rem !important; }
+  .btn { height: 34px; }
+}
+
+/* ── 26. Phone layout: no horizontal overflow ────────────────── */
+
+@media (max-width: 900px) {
+  .dash-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .dash-kpi-card { min-width: 0 !important; }
+  .dash-kpi-label {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-size: 0.62rem !important;
+    line-height: 1.3;
+  }
+  .dash-kpi-value { font-size: 1.3rem !important; }
+  .dash-kpi-delta { margin-top: 8px !important; font-size: 0.66rem !important; }
+  .dash-kpi-badge { font-size: 0.6rem !important; }
+}
+
+@media (max-width: 700px) {
+  .dash-header-meta {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 3px !important;
+  }
+
+  .dash-page-header { flex-direction: column; align-items: flex-start; }
+  .dash-header-actions { margin-top: 2px; }
+}
+
+@media (max-width: 560px) {
+  .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 1.15rem !important; }
+  .stat-label { font-size: 0.62rem !important; line-height: 1.3; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   27. Student surface
+   The student portal is read on phones, in corridors, between
+   classes. One column of decisions: where am I supposed to be,
+   how am I doing, what needs signing. Fewer boxes, more lines.
+   ══════════════════════════════════════════════════════════════ */
+
+.s-dot { color: var(--text-dim); margin: 0 2px; }
+
+.s-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.s-quiet-link {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.s-quiet-link:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Holiday / observance notice */
+.s-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: rgba(216, 169, 68, 0.06);
+  border: 1px solid rgba(216, 169, 68, 0.22);
+  border-left-width: 2px;
+  border-radius: var(--radius-md);
+}
+
+.s-notice > i { color: var(--accent-gold); font-size: 0.9rem; margin-top: 2px; }
+.s-notice > div { flex: 1 1 auto; min-width: 0; }
+.s-notice-title { font-size: 0.86rem; font-weight: 600; color: var(--text-primary); }
+.s-notice-text { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+/* Attendance summary: one strip, not four cards */
+.s-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.s-kpi-item {
+  padding: 12px 16px;
+  border-left: 1px solid var(--border);
+  min-width: 0;
+}
+
+.s-kpi-item:first-child { border-left: 0; }
+
+.s-kpi-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.s-kpi-label {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The mobile summary bar only exists under 900px */
+.s-stats-toggle { display: none; }
+
+/* Two columns: working surface + reference rail */
+.s-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.s-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.s-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.s-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.s-panel-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.s-panel-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.s-panel-body { padding: 4px 16px 8px; }
+.s-panel-body.s-list { padding-bottom: 4px; }
+
+.s-panel-foot {
+  padding: 9px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.74rem;
+}
+
+.s-panel-foot a { color: var(--text-muted); }
+.s-panel-foot a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Subject breakdown */
+.s-subject {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.s-subject:last-child { border-bottom: 0; }
+
+.s-subject-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.s-subject-id { min-width: 0; }
+.s-subject-code { display: block; font-size: 0.8rem; font-weight: 550; color: var(--text-primary); }
+.s-subject-meta { display: block; margin-top: 1px; font-size: 0.72rem; color: var(--text-muted); }
+
+.s-subject-score { text-align: right; flex-shrink: 0; }
+.s-subject-rate {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.s-subject-state { display: block; font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
+
+.s-subject-rate.is-good, .s-subject-state.is-good { color: var(--success); }
+.s-subject-rate.is-watch, .s-subject-state.is-watch { color: var(--warning); }
+.s-subject-rate.is-low, .s-subject-state.is-low { color: var(--danger); }
+.s-subject-rate.is-empty { color: var(--text-dim); }
+
+.s-split {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.s-split-value {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.s-split-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.s-split-value.is-good, .s-meeting-state.is-good { color: var(--success); }
+.s-split-value.is-watch, .s-meeting-state.is-watch { color: var(--warning); }
+.s-split-value.is-low, .s-meeting-state.is-low { color: var(--danger); }
+.s-split-value.is-excused, .s-meeting-state.is-excused { color: var(--role-admin); }
+
+.s-meetings { margin-top: 8px; }
+
+.s-meetings summary {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.s-meetings summary::-webkit-details-marker { display: none; }
+.s-meetings summary::before { content: '›'; margin-right: 6px; display: inline-block; transition: transform 0.15s ease; }
+.s-meetings[open] summary::before { transform: rotate(90deg); }
+.s-meetings summary:hover { color: var(--text-secondary); }
+
+.s-meetings-list { margin-top: 6px; }
+
+.s-meeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.72rem;
+}
+
+.s-meeting:last-child { border-bottom: 0; }
+.s-meeting-date { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.s-meeting-state { font-weight: 550; color: var(--text-secondary); }
+
+/* Excuse slip rows */
+.s-record {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.s-record:last-child { border-bottom: 0; }
+.s-record-main { min-width: 0; }
+.s-record-title { font-size: 0.8rem; font-weight: 550; color: var(--text-primary); }
+.s-record-date { font-size: 0.72rem; font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+.s-record-note { font-size: 0.74rem; color: var(--text-muted); margin: 3px 0 0; line-height: 1.4; }
+.s-record-note.is-low { color: #e59292; }
+.s-record-meta { font-size: 0.68rem; color: var(--text-dim); margin-top: 4px; }
+
+/* Week list */
+.s-week { margin-top: 2px; }
+
+.s-week-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.s-week-row:last-child { border-bottom: 0; }
+
+.s-week-day {
+  width: 30px;
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding-top: 1px;
+}
+
+.s-week-row.is-today .s-week-day { color: var(--accent-gold); }
+
+.s-week-slots { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.s-week-slot { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.s-week-time {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.s-week-subject { font-size: 0.72rem; color: var(--text-muted); }
+
+.s-today-flag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  padding-top: 2px;
+  white-space: nowrap;
+}
+
+.s-subhead {
+  margin: 16px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Exams and classes */
+.s-exam {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.74rem;
+}
+
+.s-exam:last-child { border-bottom: 0; }
+.s-exam-title { flex: 1 1 auto; min-width: 0; color: var(--text-primary); font-weight: 500; }
+.s-exam-date { color: var(--accent-gold); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.s-exam-room { color: var(--text-muted); font-size: 0.7rem; white-space: nowrap; }
+
+.s-class { padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.s-class:last-child { border-bottom: 0; }
+.s-class-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.s-class-code { font-size: 0.78rem; font-weight: 550; color: var(--text-primary); }
+.s-class-units { font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }
+.s-class-name { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+.s-class-slots { font-size: 0.68rem; color: var(--text-dim); margin-top: 3px; }
+
+/* Calendar events */
+.s-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.s-event:last-child { border-bottom: 0; }
+
+.s-event-date {
+  width: 34px;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  line-height: 1.1;
+}
+
+.s-event-date strong { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+.s-event-date span { display: block; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+
+.s-event-body { min-width: 0; }
+.s-event-title { font-size: 0.78rem; font-weight: 500; color: var(--text-primary); }
+.s-event-meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+
+.s-empty {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  padding: 12px 0;
+  margin: 0;
+}
+
+/* Phones */
+@media (max-width: 900px) {
+  .s-header-actions { width: 100%; }
+  .s-quiet-link { display: none; }
+
+  .s-stats-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    height: 40px;
+    padding: 0 14px;
+    margin-bottom: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+  }
+
+  .s-stats-toggle-label {
+    font-size: 0.8rem;
+    font-weight: 550;
+  }
+
+  .s-stats-toggle-values {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .s-stats-toggle-values .is-present { color: var(--success); }
+  .s-stats-toggle-values .is-late { color: var(--warning); }
+  .s-stats-toggle-values .is-absent { color: var(--danger); }
+
+  .s-chevron { font-size: 0.7rem; color: var(--text-muted); transition: transform 0.16s ease; }
+  .s-stats-toggle.is-active .s-chevron { transform: rotate(180deg); }
+
+  .s-kpi {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+
+  .s-kpi.is-open { display: grid; }
+  .s-kpi-item { border-left: 0; border-top: 1px solid var(--border); }
+  .s-kpi-item:nth-child(-n+2) { border-top: 0; }
+  .s-kpi-item:nth-child(even) { border-left: 1px solid var(--border); }
+
+  .s-columns { grid-template-columns: minmax(0, 1fr); }
+  .s-panel-body { padding: 2px 14px 6px; }
+  .s-panel-head { padding: 10px 14px; }
+  .s-split { gap: 6px; }
+}
+
+/* ── 28. Student surface, second pass ────────────────────────── */
+
+/* Attendance summary strip shared by the student pages. */
+.student-stat-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.student-stat-grid .stat-card {
+  border: 0 !important;
+  border-left: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 12px 16px !important;
+  gap: 0 !important;
+  display: block !important;
+}
+
+.student-stat-grid .stat-card:first-child { border-left: 0 !important; }
+.student-stat-grid .stat-icon { display: none !important; }
+.student-stat-grid .stat-value { font-size: 1.4rem !important; }
+.student-stat-grid .stat-label { font-size: 0.67rem !important; letter-spacing: 0.05em !important; }
+
+/* The rate is the signal; the sentinel sentence stays neutral. */
+.s-subject-state { color: var(--text-muted) !important; }
+.s-subject-state.is-good,
+.s-subject-state.is-watch,
+.s-subject-state.is-low { color: var(--text-muted) !important; }
+
+/* Slightly larger body text: these pages are read on phones. */
+.s-subject-code { font-size: 0.82rem !important; }
+.s-subject-meta { font-size: 0.74rem !important; }
+.s-record-title { font-size: 0.82rem !important; }
+.s-record-note { font-size: 0.76rem !important; }
+.s-week-time, .s-week-subject { font-size: 0.74rem !important; }
+.s-event-title { font-size: 0.8rem !important; }
+.s-class-code { font-size: 0.8rem !important; }
+.s-panel-title { font-size: 0.88rem !important; }
+
+/* Filter bars: labels are words. */
+.filter-group label i,
+.filter-item label i,
+label.filter-label i,
+.att-filter-form label i { display: none !important; }
+
+/* Nested cards inside student panels: flatten (a card in a card is noise). */
+body.role-student .card .card,
+body.role-student .s-panel .card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Native file inputs, styled without a plugin. */
+input[type="file"] {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  max-width: 100%;
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+/* Profile: flat identity block, no gradient avatar. */
+body.role-student .profile-avatar,
+body.role-student .student-avatar,
+body.role-student [class*="avatar-large"],
+body.role-student [class*="profile-photo"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--border-strong) !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+}
+
+/* QR badge: the timer is a progress cue, not a dial. */
+.qr-timer,
+.qr-token-timer,
+.qr-refresh-ring {
+  width: 56px !important;
+  height: 56px !important;
+}
+
+.qr-timer-value,
+.qr-token-seconds {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.qr-fast-scan-tip,
+.qr-tip,
+.qr-scan-tip {
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 2px solid rgba(216, 169, 68, 0.45) !important;
+  border-radius: 0 !important;
+  padding: 6px 10px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.74rem !important;
+}
+
+@media (max-width: 700px) {
+  .student-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .student-stat-grid .stat-card:nth-child(odd) { border-left: 0 !important; }
+  .student-stat-grid .stat-card:nth-child(n+3) { border-top: 1px solid var(--border) !important; }
+}
+
+/* ── 29. Student forms and notes ─────────────────────────────── */
+
+.s-note-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.s-note-line i { color: var(--success); font-size: 0.78rem; }
+
+.s-advance-form {
+  padding: 14px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.s-advance-form:first-of-type { border-top: 0; padding-top: 4px; }
+
+.s-advance-form .s-advance-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.s-advance-form textarea { min-height: 62px; }
+
+/* Filed slips: hairline rows, not a card each. */
+.s-slip-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.s-slip-row:last-child { border-bottom: 0; }
+.s-slip-title { font-size: 0.82rem; font-weight: 550; color: var(--text-primary); }
+.s-slip-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.s-slip-reason { font-size: 0.76rem; color: var(--text-secondary); margin-top: 4px; }
+
+/* ── 30. QR badge: the code is the hero, not the timer ──────── */
+
+.qr-ring-wrap {
+  width: 96px !important;
+  height: 96px !important;
+  margin: 0 auto;
+}
+
+.qr-ring-wrap svg#qrRing {
+  width: 96px !important;
+  height: 96px !important;
+}
+
+#qrCountdown {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  opacity: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+.qr-ring-center .text-muted {
+  font-size: 0.56rem !important;
+  letter-spacing: 0.08em !important;
+}
+
+.qr-ring-track { stroke: rgba(255, 255, 255, 0.08) !important; }
+.qr-ring-progress { stroke: var(--accent-gold) !important; }
+
+/* Profile: flat identity panel */
+.profile-avatar {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--border-strong) !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+.profile-avatar:hover,
+.profile-avatar:focus-visible {
+  border-color: var(--accent-gold) !important;
+  box-shadow: none !important;
+}
+
+.s-slip-row { align-items: flex-start; }
+.s-slip-main { flex: 1 1 auto; min-width: 0; }
+.s-slip-note { font-size: 0.74rem; color: #e3c072; margin-top: 4px; }
+.s-slip-attach { display: inline-block; margin-top: 4px; font-size: 0.72rem; color: var(--text-muted); }
+.s-slip-attach:hover { color: var(--text-primary); text-decoration: underline; }
+
+/* ── 31. Profile identity block ──────────────────────────────── */
+
+.profile-identity {
+  background: none !important;
+  padding: 26px 18px 18px !important;
+  text-align: center;
+}
+
+.profile-name { font-size: 1rem !important; font-weight: 600 !important; }
+.profile-handle { font-size: 0.76rem !important; color: var(--text-muted) !important; }
+.profile-badges { margin-top: 8px; }
+
+.profile-info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.profile-info-label { font-size: 0.76rem; color: var(--text-muted); }
+.profile-info-value { font-size: 0.8rem; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.profile-note {
+  margin: 12px 18px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 2px solid rgba(216, 169, 68, 0.45);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.profile-note i { color: var(--text-dim); margin-top: 2px; }
+
+/* Sidebar identity uses the same neutral avatar language. */
+.sidebar-user-avatar {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid var(--border-strong) !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+/* ── 32. Badge modifiers that templates already use ──────────── */
+
+/* subjects.html / classes.html / users list ask for these names; without a
+   definition they fell back to the neutral badge and every pill looked grey. */
+.badge--blue {
+  background: rgba(107, 147, 201, 0.12);
+  border-color: rgba(107, 147, 201, 0.26);
+  color: #9ab6dd;
+}
+
+.badge--teal {
+  background: rgba(78, 168, 158, 0.12);
+  border-color: rgba(78, 168, 158, 0.26);
+  color: #86c6bd;
+}
+
+.badge--gold {
+  background: rgba(216, 169, 68, 0.12);
+  border-color: rgba(216, 169, 68, 0.26);
+  color: #e3c072;
+}
+
+.badge--primary {
+  background: rgba(216, 169, 68, 0.14);
+  border-color: rgba(216, 169, 68, 0.32);
+  color: var(--accent-gold-h);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   33. Leave & excuse calendar
+   A read-only month view: a stock calendar library was heavier than the
+   feature and carried its own light theme. This grid is ours.
+   ══════════════════════════════════════════════════════════════ */
+
+.excc-header { align-items: flex-start; }
+.excc-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.excc-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.excc-stat { padding: 11px 16px; border-left: 1px solid var(--border); min-width: 0; }
+.excc-stat:first-child { border-left: 0; }
+
+.excc-stat-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.excc-stat-label {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.excc-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.excc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.excc-month { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.excc-month h2 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.excc-nav { display: inline-flex; align-items: center; gap: 2px; }
+
+.excc-icon-btn,
+.excc-today-btn {
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 550;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.excc-icon-btn { width: 28px; }
+.excc-today-btn { padding: 0 10px; }
+
+.excc-icon-btn:hover,
+.excc-today-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.excc-icon-btn i { font-size: 0.7rem; }
+
+.excc-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.excc-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.excc-seg button {
+  height: 24px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.excc-seg button:hover { color: var(--text-primary); }
+
+.excc-seg button.is-active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.excc-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.71rem;
+  color: var(--text-muted);
+}
+
+.excc-key { display: inline-flex; align-items: center; gap: 6px; }
+
+.excc-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.excc-dot.is-pending { background: var(--accent-gold); }
+.excc-dot.is-approved { background: var(--success); }
+.excc-dot.is-rejected { background: var(--danger); }
+.excc-dot.is-academic { background: var(--text-dim); }
+
+/* ── Month grid ──────────────────────────────────────────────── */
+
+.excc-view { padding: 0; }
+
+.excc-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.excc-grid th {
+  padding: 7px 8px;
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+
+.excc-grid td.excc-cell {
+  height: 92px;
+  vertical-align: top;
+  padding: 5px 6px 7px;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: transparent;
+}
+
+.excc-grid td.excc-cell:nth-child(7n + 1),
+.excc-grid tr td:first-child { border-left: 0; }
+.excc-grid tbody tr:last-child td { border-bottom: 0; }
+
+.excc-cell.is-today { background: rgba(216, 169, 68, 0.055); }
+.excc-cell.is-outside { background: rgba(255, 255, 255, 0.012); }
+
+.excc-cell-head { display: flex; justify-content: flex-end; }
+
+.excc-daynum {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding: 1px 2px;
+}
+
+.excc-cell.is-today .excc-daynum { color: var(--accent-gold); font-weight: 600; }
+.excc-cell.is-outside .excc-daynum { color: var(--text-dim); }
+
+.excc-chips { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+
+.excc-cell.is-outside .excc-chips { opacity: 0.55; }
+
+/* Chips: dot + label, tone carries status */
+.excc-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.excc-chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.excc-chip-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.excc-chip:hover { filter: brightness(1.14); }
+
+.excc-chip--pending { color: #e3c072; background: rgba(216, 169, 68, 0.12); }
+.excc-chip--approved { color: #8ecfae; background: rgba(78, 168, 122, 0.12); }
+.excc-chip--rejected { color: #e59292; background: rgba(217, 102, 102, 0.12); }
+.excc-chip--academic { color: var(--text-secondary); background: rgba(255, 255, 255, 0.055); }
+.excc-chip--academic .excc-chip-dot { background: var(--text-dim); }
+
+.excc-more {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  padding-left: 5px;
+}
+
+/* ── List view ───────────────────────────────────────────────── */
+
+.excc-list { list-style: none; margin: 0; padding: 0; }
+
+.excc-list-day {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.excc-list-day:last-child { border-bottom: 0; }
+
+.excc-list-date {
+  width: 32px;
+  flex-shrink: 0;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.excc-list-date strong {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.excc-list-date span {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.excc-list-items { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; }
+
+.excc-none {
+  margin: 0;
+  padding: 22px 16px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .excc-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .excc-stat:nth-child(odd) { border-left: 0; }
+  .excc-stat:nth-child(n+3) { border-top: 1px solid var(--border); }
+  .excc-toolbar { padding: 10px 12px; }
+  .excc-legend { gap: 10px; padding: 8px 12px; }
+  .excc-grid td.excc-cell { height: 68px; padding: 4px 4px 5px; }
+  .excc-grid th { padding: 5px 4px; font-size: 0.58rem; }
+  .excc-chip { font-size: 0.64rem; padding: 1px 3px; }
+  .excc-chip-label { display: none; }
+  .excc-chip { justify-content: flex-start; }
+}
+
+/* Academic dates are labels: no hover affordance. */
+span.excc-chip { cursor: default; }
+span.excc-chip:hover { filter: none; }
+
+/* ── 35. Student dashboard corrections ───────────────────────── */
+
+.s-none {
+  margin: 10px 0 2px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Calendar rail: one line of description, not three. */
+.s-event { padding: 8px 0; }
+.s-event-meta {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+.s-event-date strong { font-size: 0.78rem; }

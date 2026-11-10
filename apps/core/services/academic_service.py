@@ -27,6 +27,7 @@ from apps.core.models import (
     AuditEvent,
     Class,
     ClassSession,
+    ClassSlot,
     Curriculum,
     Department,
     Profile,
@@ -1085,6 +1086,142 @@ def rollover_academic_year(
         'message': f'Term "{ay.name}" is now active.',
         'promoted_count': promoted_count,
         'previous_actives': previous_actives,
+    }
+
+
+def clone_classes_academic_year(actor, source_year, target_year) -> dict:
+    """
+    // [Service] Academic-Year Class Structure Cloning (Req 12)
+    //
+    // Copies ACTIVE classes and their ACTIVE weekly slots from source_year
+    // into target_year, beside (not instead of) the existing term rollover.
+    //
+    // Copied class fields: class_code, section_code, subject, teacher,
+    // program, year_level, capacity, grace_minutes.
+    // Copied slot fields: weekday, starts_at, ends_at, room.
+    //
+    // NEVER copied: enrollments, sessions, attendance records, join codes.
+    // New classes start with an empty join-code digest and join_code_active=False.
+    //
+    // Duplicate target class codes are reported and skipped (no overwrite).
+    // Each class is copied inside its own savepoint/transaction so one failure
+    // is reported without poisoning the outer transaction or leaving a partial
+    // class/slot copy behind.
+    //
+    // Returns: copied_class_count, copied_slot_count, class_mapping, errors.
+    """
+    if isinstance(source_year, AcademicYear):
+        source = source_year
+    else:
+        source = AcademicYear.objects.get(pk=source_year)
+    if isinstance(target_year, AcademicYear):
+        target = target_year
+    else:
+        target = AcademicYear.objects.get(pk=target_year)
+
+    if source.pk == target.pk:
+        raise ValueError('Source and target terms must be different.')
+
+    copied_class_count = 0
+    copied_slot_count = 0
+    class_mapping = []
+    errors = []
+
+    source_classes = (
+        Class.objects.filter(academic_year=source, is_active=True)
+        .select_related('subject', 'teacher_profile__user', 'program')
+        .order_by('class_code')
+    )
+
+    for source_class in source_classes:
+        if Class.objects.filter(
+            academic_year=target,
+            class_code__iexact=source_class.class_code,
+        ).exists():
+            errors.append({
+                'class_code': source_class.class_code,
+                'reason': (
+                    f'{source_class.class_code} already exists in {target.name}; '
+                    'the existing class was left untouched.'
+                ),
+            })
+            continue
+
+        try:
+            with transaction.atomic():
+                new_class = Class.objects.create(
+                    academic_year=target,
+                    class_code=source_class.class_code,
+                    section_code=source_class.section_code,
+                    subject=source_class.subject,
+                    teacher_profile=source_class.teacher_profile,
+                    program=source_class.program,
+                    year_level=source_class.year_level,
+                    capacity=source_class.capacity,
+                    grace_minutes=source_class.grace_minutes,
+                    is_active=True,
+                    join_code_digest='',
+                    join_code_active=False,
+                    join_code_created_at=None,
+                )
+                slot_count = 0
+                source_slots = ClassSlot.objects.filter(
+                    class_obj=source_class, is_active=True,
+                ).order_by('weekday', 'starts_at')
+                for slot in source_slots:
+                    ClassSlot.objects.create(
+                        class_obj=new_class,
+                        weekday=slot.weekday,
+                        starts_at=slot.starts_at,
+                        ends_at=slot.ends_at,
+                        room=slot.room,
+                        is_active=True,
+                    )
+                    slot_count += 1
+                copied_class_count += 1
+                copied_slot_count += slot_count
+                class_mapping.append({
+                    'source_class_id': source_class.pk,
+                    'target_class_id': new_class.pk,
+                    'class_code': new_class.class_code,
+                    'subject': source_class.subject.code if source_class.subject else '',
+                    'slot_count': slot_count,
+                })
+        except Exception as exc:
+            errors.append({
+                'class_code': source_class.class_code,
+                'reason': str(exc),
+            })
+            continue
+
+    skipped = len(errors)
+    AuditEvent.objects.create(
+        actor=actor,
+        action='CLONE_ACADEMIC_YEAR_CLASSES',
+        object_type='AcademicYear',
+        object_id=str(target.pk),
+        old_value=f'Source term: {source.name}',
+        new_value=(
+            f'Copied {copied_class_count} class(es) and {copied_slot_count} slot(s) '
+            f'into {target.name}; skipped/failed: {skipped}'
+        ),
+    )
+
+    message = (
+        f'Copied {copied_class_count} class(es) and {copied_slot_count} slot(s) '
+        f'from {source.name} into {target.name}.'
+    )
+    if skipped:
+        message += f' {skipped} class(es) were skipped or failed.'
+
+    return {
+        'source_year': source,
+        'target_year': target,
+        'copied_class_count': copied_class_count,
+        'copied_slot_count': copied_slot_count,
+        'class_mapping': class_mapping,
+        'errors': errors,
+        'message': message,
     }
 
 

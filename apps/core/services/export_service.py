@@ -284,3 +284,91 @@ def export_student_import_sample_csv():
         'KccPass123!',
     ])
     return response
+
+
+def build_attendance_matrix_pdf(class_obj, matrix, generated_by) -> bytes:
+    """
+    // Task 4.7: PDF twin of the attendance-matrix CSV. Same dataset, one
+    // dependency (reportlab). Returns PDF bytes; never writes a partial file
+    // to disk.
+    """
+    try:
+        from io import BytesIO
+
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import landscape, letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except ImportError as exc:
+        raise RuntimeError(
+            'PDF export requires the reportlab package (see requirements.txt).'
+        ) from exc
+
+    session_list = matrix['session_list']
+    student_rows = matrix['student_rows']
+    overall_rate = matrix['overall_rate']
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        title=f'Attendance Matrix — {class_obj.class_code}',
+        author='KCC ClassStamp',
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    teacher_name = (
+        class_obj.teacher_profile.user.get_full_name()
+        if class_obj.teacher_profile else '—'
+    )
+    story.append(Paragraph(
+        f'<b>{class_obj.class_code}</b> — {class_obj.subject.name}',
+        styles['Title'],
+    ))
+    story.append(Paragraph(
+        f'Teacher: {teacher_name} · '
+        f'Term: {class_obj.academic_year.name if class_obj.academic_year else "—"} · '
+        f'Overall rate: {overall_rate}%',
+        styles['Normal'],
+    ))
+    generated_at = timezone.localtime(timezone.now())
+    story.append(Paragraph(
+        f'Generated {generated_at:%Y-%m-%d %H:%M} by '
+        f'{generated_by.get_full_name() or generated_by.get_username()}',
+        styles['Normal'],
+    ))
+    story.append(Spacer(1, 8))
+
+    headers = ['Student ID', 'Student Name', 'Program']
+    for s in session_list:
+        headers.append(f"{s['display_date']} ({s['weekday']})")
+    headers.extend(['P', 'L', 'A', 'E', 'Rate %'])
+
+    data = [headers]
+    if not student_rows:
+        data.append(['(no enrolled students)'] + [''] * (len(headers) - 1))
+    for row in student_rows:
+        pdf_row = [row['student_number'], row['name'], row['program']]
+        for cell in row['cells']:
+            pdf_row.append(cell['status'] or '—')
+        pdf_row.extend([
+            str(row['present']), str(row['late']), str(row['absent']),
+            str(row['excused']), f"{row['rate']}%",
+        ])
+        data.append(pdf_row)
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#94a3b8')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f5f9')]),
+    ]))
+    story.append(table)
+
+    doc.build(story)
+    return buffer.getvalue()

@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/excuses/calendar/', views.excuse_calendar, name='excuse_calendar'),
     path('excuses/calendar/', views.excuse_calendar_page, name='excuse_calendar_page'),
     path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
+    path('student/approval-waiting/', views.student_approval_waiting, name='student_approval_waiting'),
     path('student/classes/join/', views.student_join_class, name='student_join_class'),
     path('student/profile/', views.student_profile, name='student_profile'),
     path('student/qr/', views.student_qr_badge, name='student_qr_badge'),
@@ -46,9 +47,14 @@ urlpatterns = [
     path('student/excuse-slips/', views.student_excuse_slips, name='student_excuse_slips'),
     path('teacher/excuse-slips/', views.teacher_excuse_slips, name='teacher_excuse_slips'),
     path('teacher/excuse-slips/<int:slip_id>/review/', views.excuse_slip_review_ajax, name='excuse_slip_review_ajax'),
+    path('teacher/excuse-slips/bulk-approve/', views.teacher_excuse_bulk_approve, name='teacher_excuse_bulk_approve'),
+    path('messages/', views.message_inbox, name='message_inbox'),
+    path('messages/compose/', views.message_compose, name='message_compose'),
+    path('messages/thread/<int:user_id>/', views.message_thread, name='message_thread'),
     path('teacher/disputes/<int:dispute_id>/resolve/', views.dispute_resolve, name='dispute_resolve'),
     path('api/student/qr-token/', views.student_qr_token_api, name='student_qr_token_api'),
     path('api/student/offline-badge/issue/', views.student_offline_badge_issue, name='student_offline_badge_issue'),
+    path('api/csp-report/', views.csp_report, name='csp_report'),
 
     # // Protected document delivery (never expose MEDIA_URL directly)
     path('documents/avatar/<int:profile_id>/', views.student_avatar_document, name='student_avatar_document'),
@@ -124,6 +130,7 @@ urlpatterns = [
     path('academic-years/delete/<int:pk>/', views.academic_year_delete, name='academic_year_delete'),
     path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
     path('academic-years/rollover/', views.academic_year_rollover, name='academic_year_rollover'),
+    path('academic-years/clone-classes/', views.academic_year_clone, name='academic_year_clone'),
 
     # // Admin: Academic Calendar & Institutional Schedule
     path('admin/calendar/', views.admin_calendar_view, name='admin_calendar'),

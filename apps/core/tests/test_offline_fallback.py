@@ -6,13 +6,15 @@ from django.urls import reverse
 
 
 class OfflineFallbackTests(TestCase):
-    def test_service_worker_is_served_with_root_scope(self):
+    def test_service_worker_is_served_without_noop_fetch_handler(self):
         response = self.client.get(reverse('service_worker'))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'].split(';')[0], 'application/javascript')
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertIn("const OFFLINE_URL = '/static/offline.html';", response.content.decode())
+        content = response.content.decode()
+        self.assertNotIn("addEventListener('fetch'", content)
+        self.assertIn("addEventListener('push'", content)
 
     def test_offline_page_is_a_self_contained_static_asset(self):
         offline_page = finders.find('offline.html')

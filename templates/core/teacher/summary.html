@@ -21,7 +21,7 @@
   </div>
 
   <div class="flex items-center gap-2">
-    <button type="button" class="btn btn-outline" onclick="window.print()" title="Print official roll">
+    <button type="button" class="btn btn-outline" data-print="1" title="Print official roll">
       <i class="fas fa-print"></i> Print Sheet
     </button>
     <a href="{% url 'teacher_session_export' session.id %}" class="btn btn-outline" title="Download this roll as CSV">

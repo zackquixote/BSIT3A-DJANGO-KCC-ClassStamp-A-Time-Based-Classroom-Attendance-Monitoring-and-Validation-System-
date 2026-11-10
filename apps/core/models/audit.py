@@ -32,11 +32,13 @@ class AnomalyFlag(models.Model):
     STATUS_DISMISSED = 'DISMISSED'
     STATUS_CONFIRMED = 'CONFIRMED'
     STATUS_EXCUSED = 'EXCUSED'
+    STATUS_RESOLVED = 'RESOLVED'
     STATUS_CHOICES = [
         (STATUS_OPEN, 'Open'),
         (STATUS_DISMISSED, 'Dismissed'),
         (STATUS_CONFIRMED, 'Confirmed'),
         (STATUS_EXCUSED, 'Excused'),
+        (STATUS_RESOLVED, 'Resolved'),
     ]
 
     attendance_record = models.ForeignKey(
@@ -59,6 +61,20 @@ class AnomalyFlag(models.Model):
         related_name='anomaly_flags',
         null=True, blank=True,
         help_text="// Student implicated by the detector"
+    )
+    class_obj = models.ForeignKey(
+        'Class',
+        on_delete=models.SET_NULL,
+        related_name='anomaly_flags',
+        null=True, blank=True,
+        help_text="// Class whose attendance pattern raised this flag (at-risk rules)"
+    )
+    academic_year = models.ForeignKey(
+        'AcademicYear',
+        on_delete=models.SET_NULL,
+        related_name='anomaly_flags',
+        null=True, blank=True,
+        help_text="// Academic year the at-risk evaluation belongs to"
     )
     rule_code = models.CharField(
         max_length=50,

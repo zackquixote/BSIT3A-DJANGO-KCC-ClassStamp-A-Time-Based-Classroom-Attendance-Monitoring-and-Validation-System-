@@ -1,5 +1,4 @@
 import json
-import hashlib
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Prefetch, Q
@@ -20,10 +19,11 @@ from apps.core.models import (
     ExcuseSlip,
     Profile,
     Program,
-    PushSubscription,
     RoomVerification,
 )
 from apps.core.services.export_service import SafeCsvWriter
+from apps.core.services.permission_service import PermissionService
+from apps.core.services.push_notification_service import PushNotificationService
 
 
 def _resolve_academic_year(raw_value):
@@ -275,10 +275,8 @@ def attendance_period_report_page(request):
 @require_POST
 def verify_classroom(request, session_id):
     session = get_object_or_404(ClassSession.objects.select_related('slot__class_obj'), pk=session_id)
-    profile = getattr(request.user, 'classstamp_profile', None)
-    if not request.user.is_superuser and profile.role != Profile.ROLE_ADMIN:
-        if session.slot.class_obj.teacher_profile_id != profile.id:
-            return JsonResponse({'error': 'Not authorized for this class.'}, status=403)
+    if not PermissionService.can_user_modify_session(request.user, session):
+        return JsonResponse({'error': 'Not authorized for this class.'}, status=403)
 
     expected = (session.slot.room or '').strip()
     room = request.POST.get('room', '').strip()
@@ -314,15 +312,14 @@ def push_subscription_save(request):
     if not endpoint or not keys.get('p256dh') or not keys.get('auth'):
         return JsonResponse({'error': 'Incomplete push subscription.'}, status=400)
 
-    obj, _ = PushSubscription.objects.update_or_create(
+    # Task 4.3: reuse PushNotificationService so subscribe/update auditing
+    # matches delivery-side subscription handling.
+    obj = PushNotificationService.create_subscription(
         user=request.user,
-        endpoint_hash=hashlib.sha256(endpoint.encode('utf-8')).hexdigest(),
-        defaults={
-            'endpoint': endpoint,
-            'p256dh': keys['p256dh'],
-            'auth': keys['auth'],
-            'user_agent': request.META.get('HTTP_USER_AGENT', '')[:500],
-        },
+        endpoint=endpoint,
+        p256dh=keys['p256dh'],
+        auth=keys['auth'],
+        user_agent=request.META.get('HTTP_USER_AGENT', ''),
     )
     return JsonResponse({'ok': True, 'subscription_id': obj.pk})
 
@@ -331,11 +328,11 @@ def push_subscription_save(request):
 @require_POST
 def push_subscription_delete(request):
     endpoint = request.POST.get('endpoint', '').strip()
-    PushSubscription.objects.filter(
-        user=request.user,
-        endpoint_hash=hashlib.sha256(endpoint.encode('utf-8')).hexdigest(),
-    ).delete()
-    return JsonResponse({'ok': True})
+    if not endpoint:
+        return JsonResponse({'error': 'Endpoint is required.'}, status=400)
+    # Task 4.3: reuse the service so unsubscribe is audited the same way.
+    deleted = PushNotificationService.delete_subscription(request.user, endpoint)
+    return JsonResponse({'ok': True, 'deleted': deleted})
 
 
 @login_required(login_url='login')
@@ -365,15 +362,21 @@ def excuse_calendar(request):
     events = []
     for slip in slips.order_by('session__session_date')[:500]:
         color = '#f59e0b' if slip.status == 'PENDING' else ('#10b981' if slip.status == 'APPROVED' else '#ef4444')
+        student_name = (
+            slip.student_profile.user.get_full_name()
+            or slip.student_profile.student_number
+            or slip.student_profile.user.get_username()
+        )
         events.append({
             'id': f'excuse-{slip.pk}',
-            'title': (
-                f'[{slip.status}] {slip.student_profile.user.get_full_name() or slip.student_profile.student_number} '
-                f'({slip.session.slot.class_obj.class_code})'
-            ),
+            # Name and section only: the status is rendered as a dot + label by
+            # the calendar, not shouted into the title.
+            'title': f'{student_name} · {slip.session.slot.class_obj.class_code}',
             'start': slip.session.session_date.isoformat(),
             'status': slip.status,
+            'student_name': student_name,
             'class_code': slip.session.slot.class_obj.class_code,
+            'subject_code': slip.session.slot.class_obj.subject.code,
             'color': color,
             'backgroundColor': color,
             'borderColor': color,

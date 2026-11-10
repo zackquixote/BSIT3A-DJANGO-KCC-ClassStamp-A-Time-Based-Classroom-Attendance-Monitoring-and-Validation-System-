@@ -86,8 +86,9 @@ class AccountValidationTests(TestCase):
     def test_non_admin_cannot_view_queue(self):
         self.client.force_login(self.student_user)
         response = self.client.get(self._queue_url())
-        # Redirected to dashboard, not shown the queue.
-        self.assertRedirects(response, reverse('dashboard'))
+        # A pending student is intercepted by ApprovalCheckMiddleware (task 1.3)
+        # and sent to the waiting page before the view's role check.
+        self.assertRedirects(response, reverse('student_approval_waiting'))
 
     def test_anonymous_cannot_view_queue(self):
         response = self.client.get(self._queue_url())
@@ -184,7 +185,8 @@ class AccountValidationTests(TestCase):
     def test_non_admin_cannot_view_validation_detail(self):
         self.client.force_login(self.student_user)
         response = self.client.get(reverse('validation_detail', args=[self.student_profile.pk]))
-        self.assertRedirects(response, reverse('dashboard'))
+        # Same interception as the queue: pending student -> approval waiting.
+        self.assertRedirects(response, reverse('student_approval_waiting'))
 
     def test_anonymous_cannot_view_validation_detail(self):
         response = self.client.get(reverse('validation_detail', args=[self.student_profile.pk]))

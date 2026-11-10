@@ -1,0 +1,50 @@
+{% extends "theme/base.html" %}
+{% block title %}New message — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New message</h1>
+    <p class="page-subtitle">Write to a user you are allowed to contact.</p>
+  </div>
+  <a href="{% url 'message_inbox' %}" class="btn btn-outline">
+    <i class="fas fa-arrow-left"></i> Inbox
+  </a>
+</div>
+
+<div class="card" style="max-width: 720px; padding: 20px;">
+  {% if error %}
+    <div class="toast toast--error mb-3">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="{% url 'message_compose' %}">
+    {% csrf_token %}
+    <div class="form-group mb-3">
+      <label class="form-label" for="recipient">To <span class="text-danger">*</span></label>
+      <select name="recipient" id="recipient" class="form-control" required>
+        <option value="">— Choose a recipient —</option>
+        {% for user in recipients %}
+          <option value="{{ user.pk }}" {% if user.pk|stringformat:"s" == preselect|stringformat:"s" %}selected{% endif %}>
+            {{ user.get_full_name|default:user.get_username }} ({{ user.username }})
+          </option>
+        {% endfor %}
+      </select>
+      {% if not recipients %}
+        <p class="form-hint">No one is available to message yet. Recipients appear once you share an active class with a teacher or student.</p>
+      {% endif %}
+    </div>
+    <div class="form-group mb-3">
+      <label class="form-label" for="subject">Subject <span class="text-danger">*</span></label>
+      <input type="text" id="subject" name="subject" class="form-control" maxlength="{{ max_subject }}" value="{{ subject }}" required>
+      <p class="form-hint">Up to {{ max_subject }} characters. Long subjects are rejected, not cut off.</p>
+    </div>
+    <div class="form-group mb-3">
+      <label class="form-label" for="body">Message <span class="text-danger">*</span></label>
+      <textarea id="body" name="body" class="form-control" rows="8" maxlength="{{ max_body }}" required>{{ body }}</textarea>
+      <p class="form-hint">Up to {{ max_body }} characters.</p>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-paper-plane"></i> Send
+    </button>
+  </form>
+</div>
+{% endblock %}

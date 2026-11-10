@@ -23,6 +23,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (!matrixModal) return;
 
+  // Task 5.2: advisory prediction state for the sheet.
+  let lastMatrixData = null;
+  let atRiskOnly = false;
+
   function closeModal() {
     matrixModal.classList.remove('is-open');
   }
@@ -69,6 +73,39 @@ document.addEventListener('DOMContentLoaded', function () {
     return '<span class="text-muted" style="opacity: 0.4;">—</span>';
   }
 
+  function renderPredictionCell(data, st) {
+    if (!data.predictions || !data.prediction_passing_threshold) {
+      return '<td style="text-align: center;"><span class="text-muted" style="opacity: 0.4;">—</span></td>';
+    }
+    const pred = (data.predictions || []).filter(function (p) {
+      return p.student_profile_id === st.student_id;
+    })[0];
+    if (!pred || pred.insufficient_data || pred.prediction === null || pred.prediction === undefined) {
+      return '<td style="text-align: center;"><span class="text-muted text-xs" style="font-size: 0.68rem;" title="Fewer than five closed sessions — not enough data to project.">— data</span></td>';
+    }
+    const value = Number(pred.prediction).toFixed(1) + '%';
+    if (pred.prediction < data.prediction_passing_threshold) {
+      return '<td style="text-align: center;">' +
+        '<span class="badge badge--danger" style="font-size: 0.68rem;" title="Projected final attendance is below the ' +
+        Math.round(data.prediction_passing_threshold) + '% passing threshold (advisory).">' +
+        '<i class="fas fa-triangle-exclamation"></i> ' + value + '</span></td>';
+    }
+    return '<td style="text-align: center;">' +
+      '<span class="badge badge--success" style="font-size: 0.68rem;" title="Projected final attendance (advisory).">' +
+      value + '</span></td>';
+  }
+
+  function isAtRisk(data, st) {
+    if (!data.predictions || !data.prediction_passing_threshold) return false;
+    const pred = (data.predictions || []).filter(function (p) {
+      return p.student_profile_id === st.student_id;
+    })[0];
+    return Boolean(
+      pred && !pred.insufficient_data && pred.prediction !== null &&
+      pred.prediction !== undefined && pred.prediction < data.prediction_passing_threshold
+    );
+  }
+
   function renderMatrix(data) {
     if (!matrixTableContainer) return;
 
@@ -92,6 +129,18 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
+    if (atRiskOnly && data.students.every(function (st) { return !isAtRisk(data, st); })) {
+      matrixTableContainer.innerHTML =
+        '<div style="padding: 50px 20px; text-align: center;">' +
+        '  <i class="fas fa-shield-heart text-muted" style="font-size: 2rem;"></i>' +
+        '  <p class="text-sm text-primary font-bold mt-2">No Students Below Threshold</p>' +
+        '  <p class="text-xs text-muted">No enrolled student is projected below the passing threshold.</p>' +
+        '</div>';
+      renderPredictionToolbar(data);
+      renderPredictionNote(data);
+      return;
+    }
+
     let html = '<table class="table" style="margin: 0; min-width: 100%; border-collapse: separate; border-spacing: 0;">';
 
     // Table Header
@@ -112,12 +161,15 @@ document.addEventListener('DOMContentLoaded', function () {
     html += '<th style="text-align: center; min-width: 45px; background: var(--bg-card);" title="Total Absent">Abs</th>';
     html += '<th style="text-align: center; min-width: 45px; background: var(--bg-card);" title="Total Excused">Exc</th>';
     html += '<th style="text-align: center; min-width: 65px; background: var(--bg-card); border-left: 1px solid var(--glass-border);">Rate %</th>';
+    html += '<th style="text-align: center; min-width: 70px; background: var(--bg-card);" title="Advisory linear-regression projection of final attendance — not an official pass/fail decision.">Pred</th>';
     html += '</tr>';
     html += '</thead>';
 
     // Table Body
     html += '<tbody>';
     data.students.forEach(function (st) {
+      if (atRiskOnly && !isAtRisk(data, st)) return;
+
       const rateColor = st.rate >= 80 ? 'text-green' : (st.rate >= 60 ? 'text-gold' : 'text-danger');
 
       html += '<tr>';
@@ -146,12 +198,62 @@ document.addEventListener('DOMContentLoaded', function () {
         st.rate + '%' +
         '</td>';
 
+      // Task 5.2: advisory prediction column.
+      html += renderPredictionCell(data, st);
+
       html += '</tr>';
     });
     html += '</tbody>';
     html += '</table>';
 
     matrixTableContainer.innerHTML = html;
+    renderPredictionToolbar(data);
+    renderPredictionNote(data);
+  }
+
+  function renderPredictionToolbar(data) {
+    let toolbar = document.getElementById('matrixPredictionToolbar');
+    if (!toolbar) {
+      toolbar = document.createElement('div');
+      toolbar.id = 'matrixPredictionToolbar';
+      toolbar.style.cssText = 'padding: 10px 16px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; gap: 8px; justify-content: flex-end;';
+      matrixTableContainer.insertBefore(toolbar, matrixTableContainer.firstChild);
+    }
+    if (!data.predictions || !data.prediction_passing_threshold) {
+      toolbar.innerHTML = '';
+      return;
+    }
+    const atRiskCount = data.students.filter(function (st) { return isAtRisk(data, st); }).length;
+    toolbar.innerHTML =
+      '<button type="button" id="matrixAtRiskToggle" class="btn btn-xs ' + (atRiskOnly ? 'btn-danger' : 'btn-outline') + '" style="font-size: 0.72rem;">' +
+      '<i class="fas fa-triangle-exclamation"></i> ' +
+      (atRiskOnly ? 'Showing ' + atRiskCount + ' at-risk — show all' : 'At-risk only (' + atRiskCount + ')') +
+      '</button>';
+    const toggle = document.getElementById('matrixAtRiskToggle');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        atRiskOnly = !atRiskOnly;
+        if (lastMatrixData) renderMatrix(lastMatrixData);
+      });
+    }
+  }
+
+  function renderPredictionNote(data) {
+    if (!data.prediction_note) return;
+    let note = document.getElementById('matrixPredictionNote');
+    if (!note) {
+      note = document.createElement('div');
+      note.id = 'matrixPredictionNote';
+      note.style.cssText = 'padding: 10px 16px; border-top: 1px solid var(--glass-border);';
+      note.className = 'text-muted';
+      matrixTableContainer.appendChild(note);
+    }
+    note.style.fontSize = '0.7rem';
+    note.innerHTML =
+      '<i class="fas fa-wand-magic-sparkles text-gold"></i> ' + escapeHtml(data.prediction_note) +
+      (data.prediction_algorithm_version
+        ? ' Algorithm: <span class="font-mono">' + escapeHtml(data.prediction_algorithm_version) + '</span>.'
+        : '');
   }
 
   // Bind Open Buttons
@@ -200,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (matrixTotalSessions) matrixTotalSessions.textContent = data.summary.total_sessions;
           if (matrixOverallRate) matrixOverallRate.textContent = data.summary.overall_rate + '%';
 
+          lastMatrixData = data;
           renderMatrix(data);
         })
         .catch(function (err) {

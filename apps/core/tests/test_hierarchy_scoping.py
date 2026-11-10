@@ -13,6 +13,7 @@ from apps.core.models import (
     ClassSession,
     ClassSlot,
     Curriculum,
+    CurriculumVersion,
     Department,
     Enrollment,
     Profile,
@@ -110,6 +111,19 @@ class AcademicHierarchyScopingTests(TestCase):
             year_level=1,
             approval_status=Profile.APPROVAL_APPROVED,
         )
+
+        # GE subjects sit in every program's curriculum; the BSBA version needs
+        # GEE1 so cross-program GE enlistment passes Req 1 validation.
+        bsba_version = CurriculumVersion.objects.create(
+            program=self.prog_bsba, version_number=1,
+            status=CurriculumVersion.STATUS_APPROVED,
+        )
+        Curriculum.objects.create(
+            program=self.prog_bsba, version=bsba_version, subject=self.subj_ge,
+            year_level=1, semester=1, is_major=False,
+        )
+        self.student_bsba.curriculum_version = bsba_version
+        self.student_bsba.save(update_fields=['curriculum_version'])
 
         self.student_crim_user = User.objects.create_user(username='stud_crim', password='Student!Pass123')
         self.student_crim = Profile.objects.create(

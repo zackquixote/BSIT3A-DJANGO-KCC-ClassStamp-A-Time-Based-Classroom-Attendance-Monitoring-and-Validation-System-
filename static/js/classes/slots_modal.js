@@ -91,16 +91,12 @@
 
     // Add slot form submission
     if (addSlotForm) {
-      addSlotForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        if (!currentSlotClassId) return;
-
+      var submitSlot = function (formData) {
         var submitBtn = addSlotForm.querySelector('button[type="submit"]');
         if (window.App && window.App.setButtonLoading) {
           window.App.setButtonLoading(submitBtn, true, 'Saving Slot...');
         }
 
-        var formData = new FormData(addSlotForm);
         fetch('/classes/' + currentSlotClassId + '/slot/save/', {
           method: 'POST',
           body: formData,
@@ -112,6 +108,26 @@
               window.App.toast('success', 'Timetable slot added successfully.');
             }
             setTimeout(function () { window.location.reload(); }, 600);
+          } else if (
+            res.override_available &&
+            formData.get('override_conflicts') !== '1'
+          ) {
+            // Room conflicts hard-block by default; the admin must
+            // explicitly confirm the override (task 2.5). The override is
+            // audited server-side with the conflict details.
+            var proceed = confirm(
+              (res.message || 'Room conflict detected.') + '\n\n' +
+              (res.conflicts || []).join('\n') +
+              '\n\nOverride the room conflict and save anyway? This will be recorded in the audit log.'
+            );
+            if (!proceed) {
+              if (window.App && window.App.setButtonLoading) {
+                window.App.setButtonLoading(submitBtn, false);
+              }
+              return;
+            }
+            formData.set('override_conflicts', '1');
+            submitSlot(formData);
           } else {
             if (window.App && window.App.toast) {
               window.App.toast('error', res.message || 'Error saving slot.');
@@ -133,6 +149,12 @@
             window.App.setButtonLoading(submitBtn, false);
           }
         });
+      };
+
+      addSlotForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!currentSlotClassId) return;
+        submitSlot(new FormData(addSlotForm));
       });
     }
 

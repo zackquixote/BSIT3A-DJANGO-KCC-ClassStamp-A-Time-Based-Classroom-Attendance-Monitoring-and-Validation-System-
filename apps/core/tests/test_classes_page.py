@@ -20,6 +20,8 @@ from apps.core.models import (
     Class,
     ClassSession,
     ClassSlot,
+    Curriculum,
+    CurriculumVersion,
     Department,
     Enrollment,
     Notification,
@@ -151,6 +153,21 @@ class ClassHistoryLockTests(ClassBase):
 class BatchEnlistmentClashTests(ClassBase):
     def setUp(self):
         super().setUp()
+        # Req 1: batch enlistment validates the student's curriculum
+        # version, so fixtures must include both subjects in that version.
+        self.curriculum_version = CurriculumVersion.objects.create(
+            program=self.program,
+            version_number=1,
+            status=CurriculumVersion.STATUS_APPROVED,
+        )
+        for subject in (self.subject, self.other_subject):
+            Curriculum.objects.create(
+                program=self.program,
+                version=self.curriculum_version,
+                year_level=1,
+                semester=1,
+                subject=subject,
+            )
         # Second section in the same term, same weekday, overlapping hour.
         self.second_class = Class.objects.create(
             academic_year=self.year, class_code='BSIT-1A-IT312', subject=self.other_subject,
@@ -167,6 +184,7 @@ class BatchEnlistmentClashTests(ClassBase):
             student_number=number,
             program=self.program,
             year_level=1,
+            curriculum_version=self.curriculum_version,
             approval_status=Profile.APPROVAL_APPROVED,
         )
 

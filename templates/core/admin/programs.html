@@ -69,7 +69,7 @@
     </div>
 
     <div style="min-width: 220px;">
-      <select name="department" class="form-control" onchange="this.form.submit()">
+      <select name="department" class="form-control" data-autosubmit="1">
         <option value="">All Departments</option>
         {% for d in departments %}
           <option value="{{ d.id }}" {% if dept_filter == d.id|stringformat:"s" %}selected{% endif %}>

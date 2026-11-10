@@ -330,20 +330,22 @@ def admin_reset_user_password(request, user_id):
     if profile is None or profile.role == Profile.ROLE_ADMIN:
         return JsonResponse({'error': 'Cannot reset password for this account type.'}, status=403)
 
-    # Generate secure 10-char alphanumeric temp password
-    alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
-    temp_password = ''.join(secrets.choice(alphabet) for _ in range(10))
-
-    target_user.set_password(temp_password)
-    target_user.save(update_fields=['password'])
-
-    AuditEvent.objects.create(
-        actor=request.user,
-        action='ADMIN_PASSWORD_RESET',
-        object_type='User',
-        object_id=str(target_user.pk),
-        reason=f'Admin forced password reset for {target_user.username} ({profile.role})',
+    from apps.core.services.credential_service import (
+        generate_compliant_password,
+        set_user_password,
     )
+    temp_password = generate_compliant_password(12)
+    try:
+        set_user_password(
+            target_user,
+            temp_password,
+            validate=True,
+            actor=request.user,
+            audit_action='ADMIN_PASSWORD_RESET',
+            reason=f'Admin forced password reset for {target_user.username} ({profile.role})',
+        )
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
 
     return JsonResponse({
         'temp_password': temp_password,

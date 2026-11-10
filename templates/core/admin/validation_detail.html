@@ -391,7 +391,7 @@
                 type="submit"
                 class="btn btn-success btn-full"
                 style="padding: 11px; font-weight: 700;"
-                onclick="return confirm('Approve registration for {{ student_profile.user.get_full_name|escapejs }}?');"
+                data-confirm="Approve registration for {{ student_profile.user.get_full_name }}?"
               >
                 <i class="fas fa-circle-check"></i> Approve Registration
               </button>
@@ -434,7 +434,7 @@
                 type="submit"
                 class="btn btn-danger btn-full"
                 style="padding: 10px; font-weight: 700;"
-                onclick="return confirm('Reject registration for {{ student_profile.user.get_full_name|escapejs }}?');"
+                data-confirm="Reject registration for {{ student_profile.user.get_full_name }}?"
               >
                 <i class="fas fa-circle-xmark"></i> Reject Registration
               </button>

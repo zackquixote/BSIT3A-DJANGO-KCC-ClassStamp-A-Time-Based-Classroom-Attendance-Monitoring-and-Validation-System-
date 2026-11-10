@@ -64,6 +64,9 @@ def provision_student_account(form_data: dict, proof_file=None):
         last_name=form_data['last_name'],
         password=form_data['password'],
     )
+    # Task 1.7: the registration password is history entry #1.
+    from apps.core.services.credential_service import record_password_history
+    record_password_history(user)
 
     # // DB constraint chk_cs_profile_shape:
     # //   - department_id must be NULL for STUDENT role

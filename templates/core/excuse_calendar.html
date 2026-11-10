@@ -1,40 +1,332 @@
 {% extends "theme/base.html" %}
 {% load static %}
 
-{% block title %}Excuse Calendar — ClassStamp{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'libs/fullcalendar/index.global.min.css' %}">
-{% endblock %}
+{% block title %}Leave & Excuse Calendar — ClassStamp{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header excc-header">
   <div>
-    <h1 class="page-title">Leave & Excuse Calendar</h1>
-    <p class="page-subtitle">Approved and pending attendance excuses by meeting date.</p>
+    <h1 class="page-title">Leave &amp; excuse calendar</h1>
+    <p class="page-subtitle">
+      {% if request.user.classstamp_profile.role == 'STUDENT' %}
+        Your excuse slips against the institutional calendar.
+      {% else %}
+        Excuse slips in your sections, against the institutional calendar.
+      {% endif %}
+    </p>
+  </div>
+  <div class="excc-header-actions">
+    <a href="{% if request.user.classstamp_profile.role == 'STUDENT' %}{% url 'student_excuse_slips' %}{% else %}{% url 'teacher_excuse_slips' %}{% endif %}"
+       class="btn btn-outline">
+      <i class="fas fa-file-medical"></i>
+      {% if request.user.classstamp_profile.role == 'STUDENT' %}My excuse slips{% else %}Review excuse slips{% endif %}
+    </a>
   </div>
 </div>
-<div class="card p-4">
-  <div id="excuseCalendar"></div>
-  <p id="excuseCalendarEmpty" class="text-muted" style="display:none;">No excuse slips found for your account.</p>
+
+<div class="excc-summary" aria-label="Calendar summary">
+  <div class="excc-stat">
+    <span class="excc-stat-value" id="exccPending">0</span>
+    <span class="excc-stat-label">Pending</span>
+  </div>
+  <div class="excc-stat">
+    <span class="excc-stat-value" id="exccApproved">0</span>
+    <span class="excc-stat-label">Approved</span>
+  </div>
+  <div class="excc-stat">
+    <span class="excc-stat-value" id="exccRejected">0</span>
+    <span class="excc-stat-label">Rejected</span>
+  </div>
+  <div class="excc-stat">
+    <span class="excc-stat-value" id="exccEvents">0</span>
+    <span class="excc-stat-label">Institutional dates</span>
+  </div>
 </div>
+
+<section class="excc-panel">
+  <div class="excc-toolbar">
+    <div class="excc-month">
+      <h2 id="exccTitle">—</h2>
+      <div class="excc-nav">
+        <button type="button" class="excc-icon-btn" id="exccPrev" aria-label="Previous month">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <button type="button" class="excc-icon-btn" id="exccNext" aria-label="Next month">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        <button type="button" class="excc-today-btn" id="exccToday">Today</button>
+      </div>
+    </div>
+
+    <div class="excc-controls">
+      <div class="excc-seg" id="exccScope" role="group" aria-label="Filter calendar entries">
+        <button type="button" class="is-active" data-scope="all">All</button>
+        <button type="button" data-scope="excuses">Excuses</button>
+        <button type="button" data-scope="academic">Dates</button>
+      </div>
+      <div class="excc-seg" id="exccView" role="group" aria-label="Calendar view">
+        <button type="button" class="is-active" data-view="month">Month</button>
+        <button type="button" data-view="list">List</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="excc-legend">
+    <span class="excc-key"><i class="excc-dot is-pending"></i> Pending</span>
+    <span class="excc-key"><i class="excc-dot is-approved"></i> Approved</span>
+    <span class="excc-key"><i class="excc-dot is-rejected"></i> Rejected</span>
+    <span class="excc-key"><i class="excc-dot is-academic"></i> Institutional date</span>
+  </div>
+
+  <div id="excuseCalendar" class="excc-view" aria-live="polite"></div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'libs/fullcalendar/index.global.min.js' %}"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function () {
-  const calendarEl = document.getElementById('excuseCalendar');
-  if (!calendarEl || typeof FullCalendar === 'undefined') return;
+  'use strict';
+
+  const ROLE = '{{ request.user.classstamp_profile.role|escapejs }}';
+  const SLIPS_URL = ROLE === 'STUDENT'
+    ? '{% url "student_excuse_slips" %}'
+    : '{% url "teacher_excuse_slips" %}';
+
+  const root = document.getElementById('excuseCalendar');
+  const titleEl = document.getElementById('exccTitle');
+  if (!root) return;
+
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MAX_CHIPS = 3;
+
+  const today = new Date();
+  const todayKey = key(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const state = {
+    year: today.getFullYear(),
+    month: today.getMonth(),
+    scope: 'all',
+    view: 'month',
+    events: [],      // raw API payload
+  };
+
+  // #list / #excuses / #dates keep the view after a refresh or a shared link.
+  function readHash() {
+    const tokens = (window.location.hash || '').replace('#', '').split(',').filter(Boolean);
+    tokens.forEach(function (token) {
+      if (token === 'list' || token === 'month') state.view = token;
+      if (token === 'all' || token === 'excuses' || token === 'academic') state.scope = token;
+    });
+  }
+
+  function writeHash() {
+    const parts = [state.view];
+    if (state.scope !== 'all') parts.push(state.scope);
+    const next = '#' + parts.join(',');
+    if (window.location.hash !== next) {
+      window.history.replaceState(null, '', next);
+    }
+  }
+
+  function syncSegments() {
+    document.querySelectorAll('#exccView button').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.view === state.view);
+    });
+    document.querySelectorAll('#exccScope button').forEach(function (button) {
+      button.classList.toggle('is-active', button.dataset.scope === state.scope);
+    });
+  }
+
+  function key(y, m, d) {
+    return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function visible(event) {
+    if (state.scope === 'all') return true;
+    return state.scope === 'excuses' ? !!event.is_excuse : !event.is_excuse;
+  }
+
+  function byDate() {
+    const map = new Map();
+    state.events.filter(visible).forEach(function (event) {
+      const day = String(event.start || '').slice(0, 10);
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push(event);
+    });
+    return map;
+  }
+
+  function chip(event) {
+    const status = (event.status || '').toLowerCase();
+    const kind = event.is_excuse ? 'excc-chip--' + status : 'excc-chip--academic';
+    const hint = event.is_excuse
+      ? event.status + ' · ' + (event.subject_code || '') + ' ' + (event.class_code || '')
+      : 'Institutional date';
+    const inner = '<span class="excc-chip-dot"></span><span class="excc-chip-label">' +
+      esc(event.title) + '</span>';
+
+    // Only excuse slips lead somewhere; an institutional date is a label.
+    if (!event.is_excuse) {
+      return '<span class="excc-chip ' + kind + '" title="' + esc(hint) + '">' + inner + '</span>';
+    }
+    return '<button type="button" class="excc-chip ' + kind + '" title="' + esc(hint) +
+      '" data-goto="' + esc(SLIPS_URL) + '">' + inner + '</button>';
+  }
+
+  function renderMonth() {
+    const map = byDate();
+    const first = new Date(state.year, state.month, 1);
+    const startOffset = first.getDay();
+    const daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    let html = '<table class="excc-grid"><thead><tr>';
+    WEEKDAYS.forEach(function (day) {
+      html += '<th scope="col">' + day + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    for (let cell = 0; cell < totalCells; cell += 1) {
+      if (cell % 7 === 0) html += '<tr>';
+      const dayNumber = cell - startOffset + 1;
+      const date = new Date(state.year, state.month, dayNumber);
+      const inMonth = dayNumber >= 1 && dayNumber <= daysInMonth;
+      const dateKey = key(date.getFullYear(), date.getMonth(), date.getDate());
+      const dayEvents = map.get(dateKey) || [];
+      const classes = ['excc-cell'];
+      if (!inMonth) classes.push('is-outside');
+      if (dateKey === todayKey) classes.push('is-today');
+
+      html += '<td class="' + classes.join(' ') + '">';
+      html += '<div class="excc-cell-head"><span class="excc-daynum">' + date.getDate() + '</span></div>';
+      html += '<div class="excc-chips">';
+      dayEvents.slice(0, MAX_CHIPS).forEach(function (event) {
+        html += chip(event);
+      });
+      if (dayEvents.length > MAX_CHIPS) {
+        html += '<span class="excc-more">+' + (dayEvents.length - MAX_CHIPS) + ' more</span>';
+      }
+      html += '</div></td>';
+      if (cell % 7 === 6) html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function renderList() {
+    const prefix = state.year + '-' + String(state.month + 1).padStart(2, '0');
+    const map = new Map();
+    byDate().forEach(function (events, day) {
+      if (day.indexOf(prefix) === 0) map.set(day, events);
+    });
+    const days = Array.from(map.keys()).sort();
+    if (!days.length) {
+      return '<p class="excc-none">Nothing in ' + MONTHS[state.month] + ' ' + state.year + ' yet.</p>';
+    }
+    let html = '<ul class="excc-list">';
+    days.forEach(function (day) {
+      const date = new Date(day + 'T00:00:00');
+      html += '<li class="excc-list-day">';
+      html += '<div class="excc-list-date"><strong>' + date.getDate() + '</strong><span>' +
+        MONTHS[date.getMonth()].slice(0, 3) + '</span></div>';
+      html += '<div class="excc-list-items">';
+      map.get(day).forEach(function (event) {
+        html += chip(event);
+      });
+      html += '</div></li>';
+    });
+    html += '</ul>';
+    return html;
+  }
+
+  function updateTitle() {
+    titleEl.textContent = MONTHS[state.month] + ' ' + state.year;
+  }
+
+  function render() {
+    updateTitle();
+    root.innerHTML = state.view === 'month' ? renderMonth() : renderList();
+    syncSegments();
+    writeHash();
+  }
+
+  function renderSummary() {
+    const excuses = state.events.filter(function (event) { return event.is_excuse; });
+    function count(status) {
+      return excuses.filter(function (event) { return event.status === status; }).length;
+    }
+    document.getElementById('exccPending').textContent = count('PENDING');
+    document.getElementById('exccApproved').textContent = count('APPROVED');
+    document.getElementById('exccRejected').textContent = count('REJECTED');
+    document.getElementById('exccEvents').textContent = state.events.length - excuses.length;
+  }
+
+  document.getElementById('exccPrev').addEventListener('click', function () {
+    state.month -= 1;
+    if (state.month < 0) { state.month = 11; state.year -= 1; }
+    render();
+  });
+
+  document.getElementById('exccNext').addEventListener('click', function () {
+    state.month += 1;
+    if (state.month > 11) { state.month = 0; state.year += 1; }
+    render();
+  });
+
+  document.getElementById('exccToday').addEventListener('click', function () {
+    state.year = today.getFullYear();
+    state.month = today.getMonth();
+    render();
+  });
+
+  const scopeGroup = document.getElementById('exccScope');
+  scopeGroup.addEventListener('click', function (event) {
+    const button = event.target.closest('button[data-scope]');
+    if (!button) return;
+    state.scope = button.dataset.scope;
+    scopeGroup.querySelectorAll('button').forEach(function (item) {
+      item.classList.toggle('is-active', item === button);
+    });
+    render();
+  });
+
+  const viewGroup = document.getElementById('exccView');
+  viewGroup.addEventListener('click', function (event) {
+    const button = event.target.closest('button[data-view]');
+    if (!button) return;
+    state.view = button.dataset.view;
+    viewGroup.querySelectorAll('button').forEach(function (item) {
+      item.classList.toggle('is-active', item === button);
+    });
+    render();
+  });
+
+  root.addEventListener('click', function (event) {
+    const target = event.target.closest('[data-goto]');
+    if (target) window.location.href = target.dataset.goto;
+  });
+
   fetch('{% url "excuse_calendar" %}')
-    .then(response => response.ok ? response.json() : Promise.reject(new Error('Unable to load excuses')))
-    .then(data => {
-      document.getElementById('excuseCalendarEmpty').style.display = data.events.length ? 'none' : 'block';
-      new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        height: 'auto',
-        events: data.events,
-      }).render();
+    .then(function (response) {
+      return response.ok ? response.json() : Promise.reject(new Error('Unable to load calendar'));
+    })
+    .then(function (data) {
+      state.events = data.events || [];
+      renderSummary();
+      readHash();
+      render();
+    })
+    .catch(function () {
+      root.innerHTML = '<p class="excc-none">The calendar could not be loaded. Refresh the page to try again.</p>';
     });
 })();
 </script>

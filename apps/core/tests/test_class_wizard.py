@@ -270,6 +270,7 @@ class StepperAccessibilityTests(WizardBase):
         self.assertIn('id="wiz-added-offerings-list"', body)
         self.assertIn('data-programs-url="/programs/"', body)
         self.assertIn('data-code-check-url', body)
+        self.assertIn('js/classes/section_wizard.js?v=20261110_v1', body)
 
     def test_setup_page_includes_department_filtering_and_presets(self):
         response = self.client.get(reverse('class_wizard_setup'))

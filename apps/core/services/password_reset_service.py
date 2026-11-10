@@ -157,8 +157,14 @@ def reset_password(token: str, new_password: str):
     except ValidationError as exc:
         raise ValueError(' '.join(exc.messages))
 
-    user.set_password(new_password)
-    user.save(update_fields=['password'])
+    from apps.core.services.credential_service import set_user_password
+    set_user_password(
+        user,
+        new_password,
+        validate=False,  # already validated above
+        audit_action='PASSWORD_CHANGED',
+        revoke_sessions=False,  # revoked below, as before
+    )
 
     revoked = revoke_user_sessions(user.pk)
 

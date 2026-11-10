@@ -67,7 +67,7 @@
   <form method="get" class="flex items-center gap-3" style="flex-wrap: wrap;">
     <div style="min-width: 300px; flex: 1;">
       <label class="form-label" for="readinessProgram">Program</label>
-      <select id="readinessProgram" name="program" class="form-control" onchange="this.form.submit()">
+      <select id="readinessProgram" name="program" class="form-control" data-autosubmit="1">
         <option value="">All programs</option>
         {% for program in program_options %}
           <option value="{{ program.pk }}" {% if selected_program_id == program.pk %}selected{% endif %}>

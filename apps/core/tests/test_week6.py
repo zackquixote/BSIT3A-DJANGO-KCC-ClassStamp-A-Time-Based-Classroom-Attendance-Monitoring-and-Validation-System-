@@ -197,7 +197,7 @@ class DatabaseBackupTests(BaseWeek5FixtureMixin, TestCase):
     def test_teacher_blocked(self):
         self.client.force_login(self.teacher_user)
         res = self.client.get(reverse('admin_db_backup'))
-        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.status_code, 403)
         self.assertFalse(AuditEvent.objects.filter(action='DB_BACKUP_DOWNLOAD').exists())
         self.assertEqual(FakePopen.instances, [])
 

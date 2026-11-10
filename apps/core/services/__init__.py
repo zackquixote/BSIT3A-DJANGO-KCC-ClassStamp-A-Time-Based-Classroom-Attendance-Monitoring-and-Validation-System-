@@ -33,6 +33,7 @@ from .academic_service import (
     set_active_academic_year,
     delete_or_deactivate_academic_year,
     rollover_academic_year,
+    clone_classes_academic_year,
     promote_students,
 )
 from .approval_service import (
@@ -41,7 +42,18 @@ from .approval_service import (
 )
 from .auth_service import provision_student_account
 from .backup_service import stream_database_backup
-from .credential_service import revoke_user_sessions, rotate_student_credentials
+from .credential_service import (
+    generate_compliant_password,
+    record_password_history,
+    revoke_user_sessions,
+    rotate_student_credentials,
+    set_user_password,
+)
+from .enrollment_service import (
+    audit_enrollment_rejection,
+    check_class_capacity,
+    validate_student_curriculum,
+)
 from .storage_optimizer import optimize_proof_upload
 from .attendance_service import build_attendance_matrix
 from .class_service import ClassAssignmentError, assign_class
@@ -129,6 +141,7 @@ __all__ = [
     'set_active_academic_year',
     'delete_or_deactivate_academic_year',
     'rollover_academic_year',
+    'clone_classes_academic_year',
     'promote_students',
     # Teacher Management
     'provision_teacher_account',

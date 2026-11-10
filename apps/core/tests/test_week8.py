@@ -24,6 +24,7 @@ from apps.core.models import (
     ClassSession,
     ClassSlot,
     Curriculum,
+    CurriculumVersion,
     Department,
     Enrollment,
     Profile,
@@ -219,6 +220,19 @@ class RosterBatchEnlistTests(TestCase, BaseWeek5FixtureMixin):
         _, self.s1 = self._make_student('w8_b1', '2026-8201', year_level=1)
         _, self.s2 = self._make_student('w8_b2', '2026-8202', year_level=1)
         _, self.s3 = self._make_student('w8_b3', '2026-8203', year_level=2)
+        # Req 1: every enrollment path now requires a curriculum version whose
+        # rows include the class subject; give the batch cohort one.
+        version = CurriculumVersion.objects.create(
+            program=self.program, version_number=1,
+            status=CurriculumVersion.STATUS_APPROVED,
+        )
+        Curriculum.objects.create(
+            program=self.program, version=version, subject=self.subject,
+            year_level=1, semester=1,
+        )
+        for profile in (self.s1, self.s2, self.s3):
+            profile.curriculum_version = version
+            profile.save(update_fields=['curriculum_version'])
 
     def _batch(self, client, extra=None):
         payload = dict(extra or {})

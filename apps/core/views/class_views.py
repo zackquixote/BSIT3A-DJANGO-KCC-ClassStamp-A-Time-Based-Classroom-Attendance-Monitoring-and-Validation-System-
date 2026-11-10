@@ -51,11 +51,21 @@ from apps.core.services import (
     suggest_section_letter,
     validate_slot_times,
 )
+from apps.core.services.enrollment_service import (
+    audit_enrollment_rejection,
+    validate_student_curriculum,
+)
 from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.models.classroom import derive_section_code
-from apps.core.services.export_service import SafeCsvWriter
+from apps.core.services.export_service import SafeCsvWriter, build_attendance_matrix_pdf
+from apps.core.services.analytics_service import (
+    PREDICTION_ALGORITHM_VERSION,
+    AnalyticsService,
+)
+from apps.core.services.attendance_policy import absence_threshold_percent
 from apps.core.services.class_join_service import generate_join_code
 from apps.core.services.in_app_notification_service import create_notification
+from apps.core.services.permission_service import PermissionService
 
 
 def _class_setup_checklist(active_ay):
@@ -643,8 +653,10 @@ def class_slot_save(request, class_id):
     if ClassSlot.objects.filter(class_obj=class_obj, weekday=weekday, starts_at=starts_t).exists():
         return JsonResponse({'success': False, 'message': 'A schedule slot already exists for this day and time.'}, status=400)
 
-    # Cross-class timetable conflicts (A-19): teacher clashes hard-block,
-    # room clashes only warn (rooms are free text, often 'TBA').
+    # Cross-class timetable conflicts (A-19, task 2.5): teacher clashes and
+    # room clashes both hard-block by default. Room clashes may be overridden
+    # only by an explicit admin confirmation (override_conflicts=1), which is
+    # audited with the conflict details.
     conflicts = detect_slot_conflicts(
         teacher_profile_id=class_obj.teacher_profile_id,
         weekday=weekday,
@@ -665,11 +677,22 @@ def class_slot_save(request, class_id):
             ),
         }, status=400)
 
-    room_warnings = [
+    override_conflicts = request.POST.get('override_conflicts') == '1'
+    room_labels = [
         f"{c['class_code']} {ClassSlot.WEEKDAY_CHOICES[c['weekday']][1]} "
         f"{c['starts_at']}-{c['ends_at']}"
         for c in conflicts if c['type'] == 'room'
     ]
+    if room_labels and not override_conflicts:
+        return JsonResponse({
+            'success': False,
+            'message': (
+                f"Room conflict: {room_labels[0]} already uses this room at that time. "
+                "Confirm the override to save anyway."
+            ),
+            'override_available': True,
+            'conflicts': room_labels,
+        }, status=400)
 
     slot = ClassSlot.objects.create(
         class_obj=class_obj,
@@ -688,6 +711,18 @@ def class_slot_save(request, class_id):
         reason=f"Added slot for {class_obj.class_code}: {slot.get_weekday_display()} {starts_at}-{ends_at}",
     )
 
+    if room_labels:
+        AuditEvent.objects.create(
+            actor=request.user,
+            action='CLASS_SLOT_CONFLICT_OVERRIDE',
+            object_type='ClassSlot',
+            object_id=str(slot.id),
+            reason=(
+                f"Admin overrode room conflict for {class_obj.class_code}: "
+                + '; '.join(room_labels)
+            ),
+        )
+
     _invalidate_checklist_cache(active_ay=class_obj.academic_year)
     return JsonResponse({
         'success': True,
@@ -698,7 +733,7 @@ def class_slot_save(request, class_id):
             'ends_at': str(slot.ends_at)[:5],
             'room': slot.room,
         },
-        'warnings': room_warnings,
+        'warnings': room_labels,
     })
 
 
@@ -756,6 +791,11 @@ def class_roster_get(request, class_id):
     // Returns active enrolled students for a class and list of eligible students to enroll.
     """
     class_obj = get_object_or_404(Class, pk=class_id)
+    if not PermissionService.can_user_access_class(request.user, class_obj):
+        return JsonResponse(
+            {'success': False, 'message': 'You cannot access this class roster.'},
+            status=403,
+        )
     enrollments = (
         Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
         .select_related('student_profile__user', 'student_profile__program')
@@ -862,6 +902,11 @@ def class_roster_enroll(request, class_id):
     if profile and profile.role == Profile.ROLE_TEACHER:
         class_queryset = class_queryset.filter(teacher_profile=profile)
     class_obj = get_object_or_404(class_queryset, pk=class_id)
+    if not PermissionService.can_user_manage_enrollment(request.user, class_obj):
+        return JsonResponse({
+            'success': False,
+            'message': 'You can only manage your own class roster.',
+        }, status=404)
     profile_id = request.POST.get('profile_id', '').strip()
 
     if not profile_id:
@@ -947,6 +992,22 @@ def class_roster_enroll(request, class_id):
                 'success': False,
                 'message': 'Teachers can only approve pending requests for their own classes.',
             }, status=400)
+
+        # Shared curriculum-version validation (Req 1). allow_cross_program /
+        # force is the explicit manual override; the override is audited.
+        curr_ok, curr_code, curr_msg = validate_student_curriculum(student, class_obj)
+        if not curr_ok:
+            audit_enrollment_rejection(
+                actor=request.user,
+                student_profile=student,
+                class_obj=class_obj,
+                code=curr_code,
+                message=curr_msg,
+                override=bool(allow_cross_program),
+            )
+            if not allow_cross_program:
+                return JsonResponse({'success': False, 'message': curr_msg}, status=400)
+
         active_count = Enrollment.objects.filter(
             class_obj=class_obj, status=Enrollment.STATUS_ACTIVE,
         ).count()
@@ -961,10 +1022,28 @@ def class_roster_enroll(request, class_id):
             active_count >= class_obj.capacity
             or (not is_pending_request and reserved_count >= class_obj.capacity)
         ):
-            return JsonResponse({
-                'success': False,
-                'message': f"Class has reached its maximum capacity of {class_obj.capacity} students.",
-            }, status=400)
+            # Only an admin may override capacity, explicitly, with an audit.
+            admin_override_capacity = (
+                profile
+                and profile.role == Profile.ROLE_ADMIN
+                and request.POST.get('override_capacity') == '1'
+            )
+            cap_message = (
+                f"Class has reached its maximum capacity of {class_obj.capacity} students."
+            )
+            audit_enrollment_rejection(
+                actor=request.user,
+                student_profile=student,
+                class_obj=class_obj,
+                code='CAPACITY',
+                message=cap_message,
+                override=bool(admin_override_capacity),
+            )
+            if not admin_override_capacity:
+                return JsonResponse({
+                    'success': False,
+                    'message': cap_message,
+                }, status=400)
 
         if enrollment is None:
             enrollment = Enrollment.objects.create(
@@ -1029,6 +1108,11 @@ def class_join_code_manage(request, class_id):
 
     with transaction.atomic():
         class_obj = get_object_or_404(class_queryset, pk=class_id)
+        if not PermissionService.can_user_manage_enrollment(request.user, class_obj):
+            return JsonResponse({
+                'success': False,
+                'message': 'You can only manage join codes for your own classes.',
+            }, status=404)
         if not class_obj.is_active:
             return JsonResponse({
                 'success': False,
@@ -1119,7 +1203,12 @@ def class_roster_enroll_batch(request, class_id):
     newly_enrolled_students = []
     skipped_full = False
     skipped_conflicts = 0
+    skipped_curriculum = 0
+    # Only an admin may override capacity for the whole batch, explicitly.
+    override_capacity = request.POST.get('override_capacity') == '1'
     with transaction.atomic():
+        # Preserve a real capacity lock: Path C previously had none.
+        class_obj = Class.objects.select_for_update().get(pk=class_obj.pk)
         for student in candidates.iterator():
             existing_enrollment = Enrollment.objects.filter(
                 class_obj=class_obj,
@@ -1135,12 +1224,36 @@ def class_roster_enroll_batch(request, class_id):
                 existing_enrollment
                 and existing_enrollment.status == Enrollment.STATUS_PENDING
             )
+
+            # Shared curriculum validation (Req 1). Batch has no per-student
+            # override; rejected rows are audited and skipped, not silent.
+            curr_ok, curr_code, curr_msg = validate_student_curriculum(student, class_obj)
+            if not curr_ok:
+                audit_enrollment_rejection(
+                    actor=request.user,
+                    student_profile=student,
+                    class_obj=class_obj,
+                    code=curr_code,
+                    message=curr_msg,
+                )
+                skipped_curriculum += 1
+                continue
+
             if class_obj.capacity and (
                 current_enrolled >= class_obj.capacity
                 or (not is_pending_request and current_enrolled + pending_count >= class_obj.capacity)
             ):
-                skipped_full = True
-                break
+                if not override_capacity:
+                    skipped_full = True
+                    break
+                audit_enrollment_rejection(
+                    actor=request.user,
+                    student_profile=student,
+                    class_obj=class_obj,
+                    code='CAPACITY',
+                    message=f'Class full ({class_obj.capacity} seats); admin override.',
+                    override=True,
+                )
 
             # Single enlistment already refuses a timetable clash; the batch path
             # must not be the back door that lets one through.
@@ -1194,6 +1307,11 @@ def class_roster_enroll_batch(request, class_id):
             f' Skipped {skipped_conflicts} student(s) whose existing sections '
             f'overlap this timetable.'
         )
+    if skipped_curriculum:
+        message += (
+            f' Skipped {skipped_curriculum} student(s) whose curriculum version '
+            f'does not include this subject.'
+        )
     if skipped_full:
         message += f' Stopped early: the section reached its capacity of {class_obj.capacity}.'
     elif class_obj.capacity and Enrollment.objects.filter(
@@ -1219,6 +1337,11 @@ def class_roster_remove(request, enrollment_id):
             status=Enrollment.STATUS_PENDING,
         )
     enrollment = get_object_or_404(enrollment_queryset, pk=enrollment_id)
+    if not PermissionService.can_user_manage_enrollment(request.user, enrollment.class_obj):
+        return JsonResponse(
+            {'success': False, 'message': 'You can only manage your own class requests.'},
+            status=404,
+        )
     is_teacher_decline = bool(profile and profile.role == Profile.ROLE_TEACHER)
     class_code = enrollment.class_obj.class_code
     student_num = enrollment.student_profile.student_number
@@ -1580,6 +1703,7 @@ def _class_wizard_save_batch(request, offerings_json):
     section_code = request.POST.get('class_code', '').strip().upper()
     capacity_str = request.POST.get('capacity', '').strip()
     grace_str = request.POST.get('grace_minutes', '10').strip()
+    override_conflicts = request.POST.get('override_conflicts') == '1'
     if not all((program_id, year_level_str, ay_id, semester_str, section_code)):
         return JsonResponse({
             'success': False,
@@ -1663,11 +1787,24 @@ def _class_wizard_save_batch(request, offerings_json):
                 'success': False,
                 'message': f'{teacher.user.get_full_name() or teacher.user.username} has a schedule conflict: {teacher_clashes[0]}.',
             }, status=400)
-        room_warnings.extend(
+        offering_room_conflicts = [
             f'{subject.code}: {warning}'
             for slot in conflicts
             for warning in slot['room']
-        )
+        ]
+        # One save policy (task 2.5): room clashes hard-block unless the
+        # admin explicitly confirms the override, which is audited below.
+        if offering_room_conflicts and not override_conflicts:
+            return JsonResponse({
+                'success': False,
+                'message': (
+                    f'Room conflict: {offering_room_conflicts[0]}. '
+                    'Confirm the override to save anyway.'
+                ),
+                'override_available': True,
+                'conflicts': offering_room_conflicts,
+            }, status=400)
+        room_warnings.extend(offering_room_conflicts)
 
         for slot in parsed_slots:
             for prior_teacher, prior_room, prior_slot, prior_subject in pending_slots:
@@ -1697,6 +1834,7 @@ def _class_wizard_save_batch(request, offerings_json):
             'teacher': teacher,
             'class_code': class_code,
             'slots': parsed_slots,
+            'room_override_labels': offering_room_conflicts,
         })
 
     created_classes = []
@@ -1716,6 +1854,17 @@ def _class_wizard_save_batch(request, offerings_json):
                     year_level=year_level,
                 )
                 class_obj = result['class']
+                if offering.get('room_override_labels'):
+                    AuditEvent.objects.create(
+                        actor=request.user,
+                        action='WIZARD_ROOM_CONFLICT_OVERRIDE',
+                        object_type='Class',
+                        object_id=str(class_obj.pk),
+                        reason=(
+                            f"Admin overrode room conflict(s) for {class_obj.class_code}: "
+                            + '; '.join(offering['room_override_labels'])
+                        ),
+                    )
                 created_slots = []
                 for slot in offering['slots']:
                     created = ClassSlot.objects.create(
@@ -1783,7 +1932,8 @@ def _class_wizard_save_batch(request, offerings_json):
 def class_wizard_save(request):
     """
     // Creates a class section plus its weekly slots in one atomic transaction.
-    // Teacher timetable clashes hard-block; room clashes return as warnings.
+    // Teacher timetable clashes hard-block; room clashes hard-block unless the
+    // admin explicitly confirms the override (audited).
     """
     offerings_json = request.POST.get('offerings', '').strip()
     if offerings_json:
@@ -1874,6 +2024,19 @@ def class_wizard_save(request):
             'message': f"Schedule conflict: the teacher is already teaching {teacher_conflicts[0]}.",
         }, status=400)
 
+    # One save policy (task 2.5): room clashes hard-block unless the admin
+    # explicitly confirms the override, which is audited after the save.
+    override_conflicts = request.POST.get('override_conflicts') == '1'
+    if room_warnings and not override_conflicts:
+        return JsonResponse({
+            'success': False,
+            'message': (
+                f"Room conflict: {room_warnings[0]}. Confirm the override to save anyway."
+            ),
+            'override_available': True,
+            'conflicts': room_warnings,
+        }, status=400)
+
     try:
         with transaction.atomic():
             result = assign_class(
@@ -1916,6 +2079,17 @@ def class_wizard_save(request):
                     'ends_at': str(created.ends_at)[:5],
                     'room': created.room,
                 })
+            if room_warnings:
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    action='WIZARD_ROOM_CONFLICT_OVERRIDE',
+                    object_type='Class',
+                    object_id=str(class_obj.pk),
+                    reason=(
+                        f"Admin overrode room conflict(s) for {class_obj.class_code}: "
+                        + '; '.join(room_warnings)
+                    ),
+                )
     except ClassAssignmentError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
 
@@ -2026,12 +2200,14 @@ def class_attendance_matrix(request, class_id):
     // [Admin Controller] Attendance Matrix Sheet
     // Returns full 2D grid matrix (Enrolled Students x Session Dates) with
     // individual statuses, summary tallies, and attendance compliance rates.
-    // Supports CSV export via ?format=csv.
+    // Supports CSV export via ?format=csv and PDF via ?format=pdf.
     """
     class_obj = get_object_or_404(
         Class.objects.select_related('subject', 'teacher_profile__user', 'academic_year'),
         id=class_id,
     )
+    if not PermissionService.can_user_access_class(request.user, class_obj):
+        return HttpResponse('You cannot access this class matrix.', status=403)
 
     matrix = build_attendance_matrix(class_obj)
     session_list = matrix['session_list']
@@ -2060,6 +2236,30 @@ def class_attendance_matrix(request, class_id):
 
         return response
 
+    # PDF export (task 4.7): same matrix dataset, attachment download.
+    if request.GET.get('format') == 'pdf':
+        try:
+            pdf_bytes = build_attendance_matrix_pdf(
+                class_obj, matrix, generated_by=request.user,
+            )
+        except RuntimeError as exc:
+            return JsonResponse(
+                {'success': False, 'message': str(exc)},
+                status=500,
+            )
+        except Exception:
+            return JsonResponse(
+                {'success': False, 'message': 'Unable to generate the PDF export.'},
+                status=500,
+            )
+        filename = (
+            f"attendance_matrix_{class_obj.class_code}_"
+            f"{timezone.localdate().strftime('%Y%m%d')}.pdf"
+        )
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
     return JsonResponse({
         'success': True,
         'class_code': class_obj.class_code,
@@ -2069,6 +2269,13 @@ def class_attendance_matrix(request, class_id):
         'academic_year': class_obj.academic_year.name if class_obj.academic_year else '—',
         'sessions': session_list,
         'students': student_rows,
+        'predictions': AnalyticsService.predict_class_attendance(class_obj),
+        'prediction_passing_threshold': 100.0 - absence_threshold_percent(),
+        'prediction_algorithm_version': PREDICTION_ALGORITHM_VERSION,
+        'prediction_note': (
+            'Advisory only. Linear regression on cumulative attendance; '
+            'assumes ~85% of the term length as the final-session estimate.'
+        ),
         'summary': {
             'total_students': len(student_rows),
             'total_sessions': len(session_list),

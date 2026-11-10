@@ -50,7 +50,26 @@ from apps.core.services.qr_service import (
     current_token,
     qr_png_data_uri,
 )
+from apps.core.services.enrollment_service import (
+    audit_enrollment_rejection,
+    validate_student_curriculum,
+)
 from apps.core.services.section_service import student_section_summary
+
+
+@login_required(login_url='login')
+def student_approval_waiting(request):
+    """
+    // Holding page for PENDING/REJECTED students redirected here by
+    // ApprovalCheckMiddleware. Intentionally NOT decorated with
+    // @approved_required — this page is the destination for unapproved users.
+    """
+    profile = getattr(request.user, 'classstamp_profile', None)
+    context = {
+        'approval_status': profile.approval_status if profile else '',
+        'approval_note': getattr(profile, 'approval_note', '') if profile else '',
+    }
+    return render(request, 'core/student/approval_waiting.html', context)
 
 
 def _seconds_remaining():
@@ -135,63 +154,86 @@ def student_join_class(request):
                         elif existing and existing.status == Enrollment.STATUS_COMPLETED:
                             error_message = 'Contact an administrator to restore access to this class.'
                         else:
-                            reserved = Enrollment.objects.filter(
-                                class_obj=class_obj,
-                                status=Enrollment.STATUS_ACTIVE,
-                            ).count()
-                            if class_obj.capacity and reserved >= class_obj.capacity:
-                                error_message = 'This class has no remaining seats.'
+                            # Shared curriculum validation (Req 1). Students
+                            # get no override. Capacity stays ACTIVE-only for
+                            # the join path (current behavior).
+                            curr_ok, curr_code, curr_msg = validate_student_curriculum(
+                                profile, class_obj,
+                            )
+                            if not curr_ok:
+                                error_message = curr_msg
+                                audit_enrollment_rejection(
+                                    actor=request.user,
+                                    student_profile=profile,
+                                    class_obj=class_obj,
+                                    code=curr_code,
+                                    message=curr_msg,
+                                )
                             else:
-                                conflicts = student_overlap_conflicts(profile, class_obj)
-                                if conflicts:
-                                    error_message = (
-                                        'Your schedule conflicts with another enrolled class. '
-                                        'Contact an administrator for help.'
+                                reserved = Enrollment.objects.filter(
+                                    class_obj=class_obj,
+                                    status=Enrollment.STATUS_ACTIVE,
+                                ).count()
+                                if class_obj.capacity and reserved >= class_obj.capacity:
+                                    error_message = 'This class has no remaining seats.'
+                                    audit_enrollment_rejection(
+                                        actor=request.user,
+                                        student_profile=profile,
+                                        class_obj=class_obj,
+                                        code='CAPACITY',
+                                        message=error_message,
                                     )
                                 else:
-                                    if existing and existing.status == Enrollment.STATUS_WITHDRAWN:
-                                        enrollment = existing
-                                        enrollment.status = Enrollment.STATUS_ACTIVE
-                                        enrollment.approved_by = None
-                                        enrollment.approved_at = timezone.now()
-                                        enrollment.save(update_fields=[
-                                            'status', 'approved_by', 'approved_at', 'updated_at',
-                                        ])
-                                        request_created = True
+                                    conflicts = student_overlap_conflicts(profile, class_obj)
+                                    if conflicts:
+                                        error_message = (
+                                            'Your schedule conflicts with another enrolled class. '
+                                            'Contact an administrator for help.'
+                                        )
                                     else:
-                                        enrollment, request_created = Enrollment.objects.get_or_create(
-                                            class_obj=class_obj,
-                                            student_profile=profile,
-                                            defaults={'status': Enrollment.STATUS_ACTIVE},
-                                        )
-                                    if request_created:
-                                        AuditEvent.objects.create(
-                                            actor=request.user,
-                                            action='CLASS_JOIN_ENROLL',
-                                            object_type='Enrollment',
-                                            object_id=str(enrollment.pk),
-                                            reason='Student enrolled via join code (auto-approved).',
-                                        )
-                                        if class_obj.teacher_profile_id:
-                                            create_notification(
-                                                class_obj.teacher_profile.user,
-                                                'enrollment',
-                                                'Student enrolled via join code',
-                                                (
-                                                    f'{profile.user.get_full_name() or profile.student_number} '
-                                                    f'joined {class_obj.class_code} using the class join code.'
-                                                ),
-                                                '/teacher/classes/',
+                                        if existing and existing.status == Enrollment.STATUS_WITHDRAWN:
+                                            enrollment = existing
+                                            enrollment.status = Enrollment.STATUS_ACTIVE
+                                            enrollment.approved_by = None
+                                            enrollment.approved_at = timezone.now()
+                                            enrollment.save(update_fields=[
+                                                'status', 'approved_by', 'approved_at', 'updated_at',
+                                            ])
+                                            request_created = True
+                                        else:
+                                            enrollment, request_created = Enrollment.objects.get_or_create(
+                                                class_obj=class_obj,
+                                                student_profile=profile,
+                                                defaults={'status': Enrollment.STATUS_ACTIVE},
                                             )
-                                        create_notification(
-                                            request.user,
-                                            'enrollment',
-                                            'Class enrollment confirmed',
-                                            f'You are now enrolled in {class_obj.class_code}.',
-                                            '/student/classes/',
-                                        )
-                                    else:
-                                        error_message = 'Your enrollment status changed. Refresh and check your class list.'
+                                        if request_created:
+                                            AuditEvent.objects.create(
+                                                actor=request.user,
+                                                action='CLASS_JOIN_ENROLL',
+                                                object_type='Enrollment',
+                                                object_id=str(enrollment.pk),
+                                                reason='Student enrolled via join code (auto-approved).',
+                                            )
+                                            if class_obj.teacher_profile_id:
+                                                create_notification(
+                                                    class_obj.teacher_profile.user,
+                                                    'enrollment',
+                                                    'Student enrolled via join code',
+                                                    (
+                                                        f'{profile.user.get_full_name() or profile.student_number} '
+                                                        f'joined {class_obj.class_code} using the class join code.'
+                                                    ),
+                                                    '/teacher/classes/',
+                                                )
+                                            create_notification(
+                                                request.user,
+                                                'enrollment',
+                                                'Class enrollment confirmed',
+                                                f'You are now enrolled in {class_obj.class_code}.',
+                                                '/student/classes/',
+                                            )
+                                        else:
+                                            error_message = 'Your enrollment status changed. Refresh and check your class list.'
 
                 if not error_message:
                     if request_created:
@@ -512,14 +554,19 @@ def student_profile(request):
         if request.POST.get('form_type') == 'password':
             password_form = _styled_password_form(PasswordChangeForm(user=user, data=request.POST))
             if password_form.is_valid():
-                password_form.save()
-                update_session_auth_hash(request, password_form.user)
-                AuditEvent.objects.create(
-                    actor=user,
-                    action='CHANGE_OWN_PASSWORD',
-                    object_type='User',
-                    object_id=str(user.pk),
-                )
+                from apps.core.services.credential_service import set_user_password
+                try:
+                    set_user_password(
+                        user,
+                        password_form.cleaned_data['new_password1'],
+                        validate=False,  # PasswordChangeForm already ran validators
+                        actor=user,
+                        audit_action='CHANGE_OWN_PASSWORD',
+                    )
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                    return redirect('student_profile')
+                update_session_auth_hash(request, user)
                 messages.success(request, 'Password updated successfully.')
                 return redirect('student_profile')
         elif request.POST.get('form_type') == 'avatar':

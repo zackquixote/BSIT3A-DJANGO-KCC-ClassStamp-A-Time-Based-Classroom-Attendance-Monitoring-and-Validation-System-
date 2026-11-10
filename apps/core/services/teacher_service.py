@@ -87,7 +87,19 @@ def provision_teacher_account(
 
     dept = get_object_or_404(Department, pk=dept_id)
 
-    raw_password = password.strip() if password else secrets.token_urlsafe(10)
+    from apps.core.services.credential_service import (
+        generate_compliant_password,
+        record_password_history,
+    )
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as _ValidationError
+
+    raw_password = password.strip() if password else generate_compliant_password(12)
+    if password and password.strip():
+        try:
+            validate_password(raw_password)
+        except _ValidationError as exc:
+            raise ValueError(' '.join(exc.messages)) from exc
 
     with transaction.atomic():
         user = User.objects.create_user(
@@ -98,6 +110,7 @@ def provision_teacher_account(
             password=raw_password,
             is_active=is_active,
         )
+        record_password_history(user)
 
         profile = Profile.objects.create(
             user=user,
@@ -168,7 +181,13 @@ def update_teacher_profile(
         user.email = email
         user.is_active = is_active
         if password and password.strip():
-            user.set_password(password.strip())
+            from apps.core.services.credential_service import set_user_password
+            set_user_password(
+                user,
+                password.strip(),
+                validate=True,
+                audit_action='TEACHER_PASSWORD_CHANGED',
+            )
         user.save()
 
         profile.department = dept

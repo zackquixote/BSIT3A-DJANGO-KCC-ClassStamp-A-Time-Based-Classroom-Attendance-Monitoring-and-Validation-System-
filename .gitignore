@@ -35,3 +35,7 @@ scratch/
 # Deleting them is safe - they are rewritten byte-identical on the next boot.
 /static/css/classstamp.bundle.css
 /static/js/classstamp.core.bundle.js
+
+# Local tool caches and stray error captures
+.pytest_cache/
+*.err

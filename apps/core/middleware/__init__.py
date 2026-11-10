@@ -11,6 +11,9 @@
 # //           DisableBrowserCacheMiddleware,
 # //           SessionInactivityTimeoutMiddleware,
 # //           SecurityHeadersMiddleware,
+# //           RoleBasedAccessMiddleware,
+# //           ApprovalCheckMiddleware,
+# //           RateLimitMiddleware,
 # //       )
 # //
 # // Module layout:
@@ -19,12 +22,18 @@
 # //   cache.py       — DisableBrowserCacheMiddleware (no-cache headers)
 # //   session.py     — SessionInactivityTimeoutMiddleware (kiosk auto-logout)
 # //   security.py    — SecurityHeadersMiddleware (defense-in-depth & CSP headers)
+# //   rbac.py        — RoleBasedAccessMiddleware (portal prefix role gates)
+# //   approval.py    — ApprovalCheckMiddleware (unapproved student gate)
+# //   ratelimit.py   — RateLimitMiddleware (fixed-window /api/ throttle)
 # // ==============================================================================
 """
 
+from .approval import ApprovalCheckMiddleware
 from .cache import DisableBrowserCacheMiddleware
 from .correlation import RequestCorrelationIdMiddleware
 from .profile import AttachProfileMiddleware
+from .ratelimit import RateLimitMiddleware
+from .rbac import RoleBasedAccessMiddleware
 from .security import SecurityHeadersMiddleware
 from .session import SessionInactivityTimeoutMiddleware
 
@@ -34,4 +43,7 @@ __all__ = [
     'DisableBrowserCacheMiddleware',
     'SessionInactivityTimeoutMiddleware',
     'SecurityHeadersMiddleware',
+    'RoleBasedAccessMiddleware',
+    'ApprovalCheckMiddleware',
+    'RateLimitMiddleware',
 ]

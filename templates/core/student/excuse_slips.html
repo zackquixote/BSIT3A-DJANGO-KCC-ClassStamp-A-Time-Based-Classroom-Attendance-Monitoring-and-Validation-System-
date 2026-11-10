@@ -48,11 +48,10 @@
       </form>
       {% endfor %}
     {% else %}
-      <div style="text-align: center; padding: 24px 12px; border: 1px dashed var(--glass-border); border-radius: 10px;">
-        <i class="fas fa-circle-check" style="font-size: 2rem; color: #4ade80; display: block; margin-bottom: 10px;"></i>
-        <p class="text-secondary mb-1">No absences are awaiting an excuse.</p>
-        <p class="text-muted text-sm mb-0">Nothing overdue to explain. You can still file ahead for an upcoming class below.</p>
-      </div>
+      <p class="s-note-line">
+        <i class="fas fa-circle-check"></i>
+        Nothing overdue to explain. You can still file ahead for an upcoming class below.
+      </p>
     {% endif %}
 
     {% if upcoming_sessions %}
@@ -65,7 +64,7 @@
         already know you will be away — your instructor can approve it before the session opens.
       </p>
       {% for s in upcoming_sessions %}
-      <form method="POST" enctype="multipart/form-data" class="mb-3" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 14px; background: rgba(255,255,255,0.02);">
+      <form method="POST" enctype="multipart/form-data" class="s-advance-form mb-3">
         {% csrf_token %}
         <input type="hidden" name="session_id" value="{{ s.id }}">
         <div class="flex items-center justify-between mb-2" style="flex-wrap: wrap; gap: 6px;">
@@ -96,29 +95,29 @@
     {% if slips %}
       <div class="flex flex-col gap-3">
         {% for slip in slips %}
-        <div style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px 14px;">
-          <div class="flex items-center justify-between mb-1">
-            <span class="font-semibold text-primary text-sm">{{ slip.session.slot.class_obj.subject.name }}</span>
-            {% if slip.status == 'PENDING' %}
-              <span class="badge badge--warning text-xs"><i class="fas fa-hourglass-start"></i> Pending</span>
-            {% elif slip.status == 'APPROVED' %}
-              <span class="badge badge--success text-xs"><i class="fas fa-circle-check"></i> Approved</span>
-            {% else %}
-              <span class="badge badge--danger text-xs"><i class="fas fa-circle-xmark"></i> Rejected</span>
+        <div class="s-slip-row">
+          <div class="s-slip-main">
+            <div class="s-slip-title">{{ slip.session.slot.class_obj.subject.name }}</div>
+            <div class="s-slip-meta">
+              {{ slip.session.session_date|date:"M d, Y" }} · {{ slip.session.slot.class_obj.class_code }} ·
+              filed {{ slip.created_at|date:"M d, Y" }}
+            </div>
+            <div class="s-slip-reason">“{{ slip.reason|truncatechars:120 }}”</div>
+            {% if slip.review_note %}
+            <div class="s-slip-note">Instructor: {{ slip.review_note|truncatechars:160 }}</div>
+            {% endif %}
+            {% if slip.attachment %}
+            <a href="{% url 'excuse_slip_attachment_document' slip.pk %}" target="_blank" rel="noopener" class="s-slip-attach">
+              <i class="fas fa-paperclip"></i> View attachment
+            </a>
             {% endif %}
           </div>
-          <div class="text-muted text-xs mb-1">
-            {{ slip.session.session_date|date:"M d, Y" }} · {{ slip.session.slot.class_obj.class_code }} ·
-            filed {{ slip.created_at|date:"M d, Y" }}
-          </div>
-          <div class="text-secondary text-xs" style="line-height: 1.5;">“{{ slip.reason|truncatechars:120 }}”</div>
-          {% if slip.review_note %}
-          <div class="text-warning text-xs mt-1"><i class="fas fa-comment-dots"></i> Instructor: {{ slip.review_note|truncatechars:160 }}</div>
-          {% endif %}
-          {% if slip.attachment %}
-          <a href="{% url 'excuse_slip_attachment_document' slip.pk %}" target="_blank" rel="noopener" class="text-xs text-gold mt-1 d-inline-block">
-            <i class="fas fa-paperclip"></i> View attachment
-          </a>
+          {% if slip.status == 'PENDING' %}
+            <span class="badge badge--warning">Pending</span>
+          {% elif slip.status == 'APPROVED' %}
+            <span class="badge badge--success">Approved</span>
+          {% else %}
+            <span class="badge badge--danger">Rejected</span>
           {% endif %}
         </div>
         {% endfor %}

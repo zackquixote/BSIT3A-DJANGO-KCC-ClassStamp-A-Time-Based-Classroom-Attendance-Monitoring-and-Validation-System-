@@ -59,6 +59,19 @@
     padding: 0 14px;
     font-size: 0.82rem;
   }
+  .attendance-records-card {
+    overflow: visible;
+  }
+  .attendance-records-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .attendance-records-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+  }
   @media (max-width: 768px) {
     .att-filter-form {
       display: grid !important;
@@ -164,48 +177,44 @@
       </div>
       <div class="stat-info">
         <span class="stat-value">{{ totals.compliance_rate }}%</span>
-        <span class="stat-label">Compliance ({{ total_records }} stamps)</span>
+        <span class="stat-label">Compliance ({{ total_records }} stamp{{ total_records|pluralize }})</span>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card mb-6" style="padding: 0; overflow: hidden;">
-  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
-    <div class="font-semibold text-primary flex items-center gap-2">
-      <i class="fas fa-chart-simple text-gold"></i> Per-Class Breakdown
-    </div>
-    <span class="text-muted text-xs">Active Enrollments</span>
+<section class="s-panel mb-6">
+  <div class="s-panel-head">
+    <h2 class="s-panel-title">Per-class breakdown</h2>
+    <span class="s-panel-note">Active enrolments</span>
   </div>
-  <div style="padding: 14px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+  <div class="s-panel-body">
     {% for row in class_summaries %}
-      <div style="padding: 12px 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px;">
-        <div class="flex items-center justify-between">
-          <span class="font-bold text-primary">{{ row.class_obj.subject.code }} — {{ row.class_obj.class_code }}</span>
-          <span class="badge badge--primary badge--xs font-mono">{{ row.compliance_rate }}%</span>
+    <article class="s-subject">
+      <div class="s-subject-head">
+        <div class="s-subject-id">
+          <span class="s-subject-code">{{ row.class_obj.subject.code }} — {{ row.class_obj.class_code }}</span>
+          <span class="s-subject-meta">{{ row.class_obj.subject.name }}</span>
         </div>
-        <div class="text-muted text-xs mt-1" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          {{ row.class_obj.subject.name }}
-        </div>
-        <div class="flex items-center gap-2 flex-wrap mt-2 text-xs">
-          <span class="badge badge--success badge--xs">Present {{ row.present }}</span>
-          <span class="badge badge--warning badge--xs">Late {{ row.late }}</span>
-          <span class="badge badge--danger badge--xs">Absent {{ row.absent }}</span>
-          <span class="badge badge--purple badge--xs">Excused {{ row.excused }}</span>
+        <div class="s-subject-score">
+          <span class="s-subject-rate">{{ row.compliance_rate }}%</span>
+          <span class="s-subject-state">Compliance</span>
         </div>
       </div>
+      <div class="s-split">
+        <div class="s-split-item"><span class="s-split-value is-good">{{ row.present }}</span><span class="s-split-label">Present</span></div>
+        <div class="s-split-item"><span class="s-split-value is-watch">{{ row.late }}</span><span class="s-split-label">Late</span></div>
+        <div class="s-split-item"><span class="s-split-value is-low">{{ row.absent }}</span><span class="s-split-label">Absent</span></div>
+        <div class="s-split-item"><span class="s-split-value is-excused">{{ row.excused }}</span><span class="s-split-label">Excused</span></div>
+      </div>
+    </article>
     {% empty %}
-      {# Spans every auto-fit column, otherwise the message sits in one 260px track. #}
-      <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
-        <div class="empty-state-title">No Active Enrollments</div>
-        <p class="empty-state-text">You are not enrolled in any active class sections for the current academic term.</p>
-      </div>
+    <p class="s-empty">You are not enrolled in any active class section for the current academic term.</p>
     {% endfor %}
   </div>
-</div>
+</section>
 
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card attendance-records-card" style="padding: 0;">
   <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
     <div class="font-semibold text-primary flex items-center gap-2">
       <i class="fas fa-clock-rotate-left text-gold"></i> Attendance Records
@@ -255,8 +264,8 @@
       {% endif %}
     </div>
   </form>
-  <div style="overflow-x: auto;">
-    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+  <div class="attendance-records-scroll">
+    <table class="data-table attendance-records-table">
       <thead>
         <tr>
           <th scope="col" style="text-align:left; padding:10px 14px;">Date</th>
@@ -386,7 +395,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
   document.addEventListener('DOMContentLoaded', function() {
     const statsBtn = document.getElementById('attendanceStatsToggleBtn');
     const collapsible = document.getElementById('attendanceKpiCollapsible');

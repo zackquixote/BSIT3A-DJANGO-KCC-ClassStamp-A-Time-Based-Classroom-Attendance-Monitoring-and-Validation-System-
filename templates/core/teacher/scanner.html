@@ -81,7 +81,7 @@
 <!-- Alert Banner -->
 <div id="scannerAlert" class="toast toast--error mb-4" style="display: none; align-items: center; justify-content: space-between;">
   <span id="scannerAlertText"></span>
-  <button type="button" onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:inherit; cursor:pointer;">
+  <button type="button" data-dismiss-parent="1" style="background:none; border:none; color:inherit; cursor:pointer;">
     <i class="fas fa-xmark"></i>
   </button>
 </div>
@@ -329,7 +329,7 @@
                 <button type="button"
                         class="btn btn-outline"
                         style="padding: 4px 7px; font-size: 0.7rem;"
-                        onclick="openOverrideModal('{{ s.student_id }}', '{{ s.full_name|escapejs }}', '{{ s.student_number|escapejs }}', '{{ s.status }}')"
+                        data-open-override="1" data-student-id="{{ s.student_id }}" data-full-name="{{ s.full_name }}" data-student-number="{{ s.student_number }}" data-status="{{ s.status }}"
                         title="Manual Status Override" aria-label="Manual Status Override">
                   <i class="fas fa-pen text-gold"></i>
                 </button>
@@ -507,7 +507,7 @@
 {% block extra_js %}
 <!-- Offline-Ready HTML5 QR Scanner Library -->
 <script src="{% static 'js/vendor/html5-qrcode.min.js' %}"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function () {
   const button = document.getElementById('verifyRoomBtn');
   if (!button) return;
@@ -534,7 +534,7 @@
 })();
 </script>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
   window.ScannerConfig = {
     sessionId: '{{ session.id }}',
     isOpen: '{{ is_open }}' === 'True',
@@ -578,7 +578,7 @@
   object-fit: cover !important;
 }
 </style>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function () {
   var btn = document.getElementById('bulkMarkPresentBtn');
   if (!btn) { return; }

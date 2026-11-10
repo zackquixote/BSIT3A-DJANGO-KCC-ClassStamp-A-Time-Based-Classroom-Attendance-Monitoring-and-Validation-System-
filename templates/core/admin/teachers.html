@@ -549,7 +549,7 @@
 <script src="{% static 'js/teachers/teaching_load_modal.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/teachers/teacher_analytics.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/reassign_teacher.js' %}?v=20261027_v1"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
   // Table Action Dropdown Menu Toggle & Outside Click
   document.addEventListener('click', function (e) {
     var toggle = e.target.closest('.action-dropdown-toggle');
@@ -594,7 +594,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.js-show-load-modal');
   if (!btn) return;

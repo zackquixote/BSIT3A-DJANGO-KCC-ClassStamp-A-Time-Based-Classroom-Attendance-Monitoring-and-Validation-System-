@@ -1,19 +1,52 @@
+import logging
+
+from django.db import transaction
 from django.utils import timezone
 
 from apps.core.models import Enrollment, Notification
+from apps.core.services.push_notification_service import PushNotificationService
+
+logger = logging.getLogger(__name__)
+
+
+def _queue_push(notification):
+    """
+    // Task 4.2: after the in-app row is saved, deliver it as a Web Push.
+    // Delivery runs after the current transaction commits so a rollback never
+    // notifies anyone, and a dead push endpoint never breaks the caller's
+    // work. Disabled/missing-key behavior stays audited and non-raising.
+    """
+    if notification is None:
+        return
+
+    def _deliver():
+        try:
+            PushNotificationService.send_push_notification(notification)
+        except Exception as exc:
+            logger.warning(
+                'Push delivery for notification %s failed: %s',
+                getattr(notification, 'pk', '?'), exc,
+            )
+
+    try:
+        transaction.on_commit(_deliver)
+    except Exception as exc:
+        logger.warning('Could not queue push for notification: %s', exc)
 
 
 def create_notification(user, category, title, message, link=''):
     if user is None or not getattr(user, 'is_active', False):
         return None
     safe_link = link if link.startswith('/') and not link.startswith('//') else ''
-    return Notification.objects.create(
+    notification = Notification.objects.create(
         user=user,
         category=category[:32],
         title=title[:180],
         message=message,
         link=safe_link[:300],
     )
+    _queue_push(notification)
+    return notification
 
 
 def notify_class_students(class_obj, category, title, message, link=''):
@@ -36,12 +69,17 @@ def notify_class_students(class_obj, category, title, message, link=''):
         )
         for user_id in user_ids
     ]
-    return Notification.objects.bulk_create(notifications)
+    notifications = Notification.objects.bulk_create(notifications)
+    # Queue a push for every created row; missing PKs on some backends still
+    # deliver using the in-memory fields.
+    for notification in notifications:
+        _queue_push(notification)
+    return notifications
 
 
 def notify_absent_students(student_profiles, class_obj, session_date):
     class_label = f'{class_obj.class_code} ({class_obj.subject.code})'
-    return Notification.objects.bulk_create([
+    notifications = Notification.objects.bulk_create([
         Notification(
             user_id=profile.user_id,
             category='attendance',
@@ -55,6 +93,9 @@ def notify_absent_students(student_profiles, class_obj, session_date):
         for profile in student_profiles
         if profile.user_id
     ])
+    for notification in notifications:
+        _queue_push(notification)
+    return notifications
 
 
 def mark_notification_read(notification):

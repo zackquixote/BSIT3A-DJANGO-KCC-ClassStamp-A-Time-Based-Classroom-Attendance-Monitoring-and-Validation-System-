@@ -1,8 +1,5 @@
 'use strict';
 
-const CACHE_NAME = 'classstamp-offline-v3';
-const OFFLINE_URL = '/static/offline.html';
-
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -15,11 +12,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Pass-through: Do not hijack page navigations with offline screen
-self.addEventListener('fetch', (event) => {
-  return;
-});
-
 self.addEventListener('push', (event) => {
   let payload = {};
   try {
@@ -29,11 +21,12 @@ self.addEventListener('push', (event) => {
   }
 
   const title = payload.title || 'ClassStamp';
+  const targetUrl = payload.url || (payload.data && payload.data.url) || '/dashboard/';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/static/img/kcc_logo.png',
     badge: payload.badge || '/static/img/kcc_logo.png',
-    data: { url: payload.url || '/dashboard/' },
+    data: { url: targetUrl },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

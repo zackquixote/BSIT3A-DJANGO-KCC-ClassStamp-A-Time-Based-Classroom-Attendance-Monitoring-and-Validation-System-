@@ -302,7 +302,7 @@
 <script src="{% static 'js/departments/department_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/departments/delete_department.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/core/app_inline_edit.js' %}?v=20261020_v1"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
   /* Action Dropdown toggle */
   document.addEventListener('click', function (e) {
     var toggle = e.target.closest('.action-dropdown-toggle');

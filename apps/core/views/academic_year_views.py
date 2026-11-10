@@ -23,6 +23,7 @@ from apps.core.models import AcademicYear, Profile
 from apps.core.serializers.academic_serializers import serialize_academic_year
 from apps.core.services import (
     TermSwitchBlocked,
+    clone_classes_academic_year,
     create_or_update_academic_year,
     delete_or_deactivate_academic_year,
     rollover_academic_year,
@@ -221,3 +222,50 @@ def academic_year_rollover(request):
         return JsonResponse({'ok': False, 'error': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
+
+
+# // ==============================================================================
+# // AJAX: Clone Class Structure (/academic-years/clone-classes/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['POST'])
+def academic_year_clone(request):
+    """
+    // [AJAX] Clone the active class/slot structure of one term into another
+    // (Req 12). Distinct from rollover: this never activates a term and never
+    // promotes students. POST params: source_year_id, target_year_id.
+    """
+    try:
+        source_id = int(request.POST.get('source_year_id', ''))
+        target_id = int(request.POST.get('target_year_id', ''))
+    except ValueError:
+        return JsonResponse(
+            {'ok': False, 'error': 'Choose both a source term and a target term.'},
+            status=400,
+        )
+
+    try:
+        result = clone_classes_academic_year(
+            actor=request.user,
+            source_year=source_id,
+            target_year=target_id,
+        )
+    except AcademicYear.DoesNotExist:
+        return JsonResponse(
+            {'ok': False, 'error': 'Source or target term was not found.'},
+            status=404,
+        )
+    except ValueError as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
+
+    return JsonResponse({
+        'ok': True,
+        'message': result['message'],
+        'copied_class_count': result['copied_class_count'],
+        'copied_slot_count': result['copied_slot_count'],
+        'class_mapping': result['class_mapping'],
+        'errors': result['errors'],
+    })

@@ -249,8 +249,18 @@ def import_students_from_csv(
     //     'errors'        (list) — row-level error descriptions (capped at 50)
     //     'rows'          (list) — per-row preview verdicts (row_number, fields, ok, error)
     """
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as _ValidationError
+
     if not default_password or len(default_password.strip()) < 8:
         raise ValueError('A default password of at least 8 characters is required.')
+    try:
+        validate_password(default_password.strip())
+    except _ValidationError as exc:
+        raise ValueError(
+            'Default password does not meet the password policy: '
+            + ' '.join(exc.messages)
+        ) from exc
 
     programs_by_code = {p.code.upper(): p for p in Program.objects.all()}
     classes_by_code = {c.class_code.upper(): c for c in Class.objects.filter(is_active=True)}
@@ -363,6 +373,8 @@ def import_students_from_csv(
                     username=username, email=email,
                     first_name=first_name, last_name=last_name, password=pwd,
                 )
+                from apps.core.services.credential_service import record_password_history
+                record_password_history(user)
                 entry_year, curriculum_version = compute_batch_fields(student_no, program)
                 profile = Profile.objects.create(
                     user=user,

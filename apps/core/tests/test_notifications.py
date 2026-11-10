@@ -10,6 +10,10 @@
 
 from datetime import date, time
 from io import StringIO
+import json
+import sys
+import types
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
@@ -44,6 +48,29 @@ from apps.core.services.in_app_notification_service import (
 )
 
 User = get_user_model()
+
+
+class FakeWebPushException(Exception):
+    """Stand-in for pywebpush.WebPushException carrying an HTTP-style response."""
+
+    def __init__(self, message='', response=None):
+        super().__init__(message)
+        self.response = response
+
+
+def make_fake_pywebpush(webpush_mock):
+    """
+    Build an importable fake ``pywebpush`` module backed by ``webpush_mock``.
+
+    PushNotificationService imports ``webpush`` and ``WebPushException`` inside
+    its delivery method, so tests inject this module through ``sys.modules``
+    (patch.dict) instead of patching a module-level attribute on the service.
+    This works whether or not the real library is installed.
+    """
+    module = types.ModuleType('pywebpush')
+    module.WebPushException = FakeWebPushException
+    module.webpush = webpush_mock
+    return module
 
 
 class NotifyUserTests(TestCase):
@@ -215,6 +242,8 @@ class AtRiskMailerTests(TestCase):
         out = StringIO()
         call_command('notify_at_risk', stdout=out)
 
+        # The fixture teacher has no email address, so only the student mails.
+        # Teacher delivery is covered in test_at_risk_workflow.
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('BSIT-1A', mail.outbox[0].body)
         self.assertIn('Emailed 1', out.getvalue())
@@ -321,3 +350,524 @@ class InAppNotificationTests(TestCase):
         )
 
         self.assertEqual(notification.link, '')
+
+    def test_create_notification_queues_web_push_after_commit(self):
+        """Task 4.2: in-app creation must also queue Web Push delivery."""
+        from unittest.mock import patch
+
+        with patch(
+            'apps.core.services.push_notification_service.'
+            'PushNotificationService.send_push_notification'
+        ) as send_mock:
+            with self.captureOnCommitCallbacks(execute=True):
+                notification = create_notification(
+                    self.user,
+                    'class_assignment',
+                    'Class assigned',
+                    'A section was assigned.',
+                    '/student/dashboard/',
+                )
+
+        self.assertIsNotNone(notification)
+        self.assertEqual(send_mock.call_count, 1)
+        self.assertEqual(send_mock.call_args[0][0].pk, notification.pk)
+
+    def test_create_notification_push_failure_does_not_raise(self):
+        from unittest.mock import patch
+
+        with patch(
+            'apps.core.services.push_notification_service.'
+            'PushNotificationService.send_push_notification',
+            side_effect=RuntimeError('boom'),
+        ):
+            # on_commit runs immediately outside a transaction; a dead push
+            # path must not break notification creation.
+            notification = create_notification(
+                self.user,
+                'class_assignment',
+                'Class assigned',
+                'A section was assigned.',
+            )
+        self.assertIsNotNone(notification)
+
+
+
+class PushNotificationServiceTests(TestCase):
+    """
+    Test suite for PushNotificationService.
+    Tests subscription creation, push delivery, error handling, and expired subscription cleanup.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='push_user',
+            email='push@example.com',
+            first_name='Push',
+            last_name='User'
+        )
+        self.notification = Notification.objects.create(
+            user=self.user,
+            category='attendance',
+            title='Test Notification',
+            message='This is a test push notification',
+            link='/student/dashboard/'
+        )
+
+    def test_subscription_creation_with_endpoint_hashing(self):
+        """Test that subscriptions are created with hashed endpoints to prevent duplicates"""
+        from apps.core.services.push_notification_service import PushNotificationService
+
+        endpoint = 'https://fcm.googleapis.com/fcm/send/test123'
+        p256dh = 'BKj3lMPnZQ1F7s4f5g6h7j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4='
+        auth = 'A1B2C3D4E5F6G7H8I9J0K1L2='
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+
+        subscription = PushNotificationService.create_subscription(
+            self.user,
+            endpoint,
+            p256dh,
+            auth,
+            user_agent
+        )
+
+        self.assertIsNotNone(subscription)
+        self.assertEqual(subscription.user, self.user)
+        self.assertEqual(subscription.endpoint, endpoint)
+        self.assertEqual(subscription.p256dh, p256dh)
+        self.assertEqual(subscription.auth, auth)
+        self.assertEqual(subscription.user_agent, user_agent)
+        self.assertTrue(len(subscription.endpoint_hash) == 64)  # SHA256 hash is 64 chars
+
+        # Verify audit event was created
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_CREATED',
+                object_type='PushSubscription'
+            ).exists()
+        )
+
+    def test_subscription_update_when_endpoint_exists(self):
+        """Test that creating a subscription with same endpoint updates existing one"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+
+        endpoint = 'https://fcm.googleapis.com/fcm/send/test456'
+        p256dh_old = 'OLD_KEY_123='
+        p256dh_new = 'NEW_KEY_456='
+        auth = 'AUTH_SECRET='
+
+        # Create first subscription
+        sub1 = PushNotificationService.create_subscription(
+            self.user,
+            endpoint,
+            p256dh_old,
+            auth
+        )
+
+        # Create second subscription with same endpoint but different keys
+        sub2 = PushNotificationService.create_subscription(
+            self.user,
+            endpoint,
+            p256dh_new,
+            auth
+        )
+
+        # Should be same subscription, just updated
+        self.assertEqual(sub1.pk, sub2.pk)
+        self.assertEqual(sub2.p256dh, p256dh_new)
+
+        # Should only have one subscription for this endpoint
+        self.assertEqual(PushSubscription.objects.filter(endpoint=endpoint).count(), 1)
+
+        # Verify update audit event
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_UPDATED',
+                object_type='PushSubscription'
+            ).exists()
+        )
+
+    def test_subscription_deletion(self):
+        """Test that subscriptions can be deleted by endpoint"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+
+        endpoint = 'https://fcm.googleapis.com/fcm/send/delete_test'
+        p256dh = 'DELETE_KEY='
+        auth = 'AUTH='
+
+        # Create subscription
+        subscription = PushNotificationService.create_subscription(
+            self.user,
+            endpoint,
+            p256dh,
+            auth
+        )
+        sub_pk = subscription.pk
+
+        # Delete subscription
+        result = PushNotificationService.delete_subscription(self.user, endpoint)
+
+        self.assertTrue(result)
+        self.assertFalse(PushSubscription.objects.filter(pk=sub_pk).exists())
+
+        # Verify deletion audit event
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_DELETED',
+                object_type='PushSubscription',
+                object_id=str(sub_pk)
+            ).exists()
+        )
+
+    def test_subscription_deletion_returns_false_when_not_found(self):
+        """Test that deleting non-existent subscription returns False"""
+        from apps.core.services.push_notification_service import PushNotificationService
+
+        result = PushNotificationService.delete_subscription(
+            self.user,
+            'https://fcm.googleapis.com/fcm/send/nonexistent'
+        )
+
+        self.assertFalse(result)
+
+    @override_settings(NOTIFICATIONS_ENABLED=False)
+    def test_push_sending_skipped_when_disabled(self):
+        """Test that push notifications are skipped when NOTIFICATIONS_ENABLED is False"""
+        from apps.core.services.push_notification_service import PushNotificationService
+
+        successful, failed = PushNotificationService.send_push_notification(self.notification)
+
+        self.assertEqual(successful, 0)
+        self.assertEqual(failed, 0)
+
+        # Verify skip audit event
+        event = AuditEvent.objects.filter(
+            action='PUSH_NOTIFICATION_SKIPPED',
+            object_type='Notification',
+            object_id=str(self.notification.pk)
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertIn('disabled', event.reason.lower())
+
+    @override_settings(VAPID_PRIVATE_KEY='', VAPID_PUBLIC_KEY='')
+    def test_push_sending_skipped_when_vapid_not_configured(self):
+        """Test that push notifications are skipped when VAPID keys are not configured"""
+        from apps.core.services.push_notification_service import PushNotificationService
+
+        successful, failed = PushNotificationService.send_push_notification(self.notification)
+
+        self.assertEqual(successful, 0)
+        self.assertEqual(failed, 0)
+
+        # Verify skip audit event
+        event = AuditEvent.objects.filter(
+            action='PUSH_NOTIFICATION_SKIPPED',
+            object_type='Notification',
+            object_id=str(self.notification.pk)
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertIn('VAPID', event.reason)
+
+    def test_push_sending_returns_zero_when_no_subscriptions(self):
+        """Test that push sending returns (0, 0) when user has no subscriptions"""
+        from apps.core.services.push_notification_service import PushNotificationService
+
+        # Ensure no subscriptions exist
+        successful, failed = PushNotificationService.send_push_notification(self.notification)
+
+        self.assertEqual(successful, 0)
+        self.assertEqual(failed, 0)
+
+    @override_settings(
+        VAPID_PRIVATE_KEY='test_private_key',
+        VAPID_PUBLIC_KEY='test_public_key',
+        VAPID_ADMIN_EMAIL='admin@test.local'
+    )
+    def test_push_sending_with_mock_success(self):
+        """Test successful push notification delivery (mocked)"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+        from unittest.mock import patch, MagicMock
+
+        # Create subscription
+        subscription = PushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://fcm.googleapis.com/fcm/send/mock_success',
+            endpoint_hash='mock_hash_123',
+            p256dh='MOCK_P256DH=',
+            auth='MOCK_AUTH='
+        )
+
+        # Mock pywebpush by injecting a fake module into sys.modules: the
+        # service imports webpush/WebPushException inside its delivery method.
+        mock_webpush = MagicMock()
+        fake_pywebpush = make_fake_pywebpush(mock_webpush)
+
+        with patch.dict(sys.modules, {'pywebpush': fake_pywebpush}):
+            successful, failed = PushNotificationService.send_push_notification(self.notification)
+
+            self.assertEqual(successful, 1)
+            self.assertEqual(failed, 0)
+
+            # Verify webpush was called with correct parameters
+            mock_webpush.assert_called_once()
+            call_args = mock_webpush.call_args
+            self.assertEqual(call_args[1]['subscription_info']['endpoint'], subscription.endpoint)
+            self.assertIn('title', call_args[1]['data'])
+            self.assertEqual(call_args[1]['vapid_private_key'], 'test_private_key')
+
+        # Verify success audit event
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_NOTIFICATION_SENT',
+                object_type='Notification',
+                object_id=str(self.notification.pk)
+            ).exists()
+        )
+
+    @override_settings(
+        VAPID_PRIVATE_KEY='test_private_key',
+        VAPID_PUBLIC_KEY='test_public_key'
+    )
+    def test_push_sending_handles_410_gone_by_deleting_subscription(self):
+        """Test that 410 Gone responses delete expired subscriptions"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+        from unittest.mock import patch, MagicMock
+
+        # Create subscription
+        subscription = PushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://fcm.googleapis.com/fcm/send/expired',
+            endpoint_hash='expired_hash_456',
+            p256dh='EXPIRED_P256DH=',
+            auth='EXPIRED_AUTH='
+        )
+        sub_pk = subscription.pk
+
+        # Mock pywebpush to raise a 410 Gone WebPushException
+        mock_webpush = MagicMock()
+        gone_response = MagicMock()
+        gone_response.status_code = 410
+        mock_webpush.side_effect = FakeWebPushException('410 Gone', response=gone_response)
+        fake_pywebpush = make_fake_pywebpush(mock_webpush)
+
+        with patch.dict(sys.modules, {'pywebpush': fake_pywebpush}):
+            successful, failed = PushNotificationService.send_push_notification(self.notification)
+
+            self.assertEqual(successful, 0)
+            self.assertEqual(failed, 1)
+
+        # Verify subscription was deleted
+        self.assertFalse(PushSubscription.objects.filter(pk=sub_pk).exists())
+
+        # Verify expired subscription audit event
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_EXPIRED',
+                object_type='PushSubscription',
+                object_id=str(sub_pk)
+            ).exists()
+        )
+
+    @override_settings(
+        VAPID_PRIVATE_KEY='test_private_key',
+        VAPID_PUBLIC_KEY='test_public_key'
+    )
+    def test_push_sending_logs_retryable_errors_without_raising(self):
+        """Test that retryable errors are logged but don't raise exceptions"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+        from unittest.mock import patch, MagicMock
+
+        # Create subscription
+        subscription = PushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://fcm.googleapis.com/fcm/send/error',
+            endpoint_hash='error_hash_789',
+            p256dh='ERROR_P256DH=',
+            auth='ERROR_AUTH='
+        )
+
+        # Mock pywebpush to raise a retryable (non-410) WebPushException
+        mock_webpush = MagicMock()
+        error_response = MagicMock()
+        error_response.status_code = 500
+        mock_webpush.side_effect = FakeWebPushException('500 Internal Server Error', response=error_response)
+        fake_pywebpush = make_fake_pywebpush(mock_webpush)
+
+        with patch.dict(sys.modules, {'pywebpush': fake_pywebpush}):
+            # Should not raise exception
+            successful, failed = PushNotificationService.send_push_notification(self.notification)
+
+            self.assertEqual(successful, 0)
+            self.assertEqual(failed, 1)
+
+        # Verify subscription still exists (not deleted on non-410 errors)
+        self.assertTrue(PushSubscription.objects.filter(pk=subscription.pk).exists())
+
+        # Verify failure audit event
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_NOTIFICATION_FAILED',
+                object_type='PushSubscription',
+                object_id=str(subscription.pk)
+            ).exists()
+        )
+
+    def test_get_user_subscriptions(self):
+        """Test retrieving all subscriptions for a user"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+
+        # Create multiple subscriptions
+        other_user = User.objects.create_user(username='other_push_user')
+
+        sub1 = PushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://fcm.googleapis.com/fcm/send/sub1',
+            endpoint_hash='hash1',
+            p256dh='KEY1=',
+            auth='AUTH1='
+        )
+        sub2 = PushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://fcm.googleapis.com/fcm/send/sub2',
+            endpoint_hash='hash2',
+            p256dh='KEY2=',
+            auth='AUTH2='
+        )
+        PushSubscription.objects.create(
+            user=other_user,
+            endpoint='https://fcm.googleapis.com/fcm/send/other',
+            endpoint_hash='other_hash',
+            p256dh='OTHER_KEY=',
+            auth='OTHER_AUTH='
+        )
+
+        # Get subscriptions for self.user
+        subscriptions = PushNotificationService.get_user_subscriptions(self.user)
+
+        self.assertEqual(subscriptions.count(), 2)
+        self.assertIn(sub1, subscriptions)
+        self.assertIn(sub2, subscriptions)
+
+    def test_push_payload_structure(self):
+        """Test that push notification payload has correct structure"""
+        from apps.core.services.push_notification_service import PushNotificationService
+        from apps.core.models import PushSubscription
+        from unittest.mock import patch
+        import json
+
+        # Create subscription
+        PushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://fcm.googleapis.com/fcm/send/payload_test',
+            endpoint_hash='payload_hash',
+            p256dh='PAYLOAD_P256DH=',
+            auth='PAYLOAD_AUTH='
+        )
+
+        mock_webpush = MagicMock()
+        fake_pywebpush = make_fake_pywebpush(mock_webpush)
+
+        with patch.dict(sys.modules, {'pywebpush': fake_pywebpush}):
+            with override_settings(
+                VAPID_PRIVATE_KEY='key',
+                VAPID_PUBLIC_KEY='key'
+            ):
+                PushNotificationService.send_push_notification(self.notification)
+
+        # Extract payload from call
+        mock_webpush.assert_called_once()
+        call_args = mock_webpush.call_args
+        payload_str = call_args[1]['data']
+        payload = json.loads(payload_str)
+
+        # Verify payload structure
+        self.assertEqual(payload['title'], 'Test Notification')
+        self.assertIn('This is a test', payload['body'])
+        self.assertEqual(payload['tag'], 'attendance')
+        # Task 4.2: URL is top-level for the worker click handler, and also
+        # nested under data for older clients.
+        self.assertEqual(payload['url'], '/student/dashboard/')
+        self.assertEqual(payload['data']['url'], '/student/dashboard/')
+        self.assertEqual(payload['data']['notification_id'], str(self.notification.pk))
+        self.assertEqual(payload['icon'], '/static/img/kcc_logo.png')
+        self.assertEqual(payload['badge'], '/static/img/kcc_logo.png')
+
+
+class PushSubscriptionEndpointTests(TestCase):
+    """
+    Task 4.3: subscribe/unsubscribe HTTP endpoints must reuse
+    PushNotificationService so auditing stays consistent.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='push_view_user')
+        self.client.force_login(self.user)
+
+    def _subscribe(self, endpoint='https://fcm.googleapis.com/fcm/send/abc'):
+        return self.client.post(
+            reverse('push_subscription_save'),
+            data=json.dumps({
+                'subscription': {
+                    'endpoint': endpoint,
+                    'keys': {'p256dh': 'P256DH=', 'auth': 'AUTH='},
+                }
+            }),
+            content_type='application/json',
+        )
+
+    def test_subscribe_creates_subscription_and_audits(self):
+        response = self._subscribe()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_CREATED',
+                actor=self.user,
+            ).exists()
+        )
+        from apps.core.models import PushSubscription
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 1)
+
+    def test_duplicate_subscribe_updates_not_duplicates(self):
+        self._subscribe()
+        response = self._subscribe()
+        self.assertEqual(response.status_code, 200)
+        from apps.core.models import PushSubscription
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 1)
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_UPDATED',
+                actor=self.user,
+            ).exists()
+        )
+
+    def test_unsubscribe_deletes_and_audits(self):
+        self._subscribe()
+        response = self.client.post(
+            reverse('push_subscription_delete'),
+            {'endpoint': 'https://fcm.googleapis.com/fcm/send/abc'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['deleted'])
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='PUSH_SUBSCRIPTION_DELETED',
+                actor=self.user,
+            ).exists()
+        )
+        from apps.core.models import PushSubscription
+        self.assertEqual(PushSubscription.objects.filter(user=self.user).count(), 0)
+
+    def test_unsubscribe_missing_endpoint_is_400(self):
+        response = self.client.post(reverse('push_subscription_delete'), {'endpoint': ''})
+        self.assertEqual(response.status_code, 400)
+
+    def test_subscribe_requires_login(self):
+        self.client.logout()
+        response = self._subscribe()
+        self.assertEqual(response.status_code, 302)
