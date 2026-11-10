@@ -1,0 +1,112 @@
+/* =============================================================
+   KCC ClassStamp — Presentation Mode (demo / projector overlay)
+   Toggled by the floating "Present" button; persisted in localStorage
+   and applied to <html> before first paint (see theme/base.html).
+   Everything here is scoped under html.present-mode so the everyday
+   theme is untouched and switching it off restores the normal look.
+   ============================================================= */
+
+html.present-mode {
+  /* 15px → 16px: a small rem-scale lift for back-row legibility.
+     Pair with browser zoom (Ctrl + Plus) when more is needed. */
+  font-size: 16px;
+
+  /* Surfaces lifted another notch so the UI doesn't read as a black hole
+     under ambient projector light. */
+  --bg-base:             #1b2740;
+  --bg-surface:          #223150;
+  --bg-elevated:         #28395c;
+  --bg-card:             #233453;
+  --bg-card-hover:       #2c4066;
+
+  /* Hairlines strengthened so card/panel structure stays visible. */
+  --border:              rgba(245, 197, 24, 0.30);
+  --border-strong:       rgba(245, 197, 24, 0.44);
+  --glass-bg:            rgba(26, 42, 108, 0.46);
+  --glass-bg-hover:      rgba(26, 42, 108, 0.60);
+  --glass-border:        rgba(245, 197, 24, 0.34);
+  --glass-border-hover:  rgba(245, 197, 24, 0.50);
+
+  /* Text pushed toward white — muted/dim labels are the first thing
+     a projector washes out. */
+  --text-primary:        #ffffff;
+  --text-secondary:      #e9eef8;
+  --text-muted:          #c4cee1;
+  --text-dim:            #a8b5cd;
+}
+
+/* base.css paints the canvas with a near-black gradient (#060b17) OVER
+   background-color, so lifting --bg-base alone barely shows. Replace the
+   gradient with a brighter navy for the demo. */
+html.present-mode body {
+  background-color: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 90% 50% at 15% -10%, rgba(29, 78, 216, 0.16) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 45% at 85% 105%, rgba(245, 158, 11, 0.10) 0%, transparent 65%),
+    linear-gradient(180deg, #16233c 0%, #1a2942 50%, #16233c 100%);
+}
+
+/* The sidebar uses literal slate colors and its own near-black gradient,
+   so tokens don't reach it — brighten it explicitly. Active/hover gold is
+   re-asserted to win over the base link rule. */
+html.present-mode .sidebar {
+  background: linear-gradient(180deg, #16233c 0%, #13203a 60%, #101b31 100%);
+}
+html.present-mode .sidebar-section-label { color: #aeb9cf; }
+html.present-mode .sidebar-brand-tag      { color: #b6c1d6; }
+html.present-mode .sidebar-link           { color: #dbe2f0; }
+html.present-mode .sidebar-link-icon      { color: #aab6cc; }
+html.present-mode .sidebar-link:hover     { color: #ffffff; }
+html.present-mode .sidebar-link:hover .sidebar-link-icon { color: #ffd75e; }
+html.present-mode .sidebar-link.active,
+html.present-mode .sidebar-link.active .sidebar-link-icon { color: #ffd75e; }
+
+/* ── Floating toggle ─────────────────────────────────────────── */
+.present-mode-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border-gold);
+  background: rgba(13, 21, 38, 0.92);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: var(--transition);
+}
+.present-mode-toggle:hover {
+  border-color: var(--accent-gold);
+  background: rgba(26, 42, 108, 0.92);
+  color: #ffffff;
+}
+.present-mode-toggle i {
+  font-size: 0.95rem;
+  color: var(--accent-gold);
+}
+.present-mode-toggle.is-active {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-dark));
+  border-color: var(--accent-gold);
+  color: var(--accent-ink);
+}
+.present-mode-toggle.is-active i { color: var(--accent-ink); }
+
+/* Keep clear of the student/teacher mobile bottom nav; icon-only on phones. */
+@media (max-width: 768px) {
+  .present-mode-toggle {
+    right: 12px;
+    bottom: 78px;
+    padding: 10px;
+  }
+  .present-mode-toggle-label { display: none; }
+}

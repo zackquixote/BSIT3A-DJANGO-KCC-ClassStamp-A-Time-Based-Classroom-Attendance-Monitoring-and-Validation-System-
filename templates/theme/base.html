@@ -13,6 +13,13 @@
       localStorage.removeItem('kcc_theme');
       document.documentElement.removeAttribute('data-theme');
     } catch(e){}
+    /* Presentation Mode: apply a saved demo session before first paint so it
+       never flashes dark→bright. Scoped overrides live in css/present-mode.css. */
+    try {
+      if (localStorage.getItem('kcc_present_mode') === '1') {
+        document.documentElement.classList.add('present-mode');
+      }
+    } catch(e){}
     /* lucide-pending: hides FA fallback icons before Lucide fires createIcons().
        Set synchronously here so it applies before the first paint.
        Removed after createIcons() completes. */
@@ -28,6 +35,16 @@
     document.addEventListener('click', function (e) {
       var t = e.target;
       if (!(t instanceof Element)) return;
+      var pm = t.closest('[data-present-toggle]');
+      if (pm) {
+        var pmOn = document.documentElement.classList.toggle('present-mode');
+        try { localStorage.setItem('kcc_present_mode', pmOn ? '1' : '0'); } catch(e){}
+        document.querySelectorAll('[data-present-toggle]').forEach(function (b) {
+          b.setAttribute('aria-pressed', pmOn ? 'true' : 'false');
+          b.classList.toggle('is-active', pmOn);
+        });
+        return;
+      }
       var dismiss = t.closest('[data-dismiss-parent]');
       if (dismiss) {
         if (dismiss.parentElement) dismiss.parentElement.style.display = 'none';
@@ -64,11 +81,11 @@
   {% endcomment %}
   <meta name="color-scheme" content="dark">
   <style>
-    html { background: #0b1220; }
-    a { color: #f59e0b; }
-    .sidebar { background: linear-gradient(180deg, #091427 0%, #07101f 60%, #050b16 100%); }
-    .sidebar-link { color: #94a3b8; text-decoration: none; }
-    .sidebar-section-label { text-transform: uppercase; color: #64748b; }
+    html, body { background: #121b2e; margin: 0; }
+    a { color: #f5c518; }
+    .sidebar { background: linear-gradient(180deg, #0f1d3a 0%, #0d1830 60%, #091425 100%); }
+    .sidebar-link { color: #d2dae9; text-decoration: none; }
+    .sidebar-section-label { text-transform: uppercase; color: #75859d; }
     .sidebar-collapse-btn, .sidebar-close-btn { display: none; }
   </style>
   <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}?v=20261102_local">
@@ -261,6 +278,14 @@
 
   </div>
 
+  {% if request.user.is_authenticated %}
+    <button type="button" class="present-mode-toggle" data-present-toggle aria-pressed="false"
+            title="Presentation Mode — brighter, larger text for projector / live demo">
+      <i class="fas fa-display" aria-hidden="true"></i>
+      <span class="present-mode-toggle-label">Present</span>
+    </button>
+  {% endif %}
+
   <!-- Modern Icon System (Lucide) & KCC ClassStamp Core Modules -->
   <script nonce="{{ request.csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
@@ -268,6 +293,11 @@
         window.lucide.createIcons();
       }
       document.documentElement.classList.remove('lucide-pending');
+      var pmOn = document.documentElement.classList.contains('present-mode');
+      document.querySelectorAll('[data-present-toggle]').forEach(function (b) {
+        b.setAttribute('aria-pressed', pmOn ? 'true' : 'false');
+        b.classList.toggle('is-active', pmOn);
+      });
     });
   </script>
   <!-- Core modules, concatenated in source order by apps/core/services/asset_bundles.py. -->

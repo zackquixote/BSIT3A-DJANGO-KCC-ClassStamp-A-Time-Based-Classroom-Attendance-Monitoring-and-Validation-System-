@@ -33,6 +33,8 @@ CSS_SOURCES = [
     'css/app.css',
     # Last: the refinement layer that enforces the visual system.
     'css/refine.css',
+    # Presentation/demo overlay — stays last so it wins the cascade.
+    'css/present-mode.css',
 ]
 
 JS_SOURCES = [
