@@ -3152,70 +3152,205 @@ textarea.form-control:focus {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PROF FEEDBACK — Remove all colored icon chip backgrounds
-   from stat cards. Icons are plain monochrome only.
+   KCC COLOR ENHANCEMENT — VIBRANT INSTITUTIONAL PALETTE
+   Brings back vivid KCC Navy & Gold accents, crisp colored chips,
+   clear contrast, and high-visibility table/card states.
    ═══════════════════════════════════════════════════════════════ */
 
-/* Target ALL stat icon variants — remove box entirely */
+/* ── KPI & Stat Icon Chips — Rich, vibrant, with soft colored glow ─ */
 .stat-icon,
+.dash-kpi-icon {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.05rem !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+.stat-icon i, .stat-icon svg,
+.dash-kpi-icon i, .dash-kpi-icon svg {
+  display: inline-flex !important;
+}
+
+/* Gold / Warning / Pending */
 .stat-icon--gold,
+.dash-kpi-icon--gold,
+.stat-icon--warning,
+.dash-kpi-icon--warning {
+  background: rgba(245, 197, 24, 0.18) !important;
+  border: 1px solid rgba(245, 197, 24, 0.45) !important;
+  color: #f5c518 !important;
+  box-shadow: 0 0 14px rgba(245, 197, 24, 0.22) !important;
+}
+.stat-icon--gold i, .stat-icon--gold svg,
+.dash-kpi-icon--gold i, .dash-kpi-icon--gold svg { color: #f5c518 !important; }
+
+/* Green / Success / Active / Approved */
 .stat-icon--green,
+.dash-kpi-icon--green,
+.stat-icon--success,
+.dash-kpi-icon--success {
+  background: rgba(78, 202, 138, 0.18) !important;
+  border: 1px solid rgba(78, 202, 138, 0.45) !important;
+  color: #4eca8a !important;
+  box-shadow: 0 0 14px rgba(78, 202, 138, 0.2) !important;
+}
+.stat-icon--green i, .stat-icon--green svg,
+.dash-kpi-icon--green i, .dash-kpi-icon--green svg { color: #4eca8a !important; }
+
+/* Blue / Info / Departments */
 .stat-icon--blue,
-.stat-icon--purple,
+.dash-kpi-icon--blue,
 .stat-icon--info,
+.dash-kpi-icon--info {
+  background: rgba(58, 91, 191, 0.24) !important;
+  border: 1px solid rgba(91, 155, 213, 0.5) !important;
+  color: #7ab5e8 !important;
+  box-shadow: 0 0 14px rgba(58, 91, 191, 0.22) !important;
+}
+.stat-icon--blue i, .stat-icon--blue svg,
+.dash-kpi-icon--blue i, .dash-kpi-icon--blue svg,
+.stat-icon--info i, .stat-icon--info svg,
+.dash-kpi-icon--info i, .dash-kpi-icon--info svg { color: #7ab5e8 !important; }
+
+/* Purple / Curricula / Admin Roles */
+.stat-icon--purple,
+.dash-kpi-icon--purple {
+  background: rgba(165, 140, 212, 0.18) !important;
+  border: 1px solid rgba(165, 140, 212, 0.45) !important;
+  color: #c4a8f0 !important;
+  box-shadow: 0 0 14px rgba(165, 140, 212, 0.18) !important;
+}
+.stat-icon--purple i, .stat-icon--purple svg,
+.dash-kpi-icon--purple i, .dash-kpi-icon--purple svg { color: #c4a8f0 !important; }
+
+/* Danger / Red / Absent / Flagged Anomalies */
 .stat-icon--danger,
 .stat-icon--red,
-.stat-icon--muted,
-[class*="stat-icon"] {
-  background: none !important;
-  background-image: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px !important;
-  color: var(--text-muted) !important;
-  font-size: 0.9rem !important;
+.dash-kpi-icon--danger,
+.dash-kpi-icon--red {
+  background: rgba(240, 96, 96, 0.18) !important;
+  border: 1px solid rgba(240, 96, 96, 0.45) !important;
+  color: #f07070 !important;
+  box-shadow: 0 0 14px rgba(240, 96, 96, 0.22) !important;
+}
+.stat-icon--danger i, .stat-icon--danger svg,
+.dash-kpi-icon--danger i, .dash-kpi-icon--danger svg { color: #f07070 !important; }
+
+/* ── Dashboard Quick Launchers — Clear, colored icon boxes ───── */
+.dash-launcher-icon {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.95rem !important;
+  background: rgba(245, 197, 24, 0.12) !important;
+  border: 1px solid rgba(245, 197, 24, 0.3) !important;
+  color: #f5c518 !important;
+}
+.dash-launcher-icon i,
+.dash-launcher-icon svg {
+  color: #f5c518 !important;
+  display: inline-flex !important;
 }
 
-/* Dash KPI icons — same treatment */
-.dash-kpi-icon,
-.dash-kpi-icon--gold,
-.dash-kpi-icon--green,
-.dash-kpi-icon--blue,
-.dash-kpi-icon--purple,
-.dash-kpi-icon--red,
-[class*="dash-kpi-icon"] {
-  background: none !important;
-  background-image: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  width: 20px !important;
-  height: 20px !important;
-  color: var(--text-muted) !important;
-  font-size: 0.9rem !important;
+/* ── Tables — High-contrast header & lively hover highlight ──── */
+.table thead th {
+  color: #dbe4f3 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  border-bottom: 1px solid rgba(245, 197, 24, 0.25) !important;
 }
 
-/* Launcher icons — same treatment */
-.dash-launcher-icon,
-[class*="dash-launcher-icon"] {
-  background: none !important;
-  background-image: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  width: 18px !important;
-  height: 18px !important;
-  color: var(--text-muted) !important;
-  font-size: 0.85rem !important;
+.table tbody tr {
+  transition: background-color 0.15s ease !important;
 }
 
-/* Also handle inline style overrides on icon divs in dashboard.html */
-.dash-launcher-btn .dash-launcher-icon[style] {
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  color: var(--text-muted) !important;
+.table tbody tr:hover td {
+  background: rgba(245, 197, 24, 0.06) !important;
 }
+
+/* ── Form Inputs & Filter Dropdowns — Crisper borders & visible focus */
+.form-control,
+select.form-control {
+  background-color: #142036 !important;
+  border: 1px solid rgba(245, 197, 24, 0.22) !important;
+  color: #f4f6fb !important;
+}
+
+.form-control:focus,
+select.form-control:focus {
+  border-color: #f5c518 !important;
+  box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.18) !important;
+  background-color: #182640 !important;
+}
+
+/* ── Action Buttons in Table Rows (View, Edit, Delete, Security) */
+.btn-action,
+.btn-icon,
+.dash-view-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(245, 197, 24, 0.2) !important;
+  color: #d2dae9 !important;
+  transition: all 0.15s ease !important;
+}
+
+.btn-action:hover,
+.btn-icon:hover,
+.dash-view-btn:hover {
+  background: rgba(245, 197, 24, 0.16) !important;
+  border-color: #f5c518 !important;
+  color: #f5c518 !important;
+  transform: scale(1.05) !important;
+}
+
+.btn-action--danger:hover {
+  background: rgba(240, 96, 96, 0.18) !important;
+  border-color: #f07070 !important;
+  color: #f07070 !important;
+}
+
+/* ── Badges — Sharp, saturated & clearly distinguished ───────── */
+.badge--success {
+  background: rgba(78, 202, 138, 0.18) !important;
+  border: 1px solid rgba(78, 202, 138, 0.45) !important;
+  color: #4eca8a !important;
+  font-weight: 700 !important;
+}
+
+.badge--warning {
+  background: rgba(245, 197, 24, 0.18) !important;
+  border: 1px solid rgba(245, 197, 24, 0.45) !important;
+  color: #f5c518 !important;
+  font-weight: 700 !important;
+}
+
+.badge--danger {
+  background: rgba(240, 96, 96, 0.18) !important;
+  border: 1px solid rgba(240, 96, 96, 0.45) !important;
+  color: #f07070 !important;
+  font-weight: 700 !important;
+}
+
+.badge--info,
+.badge--blue {
+  background: rgba(91, 155, 213, 0.18) !important;
+  border: 1px solid rgba(91, 155, 213, 0.45) !important;
+  color: #7ab5e8 !important;
+  font-weight: 700 !important;
+}
+
+.badge--purple {
+  background: rgba(165, 140, 212, 0.18) !important;
+  border: 1px solid rgba(165, 140, 212, 0.45) !important;
+  color: #c4a8f0 !important;
+  font-weight: 700 !important;
+}
+
