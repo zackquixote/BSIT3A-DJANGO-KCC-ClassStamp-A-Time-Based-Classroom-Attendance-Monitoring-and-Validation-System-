@@ -1977,32 +1977,112 @@ label.form-label i { display: none !important; }
 
 /* ── 28. Student surface, second pass ────────────────────────── */
 
-/* Attendance summary strip shared by the student pages. */
+/* Attendance summary strip shared by the student pages — compact & responsive */
 .student-stat-grid {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 0 !important;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  gap: 12px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  margin-bottom: 14px !important;
 }
 
 .student-stat-grid .stat-card {
-  border: 0 !important;
-  border-left: 1px solid var(--border) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 14px 18px !important;
+  border: 1px solid rgba(245, 197, 24, 0.16) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #131e32 0%, #0f1826 100%) !important;
+  padding: 10px 14px !important;
   display: flex !important;
   align-items: center !important;
   gap: 12px !important;
+  min-height: 0 !important;
+  transition: transform 0.18s ease, border-color 0.18s ease !important;
 }
 
-.student-stat-grid .stat-card:first-child { border-left: 0 !important; }
+.student-stat-grid .stat-card:hover {
+  border-color: rgba(245, 197, 24, 0.35) !important;
+  transform: translateY(-1px) !important;
+}
+
+.student-stat-grid .stat-card:first-child { border-left: 1px solid rgba(245, 197, 24, 0.16) !important; }
 .student-stat-grid .stat-icon { display: flex !important; }
-.student-stat-grid .stat-value { font-size: 1.4rem !important; }
-.student-stat-grid .stat-label { font-size: 0.67rem !important; letter-spacing: 0.05em !important; }
+.student-stat-grid .stat-value { font-size: 1.35rem !important; margin-bottom: 0 !important; }
+.student-stat-grid .stat-label { font-size: 0.64rem !important; letter-spacing: 0.05em !important; }
+
+@media (max-width: 900px) {
+  .student-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .student-stat-grid .stat-card {
+    padding: 8px 12px !important;
+  }
+}
+
+/* ── Student Dashboard Fluid & Compact Multi-Device Layout ──────── */
+.student-dashboard-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) !important;
+  gap: 14px !important;
+  align-items: start !important;
+  margin-bottom: 16px !important;
+}
+
+.student-dashboard-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+}
+
+.student-dashboard-aside {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+}
+
+.student-dashboard-layout .card {
+  height: auto !important;
+  align-self: start !important;
+  margin-bottom: 0 !important;
+  border: 1px solid rgba(245, 197, 24, 0.14) !important;
+  background: linear-gradient(135deg, #131e32 0%, #0f1826 100%) !important;
+}
+
+.student-dashboard-layout .empty-state {
+  padding: 16px 12px !important;
+}
+
+.student-calendar-list {
+  max-height: 520px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 197, 24, 0.25) transparent;
+}
+.student-calendar-list::-webkit-scrollbar { width: 4px; }
+.student-calendar-list::-webkit-scrollbar-thumb { background: rgba(245, 197, 24, 0.25); border-radius: 4px; }
+
+/* Responsive break: Tablet & iPad */
+@media (max-width: 960px) {
+  .student-dashboard-layout {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* Responsive break: Mobile phones */
+@media (max-width: 768px) {
+  .student-quick-action--dup {
+    display: none !important;
+  }
+  .student-dashboard-main,
+  .student-dashboard-aside {
+    gap: 10px !important;
+  }
+}
 
 /* The rate is the signal; the sentinel sentence stays neutral. */
 .s-subject-state { color: var(--text-muted) !important; font-weight: 500; }

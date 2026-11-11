@@ -123,8 +123,8 @@
 
 <!-- S-09: Excuse Slip Status Tracker -->
 {% if excuse_slips %}
-<div class="card mb-6" style="padding: 0; overflow: hidden;">
-  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+<div class="card mb-3" style="padding: 0; overflow: hidden;">
+  <div style="padding: 12px 16px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
     <div class="font-semibold text-primary flex items-center gap-2">
       <i class="fas fa-file-medical text-gold"></i> My Excuse Slips
     </div>
@@ -134,14 +134,14 @@
       <span class="badge badge--danger badge--xs">{{ excuse_slip_counts.rejected|default:0 }} Rejected</span>
     </div>
   </div>
-  <div style="padding: 12px 16px;">
+  <div style="padding: 10px 14px;">
     {% for slip in excuse_slips %}
       {% if slip.status == 'APPROVED' %}
-      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #22c55e; border-radius: 6px; margin-bottom: 8px;">
+      <div style="padding: 9px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #22c55e; border-radius: 6px; margin-bottom: 6px;">
       {% elif slip.status == 'REJECTED' %}
-      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #ef4444; border-radius: 6px; margin-bottom: 8px;">
+      <div style="padding: 9px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #ef4444; border-radius: 6px; margin-bottom: 6px;">
       {% else %}
-      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #f59e0b; border-radius: 6px; margin-bottom: 8px;">
+      <div style="padding: 9px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #f59e0b; border-radius: 6px; margin-bottom: 6px;">
       {% endif %}
         <div class="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -170,220 +170,229 @@
 </div>
 {% endif %}
 
-<!-- Calendar Milestones & Enrolled Timetable -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
-  <!-- Upcoming Term Milestones & Published Calendar -->
-  <div class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
-      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
-        <i class="fas fa-calendar-days text-gold"></i> College Academic Calendar
-      </div>
-      <span class="text-muted text-xs" style="white-space: nowrap;">Official Dates</span>
-    </div>
-    <div style="padding: 12px 16px;">
-      {% for evt in upcoming_calendar_events %}
-        <div style="padding: 10px 12px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {{ evt.category_meta.color }}; border-radius: 6px;">
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.05); color: {{ evt.category_meta.color }}; border: 1px solid {{ evt.category_meta.color }}40;">
-              <i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.get_category_display }}
-            </span>
-            <span class="text-muted font-mono" style="font-size: 0.7rem;">{{ evt.start_datetime|date:"M d, Y" }}</span>
-          </div>
-          <div class="font-bold text-sm text-primary">{{ evt.title }}</div>
-          {% if evt.description %}
-            <p class="text-muted text-xs mt-1 mb-0" style="font-size: 0.72rem; line-height: 1.35;">{{ evt.description|truncatechars:80 }}</p>
-          {% endif %}
+<!-- Student Core Academic Area & Institutional Calendar -->
+<div class="student-dashboard-layout">
+  <!-- Primary Column: Student Attendance & Course Timetable -->
+  <div class="student-dashboard-main">
+    <!-- Per-Subject Attendance Breakdown Cards (S-03) -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+        <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
+          <i class="fas fa-chart-simple text-gold"></i> Attendance Breakdown by Subject
         </div>
-      {% empty %}
-        <div class="empty-state">
-          <div class="empty-state-icon"><i class="fas fa-calendar-day"></i></div>
-          <div class="empty-state-title">No Milestones Scheduled</div>
-          <p class="empty-state-text">There are no upcoming institutional calendar milestones scheduled at this time.</p>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- Per-Subject Attendance Breakdown Cards (S-03) -->
-  <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 16px;">
-    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
-      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
-        <i class="fas fa-chart-simple text-gold"></i> Attendance Breakdown by Subject
+        <span class="text-muted text-xs" style="white-space: nowrap;">Present + Late ÷ Meetings</span>
       </div>
-      <span class="text-muted text-xs" style="white-space: nowrap;">Present + Late ÷ Meetings</span>
-    </div>
-    <div style="padding: 12px 16px;">
-      {% for b in class_breakdowns %}
-        <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 8px;">
-          {% if b.sentinel.stage == 'green' %}
-            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
-              <i class="fas fa-circle-check"></i> {{ b.sentinel.label }}
-            </div>
-          {% elif b.sentinel.stage == 'amber' %}
-            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24;">
-              <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
-            </div>
-          {% elif b.sentinel.stage == 'orange' %}
-            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.5); color: #fb923c;">
-              <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
-            </div>
-          {% elif b.sentinel.stage == 'red' %}
-            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.55); color: #f87171;">
-              <i class="fas fa-circle-exclamation"></i> {{ b.sentinel.label }}
-            </div>
-          {% endif %}
-          <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
-            <div>
-              <span class="font-bold text-primary text-sm">{{ b.class_obj.subject.code }} — {{ b.class_obj.class_code }}</span>
-              <div class="text-muted text-xs mt-0.5">
-                <i class="fas fa-chalkboard-user"></i>
-                {% if b.class_obj.teacher_profile %}
-                  {{ b.class_obj.teacher_profile.user.get_full_name|default:b.class_obj.teacher_profile.user.username }}
-                {% else %}
-                  Unassigned
-                {% endif %}
+      <div style="padding: 12px 14px;">
+        {% for b in class_breakdowns %}
+          <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 8px;">
+            {% if b.sentinel.stage == 'green' %}
+              <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
+                <i class="fas fa-circle-check"></i> {{ b.sentinel.label }}
               </div>
-            </div>
-            <span class="badge font-mono text-xs {% if b.compliance is not None %}{% if b.compliance >= 90 %}badge--success{% elif b.compliance >= 80 %}badge--warning{% else %}badge--danger{% endif %}{% else %}badge--muted{% endif %}">
-              {% if b.compliance is not None %}{{ b.compliance }}% compliance{% else %}No meetings yet{% endif %}
-            </span>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;">
-            <div style="text-align: center; background: rgba(34, 197, 94, 0.08); border-radius: 4px; padding: 4px;">
-              <div class="font-mono font-bold text-success text-sm">{{ b.present }}</div>
-              <div class="text-muted" style="font-size: 0.6rem;">PRESENT</div>
-            </div>
-            <div style="text-align: center; background: rgba(245, 158, 11, 0.08); border-radius: 4px; padding: 4px;">
-              <div class="font-mono font-bold text-warning text-sm">{{ b.late }}</div>
-              <div class="text-muted" style="font-size: 0.6rem;">LATE</div>
-            </div>
-            <div style="text-align: center; background: rgba(239, 68, 68, 0.08); border-radius: 4px; padding: 4px;">
-              <div class="font-mono font-bold text-danger text-sm">{{ b.absent }}</div>
-              <div class="text-muted" style="font-size: 0.6rem;">ABSENT</div>
-            </div>
-            <div style="text-align: center; background: rgba(139, 92, 246, 0.08); border-radius: 4px; padding: 4px;">
-              <div class="font-mono font-bold text-sm" style="color: #a78bfa;">{{ b.excused }}</div>
-              <div class="text-muted" style="font-size: 0.6rem;">EXCUSED</div>
-            </div>
-          </div>
-          {% if b.meetings %}
-          <details style="margin-top: 8px;">
-            <summary class="text-muted text-xs" style="cursor: pointer;">
-              <i class="fas fa-list-ul"></i> Meeting log ({{ b.meetings|length }})
-            </summary>
-            <div style="margin-top: 6px; max-height: 200px; overflow-y: auto;">
-              {% for m in b.meetings %}
-                <div class="flex items-center justify-between text-xs" style="padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);">
-                  <span class="font-mono text-muted">{{ m.session_date|date:"M d, Y" }}</span>
-                  {% if m.status == 'PRESENT' %}
-                    <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Present</span>
-                  {% elif m.status == 'LATE' %}
-                    <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Late{% if m.late_minutes %} +{{ m.late_minutes }}m{% endif %}</span>
-                  {% elif m.status == 'ABSENT' %}
-                    <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> Absent</span>
-                  {% elif m.status == 'EXCUSED' %}
-                    <span class="badge badge--purple badge--xs"><i class="fas fa-file-medical"></i> Excused</span>
+            {% elif b.sentinel.stage == 'amber' %}
+              <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24;">
+                <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
+              </div>
+            {% elif b.sentinel.stage == 'orange' %}
+              <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.5); color: #fb923c;">
+                <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
+              </div>
+            {% elif b.sentinel.stage == 'red' %}
+              <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.55); color: #f87171;">
+                <i class="fas fa-circle-exclamation"></i> {{ b.sentinel.label }}
+              </div>
+            {% endif %}
+            <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
+              <div>
+                <span class="font-bold text-primary text-sm">{{ b.class_obj.subject.code }} — {{ b.class_obj.class_code }}</span>
+                <div class="text-muted text-xs mt-0.5">
+                  <i class="fas fa-chalkboard-user"></i>
+                  {% if b.class_obj.teacher_profile %}
+                    {{ b.class_obj.teacher_profile.user.get_full_name|default:b.class_obj.teacher_profile.user.username }}
                   {% else %}
-                    <span class="badge badge--muted badge--xs">{{ m.status }}</span>
+                    Unassigned
                   {% endif %}
                 </div>
-              {% endfor %}
+              </div>
+              <span class="badge font-mono text-xs {% if b.compliance is not None %}{% if b.compliance >= 90 %}badge--success{% elif b.compliance >= 80 %}badge--warning{% else %}badge--danger{% endif %}{% else %}badge--muted{% endif %}">
+                {% if b.compliance is not None %}{{ b.compliance }}% compliance{% else %}No meetings yet{% endif %}
+              </span>
             </div>
-          </details>
-          {% endif %}
-        </div>
-      {% empty %}
-        <p class="text-muted text-xs" style="text-align: center; padding: 12px 0;">No subject breakdown yet — once you are enrolled, each subject shows its own attendance here.</p>
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- Examination Schedules & Active Course Timetable -->
-  <div class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
-      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
-        <i class="fas fa-file-pen text-gold"></i> Examination Windows &amp; Timetable
-      </div>
-      <span class="text-muted text-xs" style="white-space: nowrap;">Institutional Schedule</span>
-    </div>
-    <div style="padding: 12px 16px;">
-      <!-- S-05: Visual Weekly Timetable Grid -->
-      {% if timetable_slots %}
-        <div class="mb-3">
-          <div class="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
-            <i class="fas fa-table-cells text-gold"></i> Weekly Class Grid
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;">
-            {% regroup timetable_slots by weekday as slot_days %}
-            {% for day in slot_days %}
-              {% if day.grouper == today_weekday %}
-              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 8px; padding: 8px; min-height: 90px;">
-              {% else %}
-              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-height: 90px;">
-              {% endif %}
-                <div class="text-xs font-bold mb-1 {% if day.grouper == today_weekday %}text-gold{% else %}text-muted{% endif %}">
-                  {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% endif %}
-                  {% if day.grouper == today_weekday %}<span class="badge badge--warning badge--xs" style="margin-left: 4px;">TODAY</span>{% endif %}
-                </div>
-                {% for s in day.list %}
-                  <div class="mb-1" style="border-left: 3px solid {{ s.color }}; background: rgba(255, 255, 255, 0.03); border-radius: 4px; padding: 4px 6px;">
-                    <div class="font-mono text-primary" style="font-size: 0.68rem; line-height: 1.25;">
-                      <span class="font-bold">{{ s.starts_at|time:"g:i A" }}</span><br>
-                      <span class="text-muted">– {{ s.ends_at|time:"g:i A" }}</span>
-                    </div>
-                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }}{% if s.room %} · {{ s.room }}{% endif %}</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;">
+              <div style="text-align: center; background: rgba(34, 197, 94, 0.08); border-radius: 4px; padding: 4px;">
+                <div class="font-mono font-bold text-success text-sm">{{ b.present }}</div>
+                <div class="text-muted" style="font-size: 0.6rem;">PRESENT</div>
+              </div>
+              <div style="text-align: center; background: rgba(245, 158, 11, 0.08); border-radius: 4px; padding: 4px;">
+                <div class="font-mono font-bold text-warning text-sm">{{ b.late }}</div>
+                <div class="text-muted" style="font-size: 0.6rem;">LATE</div>
+              </div>
+              <div style="text-align: center; background: rgba(239, 68, 68, 0.08); border-radius: 4px; padding: 4px;">
+                <div class="font-mono font-bold text-danger text-sm">{{ b.absent }}</div>
+                <div class="text-muted" style="font-size: 0.6rem;">ABSENT</div>
+              </div>
+              <div style="text-align: center; background: rgba(139, 92, 246, 0.08); border-radius: 4px; padding: 4px;">
+                <div class="font-mono font-bold text-sm" style="color: #a78bfa;">{{ b.excused }}</div>
+                <div class="text-muted" style="font-size: 0.6rem;">EXCUSED</div>
+              </div>
+            </div>
+            {% if b.meetings %}
+            <details style="margin-top: 8px;">
+              <summary class="text-muted text-xs" style="cursor: pointer;">
+                <i class="fas fa-list-ul"></i> Meeting log ({{ b.meetings|length }})
+              </summary>
+              <div style="margin-top: 6px; max-height: 200px; overflow-y: auto;">
+                {% for m in b.meetings %}
+                  <div class="flex items-center justify-between text-xs" style="padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                    <span class="font-mono text-muted">{{ m.session_date|date:"M d, Y" }}</span>
+                    {% if m.status == 'PRESENT' %}
+                      <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Present</span>
+                    {% elif m.status == 'LATE' %}
+                      <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Late{% if m.late_minutes %} +{{ m.late_minutes }}m{% endif %}</span>
+                    {% elif m.status == 'ABSENT' %}
+                      <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> Absent</span>
+                    {% elif m.status == 'EXCUSED' %}
+                      <span class="badge badge--purple badge--xs"><i class="fas fa-file-medical"></i> Excused</span>
+                    {% else %}
+                      <span class="badge badge--muted badge--xs">{{ m.status }}</span>
+                    {% endif %}
                   </div>
                 {% endfor %}
               </div>
-            {% endfor %}
+            </details>
+            {% endif %}
           </div>
-        </div>
-      {% endif %}
+        {% empty %}
+          <div class="empty-state" style="padding: 16px 12px;">
+            <div class="empty-state-icon"><i class="fas fa-chart-simple"></i></div>
+            <div class="empty-state-title">No Subject Attendance Yet</div>
+            <p class="empty-state-text">Once you join or get enrolled in active classes, your subject compliance and attendance rates will appear here.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
 
-      {% if upcoming_exams %}
-        <div class="mb-3">
-          <div class="text-xs font-bold text-warning uppercase mb-2">Upcoming Exam Windows</div>
-          {% for exam in upcoming_exams %}
-            <div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; margin-bottom: 6px;">
-              <div class="flex items-center justify-between text-xs">
-                <span class="font-bold text-primary">{{ exam.title }}</span>
-                <span class="text-gold font-mono">{{ exam.start_datetime|date:"M d, Y" }}</span>
-              </div>
-              {% if exam.location %}
-                <div class="text-muted text-xs mt-0.5"><i class="fas fa-location-dot"></i> {{ exam.location }}</div>
-              {% endif %}
+    <!-- Examination Schedules & Active Course Timetable -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+        <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
+          <i class="fas fa-file-pen text-gold"></i> Examination Windows &amp; Timetable
+        </div>
+        <span class="text-muted text-xs" style="white-space: nowrap;">Institutional Schedule</span>
+      </div>
+      <div style="padding: 12px 14px;">
+        <!-- S-05: Visual Weekly Timetable Grid -->
+        {% if timetable_slots %}
+          <div class="mb-3">
+            <div class="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
+              <i class="fas fa-table-cells text-gold"></i> Weekly Class Grid
             </div>
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      <div class="text-xs font-bold text-muted uppercase mb-2">My Enrolled Classes</div>
-      {% for enr in active_enrollments %}
-        <div style="padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 6px; margin-bottom: 6px;">
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-bold text-primary">{{ enr.class_obj.subject.code }} — {{ enr.class_obj.class_code }}</span>
-            <span class="badge badge--primary badge--xs font-mono">{{ enr.class_obj.subject.units }} units</span>
-          </div>
-          <div class="text-muted text-xs mt-0.5" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            {{ enr.class_obj.subject.name }}
-          </div>
-          {% if enr.class_obj.slots.all %}
-            <div class="mt-1 flex items-center gap-1 flex-wrap">
-              {% for slot in enr.class_obj.slots.all %}
-                <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.04); font-size: 0.65rem;">
-                  {{ slot.get_weekday_display|slice:":3" }} {{ slot.starts_at|time:"h:i A" }}–{{ slot.ends_at|time:"h:i A" }}{% if slot.room %} ({{ slot.room }}){% endif %}
-                </span>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;">
+              {% regroup timetable_slots by weekday as slot_days %}
+              {% for day in slot_days %}
+                {% if day.grouper == today_weekday %}
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 8px; padding: 8px; min-height: 90px;">
+                {% else %}
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-height: 90px;">
+                {% endif %}
+                  <div class="text-xs font-bold mb-1 {% if day.grouper == today_weekday %}text-gold{% else %}text-muted{% endif %}">
+                    {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% endif %}
+                    {% if day.grouper == today_weekday %}<span class="badge badge--warning badge--xs" style="margin-left: 4px;">TODAY</span>{% endif %}
+                  </div>
+                  {% for s in day.list %}
+                    <div class="mb-1" style="border-left: 3px solid {{ s.color }}; background: rgba(255, 255, 255, 0.03); border-radius: 4px; padding: 4px 6px;">
+                      <div class="font-mono text-primary" style="font-size: 0.68rem; line-height: 1.25;">
+                        <span class="font-bold">{{ s.starts_at|time:"g:i A" }}</span><br>
+                        <span class="text-muted">– {{ s.ends_at|time:"g:i A" }}</span>
+                      </div>
+                      <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }}{% if s.room %} · {{ s.room }}{% endif %}</div>
+                    </div>
+                  {% endfor %}
+                </div>
               {% endfor %}
             </div>
-          {% endif %}
+          </div>
+        {% endif %}
+
+        {% if upcoming_exams %}
+          <div class="mb-3">
+            <div class="text-xs font-bold text-warning uppercase mb-2">Upcoming Exam Windows</div>
+            {% for exam in upcoming_exams %}
+              <div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; margin-bottom: 6px;">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-bold text-primary">{{ exam.title }}</span>
+                  <span class="text-gold font-mono">{{ exam.start_datetime|date:"M d, Y" }}</span>
+                </div>
+                {% if exam.location %}
+                  <div class="text-muted text-xs mt-0.5"><i class="fas fa-location-dot"></i> {{ exam.location }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="text-xs font-bold text-muted uppercase mb-2">My Enrolled Classes</div>
+        {% for enr in active_enrollments %}
+          <div style="padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 6px; margin-bottom: 6px;">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-primary">{{ enr.class_obj.subject.code }} — {{ enr.class_obj.class_code }}</span>
+              <span class="badge badge--primary badge--xs font-mono">{{ enr.class_obj.subject.units }} units</span>
+            </div>
+            <div class="text-muted text-xs mt-0.5" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              {{ enr.class_obj.subject.name }}
+            </div>
+            {% if enr.class_obj.slots.all %}
+              <div class="mt-1 flex items-center gap-1 flex-wrap">
+                {% for slot in enr.class_obj.slots.all %}
+                  <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.04); font-size: 0.65rem;">
+                    {{ slot.get_weekday_display|slice:":3" }} {{ slot.starts_at|time:"h:i A" }}–{{ slot.ends_at|time:"h:i A" }}{% if slot.room %} ({{ slot.room }}){% endif %}
+                  </span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="empty-state" style="padding: 16px 12px;">
+            <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+            <div class="empty-state-title">No Enrolled Classes</div>
+            <p class="empty-state-text">You are not currently enrolled in any active class sections.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Secondary Column: Upcoming Term Milestones & Published Calendar -->
+  <div class="student-dashboard-aside">
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+        <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
+          <i class="fas fa-calendar-days text-gold"></i> College Academic Calendar
         </div>
-      {% empty %}
-        <div class="empty-state">
-          <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
-          <div class="empty-state-title">No Enrolled Classes</div>
-          <p class="empty-state-text">You are not currently enrolled in any active class sections.</p>
-        </div>
-      {% endfor %}
+        <span class="text-muted text-xs" style="white-space: nowrap;">Official Dates</span>
+      </div>
+      <div class="student-calendar-list" style="padding: 12px 14px;">
+        {% for evt in upcoming_calendar_events %}
+          <div style="padding: 9px 11px; margin-bottom: 7px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {{ evt.category_meta.color }}; border-radius: 6px;">
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.05); color: {{ evt.category_meta.color }}; border: 1px solid {{ evt.category_meta.color }}40;">
+                <i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.get_category_display }}
+              </span>
+              <span class="text-muted font-mono" style="font-size: 0.7rem;">{{ evt.start_datetime|date:"M d, Y" }}</span>
+            </div>
+            <div class="font-bold text-sm text-primary">{{ evt.title }}</div>
+            {% if evt.description %}
+              <p class="text-muted text-xs mt-1 mb-0" style="font-size: 0.72rem; line-height: 1.35;">{{ evt.description|truncatechars:80 }}</p>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="empty-state" style="padding: 16px 12px;">
+            <div class="empty-state-icon"><i class="fas fa-calendar-day"></i></div>
+            <div class="empty-state-title">No Milestones Scheduled</div>
+            <p class="empty-state-text">There are no upcoming institutional calendar milestones scheduled at this time.</p>
+          </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </div>
