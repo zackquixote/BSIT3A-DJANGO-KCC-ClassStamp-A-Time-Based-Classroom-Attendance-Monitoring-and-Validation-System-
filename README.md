@@ -15,7 +15,8 @@ ClassStamp includes defense-in-depth controls for authentication, authorization,
 
 ---
 
-# BSIT Capstone Project Concept Paper
+# KCC ClassStamp - A Time-Based Classroom Attendance Monitoring and Validation System
+## BSIT Capstone Project Concept Paper
 
 ## INTRODUCTION
 
