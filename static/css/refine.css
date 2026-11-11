@@ -1993,21 +1993,22 @@ label.form-label i { display: none !important; }
   border-left: 1px solid var(--border) !important;
   border-radius: 0 !important;
   background: transparent !important;
-  padding: 12px 16px !important;
-  gap: 0 !important;
-  display: block !important;
+  padding: 14px 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
 }
 
 .student-stat-grid .stat-card:first-child { border-left: 0 !important; }
-.student-stat-grid .stat-icon { display: none !important; }
+.student-stat-grid .stat-icon { display: flex !important; }
 .student-stat-grid .stat-value { font-size: 1.4rem !important; }
 .student-stat-grid .stat-label { font-size: 0.67rem !important; letter-spacing: 0.05em !important; }
 
 /* The rate is the signal; the sentinel sentence stays neutral. */
-.s-subject-state { color: var(--text-muted) !important; }
-.s-subject-state.is-good,
-.s-subject-state.is-watch,
-.s-subject-state.is-low { color: var(--text-muted) !important; }
+.s-subject-state { color: var(--text-muted) !important; font-weight: 500; }
+.s-subject-state.is-good { color: #4eca8a !important; font-weight: 600; }
+.s-subject-state.is-watch { color: #f5c518 !important; font-weight: 600; }
+.s-subject-state.is-low { color: #f07070 !important; font-weight: 600; }
 
 /* Slightly larger body text: these pages are read on phones. */
 .s-subject-code { font-size: 0.82rem !important; }
@@ -2906,12 +2907,26 @@ textarea.form-control:focus {
   margin-bottom: 12px !important;
 }
 
-/* ── KPI strip — compact and colorful ────────────────────────── */
+/* ── KPI strip — compact, colorful & responsive ─────────────── */
 .dash-kpi-strip {
   display: grid !important;
   grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-  gap: 10px !important;
-  margin-bottom: 10px !important;
+  gap: 12px !important;
+  margin-bottom: 14px !important;
+}
+
+@media (max-width: 1366px) {
+  .dash-kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
 }
 
 .dash-kpi-card {
@@ -2947,12 +2962,26 @@ textarea.form-control:focus {
 .dash-kpi-delta--down { color: #f07070 !important; }
 .dash-kpi-delta--flat { color: var(--text-dim) !important; }
 
-/* ── Bottom panel grid — 4 equal columns ────────────────────── */
+/* ── Bottom panel grid — 4 equal columns with clean responsive wrap */
 .dash-panel-grid {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 12px !important;
+  gap: 14px !important;
   align-items: start !important;
+}
+
+@media (max-width: 1366px) {
+  .dash-panel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-panel-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
 }
 
 /* ── Panels — KCC navy with gold border ──────────────────────── */
