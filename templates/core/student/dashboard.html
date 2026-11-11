@@ -1,270 +1,396 @@
 {% extends "theme/base.html" %}
+{% load static classstamp_icons %}
 {% block title %}Student Dashboard — KCC ClassStamp{% endblock %}
 
 {% block content %}
-<header class="page-header s-header">
+<!-- Page Header -->
+<div class="page-header mb-4">
   <div>
     <h1 class="page-title">Student Dashboard</h1>
     <p class="page-subtitle">
-      Welcome, <strong class="text-primary">{{ request.user.get_full_name|default:request.user.get_username }}</strong>
-      <span class="s-dot">·</span>
-      <span class="text-muted">{{ today_date|date:"l, F j, Y" }}</span>
+      Welcome, <strong class="text-primary">{{ request.user.get_full_name|default:request.user.get_username }}</strong> &nbsp;•&nbsp; 
+      <span class="text-gold font-mono">{{ today_date|date:"l, F j, Y" }}</span>
     </p>
   </div>
-  <div class="s-header-actions">
-    <a href="{% url 'student_qr_badge' %}" class="btn btn-primary">
-      <i data-lucide="qr-code"></i>
-      <i class="fas fa-qrcode lucide-fallback"></i> Show my QR
-    </a>
+  <div class="flex items-center gap-2 flex-wrap">
     <a href="{% url 'student_join_class' %}" class="btn btn-outline">
-      <i class="fas fa-key"></i> Join a class
+      <i class="fas fa-key"></i> Join a Class
     </a>
-    <a href="{% url 'student_attendance_log' %}" class="s-quiet-link">Attendance log</a>
+    <a href="{% url 'student_qr_badge' %}" class="btn btn-primary">
+      {% icon "qr-code" %} Show My QR
+    </a>
+    <a href="{% url 'student_attendance_log' %}" class="btn btn-outline">
+      {% icon "calendar-check" %} Attendance Log
+    </a>
+    <a href="{% url 'student_excuse_slips' %}" class="btn btn-outline student-quick-action--dup">
+      {% icon "file-text" %} Excuse Slips
+    </a>
+    <a href="{% url 'student_profile' %}" class="btn btn-outline student-quick-action--dup">
+      {% icon "circle-user-round" %} Edit Profile
+    </a>
   </div>
-</header>
+</div>
 
 {% if today_holiday %}
-<div class="s-notice">
-  <i class="fas fa-flag-checkered"></i>
-  <div>
-    <div class="s-notice-title">{{ today_holiday.title }}</div>
-    <div class="s-notice-text">
-      {{ today_holiday.description|default:"Official Philippine holiday recognised in the KCC academic calendar." }}
+<!-- Holiday Alert Banner -->
+<div class="card mb-4" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%); border: 1px solid rgba(245, 158, 11, 0.35); padding: 14px 18px;">
+  <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 12px;">
+    <div class="flex items-center gap-3">
+      <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; color: var(--accent-gold); font-size: 1.1rem; flex-shrink: 0;">
+        {% icon "flag" %}
+      </div>
+      <div>
+        <div class="flex items-center gap-2" style="flex-wrap: wrap; row-gap: 4px;">
+          <span class="badge badge--warning text-xs font-bold">{{ today_holiday.get_category_display|upper }}</span>
+          <span class="font-bold text-primary text-base">{{ today_holiday.title }}</span>
+        </div>
+        <p class="text-secondary text-xs mt-1 mb-0">
+          {{ today_holiday.description|default:"Official Philippine Holiday recognized in KCC Academic Calendar." }}
+        </p>
+      </div>
+    </div>
+    <div>
+      <span class="badge badge--outline text-xs"><i class="fas fa-calendar-day"></i> Academic Observance</span>
     </div>
   </div>
-  <span class="badge badge--warning">{{ today_holiday.get_category_display }}</span>
 </div>
 {% endif %}
 
-<button type="button" class="s-stats-toggle" id="studentStatsToggleBtn"
+<!-- Mobile-Only Stats Toggle (hidden on desktop/tablet via CSS) -->
+<button type="button" class="student-stats-toggle-btn" id="studentStatsToggleBtn"
   aria-expanded="false" aria-controls="studentKpiCollapsible">
-  <span class="s-stats-toggle-label">Attendance stats</span>
-  <span class="s-stats-toggle-values">
-    <span class="is-present">{{ present_count }}P</span>
-    <span class="is-late">{{ late_count }}L</span>
-    <span class="is-absent">{{ absent_count }}A</span>
+  <span class="student-stats-toggle-left">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      style="color:rgba(56,189,248,0.9)">
+      <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+    </svg>
+    <span style="font-size:0.88rem;font-weight:600;color:#e2e8f0;">Attendance Stats</span>
   </span>
-  <i class="fas fa-chevron-down s-chevron"></i>
+  <span class="student-stats-summary-pill">
+    <span style="color:#4ade80;">{{ present_count }}P</span>&nbsp;·&nbsp;
+    <span style="color:#f59e0b;">{{ late_count }}L</span>&nbsp;·&nbsp;
+    <span style="color:#f87171;">{{ absent_count }}A</span>
+  </span>
+  <svg class="toggle-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+    style="opacity:0.6;flex-shrink:0;">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
 </button>
 
-<div class="s-kpi" id="studentKpiCollapsible">
-  <div class="s-kpi-item">
-    <span class="s-kpi-value">{{ present_count }}</span>
-    <span class="s-kpi-label">Present</span>
-  </div>
-  <div class="s-kpi-item">
-    <span class="s-kpi-value">{{ late_count }}</span>
-    <span class="s-kpi-label">Late</span>
-  </div>
-  <div class="s-kpi-item">
-    <span class="s-kpi-value">{{ absent_count }}</span>
-    <span class="s-kpi-label">Absent</span>
-  </div>
-  <div class="s-kpi-item">
-    <span class="s-kpi-value">{{ enrolled_class_count }}</span>
-    <span class="s-kpi-label">Enrolled classes</span>
+<!-- Summary KPI Stat Cards (Collapsible on Mobile, 4-col on Desktop) -->
+<div class="student-kpi-collapsible" id="studentKpiCollapsible">
+  <div class="stat-grid student-stat-grid mb-6">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--green">
+        {% icon "user-check" %}
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ present_count }}</span>
+        <span class="stat-label">Present</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--gold">
+        {% icon "clock" %}
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ late_count }}</span>
+        <span class="stat-label">Late</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--red">
+        {% icon "user-x" %}
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ absent_count }}</span>
+        <span class="stat-label">Absent</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--purple">
+        {% icon "book-open" %}
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ enrolled_class_count }}</span>
+        <span class="stat-label">Enrolled Classes</span>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="s-columns">
-  <div class="s-col s-col--main">
-
-    <section class="s-panel">
-      <div class="s-panel-head">
-        <h2 class="s-panel-title">Attendance by subject</h2>
-        <span class="s-panel-note">Present + late ÷ meetings</span>
+<!-- S-09: Excuse Slip Status Tracker -->
+{% if excuse_slips %}
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+  <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+    <div class="font-semibold text-primary flex items-center gap-2">
+      <i class="fas fa-file-medical text-gold"></i> My Excuse Slips
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="badge badge--warning badge--xs">{{ excuse_slip_counts.pending|default:0 }} Pending</span>
+      <span class="badge badge--success badge--xs">{{ excuse_slip_counts.approved|default:0 }} Approved</span>
+      <span class="badge badge--danger badge--xs">{{ excuse_slip_counts.rejected|default:0 }} Rejected</span>
+    </div>
+  </div>
+  <div style="padding: 12px 16px;">
+    {% for slip in excuse_slips %}
+      {% if slip.status == 'APPROVED' %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #22c55e; border-radius: 6px; margin-bottom: 8px;">
+      {% elif slip.status == 'REJECTED' %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #ef4444; border-radius: 6px; margin-bottom: 8px;">
+      {% else %}
+      <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid #f59e0b; border-radius: 6px; margin-bottom: 8px;">
+      {% endif %}
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <span class="font-bold text-primary text-sm">{{ slip.session.slot.class_obj.subject.code }} — {{ slip.session.slot.class_obj.class_code }}</span>
+            <span class="text-muted text-xs font-mono"> • {{ slip.session.session_date|date:"M d, Y" }}</span>
+          </div>
+          {% if slip.status == 'PENDING' %}
+            <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Pending Review</span>
+          {% elif slip.status == 'APPROVED' %}
+            <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Approved</span>
+          {% else %}
+            <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> Rejected</span>
+          {% endif %}
+        </div>
+        <div class="text-secondary text-xs mt-1" style="line-height: 1.45;">{{ slip.reason|truncatechars:120 }}</div>
+        {% if slip.status == 'REJECTED' and slip.review_note %}
+          <div class="text-xs mt-1" style="color: #fca5a5;"><i class="fas fa-comment"></i> Instructor: {{ slip.review_note|truncatechars:120 }}</div>
+        {% endif %}
+        <div class="text-muted text-xs mt-1 font-mono">Submitted {{ slip.created_at|date:"M d, Y h:i A" }}</div>
       </div>
-      <div class="s-panel-body">
-        {% for b in class_breakdowns %}
-        <article class="s-subject">
-          <div class="s-subject-head">
-            <div class="s-subject-id">
-              <span class="s-subject-code">{{ b.class_obj.subject.code }} — {{ b.class_obj.class_code }}</span>
-              <span class="s-subject-meta">
-                {% if b.class_obj.teacher_profile %}{{ b.class_obj.teacher_profile.user.get_full_name|default:b.class_obj.teacher_profile.user.username }}{% else %}Unassigned{% endif %}
-              </span>
-            </div>
-            {% if b.meetings %}
-            <div class="s-subject-score">
-              <span class="s-subject-rate{% if b.compliance is not None %}{% if b.compliance >= 90 %} is-good{% elif b.compliance >= 80 %} is-watch{% else %} is-low{% endif %}{% else %} is-empty{% endif %}">
-                {% if b.compliance is not None %}{{ b.compliance }}%{% else %}—{% endif %}
-              </span>
-              {% if b.sentinel.stage == 'green' %}<span class="s-subject-state">{{ b.sentinel.label }}</span>
-              {% elif b.sentinel.stage == 'amber' %}<span class="s-subject-state">{{ b.sentinel.label }}</span>
-              {% elif b.sentinel.stage == 'orange' %}<span class="s-subject-state">{{ b.sentinel.label }}</span>
-              {% elif b.sentinel.stage == 'red' %}<span class="s-subject-state">{{ b.sentinel.label }}</span>
-              {% else %}<span class="s-subject-state">{{ b.sentinel.label }}</span>{% endif %}
-            </div>
-            {% endif %}
-          </div>
+    {% endfor %}
+    <div class="text-xs mt-1">
+      <a href="{% url 'student_excuse_slips' %}" class="text-gold"><i class="fas fa-arrow-right"></i> Manage excuse slips</a>
+    </div>
+  </div>
+</div>
+{% endif %}
 
-          {% if b.meetings %}
-          <div class="s-split">
-            <div class="s-split-item"><span class="s-split-value is-good">{{ b.present }}</span><span class="s-split-label">Present</span></div>
-            <div class="s-split-item"><span class="s-split-value is-watch">{{ b.late }}</span><span class="s-split-label">Late</span></div>
-            <div class="s-split-item"><span class="s-split-value is-low">{{ b.absent }}</span><span class="s-split-label">Absent</span></div>
-            <div class="s-split-item"><span class="s-split-value is-excused">{{ b.excused }}</span><span class="s-split-label">Excused</span></div>
+<!-- Calendar Milestones & Enrolled Timetable -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  <!-- Upcoming Term Milestones & Published Calendar -->
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
+        <i class="fas fa-calendar-days text-gold"></i> College Academic Calendar
+      </div>
+      <span class="text-muted text-xs" style="white-space: nowrap;">Official Dates</span>
+    </div>
+    <div style="padding: 12px 16px;">
+      {% for evt in upcoming_calendar_events %}
+        <div style="padding: 10px 12px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-left: 3px solid {{ evt.category_meta.color }}; border-radius: 6px;">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.05); color: {{ evt.category_meta.color }}; border: 1px solid {{ evt.category_meta.color }}40;">
+              <i class="fas {{ evt.category_meta.icon }}"></i> {{ evt.get_category_display }}
+            </span>
+            <span class="text-muted font-mono" style="font-size: 0.7rem;">{{ evt.start_datetime|date:"M d, Y" }}</span>
           </div>
-          <details class="s-meetings">
-            <summary>Meeting log ({{ b.meetings|length }})</summary>
-            <div class="s-meetings-list">
-              {% for m in b.meetings %}
-              <div class="s-meeting">
-                <span class="s-meeting-date">{{ m.session_date|date:"M d, Y" }}</span>
-                {% if m.status == 'PRESENT' %}<span class="s-meeting-state is-good">Present</span>
-                {% elif m.status == 'LATE' %}<span class="s-meeting-state is-watch">Late{% if m.late_minutes %} +{{ m.late_minutes }}m{% endif %}</span>
-                {% elif m.status == 'ABSENT' %}<span class="s-meeting-state is-low">Absent</span>
-                {% elif m.status == 'EXCUSED' %}<span class="s-meeting-state is-excused">Excused</span>
-                {% else %}<span class="s-meeting-state">{{ m.status }}</span>{% endif %}
+          <div class="font-bold text-sm text-primary">{{ evt.title }}</div>
+          {% if evt.description %}
+            <p class="text-muted text-xs mt-1 mb-0" style="font-size: 0.72rem; line-height: 1.35;">{{ evt.description|truncatechars:80 }}</p>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-calendar-day"></i></div>
+          <div class="empty-state-title">No Milestones Scheduled</div>
+          <p class="empty-state-text">There are no upcoming institutional calendar milestones scheduled at this time.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Per-Subject Attendance Breakdown Cards (S-03) -->
+  <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 16px;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
+        <i class="fas fa-chart-simple text-gold"></i> Attendance Breakdown by Subject
+      </div>
+      <span class="text-muted text-xs" style="white-space: nowrap;">Present + Late ÷ Meetings</span>
+    </div>
+    <div style="padding: 12px 16px;">
+      {% for b in class_breakdowns %}
+        <div style="padding: 10px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 8px;">
+          {% if b.sentinel.stage == 'green' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80;">
+              <i class="fas fa-circle-check"></i> {{ b.sentinel.label }}
+            </div>
+          {% elif b.sentinel.stage == 'amber' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24;">
+              <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
+            </div>
+          {% elif b.sentinel.stage == 'orange' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.5); color: #fb923c;">
+              <i class="fas fa-triangle-exclamation"></i> {{ b.sentinel.label }}
+            </div>
+          {% elif b.sentinel.stage == 'red' %}
+            <div class="text-xs" style="margin-bottom: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.55); color: #f87171;">
+              <i class="fas fa-circle-exclamation"></i> {{ b.sentinel.label }}
+            </div>
+          {% endif %}
+          <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span class="font-bold text-primary text-sm">{{ b.class_obj.subject.code }} — {{ b.class_obj.class_code }}</span>
+              <div class="text-muted text-xs mt-0.5">
+                <i class="fas fa-chalkboard-user"></i>
+                {% if b.class_obj.teacher_profile %}
+                  {{ b.class_obj.teacher_profile.user.get_full_name|default:b.class_obj.teacher_profile.user.username }}
+                {% else %}
+                  Unassigned
+                {% endif %}
               </div>
+            </div>
+            <span class="badge font-mono text-xs {% if b.compliance is not None %}{% if b.compliance >= 90 %}badge--success{% elif b.compliance >= 80 %}badge--warning{% else %}badge--danger{% endif %}{% else %}badge--muted{% endif %}">
+              {% if b.compliance is not None %}{{ b.compliance }}% compliance{% else %}No meetings yet{% endif %}
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;">
+            <div style="text-align: center; background: rgba(34, 197, 94, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-success text-sm">{{ b.present }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">PRESENT</div>
+            </div>
+            <div style="text-align: center; background: rgba(245, 158, 11, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-warning text-sm">{{ b.late }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">LATE</div>
+            </div>
+            <div style="text-align: center; background: rgba(239, 68, 68, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-danger text-sm">{{ b.absent }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">ABSENT</div>
+            </div>
+            <div style="text-align: center; background: rgba(139, 92, 246, 0.08); border-radius: 4px; padding: 4px;">
+              <div class="font-mono font-bold text-sm" style="color: #a78bfa;">{{ b.excused }}</div>
+              <div class="text-muted" style="font-size: 0.6rem;">EXCUSED</div>
+            </div>
+          </div>
+          {% if b.meetings %}
+          <details style="margin-top: 8px;">
+            <summary class="text-muted text-xs" style="cursor: pointer;">
+              <i class="fas fa-list-ul"></i> Meeting log ({{ b.meetings|length }})
+            </summary>
+            <div style="margin-top: 6px; max-height: 200px; overflow-y: auto;">
+              {% for m in b.meetings %}
+                <div class="flex items-center justify-between text-xs" style="padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                  <span class="font-mono text-muted">{{ m.session_date|date:"M d, Y" }}</span>
+                  {% if m.status == 'PRESENT' %}
+                    <span class="badge badge--success badge--xs"><i class="fas fa-circle-check"></i> Present</span>
+                  {% elif m.status == 'LATE' %}
+                    <span class="badge badge--warning badge--xs"><i class="fas fa-clock"></i> Late{% if m.late_minutes %} +{{ m.late_minutes }}m{% endif %}</span>
+                  {% elif m.status == 'ABSENT' %}
+                    <span class="badge badge--danger badge--xs"><i class="fas fa-circle-xmark"></i> Absent</span>
+                  {% elif m.status == 'EXCUSED' %}
+                    <span class="badge badge--purple badge--xs"><i class="fas fa-file-medical"></i> Excused</span>
+                  {% else %}
+                    <span class="badge badge--muted badge--xs">{{ m.status }}</span>
+                  {% endif %}
+                </div>
               {% endfor %}
             </div>
           </details>
-          {% else %}
-          <p class="s-none">No meetings recorded for this section yet.</p>
           {% endif %}
-        </article>
-        {% empty %}
-        <p class="s-empty">No subject breakdown yet. Once you are enrolled, each subject shows its own attendance here.</p>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="s-panel">
-      <div class="s-panel-head">
-        <h2 class="s-panel-title">My excuse slips</h2>
-        <span class="s-panel-note">
-          {{ excuse_slip_counts.pending|default:0 }} pending · {{ excuse_slip_counts.approved|default:0 }} approved
-        </span>
-      </div>
-      <div class="s-panel-body s-list">
-        {% for slip in excuse_slips %}
-        <div class="s-record">
-          <div class="s-record-main">
-            <div class="s-record-title">
-              {{ slip.session.slot.class_obj.subject.code }} — {{ slip.session.slot.class_obj.class_code }}
-              <span class="s-record-date">{{ slip.session.session_date|date:"M d, Y" }}</span>
-            </div>
-            {% if slip.reason %}<p class="s-record-note">{{ slip.reason|truncatechars:110 }}</p>{% endif %}
-            {% if slip.status == 'REJECTED' and slip.review_note %}
-            <p class="s-record-note is-low">Instructor: {{ slip.review_note|truncatechars:110 }}</p>
-            {% endif %}
-            <div class="s-record-meta">Submitted {{ slip.created_at|date:"M d, Y g:i A" }}</div>
-          </div>
-          {% if slip.status == 'PENDING' %}<span class="badge badge--warning">Pending review</span>
-          {% elif slip.status == 'APPROVED' %}<span class="badge badge--success">Approved</span>
-          {% else %}<span class="badge badge--danger">Rejected</span>{% endif %}
         </div>
-        {% empty %}
-        <p class="s-empty">No excuse slips filed. Absences can be justified from the excuse slip page.</p>
-        {% endfor %}
-      </div>
-      <div class="s-panel-foot">
-        <a href="{% url 'student_excuse_slips' %}">Manage excuse slips →</a>
-      </div>
-    </section>
-
+      {% empty %}
+        <p class="text-muted text-xs" style="text-align: center; padding: 12px 0;">No subject breakdown yet — once you are enrolled, each subject shows its own attendance here.</p>
+      {% endfor %}
+    </div>
   </div>
 
-  <div class="s-col s-col--side">
-
-    <section class="s-panel">
-      <div class="s-panel-head">
-        <h2 class="s-panel-title">This week</h2>
-        <span class="s-panel-note">Weekly schedule</span>
+  <!-- Examination Schedules & Active Course Timetable -->
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px;">
+      <div class="font-semibold text-primary flex items-center gap-2" style="min-width: 0;">
+        <i class="fas fa-file-pen text-gold"></i> Examination Windows &amp; Timetable
       </div>
-      <div class="s-panel-body">
-        {% if timetable_slots %}
-        <div class="s-week">
-          {% regroup timetable_slots by weekday as slot_days %}
-          {% for day in slot_days %}
-          <div class="s-week-row{% if day.grouper == today_weekday %} is-today{% endif %}">
-            <span class="s-week-day">
-              {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% else %}Sun{% endif %}
-            </span>
-            <div class="s-week-slots">
-              {% for s in day.list %}
-              <div class="s-week-slot">
-                <span class="s-week-time">{{ s.starts_at|time:"g:i A" }}–{{ s.ends_at|time:"g:i A" }}</span>
-                <span class="s-week-subject">{{ s.subject_code }}{% if s.room %} · {{ s.room }}{% endif %}</span>
+      <span class="text-muted text-xs" style="white-space: nowrap;">Institutional Schedule</span>
+    </div>
+    <div style="padding: 12px 16px;">
+      <!-- S-05: Visual Weekly Timetable Grid -->
+      {% if timetable_slots %}
+        <div class="mb-3">
+          <div class="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-2">
+            <i class="fas fa-table-cells text-gold"></i> Weekly Class Grid
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px;">
+            {% regroup timetable_slots by weekday as slot_days %}
+            {% for day in slot_days %}
+              {% if day.grouper == today_weekday %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(245, 158, 11, 0.6); border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% else %}
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-height: 90px;">
+              {% endif %}
+                <div class="text-xs font-bold mb-1 {% if day.grouper == today_weekday %}text-gold{% else %}text-muted{% endif %}">
+                  {% if day.grouper == 0 %}Mon{% elif day.grouper == 1 %}Tue{% elif day.grouper == 2 %}Wed{% elif day.grouper == 3 %}Thu{% elif day.grouper == 4 %}Fri{% elif day.grouper == 5 %}Sat{% endif %}
+                  {% if day.grouper == today_weekday %}<span class="badge badge--warning badge--xs" style="margin-left: 4px;">TODAY</span>{% endif %}
+                </div>
+                {% for s in day.list %}
+                  <div class="mb-1" style="border-left: 3px solid {{ s.color }}; background: rgba(255, 255, 255, 0.03); border-radius: 4px; padding: 4px 6px;">
+                    <div class="font-mono text-primary" style="font-size: 0.68rem; line-height: 1.25;">
+                      <span class="font-bold">{{ s.starts_at|time:"g:i A" }}</span><br>
+                      <span class="text-muted">– {{ s.ends_at|time:"g:i A" }}</span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.65rem;">{{ s.subject_code }}{% if s.room %} · {{ s.room }}{% endif %}</div>
+                  </div>
+                {% endfor %}
               </div>
-              {% endfor %}
-            </div>
-            {% if day.grouper == today_weekday %}<span class="s-today-flag">Today</span>{% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="s-empty">No meeting times published for your sections yet.</p>
-        {% endif %}
-
-        {% if upcoming_exams %}
-        <h3 class="s-subhead">Upcoming exam windows</h3>
-        {% for exam in upcoming_exams %}
-        <div class="s-exam">
-          <span class="s-exam-title">{{ exam.title }}</span>
-          <span class="s-exam-date">{{ exam.start_datetime|date:"M d" }}</span>
-          {% if exam.location %}<span class="s-exam-room">{{ exam.location }}</span>{% endif %}
-        </div>
-        {% endfor %}
-        {% endif %}
-
-        <h3 class="s-subhead">My classes</h3>
-        {% for enr in active_enrollments %}
-        <div class="s-class">
-          <div class="s-class-head">
-            <span class="s-class-code">{{ enr.class_obj.subject.code }} — {{ enr.class_obj.class_code }}</span>
-            <span class="s-class-units">{{ enr.class_obj.subject.units }} units</span>
-          </div>
-          <div class="s-class-name">{{ enr.class_obj.subject.name }}</div>
-          {% if enr.class_obj.slots.all %}
-          <div class="s-class-slots">
-            {% for slot in enr.class_obj.slots.all %}
-            <span>{{ slot.get_weekday_display|slice:":3" }} {{ slot.starts_at|time:"g:i A" }}–{{ slot.ends_at|time:"h:i A" }}{% if slot.room %} · {{ slot.room }}{% endif %}</span>
             {% endfor %}
           </div>
+        </div>
+      {% endif %}
+
+      {% if upcoming_exams %}
+        <div class="mb-3">
+          <div class="text-xs font-bold text-warning uppercase mb-2">Upcoming Exam Windows</div>
+          {% for exam in upcoming_exams %}
+            <div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; margin-bottom: 6px;">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-primary">{{ exam.title }}</span>
+                <span class="text-gold font-mono">{{ exam.start_datetime|date:"M d, Y" }}</span>
+              </div>
+              {% if exam.location %}
+                <div class="text-muted text-xs mt-0.5"><i class="fas fa-location-dot"></i> {{ exam.location }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="text-xs font-bold text-muted uppercase mb-2">My Enrolled Classes</div>
+      {% for enr in active_enrollments %}
+        <div style="padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: 6px; margin-bottom: 6px;">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-primary">{{ enr.class_obj.subject.code }} — {{ enr.class_obj.class_code }}</span>
+            <span class="badge badge--primary badge--xs font-mono">{{ enr.class_obj.subject.units }} units</span>
+          </div>
+          <div class="text-muted text-xs mt-0.5" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {{ enr.class_obj.subject.name }}
+          </div>
+          {% if enr.class_obj.slots.all %}
+            <div class="mt-1 flex items-center gap-1 flex-wrap">
+              {% for slot in enr.class_obj.slots.all %}
+                <span class="badge badge--xs font-mono" style="background: rgba(255, 255, 255, 0.04); font-size: 0.65rem;">
+                  {{ slot.get_weekday_display|slice:":3" }} {{ slot.starts_at|time:"h:i A" }}–{{ slot.ends_at|time:"h:i A" }}{% if slot.room %} ({{ slot.room }}){% endif %}
+                </span>
+              {% endfor %}
+            </div>
           {% endif %}
         </div>
-        {% empty %}
-        <p class="s-empty">You are not enrolled in any active class section.</p>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="s-panel">
-      <div class="s-panel-head">
-        <h2 class="s-panel-title">College calendar</h2>
-        <span class="s-panel-note">Official dates</span>
-      </div>
-      <div class="s-panel-body s-list">
-        {% for evt in upcoming_calendar_events|slice:":3" %}
-        <div class="s-event">
-          <span class="s-event-date">
-            <strong>{{ evt.start_datetime|date:"d" }}</strong>
-            <span>{{ evt.start_datetime|date:"M" }}</span>
-          </span>
-          <div class="s-event-body">
-            <div class="s-event-title">{{ evt.title }}</div>
-            <div class="s-event-meta">
-              {{ evt.get_category_display }}{% if evt.description %} · {{ evt.description|truncatechars:60 }}{% endif %}
-            </div>
-          </div>
+      {% empty %}
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fas fa-book-open"></i></div>
+          <div class="empty-state-title">No Enrolled Classes</div>
+          <p class="empty-state-text">You are not currently enrolled in any active class sections.</p>
         </div>
-        {% empty %}
-        <p class="s-empty">No institutional milestones scheduled.</p>
-        {% endfor %}
-      </div>
-      <div class="s-panel-foot">
-        <a href="{% url 'excuse_calendar_page' %}">Open the full calendar →</a>
-      </div>
-    </section>
-
+      {% endfor %}
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
+<script>
   document.addEventListener('DOMContentLoaded', function() {
     const statsBtn = document.getElementById('studentStatsToggleBtn');
     const collapsible = document.getElementById('studentKpiCollapsible');

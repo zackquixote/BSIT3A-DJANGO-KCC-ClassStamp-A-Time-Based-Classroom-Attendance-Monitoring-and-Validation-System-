@@ -179,6 +179,26 @@
       }
     });
 
+    // Cookie helpers — the server reads these so the sidebar's collapsed/expanded
+    // state is already correct in the first paint of the next page.
+    function readCookie(name) {
+      var parts = document.cookie ? document.cookie.split('; ') : [];
+      for (var i = 0; i < parts.length; i++) {
+        var idx = parts[i].indexOf('=');
+        if (idx > -1 && parts[i].slice(0, idx) === name) {
+          return decodeURIComponent(parts[i].slice(idx + 1));
+        }
+      }
+      return null;
+    }
+
+    function writeCookie(name, value) {
+      var expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      document.cookie = name + '=' + value +
+        '; path=/; expires=' + expires.toUTCString() + '; SameSite=Lax';
+    }
+
     // Toggle for specific sidebar dropdowns (Security & Oversight) with preference persistence
     document.querySelectorAll('.sidebar-dropdown').forEach(function (dropdown) {
       var dropdownKey = dropdown.getAttribute('data-sidebar-dropdown');
@@ -188,13 +208,16 @@
       var storageKey = 'kcc_sidebar_dd_' + dropdownKey;
       var hasActiveLink = dropdown.querySelector('.sidebar-link.active') !== null;
 
-      // Keep open if currently active link is inside; otherwise respect saved preference
+      // Keep open if currently active link is inside; otherwise respect the
+      // saved preference. The server already rendered is-open from the cookie
+      // (and sidebar.html migrated any legacy localStorage value pre-paint), so
+      // this only re-syncs the class in case the markup and cookie disagree.
       if (hasActiveLink) {
         dropdown.classList.add('is-open');
         toggle.setAttribute('aria-expanded', 'true');
       } else {
         try {
-          var savedState = localStorage.getItem(storageKey);
+          var savedState = readCookie(storageKey);
           if (savedState === 'open') {
             dropdown.classList.add('is-open');
             toggle.setAttribute('aria-expanded', 'true');
@@ -212,29 +235,27 @@
         dropdown.classList.toggle('is-open', nextState);
         toggle.setAttribute('aria-expanded', nextState ? 'true' : 'false');
         try {
-          localStorage.setItem(storageKey, nextState ? 'open' : 'closed');
+          var value = nextState ? 'open' : 'closed';
+          localStorage.setItem(storageKey, value);
+          writeCookie(storageKey, value);
         } catch (_) {}
       });
     });
 
-    // Smooth sidebar scroll preservation across page navigations (prevents scroll jumps)
+    // Persist sidebar scroll position. Restoring it happens earlier, in the
+    // pre-paint inline script inside sidebar.html, so the rail is already at the
+    // right offset before the first paint (no scroll jump after load).
     var sidebarNavEl = document.querySelector('.sidebar-nav');
     if (sidebarNavEl) {
-      try {
-        var savedScroll = sessionStorage.getItem('kcc_sidebar_scroll');
-        if (savedScroll !== null) {
-          sidebarNavEl.scrollTop = parseInt(savedScroll, 10) || 0;
-        }
-        var scrollRaf = null;
-        sidebarNavEl.addEventListener('scroll', function () {
-          if (scrollRaf) cancelAnimationFrame(scrollRaf);
-          scrollRaf = requestAnimationFrame(function () {
-            try {
-              sessionStorage.setItem('kcc_sidebar_scroll', sidebarNavEl.scrollTop);
-            } catch (_) {}
-          });
-        }, { passive: true });
-      } catch (_) {}
+      var scrollRaf = null;
+      sidebarNavEl.addEventListener('scroll', function () {
+        if (scrollRaf) cancelAnimationFrame(scrollRaf);
+        scrollRaf = requestAnimationFrame(function () {
+          try {
+            sessionStorage.setItem('kcc_sidebar_scroll', sidebarNavEl.scrollTop);
+          } catch (_) {}
+        });
+      }, { passive: true });
     }
 
     // In-page section navigation (teacher "Scan Attendance" / "My Classes")

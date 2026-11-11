@@ -1,7 +1,7 @@
 /* =============================================================
    KCC ClassStamp — Design Tokens
-   Restrained institutional console: one accent, hairline borders,
-   semantic color reserved for status. No glows, no gradient text.
+   Official KCC Kabankalan Catholic College color palette:
+   Deep Navy Blue (#1a2a6c) + Institutional Gold (#f5c518)
    ============================================================= */
 
 /* ── Fonts ───────────────────────────────────────────────────── */
@@ -9,53 +9,53 @@
 
 /* ── CSS Custom Properties ───────────────────────────────────── */
 :root {
-  /* Canvas — flat navy, no decorative gradients */
-  --bg-base:             #0a0f18;
-  --bg-surface:          #0e1520;
-  --bg-elevated:         #131b27;
-  --bg-card:             #101825;
-  --bg-card-hover:       #141d2b;
+  /* Canvas — KCC deep navy blue, matches the seal background */
+  --bg-base:             #121b2e;
+  --bg-surface:          #16223a;
+  --bg-elevated:         #1b2a44;
+  --bg-card:             #182640;
+  --bg-card-hover:       #1e2f4c;
 
-  /* Hairline structure. Glass aliases stay for templates that still use them. */
-  --border:              rgba(255, 255, 255, 0.075);
-  --border-strong:       rgba(255, 255, 255, 0.13);
-  --glass-bg:            rgba(255, 255, 255, 0.04);
-  --glass-bg-hover:      rgba(255, 255, 255, 0.07);
-  --glass-border:        var(--border);
-  --glass-border-hover:  var(--border-strong);
-  --glass-border-gold:   rgba(216, 169, 68, 0.45);
+  /* Hairline structure */
+  --border:              rgba(245, 197, 24, 0.18);
+  --border-strong:       rgba(245, 197, 24, 0.30);
+  --glass-bg:            rgba(26, 42, 108, 0.35);
+  --glass-bg-hover:      rgba(26, 42, 108, 0.5);
+  --glass-border:        rgba(245, 197, 24, 0.22);
+  --glass-border-hover:  rgba(245, 197, 24, 0.36);
+  --glass-border-gold:   rgba(245, 197, 24, 0.5);
   --glass-blur:          blur(10px);
 
-  /* Accent — muted institutional gold, used for action and state only */
-  --accent-gold:         #d8a944;
-  --accent-gold-h:       #e6ba5c;
-  --accent-gold-dark:    #b68a30;
-  --accent-gold-glow:    transparent;
-  --accent-ink:          #0a0f18;
-  --accent-blue:         #6b93c9;
-  --accent-blue-h:       #8aabe0;
-  --accent-blue-glow:    transparent;
+  /* Accent — KCC institutional gold from the official seal */
+  --accent-gold:         #f5c518;
+  --accent-gold-h:       #ffd740;
+  --accent-gold-dark:    #c9a010;
+  --accent-gold-glow:    rgba(245, 197, 24, 0.25);
+  --accent-ink:          #0d1526;
+  --accent-blue:         #3a5bbf;
+  --accent-blue-h:       #4e72d6;
+  --accent-blue-glow:    rgba(58, 91, 191, 0.3);
 
-  /* Status — desaturated so they read as labels, not decoration */
-  --success:             #4ea87a;
-  --success-glow:        transparent;
-  --warning:             #d8a944;
-  --warning-glow:        transparent;
-  --danger:              #d96666;
-  --danger-glow:         transparent;
-  --info:                #6b93c9;
-  --info-glow:           transparent;
+  /* Status — clear and readable against navy */
+  --success:             #4eca8a;
+  --success-glow:        rgba(78, 202, 138, 0.2);
+  --warning:             #f5c518;
+  --warning-glow:        rgba(245, 197, 24, 0.2);
+  --danger:              #f06060;
+  --danger-glow:         rgba(240, 96, 96, 0.2);
+  --info:                #5b9bd5;
+  --info-glow:           rgba(91, 155, 213, 0.2);
 
   /* Text */
-  --text-primary:        #f1f4f9;
-  --text-secondary:      #b3bdcb;
-  --text-muted:          #7f8b9c;
-  --text-dim:            #5b6675;
+  --text-primary:        #f4f6fb;
+  --text-secondary:      #d2dae9;
+  --text-muted:          #9ba9c2;
+  --text-dim:            #75859d;
 
   /* Role labels */
   --role-admin:          #a58cd4;
-  --role-teacher:        #d8a944;
-  --role-student:        #4ea87a;
+  --role-teacher:        #f5c518;
+  --role-student:        #4eca8a;
 
   /* Sizing & Borders */
   --sidebar-w:           232px;
@@ -75,16 +75,16 @@
   --space-5:             20px;
   --space-6:             24px;
 
-  /* Shadows — only for floating layers */
-  --shadow-sm:           0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md:           0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg:           0 18px 48px rgba(0, 0, 0, 0.55);
-  --shadow-gold:         none;
+  /* Shadows — KCC navy-tinted */
+  --shadow-sm:           0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md:           0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-lg:           0 18px 48px rgba(0, 0, 0, 0.6);
+  --shadow-gold:         0 4px 20px rgba(245, 197, 24, 0.18);
 
   /* Motion */
   --transition:          background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
   --transition-fast:     background-color 0.12s ease, border-color 0.12s ease;
 
-  /* Numeric type — figures line up in tables and KPI strips */
+  /* Numeric type */
   --font-num:            'Inter', ui-monospace, 'SF Mono', Menlo, monospace;
 }

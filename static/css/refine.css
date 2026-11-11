@@ -31,8 +31,8 @@ body {
 }
 
 ::selection {
-  background: rgba(216, 169, 68, 0.28);
-  color: #fff;
+  background: rgba(245, 197, 24, 0.28);
+  color: #0d1526;
 }
 
 a { color: var(--accent-gold-h); }
@@ -620,9 +620,9 @@ textarea.form-control:focus {
 /* ── 11. Sidebar ──────────────────────────────────────────────── */
 
 .sidebar {
-  background: #0b111b;
-  border-right: 1px solid var(--border);
-  box-shadow: none;
+  background: linear-gradient(180deg, #0f1d3a 0%, #0d1830 60%, #091425 100%);
+  border-right: 1px solid rgba(245, 197, 24, 0.12);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
   padding: 0 10px 10px;
 }
 
@@ -2609,3 +2609,613 @@ span.excc-chip:hover { filter: none; }
   line-height: 1.4;
 }
 .s-event-date strong { font-size: 0.78rem; }
+
+/* ═══════════════════════════════════════════════════════════════
+   KCC COLOR ENHANCEMENT — Bring life back using official KCC colors
+   Deep Navy Blue (#1a2a6c) + Institutional Gold (#f5c518)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Restore icons — refine.css hid them all ─────────────────── */
+.badge i, .badge svg { display: inline-flex !important; }
+.dash-kpi-badge i { display: inline-flex !important; }
+.stat-icon i, .stat-icon svg { display: inline-flex !important; }
+.table thead th i, .table thead th svg { display: inline-flex !important; }
+.dash-launcher-icon i, .dash-launcher-icon svg { display: inline-flex !important; }
+.dash-view-btn i { display: inline-flex !important; }
+
+/* ── KPI stat cards — colored icons ──────────────────────────── */
+.stat-icon {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1rem !important;
+}
+
+.stat-icon--gold   { background: rgba(245, 197, 24, 0.15) !important; border: 1px solid rgba(245, 197, 24, 0.3) !important; color: #f5c518 !important; }
+.stat-icon--green  { background: rgba(78, 202, 138, 0.15) !important; border: 1px solid rgba(78, 202, 138, 0.3) !important; color: #4eca8a !important; }
+.stat-icon--blue   { background: rgba(58, 91, 191, 0.2) !important;   border: 1px solid rgba(58, 91, 191, 0.4) !important;   color: #7a9de0 !important; }
+.stat-icon--purple { background: rgba(165, 140, 212, 0.15) !important; border: 1px solid rgba(165, 140, 212, 0.3) !important; color: #c4a8f0 !important; }
+.stat-icon--danger { background: rgba(240, 96, 96, 0.15) !important;   border: 1px solid rgba(240, 96, 96, 0.3) !important;   color: #f07070 !important; }
+.stat-icon--info   { background: rgba(91, 155, 213, 0.15) !important;  border: 1px solid rgba(91, 155, 213, 0.3) !important;  color: #7ab5e8 !important; }
+
+/* ── KPI cards — gold value numbers ──────────────────────────── */
+.dash-kpi-value,
+.stat-value {
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Cards — gold top border for active ones ─────────────────── */
+.card:hover,
+.dash-panel:hover {
+  border-color: rgba(245, 197, 24, 0.25) !important;
+  background: var(--bg-card-hover) !important;
+}
+
+/* ── Bell notification badge ─────────────────────────────────── */
+.bell-badge-count {
+  background: #f5c518 !important;
+  color: #0d1526 !important;
+  font-weight: 800 !important;
+}
+
+/* ── Sidebar badge (Account Validation count) ────────────────── */
+.sidebar-badge {
+  background: rgba(245, 197, 24, 0.18) !important;
+  color: #f5c518 !important;
+  border: 1px solid rgba(245, 197, 24, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Active sidebar link ──────────────────────────────────────── */
+.sidebar-link.active {
+  background: rgba(245, 197, 24, 0.1) !important;
+  color: #f5c518 !important;
+  border-left: 2px solid #f5c518 !important;
+}
+
+.sidebar-link.active i,
+.sidebar-link.active svg { color: #f5c518 !important; }
+
+.sidebar-link.active::before {
+  background: #f5c518 !important;
+}
+
+/* ── Buttons — primary uses KCC gold ─────────────────────────── */
+.btn-primary {
+  background: #f5c518 !important;
+  border-color: #f5c518 !important;
+  color: #0d1526 !important;
+  font-weight: 700 !important;
+}
+
+.btn-primary:hover {
+  background: #ffd740 !important;
+  border-color: #ffd740 !important;
+}
+
+/* ── Badges — restore colors ─────────────────────────────────── */
+.badge--success { background: rgba(78, 202, 138, 0.15) !important; border-color: rgba(78, 202, 138, 0.35) !important; color: #5dd49a !important; }
+.badge--warning { background: rgba(245, 197, 24, 0.15) !important;  border-color: rgba(245, 197, 24, 0.35) !important;  color: #f5c518 !important; }
+.badge--danger  { background: rgba(240, 96, 96, 0.15) !important;   border-color: rgba(240, 96, 96, 0.35) !important;   color: #f07878 !important; }
+.badge--info    { background: rgba(91, 155, 213, 0.15) !important;  border-color: rgba(91, 155, 213, 0.35) !important;  color: #7ab5e8 !important; }
+.badge--purple  { background: rgba(165, 140, 212, 0.15) !important; border-color: rgba(165, 140, 212, 0.35) !important; color: #c4a8f0 !important; }
+
+/* ── Dashboard KPI icons ──────────────────────────────────────── */
+.dash-kpi-icon--gold   { background: rgba(245, 197, 24, 0.15) !important;  border: 1px solid rgba(245, 197, 24, 0.3) !important;  color: #f5c518 !important;  box-shadow: 0 0 14px rgba(245, 197, 24, 0.15) !important; }
+.dash-kpi-icon--green  { background: rgba(78, 202, 138, 0.15) !important;  border: 1px solid rgba(78, 202, 138, 0.3) !important;  color: #4eca8a !important;  box-shadow: 0 0 14px rgba(78, 202, 138, 0.12) !important; }
+.dash-kpi-icon--blue   { background: rgba(58, 91, 191, 0.2) !important;    border: 1px solid rgba(58, 91, 191, 0.35) !important;   color: #7a9de0 !important;  box-shadow: 0 0 14px rgba(58, 91, 191, 0.12) !important; }
+.dash-kpi-icon--purple { background: rgba(165, 140, 212, 0.15) !important; border: 1px solid rgba(165, 140, 212, 0.3) !important; color: #c4a8f0 !important; box-shadow: none !important; }
+
+/* ── Section labels — KCC gold tint ──────────────────────────── */
+.sidebar-section-label {
+  color: rgba(245, 197, 24, 0.5) !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* ── Panel title icons ───────────────────────────────────────── */
+.dash-panel-title i,
+.dash-panel-title svg { color: #f5c518 !important; display: inline-flex !important; opacity: 1 !important; }
+
+/* ── Active nav tab ──────────────────────────────────────────── */
+.dash-tab-btn.is-active,
+.dash-tab-btn[aria-selected="true"] {
+  background: rgba(245, 197, 24, 0.12) !important;
+  color: #f5c518 !important;
+}
+
+/* ── Chart range active button ───────────────────────────────── */
+.dash-chart-range-btn.is-active {
+  background: #f5c518 !important;
+  color: #0d1526 !important;
+  font-weight: 700 !important;
+}
+
+/* ── Topbar brand text ───────────────────────────────────────── */
+.sidebar-brand-accent,
+.text-gold { color: #f5c518 !important; }
+
+/* ── Role badges ─────────────────────────────────────────────── */
+.role-badge.role-admin   { background: rgba(165, 140, 212, 0.18); color: #c4a8f0; border: 1px solid rgba(165, 140, 212, 0.3); }
+.role-badge.role-teacher { background: rgba(245, 197, 24, 0.18);  color: #f5c518;  border: 1px solid rgba(245, 197, 24, 0.3); }
+.role-badge.role-student { background: rgba(78, 202, 138, 0.18);  color: #4eca8a;  border: 1px solid rgba(78, 202, 138, 0.3); }
+
+/* ── Form focus ──────────────────────────────────────────────── */
+.form-control:focus,
+select.form-control:focus,
+textarea.form-control:focus {
+  border-color: rgba(245, 197, 24, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.12) !important;
+}
+
+/* ── Page link active ────────────────────────────────────────── */
+.page-link.active {
+  background: #f5c518 !important;
+  border-color: #f5c518 !important;
+  color: #0d1526 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KCC BELL + DASHBOARD FIT — Fix bell color & no-scroll dashboard
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Bell notification button — KCC gold ─────────────────────── */
+.btn-bell-notification {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 8px !important;
+  background: rgba(245, 197, 24, 0.1) !important;
+  border: 1px solid rgba(245, 197, 24, 0.3) !important;
+  color: #f5c518 !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+.btn-bell-notification:hover {
+  background: rgba(245, 197, 24, 0.18) !important;
+  border-color: rgba(245, 197, 24, 0.5) !important;
+  color: #ffd740 !important;
+}
+
+.btn-bell-notification i,
+.btn-bell-notification svg {
+  color: #f5c518 !important;
+  font-size: 0.95rem !important;
+}
+
+.btn-bell--idle {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--border) !important;
+  color: var(--text-muted) !important;
+}
+
+.btn-bell--idle i,
+.btn-bell--idle svg {
+  color: var(--text-muted) !important;
+}
+
+.btn-bell--idle:hover {
+  background: rgba(245, 197, 24, 0.1) !important;
+  border-color: rgba(245, 197, 24, 0.3) !important;
+  color: #f5c518 !important;
+}
+
+.bell-badge-count {
+  position: absolute !important;
+  top: -5px !important;
+  right: -5px !important;
+  min-width: 17px !important;
+  height: 17px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #f5c518 !important;
+  color: #0d1526 !important;
+  font-size: 0.6rem !important;
+  font-weight: 800 !important;
+  border: 2px solid var(--bg-base) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ── Dashboard no-scroll — fit everything in viewport ────────── */
+/* The main content area should not overflow on the dashboard */
+.dash-panel-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+
+/* KPI strip — compact so it doesn't eat too much vertical space */
+.dash-kpi-strip {
+  gap: 10px !important;
+}
+
+.dash-kpi-card {
+  padding: 12px 14px 10px !important;
+  min-height: 0 !important;
+}
+
+.dash-kpi-value {
+  font-size: 1.35rem !important;
+  margin-bottom: 1px !important;
+}
+
+.dash-kpi-delta {
+  margin-top: 6px !important;
+}
+
+/* Bottom panels — compact padding */
+.dash-panel-body {
+  padding: 10px 14px !important;
+}
+
+.dash-panel-head {
+  padding: 10px 14px !important;
+}
+
+/* Approved list — limit height so it doesn't push down */
+.dash-approved-list {
+  max-height: 220px !important;
+  overflow-y: auto !important;
+}
+
+.dash-dept-list {
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
+
+/* Chart area — reduce height a bit */
+.dash-chart-wrap,
+.dash-chart-body {
+  height: 180px !important;
+  min-height: 0 !important;
+}
+
+/* Enrollment alert banner — compact */
+.dash-enroll-alert {
+  padding: 8px 14px !important;
+  font-size: 0.78rem !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KCC DASHBOARD COMPREHENSIVE ENHANCEMENT
+   Fix chart height + color life + no-scroll layout
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Chart — reduce height so bottom panels fit in viewport ───── */
+.dash-chart-canvas-wrapper {
+  height: 160px !important;
+  min-height: 0 !important;
+  max-height: 160px !important;
+}
+
+#weeklyAttendanceChart {
+  max-height: 160px !important;
+}
+
+.dash-chart-card {
+  margin-bottom: 12px !important;
+}
+
+/* ── KPI strip — compact and colorful ────────────────────────── */
+.dash-kpi-strip {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+.dash-kpi-card {
+  padding: 12px 14px 10px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(245, 197, 24, 0.12) !important;
+  background: linear-gradient(135deg, #131e32 0%, #0f1826 100%) !important;
+  transition: border-color 0.2s ease, transform 0.2s ease !important;
+}
+
+.dash-kpi-card:hover {
+  border-color: rgba(245, 197, 24, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* First card (Pending Validations) — gold accent */
+.dash-kpi-card--pulse {
+  border-color: rgba(245, 197, 24, 0.35) !important;
+  background: linear-gradient(135deg, rgba(245, 197, 24, 0.08) 0%, #0f1826 100%) !important;
+}
+
+/* ── KPI value — large and bright ───────────────────────────── */
+.dash-kpi-value {
+  font-size: 1.6rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.03em !important;
+}
+
+/* ── Delta — color coded ─────────────────────────────────────── */
+.dash-kpi-delta--up   { color: #4eca8a !important; }
+.dash-kpi-delta--down { color: #f07070 !important; }
+.dash-kpi-delta--flat { color: var(--text-dim) !important; }
+
+/* ── Bottom panel grid — 4 equal columns ────────────────────── */
+.dash-panel-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+
+/* ── Panels — KCC navy with gold border ──────────────────────── */
+.dash-panel {
+  background: linear-gradient(135deg, #131e32 0%, #0f1826 100%) !important;
+  border: 1px solid rgba(245, 197, 24, 0.12) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+
+.dash-panel:hover {
+  border-color: rgba(245, 197, 24, 0.25) !important;
+}
+
+.dash-panel-head {
+  padding: 10px 14px !important;
+  border-bottom: 1px solid rgba(245, 197, 24, 0.1) !important;
+  background: rgba(245, 197, 24, 0.03) !important;
+}
+
+.dash-panel-title {
+  font-size: 0.84rem !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+}
+
+.dash-panel-title i,
+.dash-panel-title svg {
+  color: #f5c518 !important;
+  display: inline-flex !important;
+}
+
+/* ── Launcher buttons — colored icons ───────────────────────── */
+.dash-launcher-btn {
+  border-radius: 8px !important;
+  padding: 8px 8px !important;
+  transition: background 0.15s ease !important;
+}
+
+.dash-launcher-btn:hover {
+  background: rgba(245, 197, 24, 0.07) !important;
+}
+
+.dash-launcher-icon {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.85rem !important;
+}
+
+.dash-launcher-label {
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  font-size: 0.78rem !important;
+}
+
+.dash-launcher-sub {
+  color: var(--text-muted) !important;
+  font-size: 0.68rem !important;
+}
+
+/* ── Dept list — compact ─────────────────────────────────────── */
+.dash-dept-list {
+  max-height: 230px !important;
+  overflow-y: auto !important;
+}
+
+.dash-dept-badge {
+  background: rgba(165, 140, 212, 0.15) !important;
+  border-color: rgba(165, 140, 212, 0.3) !important;
+  color: #c4a8f0 !important;
+}
+
+/* ── Approved list ───────────────────────────────────────────── */
+.dash-approved-list {
+  max-height: 230px !important;
+  overflow-y: auto !important;
+}
+
+.dash-approved-avatar {
+  background: rgba(245, 197, 24, 0.12) !important;
+  border: 1px solid rgba(245, 197, 24, 0.25) !important;
+  color: #f5c518 !important;
+  font-weight: 700 !important;
+}
+
+/* ── Chart head ──────────────────────────────────────────────── */
+.dash-chart-head {
+  padding: 10px 16px !important;
+  border-bottom: 1px solid rgba(245, 197, 24, 0.1) !important;
+}
+
+.dash-chart-title {
+  font-size: 0.84rem !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+}
+
+.dash-chart-title i,
+.dash-chart-title svg { color: #f5c518 !important; }
+
+.dash-chart-sub {
+  font-size: 0.72rem !important;
+  color: var(--text-muted) !important;
+}
+
+/* ── Unenrolled strip — gold alert bar ──────────────────────── */
+.dash-unenrolled-strip,
+.dash-enroll-alert {
+  background: rgba(245, 197, 24, 0.07) !important;
+  border: 1px solid rgba(245, 197, 24, 0.25) !important;
+  border-left: 3px solid #f5c518 !important;
+  border-radius: 8px !important;
+  padding: 8px 14px !important;
+  font-size: 0.78rem !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.dash-unenrolled-strip i,
+.dash-unenrolled-strip a {
+  color: #f5c518 !important;
+  font-weight: 600 !important;
+}
+
+/* ── Holiday banner ──────────────────────────────────────────── */
+.dash-holiday-banner {
+  background: rgba(245, 197, 24, 0.07) !important;
+  border: 1px solid rgba(245, 197, 24, 0.25) !important;
+  border-left: 3px solid #f5c518 !important;
+  margin-bottom: 10px !important;
+  padding: 10px 16px !important;
+}
+
+/* ── Action badge on KPI card ────────────────────────────────── */
+.dash-kpi-badge {
+  color: #f5c518 !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  margin-top: 8px !important;
+}
+
+/* ── Tab group active ────────────────────────────────────────── */
+.dash-tab-btn.is-active,
+.dash-tab-btn[aria-selected="true"] {
+  background: rgba(245, 197, 24, 0.14) !important;
+  color: #f5c518 !important;
+  font-weight: 700 !important;
+}
+
+/* ── Chart range active ──────────────────────────────────────── */
+.dash-chart-range-btn.is-active {
+  background: #f5c518 !important;
+  color: #0d1526 !important;
+  font-weight: 800 !important;
+}
+
+/* ── View switcher active ────────────────────────────────────── */
+.dash-view-btn.is-active {
+  background: rgba(245, 197, 24, 0.14) !important;
+  color: #f5c518 !important;
+}
+
+/* ── Header actions buttons ──────────────────────────────────── */
+.dash-header-actions .btn-outline {
+  border-color: rgba(245, 197, 24, 0.3) !important;
+  color: rgba(245, 197, 24, 0.9) !important;
+}
+
+.dash-header-actions .btn-outline:hover {
+  background: rgba(245, 197, 24, 0.1) !important;
+  border-color: rgba(245, 197, 24, 0.5) !important;
+  color: #f5c518 !important;
+}
+
+/* ── Term/clock pills ────────────────────────────────────────── */
+.dash-term-pill {
+  color: rgba(245, 197, 24, 0.85) !important;
+  font-weight: 600 !important;
+}
+
+.dash-term-pill i { color: #f5c518 !important; }
+.dash-clock-pill i { color: #f5c518 !important; }
+
+/* ── Main content — reduce padding to fit dashboard ─────────── */
+.main-content {
+  padding: 16px 20px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PROF FEEDBACK — Remove all colored icon chip backgrounds
+   from stat cards. Icons are plain monochrome only.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Target ALL stat icon variants — remove box entirely */
+.stat-icon,
+.stat-icon--gold,
+.stat-icon--green,
+.stat-icon--blue,
+.stat-icon--purple,
+.stat-icon--info,
+.stat-icon--danger,
+.stat-icon--red,
+.stat-icon--muted,
+[class*="stat-icon"] {
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.9rem !important;
+}
+
+/* Dash KPI icons — same treatment */
+.dash-kpi-icon,
+.dash-kpi-icon--gold,
+.dash-kpi-icon--green,
+.dash-kpi-icon--blue,
+.dash-kpi-icon--purple,
+.dash-kpi-icon--red,
+[class*="dash-kpi-icon"] {
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.9rem !important;
+}
+
+/* Launcher icons — same treatment */
+.dash-launcher-icon,
+[class*="dash-launcher-icon"] {
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.85rem !important;
+}
+
+/* Also handle inline style overrides on icon divs in dashboard.html */
+.dash-launcher-btn .dash-launcher-icon[style] {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+}

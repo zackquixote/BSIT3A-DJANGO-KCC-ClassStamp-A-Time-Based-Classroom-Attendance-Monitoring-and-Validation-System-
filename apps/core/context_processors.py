@@ -30,6 +30,13 @@ def pending_approval_count(request):
     # present in the very first byte of HTML, no JS needed on load.
     sidebar_collapsed = request.COOKIES.get('kcc_sidebar_collapsed', '') == '1'
 
+    # Same idea for the Security / Oversight dropdowns. They used to be opened
+    # from localStorage on DOMContentLoaded, so the rail painted collapsed and
+    # then popped open on every navigation. Reading the cookie lets the server
+    # render the final open/closed state in the first paint instead.
+    sidebar_dd_security_open = request.COOKIES.get('kcc_sidebar_dd_security', '') == 'open'
+    sidebar_dd_oversight_open = request.COOKIES.get('kcc_sidebar_dd_oversight', '') == 'open'
+
     if user is not None and user.is_authenticated:
         profile = getattr(user, 'classstamp_profile', None)
         unread_notification_count = Notification.objects.filter(
@@ -54,6 +61,8 @@ def pending_approval_count(request):
                     status=AnomalyFlag.STATUS_OPEN,
                 ).count(),
                 'sidebar_collapsed': sidebar_collapsed,
+                'sidebar_dd_security_open': sidebar_dd_security_open,
+                'sidebar_dd_oversight_open': sidebar_dd_oversight_open,
             }
         return {
             'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
@@ -65,6 +74,8 @@ def pending_approval_count(request):
             'pending_approval_count': 0,
             'open_anomaly_count': 0,
             'sidebar_collapsed': sidebar_collapsed,
+            'sidebar_dd_security_open': sidebar_dd_security_open,
+            'sidebar_dd_oversight_open': sidebar_dd_oversight_open,
         }
     return {
         'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
@@ -73,4 +84,6 @@ def pending_approval_count(request):
         'pending_approval_count': 0,
         'open_anomaly_count': 0,
         'sidebar_collapsed': sidebar_collapsed,
+        'sidebar_dd_security_open': sidebar_dd_security_open,
+        'sidebar_dd_oversight_open': sidebar_dd_oversight_open,
     }

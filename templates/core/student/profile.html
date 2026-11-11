@@ -1,5 +1,5 @@
 {% extends "theme/base.html" %}
-{% load static %}
+{% load static classstamp_icons %}
 {% block title %}My Profile — KCC ClassStamp{% endblock %}
 
 {% block extra_css %}
@@ -272,12 +272,10 @@
   </div>
   <div class="flex items-center gap-2 flex-wrap">
     <a href="{% url 'student_qr_badge' %}" class="btn btn-outline">
-      <i data-lucide="qr-code"></i>
-      <i class="fas fa-qrcode lucide-fallback"></i> Show My QR
+      {% icon "qr-code" %} Show My QR
     </a>
     <a href="{% url 'student_dashboard' %}" class="btn btn-outline">
-      <i data-lucide="layout-dashboard"></i>
-      <i class="fas fa-gauge-high lucide-fallback"></i> Dashboard
+      {% icon "layout-dashboard" %} Dashboard
     </a>
   </div>
 </div>
@@ -390,7 +388,7 @@
   <div class="flex flex-col gap-4" style="min-width: 0;">
     <div class="card profile-card">
       <div class="profile-section-title">
-        <span class="profile-section-icon"><i data-lucide="user-round"></i><i class="fas fa-user lucide-fallback"></i></span>
+        <span class="profile-section-icon">{% icon "user-round" %}</span>
         Personal Information
       </div>
       <div class="profile-body">
@@ -436,8 +434,7 @@
 
           <div class="profile-actions">
             <button type="submit" class="btn btn-primary">
-              <i data-lucide="save"></i>
-              <i class="fas fa-floppy-disk lucide-fallback"></i> Save Changes
+              {% icon "save" %} Save Changes
             </button>
           </div>
         </form>
@@ -446,7 +443,7 @@
 
     <div class="card profile-card">
       <div class="profile-section-title">
-        <span class="profile-section-icon"><i data-lucide="shield-check"></i><i class="fas fa-shield-halved lucide-fallback"></i></span>
+        <span class="profile-section-icon">{% icon "shield-check" %}</span>
         Account Security
       </div>
       <div class="profile-body">
@@ -483,8 +480,7 @@
 
           <div class="profile-actions">
             <button type="submit" class="btn btn-outline">
-              <i data-lucide="key-round"></i>
-              <i class="fas fa-key lucide-fallback"></i> Update Password
+              {% icon "key-round" %} Update Password
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 {% extends "theme/base.html" %}
+{% load static classstamp_icons %}
 {% block title %}Attendance Log — KCC ClassStamp{% endblock %}
 
 {% block extra_css %}
@@ -142,8 +143,7 @@
   <div class="stat-grid student-stat-grid mb-6">
     <div class="stat-card">
       <div class="stat-icon stat-icon--green">
-        <i data-lucide="user-check"></i>
-        <i class="fas fa-user-check lucide-fallback"></i>
+        {% icon "user-check" %}
       </div>
       <div class="stat-info">
         <span class="stat-value">{{ totals.present_count|default:0 }}</span>
@@ -152,8 +152,7 @@
     </div>
     <div class="stat-card">
       <div class="stat-icon stat-icon--gold">
-        <i data-lucide="clock"></i>
-        <i class="fas fa-clock lucide-fallback"></i>
+        {% icon "clock" %}
       </div>
       <div class="stat-info">
         <span class="stat-value">{{ totals.late_count|default:0 }}</span>
@@ -162,8 +161,7 @@
     </div>
     <div class="stat-card">
       <div class="stat-icon stat-icon--red">
-        <i data-lucide="user-x"></i>
-        <i class="fas fa-user-xmark lucide-fallback"></i>
+        {% icon "user-x" %}
       </div>
       <div class="stat-info">
         <span class="stat-value">{{ totals.absent_count|default:0 }}</span>
@@ -172,8 +170,7 @@
     </div>
     <div class="stat-card">
       <div class="stat-icon stat-icon--purple">
-        <i data-lucide="percent"></i>
-        <i class="fas fa-percent lucide-fallback"></i>
+        {% icon "percent" %}
       </div>
       <div class="stat-info">
         <span class="stat-value">{{ totals.compliance_rate }}%</span>

@@ -39,3 +39,4 @@ scratch/
 # Local tool caches and stray error captures
 .pytest_cache/
 *.err
+xampp/
