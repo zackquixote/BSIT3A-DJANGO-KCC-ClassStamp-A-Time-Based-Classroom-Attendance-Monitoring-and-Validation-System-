@@ -2021,66 +2021,43 @@ label.form-label i { display: none !important; }
   }
 }
 
-/* ── Student Dashboard Fluid & Compact Multi-Device Layout ──────── */
-.student-dashboard-layout {
+/* ── Student Dashboard Multi-Device Grid ─────────────────────── */
+.student-dashboard-grid {
   display: grid !important;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) !important;
-  gap: 14px !important;
-  align-items: start !important;
-  margin-bottom: 16px !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+  margin-bottom: 24px !important;
+  width: 100% !important;
 }
 
-.student-dashboard-main {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 14px !important;
-  min-width: 0 !important;
-}
-
-.student-dashboard-aside {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 14px !important;
-  min-width: 0 !important;
-}
-
-.student-dashboard-layout .card {
-  height: auto !important;
-  align-self: start !important;
+.student-dashboard-grid > .card {
+  width: 100% !important;
   margin-bottom: 0 !important;
   border: 1px solid rgba(245, 197, 24, 0.14) !important;
   background: linear-gradient(135deg, #131e32 0%, #0f1826 100%) !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
-.student-dashboard-layout .empty-state {
-  padding: 16px 12px !important;
+.student-dashboard-grid > .card > div:last-child {
+  flex: 1 1 auto;
 }
 
-.student-calendar-list {
-  max-height: 520px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(245, 197, 24, 0.25) transparent;
+@media (max-width: 1100px) {
+  .student-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
 }
-.student-calendar-list::-webkit-scrollbar { width: 4px; }
-.student-calendar-list::-webkit-scrollbar-thumb { background: rgba(245, 197, 24, 0.25); border-radius: 4px; }
 
-/* Responsive break: Tablet & iPad */
-@media (max-width: 960px) {
-  .student-dashboard-layout {
+@media (max-width: 768px) {
+  .student-dashboard-grid {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
-}
-
-/* Responsive break: Mobile phones */
-@media (max-width: 768px) {
   .student-quick-action--dup {
     display: none !important;
-  }
-  .student-dashboard-main,
-  .student-dashboard-aside {
-    gap: 10px !important;
   }
 }
 
