@@ -2157,9 +2157,15 @@ body.role-student [class*="profile-photo"] {
 }
 
 @media (max-width: 700px) {
-  .student-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .student-stat-grid .stat-card:nth-child(odd) { border-left: 0 !important; }
-  .student-stat-grid .stat-card:nth-child(n+3) { border-top: 1px solid var(--border) !important; }
+  .student-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .student-stat-grid .stat-card {
+    border: 1px solid rgba(245, 197, 24, 0.16) !important;
+    border-radius: 8px !important;
+    padding: 8px 10px !important;
+  }
 }
 
 /* ── 29. Student forms and notes ─────────────────────────────── */
