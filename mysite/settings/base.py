@@ -103,7 +103,9 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 # Values come from the environment (see .env.example). Defaults match a local
 # XAMPP/MySQL development setup.
 
-USE_SQLITE = os.environ.get('USE_SQLITE', 'False').lower() in ('true', '1', 'yes')
+_is_pa = 'PYTHONANYWHERE_DOMAIN' in os.environ or 'PYTHONANYWHERE_SITE' in os.environ
+_env_sqlite = os.environ.get('USE_SQLITE', '').lower() in ('true', '1', 'yes')
+USE_SQLITE = _env_sqlite or (_is_pa and 'DB_HOST' not in os.environ)
 
 if USE_SQLITE:
     DATABASES = {
