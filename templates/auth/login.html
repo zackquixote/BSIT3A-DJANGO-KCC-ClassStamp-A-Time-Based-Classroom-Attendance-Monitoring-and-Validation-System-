@@ -1,6 +1,6 @@
 {% load static classstamp_assets %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="kcc-auth-html">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="{% bundle_static 'css/classstamp.bundle.css' %}">
 </head>
 <body class="kcc-auth-page">
+
+  {% include "theme/boot_splash.html" %}
 
   <div class="kcc-split-layout">
     

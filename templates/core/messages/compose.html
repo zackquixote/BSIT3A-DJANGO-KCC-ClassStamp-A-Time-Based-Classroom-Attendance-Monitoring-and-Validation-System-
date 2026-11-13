@@ -1,50 +1,107 @@
 {% extends "theme/base.html" %}
 {% block title %}New message — KCC ClassStamp{% endblock %}
 
-{% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">New message</h1>
-    <p class="page-subtitle">Write to a user you are allowed to contact.</p>
-  </div>
-  <a href="{% url 'message_inbox' %}" class="btn btn-outline">
-    <i class="fas fa-arrow-left"></i> Inbox
-  </a>
-</div>
+{% block extra_css %}
+<style>
+  /* Compose sits on its own: one centred column, so the form never hugs the
+     left edge with half the screen empty. */
+  .msg-compose {
+    width: min(100%, 760px);
+    margin: 0 auto;
+  }
 
-<div class="card" style="max-width: 720px; padding: 20px;">
-  {% if error %}
-    <div class="toast toast--error mb-3">{{ error }}</div>
-  {% endif %}
-  <form method="post" action="{% url 'message_compose' %}">
-    {% csrf_token %}
-    <div class="form-group mb-3">
-      <label class="form-label" for="recipient">To <span class="text-danger">*</span></label>
-      <select name="recipient" id="recipient" class="form-control" required>
-        <option value="">— Choose a recipient —</option>
-        {% for user in recipients %}
-          <option value="{{ user.pk }}" {% if user.pk|stringformat:"s" == preselect|stringformat:"s" %}selected{% endif %}>
-            {{ user.get_full_name|default:user.get_username }} ({{ user.username }})
-          </option>
-        {% endfor %}
-      </select>
-      {% if not recipients %}
-        <p class="form-hint">No one is available to message yet. Recipients appear once you share an active class with a teacher or student.</p>
-      {% endif %}
+  .msg-compose .page-header { margin-bottom: 18px; }
+
+  .msg-compose .msg-card {
+    max-width: none;
+    padding: 24px;
+  }
+
+  .msg-compose .form-group { margin-bottom: 18px; }
+
+  .msg-compose textarea.form-control {
+    min-height: 220px;
+    resize: vertical;
+    line-height: 1.55;
+  }
+
+  .msg-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 640px) {
+    .msg-compose .msg-card { padding: 16px; }
+
+    .msg-compose textarea.form-control { min-height: 180px; }
+
+    .msg-actions {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+
+    .msg-actions .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="msg-compose">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">New message</h1>
+      <p class="page-subtitle">Write to a user you are allowed to contact.</p>
     </div>
-    <div class="form-group mb-3">
-      <label class="form-label" for="subject">Subject <span class="text-danger">*</span></label>
-      <input type="text" id="subject" name="subject" class="form-control" maxlength="{{ max_subject }}" value="{{ subject }}" required>
-      <p class="form-hint">Up to {{ max_subject }} characters. Long subjects are rejected, not cut off.</p>
-    </div>
-    <div class="form-group mb-3">
-      <label class="form-label" for="body">Message <span class="text-danger">*</span></label>
-      <textarea id="body" name="body" class="form-control" rows="8" maxlength="{{ max_body }}" required>{{ body }}</textarea>
-      <p class="form-hint">Up to {{ max_body }} characters.</p>
-    </div>
-    <button type="submit" class="btn btn-primary">
-      <i class="fas fa-paper-plane"></i> Send
-    </button>
-  </form>
+    <a href="{% url 'message_inbox' %}" class="btn btn-outline">
+      <i class="fas fa-arrow-left"></i> Inbox
+    </a>
+  </div>
+
+  <div class="card msg-card">
+    {% if error %}
+      <div class="toast toast--error mb-3">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{% url 'message_compose' %}">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="recipient">To <span class="text-danger">*</span></label>
+        <select name="recipient" id="recipient" class="form-control" required>
+          <option value="">— Choose a recipient —</option>
+          {% for user in recipients %}
+            <option value="{{ user.pk }}" {% if user.pk|stringformat:"s" == preselect|stringformat:"s" %}selected{% endif %}>
+              {{ user.get_full_name|default:user.get_username }} ({{ user.username }})
+            </option>
+          {% endfor %}
+        </select>
+        {% if not recipients %}
+          <p class="form-hint">No one is available to message yet. Recipients appear once you share an active class with a teacher or student.</p>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="subject">Subject <span class="text-danger">*</span></label>
+        <input type="text" id="subject" name="subject" class="form-control" maxlength="{{ max_subject }}" value="{{ subject }}" required>
+        <p class="form-hint">Up to {{ max_subject }} characters. Long subjects are rejected, not cut off.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="body">Message <span class="text-danger">*</span></label>
+        <textarea id="body" name="body" class="form-control" rows="8" maxlength="{{ max_body }}" required>{{ body }}</textarea>
+        <p class="form-hint">Up to {{ max_body }} characters.</p>
+      </div>
+
+      <div class="msg-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-paper-plane"></i> Send
+        </button>
+        <a href="{% url 'message_inbox' %}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

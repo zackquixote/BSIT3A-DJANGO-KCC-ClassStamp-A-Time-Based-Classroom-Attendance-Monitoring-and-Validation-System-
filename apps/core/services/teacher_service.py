@@ -45,7 +45,8 @@ def _assert_no_open_sessions(profile) -> None:
 
 def provision_teacher_account(
     actor, username: str, email: str, first_name: str, last_name: str,
-    dept_id: int, password: str = None, is_active: bool = True
+    dept_id: int, password: str = None, is_active: bool = True,
+    employee_number: str = None
 ) -> dict:
     """
     // [Service] Direct Provisioning of Faculty / Teacher Account
@@ -59,6 +60,7 @@ def provision_teacher_account(
     //   dept_id    (int):  Collegiate department affiliation.
     //   password   (str):  Optional password; auto-generated if omitted.
     //   is_active  (bool): Account active status.
+    //   employee_number (str): Institutional Faculty ID (required for every teacher).
     //
     // Returns: dict with keys: user, profile, generated_password, message
     // Raises: ValueError on validation failure.
@@ -74,6 +76,13 @@ def provision_teacher_account(
         raise ValueError('Email address is required.')
     if not first_name or not last_name:
         raise ValueError('First name and Last name are required.')
+
+    # // Faculty ID is mandatory for TEACHER accounts (mirrors Student ID).
+    employee_number = (employee_number or '').strip()
+    if not employee_number:
+        raise ValueError('Faculty ID number is required.')
+    if Profile.objects.filter(employee_number__iexact=employee_number).exists():
+        raise ValueError(f'Faculty ID "{employee_number}" is already registered to another faculty member.')
 
     try:
         validate_email(email)
@@ -116,6 +125,7 @@ def provision_teacher_account(
             user=user,
             role=Profile.ROLE_TEACHER,
             department=dept,
+            employee_number=employee_number,
             program=None,
             year_level=None,
             student_number=None,
@@ -129,7 +139,7 @@ def provision_teacher_account(
         action='CREATE_TEACHER',
         object_type='Profile',
         object_id=str(profile.pk),
-        new_value=f'{user.get_full_name()} ({user.username}) - Dept: {dept.code}',
+        new_value=f'{user.get_full_name()} ({user.username}) - Faculty ID: {employee_number} - Dept: {dept.code}',
     )
 
     return {
@@ -142,7 +152,8 @@ def provision_teacher_account(
 
 def update_teacher_profile(
     actor, profile_id: int, first_name: str, last_name: str,
-    email: str, dept_id: int, is_active: bool, password: str = None
+    email: str, dept_id: int, is_active: bool, password: str = None,
+    employee_number: str = None
 ) -> dict:
     """
     // [Service] Update Faculty Member Profile & Department Affiliation
@@ -173,7 +184,15 @@ def update_teacher_profile(
 
     dept = get_object_or_404(Department, pk=dept_id)
 
-    old_summary = f'{user.get_full_name()} (email: {user.email}, dept: {profile.department.code if profile.department else "None"}, active: {user.is_active})'
+    # // Faculty ID stays mandatory — an existing teacher without one must be
+    # // completed the next time HR edits the record.
+    employee_number = (employee_number or '').strip()
+    if not employee_number:
+        raise ValueError('Faculty ID number is required.')
+    if Profile.objects.filter(employee_number__iexact=employee_number).exclude(pk=profile.pk).exists():
+        raise ValueError(f'Faculty ID "{employee_number}" is already registered to another faculty member.')
+
+    old_summary = f'{user.get_full_name()} (email: {user.email}, faculty id: {profile.employee_number or "None"}, dept: {profile.department.code if profile.department else "None"}, active: {user.is_active})'
 
     with transaction.atomic():
         user.first_name = first_name
@@ -191,9 +210,10 @@ def update_teacher_profile(
         user.save()
 
         profile.department = dept
+        profile.employee_number = employee_number
         profile.save()
 
-    new_summary = f'{user.get_full_name()} (email: {user.email}, dept: {dept.code}, active: {user.is_active})'
+    new_summary = f'{user.get_full_name()} (email: {user.email}, faculty id: {employee_number}, dept: {dept.code}, active: {user.is_active})'
 
     AuditEvent.objects.create(
         actor=actor,

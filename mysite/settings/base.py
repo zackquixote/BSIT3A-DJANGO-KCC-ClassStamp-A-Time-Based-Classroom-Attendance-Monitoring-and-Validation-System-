@@ -261,6 +261,10 @@ CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = False  # Set to True in production (requires HTTPS)
 CSRF_COOKIE_SAMESITE = 'Lax'
 
+# Stale sign-in/registration pages (common on phones) get a retry redirect
+# instead of Django's bare 403 page. See apps.core.views.csrf_failure.
+CSRF_FAILURE_VIEW = 'apps.core.views.csrf_failure'
+
 # Clickjacking Protection
 X_FRAME_OPTIONS = 'DENY'
 

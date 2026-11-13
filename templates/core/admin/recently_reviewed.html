@@ -111,7 +111,13 @@
               {% if p.approval_note %}<div class="text-xs text-muted mt-1">{{ p.approval_note|truncatechars:40 }}</div>{% endif %}
             {% endif %}
           </td>
-          <td class="text-muted">{{ p.approved_by.get_full_name|default:p.approved_by.username|default:"—" }}</td>
+          <td class="text-muted">
+            {% if p.approved_by %}
+              {{ p.approved_by.get_full_name|default:p.approved_by.username }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
           <td class="text-muted text-xs">{{ p.approved_at|date:"M j, Y g:i A" }}</td>
           <td style="text-align: right;">
             <a href="{% url 'validation_detail' p.student_number %}" class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 0.75rem;">

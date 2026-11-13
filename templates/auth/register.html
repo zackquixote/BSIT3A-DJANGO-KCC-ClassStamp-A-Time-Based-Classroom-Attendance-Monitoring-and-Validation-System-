@@ -1,6 +1,6 @@
 {% load static classstamp_assets %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="kcc-auth-html">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="{% bundle_static 'css/classstamp.bundle.css' %}">
 </head>
 <body class="kcc-auth-page">
+
+  {% include "theme/boot_splash.html" %}
 
   <div class="kcc-split-layout">
 
@@ -82,9 +84,20 @@
         </div>
 
         {% if errors %}
-          <div class="auth-alert auth-alert--error" id="status-message">
+          <div class="auth-alert auth-alert--error" id="status-message" role="alert">
             <i class="fas fa-circle-xmark"></i>
-            <span>Please review and correct the highlighted fields below.</span>
+            <div>
+              <strong class="kcc-alert-title">Hindi pa naisumite — ayusin muna ito:</strong>
+              <ul class="kcc-alert-list">
+                {% for field, message in errors.items %}
+                  <li>{{ message }}</li>
+                {% endfor %}
+              </ul>
+              <p class="kcc-alert-note">
+                Para sa seguridad, hindi naka-save ang password at ang COR/ID file —
+                pakilagay at i-attach ulit bago mag-submit.
+              </p>
+            </div>
           </div>
         {% endif %}
 
@@ -335,11 +348,11 @@
             </div>
           </div>
 
-          <!-- Certificate of Registration (COR) / ID Proof Upload -->
+          <!-- Certificate of Registration (COR) / ID Proof Upload — REQUIRED -->
           <div class="form-group">
-            <label class="form-label" for="id_registration_proof">
+            <label class="form-label form-label--tagged" for="id_registration_proof">
               Certificate of Registration (COR) or ID Photo
-              <span class="text-xs" style="color: #f5c444; font-weight: normal;">(Optional proof)</span>
+              <span class="kcc-required-tag">Required</span>
             </label>
             <div class="input-wrap">
               <i class="fas fa-file-arrow-up input-icon"></i>
@@ -347,13 +360,21 @@
                 type="file"
                 id="id_registration_proof"
                 name="registration_proof"
-                class="form-control kcc-input"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
+                class="form-control kcc-input {% if errors.registration_proof %}is-invalid{% endif %}"
+                accept="image/*,application/pdf"
+                required
               >
             </div>
             <span class="text-xs text-muted" style="margin-top: 4px; display: block; color: #64748b;">
-              Upload your physical school ID or official COR (JPG, PNG, or PDF max 5MB).
+              Required. Kunin sa <strong>camera ng phone</strong> o i-upload ang photo/scan ng COR
+              (JPG, PNG, WebP, o PDF — max 5MB). <strong>Hindi kailangan ng scanner.</strong>
+              Siguraduhing buo at maliwanag ang litrato. Kung iPhone at HEIC ang format,
+              i-set muna ang Camera → Formats → <em>Most Compatible</em>.
+              Kung ma-reject ang form, i-attach ulit ang file bago mag-submit.
             </span>
+            {% if errors.registration_proof %}
+              <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.registration_proof }}</span>
+            {% endif %}
           </div>
 
           <button type="submit" class="btn kcc-btn-gold btn-full" id="register-btn" style="margin-top: 8px;">
@@ -378,7 +399,8 @@
 
   </div>
 
-  <script src="{% static 'js/auth/register.js' %}?v=20261030_strength"></script>
+  <script src="{% static 'js/auth/register.js' %}?v=20261113_errors"></script>
+  <script src="{% static 'js/auth/kcc_select.js' %}?v=20261113_2"></script>
   <script src="{% static 'js/core/service_worker.js' %}?v=20261102"></script>
 </body>
 </html>

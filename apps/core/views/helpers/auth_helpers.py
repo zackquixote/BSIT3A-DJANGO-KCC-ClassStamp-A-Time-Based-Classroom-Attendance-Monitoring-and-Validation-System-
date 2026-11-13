@@ -167,7 +167,7 @@ def _set_lock_state(request, identifier=''):
 # // SECTION 3: REGISTRATION FORM VALIDATION HELPER
 # // ==============================================================================
 
-def _validate_registration_data(data):
+def _validate_registration_data(data, proof_file=None):
     """
     // [Input Sanitization & Server-Side Validation]
     // Verifies form data against user uniqueness, email syntax, password complexity,
@@ -175,6 +175,9 @@ def _validate_registration_data(data):
     //
     // Arguments:
     //   data (dict): POST form field values.
+    //   proof_file (File): Uploaded COR / school-ID proof. Required — the admin
+    //                      validates every account against this document, so a
+    //                      registration without it can never be approved.
     //
     // Returns:
     //   errors (dict): Field-keyed validation error messages. Empty dict = valid.
@@ -275,5 +278,14 @@ def _validate_registration_data(data):
     student_type = data.get('student_type', 'REGULAR').strip().upper()
     if student_type and student_type not in ['REGULAR', 'IRREGULAR', 'TRANSFEREE']:
         errors['student_type'] = 'Invalid student classification selected.'
+
+    # // 5. COR / School ID Proof — required for admin validation
+    if proof_file is None or not getattr(proof_file, 'name', ''):
+        errors['registration_proof'] = (
+            'Please upload your Certificate of Registration (COR) or school ID photo. '
+            'It is required before your account can be validated.'
+        )
+    elif not getattr(proof_file, 'size', 0):
+        errors['registration_proof'] = 'The uploaded file is empty. Please upload a valid COR or ID photo.'
 
     return errors

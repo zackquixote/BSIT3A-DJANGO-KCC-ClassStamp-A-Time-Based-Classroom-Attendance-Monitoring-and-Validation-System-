@@ -14,12 +14,24 @@
 """
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.core.models import Department, Profile, Program
 
+import io
+
+from PIL import Image
+
 User = get_user_model()
+
+
+def _proof_upload(filename='cor.png', width=32, height=32):
+    """A real PNG (magic bytes + Pillow-decodable) for the required COR upload."""
+    buffer = io.BytesIO()
+    Image.new('RGB', (width, height), (20, 120, 220)).save(buffer, format='PNG')
+    return SimpleUploadedFile(filename, buffer.getvalue(), content_type='image/png')
 
 
 class RegistrationViewTests(TestCase):
@@ -67,8 +79,18 @@ class RegistrationViewTests(TestCase):
         payload.update(overrides)
         return payload
 
+    def _post(self, **overrides):
+        """POST the payload with the now-mandatory COR/ID proof attached.
+
+        The test client takes uploads inside the data dict (a file object is
+        detected by its ``read`` attribute); it has no ``files=`` kwarg.
+        """
+        payload = self._valid_payload(**overrides)
+        payload['registration_proof'] = _proof_upload()
+        return self.client.post(reverse('register'), payload)
+
     def test_successful_registration_creates_pending_student_profile(self):
-        response = self.client.post(reverse('register'), self._valid_payload())
+        response = self._post()
 
         # Redirects to login on success.
         self.assertEqual(response.status_code, 302)
@@ -87,7 +109,7 @@ class RegistrationViewTests(TestCase):
 
     def test_student_profile_shape_satisfies_check_constraint(self):
         """The created profile must satisfy chk_cs_profile_shape."""
-        self.client.post(reverse('register'), self._valid_payload())
+        self._post()
 
         profile = Profile.objects.get(user__username='jdelacruz')
 
@@ -100,10 +122,7 @@ class RegistrationViewTests(TestCase):
 
     def test_registration_rejects_year_level_beyond_program_length(self):
         """A 4-year program must reject year level 5 (trigger trg_cs_profile_bi)."""
-        response = self.client.post(
-            reverse('register'),
-            self._valid_payload(year_level='5'),
-        )
+        response = self._post(year_level='5')
 
         # Form is re-rendered with an error; nothing is created.
         self.assertEqual(response.status_code, 200)
@@ -111,23 +130,27 @@ class RegistrationViewTests(TestCase):
         self.assertEqual(Profile.objects.count(), 0)
 
     def test_registration_rejects_duplicate_student_number(self):
-        self.client.post(reverse('register'), self._valid_payload())
-        response = self.client.post(
-            reverse('register'),
-            self._valid_payload(username='another', email='another@example.com'),
-        )
+        self._post()
+        response = self._post(username='another', email='another@example.com')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Profile.objects.count(), 1)
 
     def test_registration_rejects_password_mismatch(self):
-        response = self.client.post(
-            reverse('register'),
-            self._valid_payload(confirm_password='Different!Pass123'),
-        )
+        response = self._post(confirm_password='NotTheSamePass1!')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(User.objects.count(), 0)
+
+    def test_registration_without_cor_or_id_proof_is_rejected(self):
+        """The COR / school-ID proof is mandatory: the admin validates every
+        student against it, so no account may be created without one."""
+        response = self.client.post(reverse('register'), self._valid_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(User.objects.count(), 0)
+        self.assertEqual(Profile.objects.count(), 0)
+        self.assertContains(response, 'Certificate of Registration (COR) or school ID photo')
 
 
 class LoginFlowTests(TestCase):

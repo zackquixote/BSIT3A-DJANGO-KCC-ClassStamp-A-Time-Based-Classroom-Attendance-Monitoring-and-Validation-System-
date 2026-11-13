@@ -49,6 +49,7 @@
         var lnEl    = getEl('teacherLastName');          if (lnEl)    lnEl.value = t.last_name;
         var unEl    = getEl('teacherUsername');           if (unEl)    { unEl.value = t.username; unEl.disabled = true; }
         var emEl    = getEl('teacherEmail');             if (emEl)    emEl.value = t.email;
+        var fidEl   = getEl('teacherFacultyId');         if (fidEl)   fidEl.value = t.employee_number || '';
         var dpEl    = getEl('teacherDept');              if (dpEl)    dpEl.value = t.department_id;
         var pwEl    = getEl('teacherPassword');          if (pwEl)    pwEl.value = '';
         var acEl    = getEl('teacherIsActive');          if (acEl)    acEl.checked = t.is_active;

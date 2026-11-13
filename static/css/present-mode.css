@@ -101,12 +101,11 @@ html.present-mode .sidebar-link.active .sidebar-link-icon { color: #ffd75e; }
 }
 .present-mode-toggle.is-active i { color: var(--accent-ink); }
 
-/* Keep clear of the student/teacher mobile bottom nav; icon-only on phones. */
-@media (max-width: 768px) {
+/* Presentation Mode is a laptop/projector tool (admin + teacher). On phones and
+   small tablets it only eats the viewport and collides with the bottom nav, so
+   it is not shown there at all. */
+@media (max-width: 900px) {
   .present-mode-toggle {
-    right: 12px;
-    bottom: 78px;
-    padding: 10px;
+    display: none !important;
   }
-  .present-mode-toggle-label { display: none; }
 }

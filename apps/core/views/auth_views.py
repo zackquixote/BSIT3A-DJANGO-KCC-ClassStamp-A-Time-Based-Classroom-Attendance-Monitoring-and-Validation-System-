@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -97,13 +98,18 @@ def login_view(request):
     else:
         user_obj = User.objects.filter(username__iexact=login_input).first()
         if not user_obj:
-            student_profile = (
-                Profile.objects.filter(student_number__iexact=login_input)
+            # // Students sign in with their Student ID, faculty with their
+            # // Faculty ID — both live on Profile.
+            id_profile = (
+                Profile.objects.filter(
+                    Q(student_number__iexact=login_input)
+                    | Q(employee_number__iexact=login_input)
+                )
                 .select_related('user')
                 .first()
             )
-            if student_profile:
-                user_obj = student_profile.user
+            if id_profile:
+                user_obj = id_profile.user
 
     user = None
     if user_obj:
@@ -237,7 +243,7 @@ def register_view(request):
     }
     proof_file = request.FILES.get('registration_proof')
 
-    errors = _validate_registration_data(form_data)
+    errors = _validate_registration_data(form_data, proof_file)
     if errors:
         return render(request, 'auth/register.html', {
             'departments': departments,

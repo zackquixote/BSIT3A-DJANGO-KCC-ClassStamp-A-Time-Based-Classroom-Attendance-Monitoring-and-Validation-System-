@@ -178,6 +178,30 @@
           </td>
           <td>
             <span class="font-semibold text-primary" style="letter-spacing: 0.5px;">{{ p.student_number }}</span>
+            <!-- COR / school-ID proof at a glance: thumbnail for images, a PDF
+                 badge for PDFs, explicit warning when nothing was uploaded. -->
+            <div style="margin-top: 6px;">
+              {% if p.registration_proof %}
+                {% if ".pdf" in p.registration_proof.name|lower %}
+                  <a href="{% url 'registration_proof_document' p.pk %}" target="_blank" rel="noopener"
+                     class="badge badge--danger" title="Buksan ang na-upload na COR (PDF)">
+                    <i class="fas fa-file-pdf"></i> COR · PDF
+                  </a>
+                {% else %}
+                  <a href="{% url 'registration_proof_document' p.pk %}" target="_blank" rel="noopener"
+                     title="Buksan ang na-upload na COR / school ID">
+                    <img src="{% url 'registration_proof_document' p.pk %}" alt="COR"
+                         loading="lazy" decoding="async"
+                         style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px;
+                                border: 1px solid rgba(245, 196, 68, 0.35); display: block;">
+                  </a>
+                {% endif %}
+              {% else %}
+                <span class="badge badge--warning" title="Walang na-upload na COR / school ID">
+                  <i class="fas fa-triangle-exclamation"></i> No COR
+                </span>
+              {% endif %}
+            </div>
           </td>
           <td>
             <span

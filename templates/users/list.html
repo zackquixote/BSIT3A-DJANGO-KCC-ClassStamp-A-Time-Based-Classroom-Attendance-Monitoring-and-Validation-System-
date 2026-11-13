@@ -1,7 +1,122 @@
 {% extends "theme/base.html" %}
 {% block title %}User Management & Access Control — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  /* ── User Accounts: wide table → stacked cards on phones ────────────────
+     The 8–10 column directory is unusable under ~820px: it overflows and the
+     admin cannot see the status or the action buttons. Below that width each
+     row becomes a card with the low-value columns dropped. */
+  @media (max-width: 820px) {
+    .users-page .table-responsive { overflow: visible; }
+
+    .users-table thead { display: none; }
+
+    .users-table,
+    .users-table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    .users-table tr {
+      display: block;
+      margin: 0 0 12px;
+      padding: 14px;
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .users-table td {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 6px 0;
+      border: 0;
+      text-align: right;
+      line-height: 1.4;
+    }
+
+    .users-table td::before {
+      content: "";
+      flex: 0 0 auto;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding-top: 3px;
+      text-align: left;
+    }
+
+    /* Row header: avatar + name, full width */
+    .users-table td:nth-child(2) {
+      display: block;
+      text-align: left;
+      padding: 0 0 10px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .users-table td:nth-child(2)::before { content: none; }
+
+    /* Actions: full width, buttons wrap */
+    .users-table td:last-child {
+      display: block;
+      text-align: left;
+      padding: 12px 0 0;
+    }
+
+    .users-table td:last-child::before { content: none; }
+
+    .users-table td:last-child > div {
+      justify-content: flex-start !important;
+      flex-wrap: wrap;
+    }
+
+    /* Empty state */
+    .users-table td[colspan] {
+      display: block;
+      text-align: center;
+    }
+
+    .users-table td[colspan]::before { content: none; }
+
+    /* Column labels (markup order per role tab) */
+    .users-table--students td:nth-child(3)::before { content: "Student ID"; }
+    .users-table--students td:nth-child(4)::before { content: "Program"; }
+    .users-table--students td:nth-child(7)::before { content: "Validation"; }
+    .users-table--students td:nth-child(8)::before { content: "Access"; }
+
+    .users-table--teachers td:nth-child(3)::before { content: "Faculty ID"; }
+    .users-table--teachers td:nth-child(4)::before { content: "Department"; }
+    .users-table--teachers td:nth-child(8)::before { content: "Access"; }
+
+    .users-table--admins td:nth-child(3)::before { content: "Username"; }
+    .users-table--admins td:nth-child(4)::before { content: "Privilege"; }
+    .users-table--admins td:nth-child(7)::before { content: "Access"; }
+
+    /* Columns that do not earn their space on a phone */
+    .users-table td:nth-child(1),
+    .users-table--students td:nth-child(5),
+    .users-table--students td:nth-child(6),
+    .users-table--students td:nth-child(9),
+    .users-table--teachers td:nth-child(5),
+    .users-table--teachers td:nth-child(6),
+    .users-table--teachers td:nth-child(7),
+    .users-table--teachers td:nth-child(9),
+    .users-table--admins td:nth-child(5),
+    .users-table--admins td:nth-child(6),
+    .users-table--admins td:nth-child(8) {
+      display: none !important;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="users-page">
 <!-- Page Header -->
 <div class="page-header">
   <div>
@@ -142,7 +257,7 @@
   </div>
 
   <div class="table-responsive">
-    <table class="table" id="usersTable">
+    <table class="table users-table users-table--{{ role_tab }}" id="usersTable">
       <thead>
         <tr>
           <th scope="col" style="width: 32px;">ID</th>
@@ -255,7 +370,10 @@
           {% elif role_tab == 'teachers' %}
             <!-- Faculty ID / Username -->
             <td>
-              <span class="font-mono text-warning font-semibold">{{ u.username }}</span>
+              <span class="font-mono text-warning font-semibold">{{ u.classstamp_profile.employee_number|default:u.username }}</span>
+              {% if u.classstamp_profile.employee_number %}
+                <div class="text-muted text-xs font-mono">{{ u.username }}</div>
+              {% endif %}
             </td>
             <!-- Department -->
             <td>
@@ -680,6 +798,7 @@
     </div>
   </div>
 </div>
+</div><!-- /.users-page -->
 {% endblock %}
 
 {% block extra_js %}

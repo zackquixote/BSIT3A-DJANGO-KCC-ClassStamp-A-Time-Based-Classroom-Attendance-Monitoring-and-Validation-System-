@@ -1,30 +1,42 @@
 {
+  "id": "/",
   "name": "KCC ClassStamp",
   "short_name": "ClassStamp",
-  "description": "A Time-Based Classroom Attendance Monitoring and Validation System",
+  "description": "Time-based classroom attendance monitoring and validation for Kabankalan Catholic College.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
   "background_color": "#0b1220",
   "theme_color": "#0b1220",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["education", "productivity"],
   "icons": [
     {
-      "src": "/static/img/kcc_apple_touch.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    },
-    {
-      "src": "/static/img/kcc_logo.png",
+      "src": "/static/img/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/static/img/kcc_logo.png",
+      "src": "/static/img/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/img/apple-touch-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
-

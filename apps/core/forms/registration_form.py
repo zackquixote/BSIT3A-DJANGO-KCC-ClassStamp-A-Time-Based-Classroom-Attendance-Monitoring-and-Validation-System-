@@ -68,7 +68,7 @@ class RegistrationForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
     registration_proof = forms.FileField(
-        required=False,
+        required=True,
         validators=[validate_uploaded_document],
         widget=forms.FileInput(attrs={'class': 'form-file-input', 'accept': 'image/*,.pdf'}),
     )

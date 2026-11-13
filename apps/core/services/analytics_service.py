@@ -13,12 +13,27 @@ import logging
 from collections import defaultdict
 from typing import Optional, List, Tuple
 
-import numpy as np
-from sklearn.linear_model import LinearRegression
-
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+# // Predictive analytics needs numpy + scikit-learn (declared in
+# // requirements.txt). The rest of the app — dashboards, attendance, reports —
+# // must still boot when those wheels are absent, so the import is optional and
+# // predictions simply report "no data" instead of taking the whole site down.
+try:
+    import numpy as np
+    from sklearn.linear_model import LinearRegression
+
+    ML_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised only on slim installs
+    np = None
+    LinearRegression = None
+    ML_AVAILABLE = False
+    logger.warning(
+        'numpy/scikit-learn are not installed: predictive attendance analytics '
+        'is disabled. Install with: pip install -r requirements.txt'
+    )
 
 # Task 5.3: explicit algorithm version. Bump this when the prediction
 # model or configuration changes. One AuditEvent is written the first time
@@ -47,6 +62,9 @@ class AnalyticsService:
             - Minimum 5 sessions required for prediction
             - Uses time-series linear regression on cumulative attendance rate
         """
+        if not ML_AVAILABLE:
+            return None
+
         from apps.core.models import AttendanceRecord, ClassSession
         
         # Get all closed sessions for the class

@@ -4,12 +4,13 @@ Django==4.2.30
 django-sslserver==0.22
 et_xmlfile==2.0.0
 mysqlclient==2.2.8
+numpy>=1.26,<3
 openpyxl==3.1.5
 pillow==12.3.0
 PyOTP==2.10.0
 python-dotenv==1.1.1
-pywebpush>=2.0.1
 qrcode==8.2
+scikit-learn>=1.4,<2
 sqlparse==0.6.0
 tzdata==2026.3
 reportlab==5.1.0

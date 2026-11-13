@@ -40,6 +40,7 @@ def serialize_teacher(profile) -> dict:
         'first_name': user.first_name,
         'last_name': user.last_name,
         'full_name': user.get_full_name() or user.username,
+        'employee_number': profile.employee_number or '',
         'department_id': profile.department_id,
         'department_code': profile.department.code if profile.department else '—',
         'department_name': profile.department.name if profile.department else '—',
@@ -63,6 +64,7 @@ def serialize_teacher_summary(profile) -> dict:
         'id': profile.id,
         'user_id': user.id,
         'name': user.get_full_name() or user.username,
+        'employee_number': profile.employee_number or '',
         'department_code': profile.department.code if profile.department else '',
         'is_active': user.is_active,
     }

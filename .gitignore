@@ -40,3 +40,6 @@ scratch/
 .pytest_cache/
 *.err
 xampp/
+
+# Deploy fixture exported from the live database (contains personal data + password hashes)
+fixtures/

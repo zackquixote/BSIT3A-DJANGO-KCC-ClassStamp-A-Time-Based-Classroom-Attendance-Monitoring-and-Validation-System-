@@ -72,7 +72,7 @@ from .student_portal_views import (
     student_qr_token_api,
     student_offline_badge_issue,
 )
-from .system_views import csp_report
+from .system_views import csp_report, csrf_failure
 
 # // ------------------------------------------------------------------------------
 # // 2c. Protected Document Delivery (identity proofs & excuse attachments)

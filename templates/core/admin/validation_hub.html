@@ -2,6 +2,38 @@
 {% load static %}
 {% block title %}Account Validation Center — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  /* ── Attendance Operations on phones ──────────────────────────────────────
+     The tab strip and the department pills are single-row flex boxes, so they
+     pushed the whole page 62px wider than a 390px screen. Nothing else on this
+     page overflows, so both get a scrolling strip instead of a wider page. */
+  @media (max-width: 820px) {
+    .hub-tabs,
+    .dept-filter-tabs {
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+
+    .hub-tabs::-webkit-scrollbar,
+    .dept-filter-tabs::-webkit-scrollbar { display: none; }
+
+    .hub-tabs > * ,
+    .dept-filter-tabs > * {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    /* tables inside the hub keep their own scroll container */
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div>
@@ -29,7 +61,7 @@
 
 <!-- ── Unified Workspace Navigation Tabs ──────────────────────── -->
 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--glass-border); margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-  <div style="display: flex; gap: 4px;" role="tablist">
+  <div class="hub-tabs" style="display: flex; gap: 4px;" role="tablist">
     <button
       type="button"
       class="btn {% if tab != 'reviewed' %}btn-primary{% else %}btn-outline{% endif %}"
@@ -351,7 +383,7 @@
               </td>
               <td class="text-muted text-xs">
                 {% if p.approved_by %}
-                  <i class="fas fa-user-shield text-gold mr-1"></i>{{ p.approved_by.get_full_name|default:p.approved_by.username }}
+                  <i class="fas fa-user-shield text-gold mr-1"></i>{% if p.approved_by %}{{ p.approved_by.get_full_name|default:p.approved_by.username }}{% else %}System{% endif %}
                 {% else %}
                   <span class="text-dim">System</span>
                 {% endif %}

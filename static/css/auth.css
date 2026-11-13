@@ -1,29 +1,41 @@
 /* =============================================================
    KCC ClassStamp — Authentication Split-Screen Layout & Theme
-   Matches Official KCC Portal Aesthetics
    ============================================================= */
 
-/* ── Base Container ─────────────────────────────────────────── */
+/* ── Base Page ───────────────────────────────────────────────── */
 .kcc-auth-page {
-  min-height: 100vh;
   margin: 0;
   padding: 0;
   background-color: #0c152b;
   color: #f8fafc;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow-x: hidden;
 }
 
+/* ── Split Layout ────────────────────────────────────────────── */
+/*
+  DESKTOP STRATEGY:
+  - Layout is a flex row.
+  - Left hero: position:sticky + height:100vh → stays locked while page scrolls.
+  - Right form: normal block flow, grows with content → page scrolls naturally.
+  - align-items:flex-start is REQUIRED for sticky to work inside flex.
+
+  MOBILE STRATEGY (≤900px):
+  - Stack vertically: hero on top (fixed small height), form below.
+  - position:relative on hero (sticky does nothing when stacked).
+  - Page scrolls normally.
+*/
 .kcc-split-layout {
   display: flex;
-  min-height: 100vh;
+  align-items: flex-start;
   width: 100%;
 }
 
-/* ── LEFT PANEL: Hero & Branding ────────────────────────────── */
+/* ── LEFT PANEL: Hero ────────────────────────────────────────── */
 .kcc-hero-panel {
   flex: 1.1;
-  position: relative;
+  position: sticky;
+  top: 0;
+  height: 100vh;
   background: #070d1e;
   display: flex;
   flex-direction: column;
@@ -31,9 +43,9 @@
   padding: 48px 56px;
   overflow: hidden;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
-/* Ambient Radial Background, Campus Architecture Backdrop & Grid */
 .kcc-hero-bg {
   position: absolute;
   inset: 0;
@@ -42,7 +54,6 @@
   z-index: 0;
 }
 
-/* Institutional Campus Backdrop (KCC Main Building Facade) - Clearly Visible */
 .kcc-hero-bg::before {
   content: "";
   position: absolute;
@@ -58,16 +69,13 @@
   z-index: 0;
 }
 
-/* Dual Directional Vignette Gradient: 
-   Dark navy on the left to keep headline, badge & stats 100% legible;
-   Bright and translucent on the right so the KCC building facade & pillars pop proudly */
 .kcc-hero-bg::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: 
-    linear-gradient(90deg, rgba(7, 13, 30, 0.88) 0%, rgba(7, 13, 30, 0.58) 44%, rgba(8, 16, 36, 0.16) 100%),
-    linear-gradient(180deg, rgba(7, 13, 30, 0.72) 0%, transparent 36%, rgba(6, 11, 24, 0.78) 100%);
+  background:
+    linear-gradient(90deg, rgba(7,13,30,0.88) 0%, rgba(7,13,30,0.58) 44%, rgba(8,16,36,0.16) 100%),
+    linear-gradient(180deg, rgba(7,13,30,0.72) 0%, transparent 36%, rgba(6,11,24,0.78) 100%);
   z-index: 1;
 }
 
@@ -79,9 +87,9 @@
 .kcc-grid-overlay {
   position: absolute;
   inset: 0;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
   background-size: 44px 44px;
   opacity: 0.25;
   z-index: 2;
@@ -95,45 +103,29 @@
 }
 
 .kcc-glow-radial--1 {
-  width: 520px;
-  height: 520px;
-  background: radial-gradient(circle, rgba(29, 78, 216, 0.25) 0%, transparent 70%);
-  right: -100px;
-  top: 25%;
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(29,78,216,0.25) 0%, transparent 70%);
+  right: -100px; top: 25%;
 }
 
 .kcc-glow-radial--2 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
-  left: -80px;
-  bottom: 10%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%);
+  left: -80px; bottom: 10%;
 }
 
-/* Subtle Geometric Concentric Radar Rings */
 .kcc-ring-accent {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255,255,255,0.04);
   pointer-events: none;
   z-index: 2;
 }
 
-.kcc-ring-accent--1 {
-  width: 700px;
-  height: 700px;
-  right: -150px;
-  top: 15%;
-}
+.kcc-ring-accent--1 { width: 700px;  height: 700px;  right: -150px; top: 15%; }
+.kcc-ring-accent--2 { width: 1050px; height: 1050px; right: -325px; top: -20px; }
 
-.kcc-ring-accent--2 {
-  width: 1050px;
-  height: 1050px;
-  right: -325px;
-  top: -20px;
-}
-
-/* ── Top Header Brand ────────────────────────────────────────── */
+/* ── Hero Header ─────────────────────────────────────────────── */
 .kcc-hero-header {
   position: relative;
   z-index: 2;
@@ -143,8 +135,7 @@
 }
 
 .kcc-brand-badge {
-  width: 86px;
-  height: 86px;
+  width: 86px; height: 86px;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
@@ -157,29 +148,21 @@
   transition: transform 0.25s ease;
 }
 
-.kcc-brand-badge:hover {
-  transform: scale(1.06) rotate(-2deg);
-}
+.kcc-brand-badge:hover { transform: scale(1.06) rotate(-2deg); }
 
 .kcc-brand-logo {
-  width: 86px !important;
-  height: 86px !important;
-  max-width: 86px !important;
-  max-height: 86px !important;
+  width: 86px !important; height: 86px !important;
+  max-width: 86px !important; max-height: 86px !important;
   object-fit: contain !important;
   border-radius: 0 !important;
   display: block !important;
-  filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.6)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.85));
+  filter: drop-shadow(0 0 14px rgba(245,158,11,0.6)) drop-shadow(0 4px 14px rgba(0,0,0,0.85));
 }
 
-.kcc-brand-text {
-  display: flex;
-  flex-direction: column;
-}
+.kcc-brand-text { display: flex; flex-direction: column; }
 
 .kcc-inst-title {
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: 0.76rem; font-weight: 700;
   color: #94a3b8;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -187,105 +170,75 @@
 }
 
 .kcc-sys-name {
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: #ffffff;
-  margin: 0;
-  line-height: 1.15;
-  text-shadow: 0 2px 12px rgba(6, 11, 24, 0.85);
+  font-size: 1.55rem; font-weight: 800;
+  color: #fff; margin: 0; line-height: 1.15;
+  text-shadow: 0 2px 12px rgba(6,11,24,0.85);
 }
 
-/* ── Hero Center Content ─────────────────────────────────────── */
+/* ── Hero Body ───────────────────────────────────────────────── */
 .kcc-hero-body {
-  position: relative;
-  z-index: 2;
-  max-width: 520px;
-  margin: 40px 0;
+  position: relative; z-index: 2;
+  max-width: 520px; margin: 40px 0;
 }
 
 .kcc-tag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(245, 196, 68, 0.35);
-  color: #e2e8f0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 9999px;
+  background: rgba(15,23,42,0.85);
+  border: 1px solid rgba(245,196,68,0.35);
+  color: #e2e8f0; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
   margin-bottom: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
 
 .kcc-pill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
   background: #f5c444;
-  box-shadow: 0 0 0 3px rgba(245, 196, 68, 0.16);
+  box-shadow: 0 0 0 3px rgba(245,196,68,0.16);
   flex-shrink: 0;
 }
 
 .kcc-hero-headline {
   font-size: clamp(2.4rem, 4.2vw, 3.6rem);
-  font-weight: 800;
-  line-height: 1.1;
-  color: #ffffff;
-  letter-spacing: -0.025em;
-  margin: 0 0 20px 0;
-  text-shadow: 0 2px 16px rgba(6, 11, 24, 0.95), 0 0 4px rgba(6, 11, 24, 0.9);
+  font-weight: 800; line-height: 1.1; color: #fff;
+  letter-spacing: -0.025em; margin: 0 0 20px 0;
+  text-shadow: 0 2px 16px rgba(6,11,24,0.95), 0 0 4px rgba(6,11,24,0.9);
 }
 
 .kcc-text-gold {
   color: #f5c444;
-  text-shadow: 0 2px 18px rgba(245, 196, 68, 0.35), 0 0 3px rgba(6, 11, 24, 0.9);
+  text-shadow: 0 2px 18px rgba(245,196,68,0.35), 0 0 3px rgba(6,11,24,0.9);
 }
 
 .kcc-hero-desc {
-  font-size: 1rem;
-  line-height: 1.6;
-  color: #cbd5e1;
-  margin: 0;
-  font-weight: 400;
+  font-size: 1rem; line-height: 1.6;
+  color: #cbd5e1; margin: 0; font-weight: 400;
   max-width: 440px;
-  text-shadow: 0 1px 8px rgba(6, 11, 24, 0.85);
+  text-shadow: 0 1px 8px rgba(6,11,24,0.85);
 }
 
-/* ── Bottom Feature Bar ──────────────────────────────────────── */
+/* ── Hero Footer ─────────────────────────────────────────────── */
 .kcc-hero-footer {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: wrap;
-  padding-top: 24px;
+  position: relative; z-index: 2;
+  display: flex; align-items: center;
+  gap: 28px; flex-wrap: wrap; padding-top: 24px;
 }
 
 .kcc-feature-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.84rem;
-  color: #cbd5e1;
-  font-weight: 500;
-  text-shadow: 0 1px 8px rgba(6, 11, 24, 0.9);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.84rem; color: #cbd5e1; font-weight: 500;
+  text-shadow: 0 1px 8px rgba(6,11,24,0.9);
 }
 
-.kcc-feature-icon {
-  color: #f5c444;
-  font-size: 0.9rem;
-}
+.kcc-feature-icon { color: #f5c444; font-size: 0.9rem; }
 
-/* ── RIGHT PANEL: Form Container ─────────────────────────────── */
+/* ── RIGHT PANEL: Form ───────────────────────────────────────── */
 .kcc-form-panel {
   flex: 0.9;
-  background: 
-    radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.18) 0%, transparent 55%),
-    radial-gradient(circle at 15% 85%, rgba(30, 58, 138, 0.15) 0%, transparent 50%),
+  background:
+    radial-gradient(circle at 85% 15%, rgba(37,99,235,0.18) 0%, transparent 55%),
+    radial-gradient(circle at 15% 85%, rgba(30,58,138,0.15) 0%, transparent 50%),
     linear-gradient(135deg, #0c152b 0%, #111d3b 100%);
   display: flex;
   align-items: center;
@@ -296,54 +249,47 @@
   box-sizing: border-box;
 }
 
+/* Register: taller than viewport — override min-height so page scrolls */
+.kcc-form-panel--register {
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 0;
+  padding-top: 56px;
+  padding-bottom: 72px;
+}
+
 .kcc-form-container {
   width: 100%;
   max-width: 420px;
-  margin: auto;
+  margin: 0 auto;
   position: relative;
   z-index: 2;
 }
 
-.kcc-form-container--wide {
-  max-width: 560px;
-}
+.kcc-form-container--wide { max-width: 560px; }
 
-.kcc-form-header {
-  margin-bottom: 28px;
-}
+.kcc-form-header { margin-bottom: 28px; }
 
 .kcc-kicker {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #f5c444;
-  margin-bottom: 8px;
+  display: block; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #f5c444; margin-bottom: 8px;
 }
 
 .kcc-form-title {
-  font-size: 1.85rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
+  font-size: 1.85rem; font-weight: 700; color: #fff;
+  margin: 0 0 8px 0; letter-spacing: -0.015em; line-height: 1.2;
 }
 
 .kcc-form-subtitle {
-  font-size: 0.88rem;
-  color: #94a3b8;
-  margin: 0;
-  line-height: 1.5;
+  font-size: 0.88rem; color: #94a3b8; margin: 0; line-height: 1.5;
 }
 
-/* ── Inputs & Form Controls ──────────────────────────────────── */
+/* ── Inputs ──────────────────────────────────────────────────── */
 .kcc-input {
-  width: 100%;
-  height: 46px;
+  width: 100%; height: 46px;
   background: #142242 !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
   border-radius: 8px !important;
   padding: 0 16px 0 42px !important;
   color: #f8fafc !important;
@@ -352,22 +298,17 @@
   box-sizing: border-box;
 }
 
-.kcc-input::placeholder {
-  color: #64748b !important;
-}
+.kcc-input::placeholder { color: #64748b !important; }
 
 .kcc-input:focus {
   background: #192b52 !important;
   border-color: #f5c444 !important;
-  box-shadow: 0 0 0 3px rgba(245, 196, 68, 0.22) !important;
+  box-shadow: 0 0 0 3px rgba(245,196,68,0.22) !important;
   outline: none !important;
 }
 
-.kcc-input.has-toggle {
-  padding-right: 68px !important;
-}
+.kcc-input.has-toggle { padding-right: 68px !important; }
 
-/* Native file pickers keep the browser's grey button; theme it to match. */
 .kcc-input[type="file"] {
   height: 46px !important;
   padding: 8px 12px 8px 42px !important;
@@ -376,378 +317,239 @@
 
 .kcc-input[type="file"]::file-selector-button,
 .kcc-input[type="file"]::-webkit-file-upload-button {
-  margin-right: 12px;
-  padding: 6px 14px;
+  margin-right: 12px; padding: 6px 14px;
   border-radius: 6px;
-  border: 1px solid rgba(245, 196, 68, 0.45);
-  background: rgba(245, 196, 68, 0.14);
-  color: #f5c444;
-  font-weight: 600;
-  font-size: 0.82rem;
-  font-family: inherit;
-  cursor: pointer;
+  border: 1px solid rgba(245,196,68,0.45);
+  background: rgba(245,196,68,0.14);
+  color: #f5c444; font-weight: 600; font-size: 0.82rem;
+  font-family: inherit; cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .kcc-input[type="file"]::file-selector-button:hover,
 .kcc-input[type="file"]::-webkit-file-upload-button:hover {
-  background: rgba(245, 196, 68, 0.24);
-  border-color: #f5c444;
+  background: rgba(245,196,68,0.24); border-color: #f5c444;
 }
 
 .kcc-toggle-btn {
-  position: absolute;
-  right: 14px;
-  top: 50%;
+  position: absolute; right: 14px; top: 50%;
   transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #f5c444;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 4px;
+  background: transparent; border: none;
+  color: #f5c444; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; padding: 4px 6px; border-radius: 4px;
   transition: color 0.2s ease;
 }
 
-.kcc-toggle-btn:hover {
-  color: #fde047;
-}
+.kcc-toggle-btn:hover { color: #fde047; }
 
-/* Form Options: Remember me & Forgot password */
 .kcc-form-options {
-  display: flex;
-  align-items: center;
+  display: flex; align-items: center;
   justify-content: space-between;
-  margin: 8px 0 16px 0;
-  font-size: 0.82rem;
+  margin: 8px 0 16px 0; font-size: 0.82rem;
 }
 
 .kcc-remember-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #94a3b8;
-  cursor: pointer;
-  user-select: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  color: #94a3b8; cursor: pointer; user-select: none;
 }
 
 .kcc-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: #0d1728;
-  cursor: pointer;
-  display: grid;
-  place-content: center;
-  transition: all 0.15s ease;
-  margin: 0;
+  appearance: none; -webkit-appearance: none;
+  width: 16px; height: 16px; border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: #0d1728; cursor: pointer;
+  display: grid; place-content: center;
+  transition: all 0.15s ease; margin: 0;
 }
 
-.kcc-checkbox:checked {
-  background: #f5c444;
-  border-color: #f5c444;
-}
+.kcc-checkbox:checked { background: #f5c444; border-color: #f5c444; }
 
 .kcc-checkbox:checked::before {
   content: "";
-  width: 8px;
-  height: 5px;
+  width: 8px; height: 5px;
   border-left: 2px solid #060b17;
   border-bottom: 2px solid #060b17;
   transform: rotate(-45deg) translate(1px, -1px);
 }
 
-.kcc-forgot-link {
-  color: #cbd5e1;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
+.kcc-forgot-link { color: #cbd5e1; text-decoration: none; transition: color 0.2s ease; }
+.kcc-forgot-link:hover { color: #f5c444; }
 
-.kcc-forgot-link:hover {
-  color: #f5c444;
-}
-
-/* ── Primary Gold Button ─────────────────────────────────────── */
+/* ── Gold Button ─────────────────────────────────────────────── */
 .kcc-btn-gold {
   height: 48px;
   background: linear-gradient(135deg, #f5c444 0%, #eab308 100%) !important;
-  color: #070d1e !important;
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
-  border: none !important;
+  color: #070d1e !important; font-size: 0.95rem !important;
+  font-weight: 700 !important; border: none !important;
   border-radius: 10px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 10px !important;
+  display: inline-flex !important; align-items: center !important;
+  justify-content: center !important; gap: 10px !important;
   cursor: pointer !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   text-decoration: none !important;
-  box-shadow: 0 4px 16px rgba(245, 196, 68, 0.28);
+  box-shadow: 0 4px 16px rgba(245,196,68,0.28);
 }
 
 .kcc-btn-gold:hover:not(:disabled) {
   background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%) !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(245, 196, 68, 0.42);
+  box-shadow: 0 8px 24px rgba(245,196,68,0.42);
 }
 
-.kcc-btn-gold .fa-arrow-right {
-  transition: transform 0.2s ease;
-}
+.kcc-btn-gold .fa-arrow-right { transition: transform 0.2s ease; }
+.kcc-btn-gold:hover:not(:disabled) .fa-arrow-right { transform: translateX(4px); }
+.kcc-btn-gold:active:not(:disabled) { transform: translateY(0); }
+.kcc-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
-.kcc-btn-gold:hover:not(:disabled) .fa-arrow-right {
-  transform: translateX(4px);
-}
-
-.kcc-btn-gold:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.kcc-btn-gold:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* ── Footer Link ─────────────────────────────────────────────── */
+/* ── Auth Footer ─────────────────────────────────────────────── */
 .kcc-auth-footer {
-  text-align: center;
-  margin-top: 24px;
-  font-size: 0.85rem;
-  color: #94a3b8;
+  text-align: center; margin-top: 24px;
+  font-size: 0.85rem; color: #94a3b8;
 }
 
 .kcc-link-gold {
-  color: #f5c444;
-  font-weight: 600;
-  text-decoration: none;
-  transition: color 0.2s ease;
+  color: #f5c444; font-weight: 600;
+  text-decoration: none; transition: color 0.2s ease;
 }
+.kcc-link-gold:hover { color: #fde047; text-decoration: underline; }
 
-.kcc-link-gold:hover {
-  color: #fde047;
-  text-decoration: underline;
-}
-
-
-/* ── Floating Help Button ────────────────────────────────────── */
+/* ── Help Button ─────────────────────────────────────────────── */
 .kcc-help-btn {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  position: fixed;      /* fixed so it's always visible even when scrolling */
+  bottom: 20px; right: 20px;
+  width: 32px; height: 32px; border-radius: 50%;
   background: #111d31;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255,255,255,0.12);
   color: #94a3b8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; text-decoration: none;
+  transition: all 0.2s ease; z-index: 100;
 }
 
 .kcc-help-btn:hover {
-  background: #1e2c46;
-  color: #f8fafc;
-  border-color: rgba(255, 255, 255, 0.25);
+  background: #1e2c46; color: #f8fafc;
+  border-color: rgba(255,255,255,0.25);
   transform: scale(1.06);
 }
 
-/* ── Responsive Adaptations ──────────────────────────────────── */
-@media (max-width: 1024px) {
+/* ── Alert Messages ──────────────────────────────────────────── */
+.auth-alert {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: 8px;
+  font-size: 0.875rem; margin-bottom: 20px;
+}
+
+.auth-alert--error   { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; }
+.auth-alert--warning { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d; }
+.auth-alert--success { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.3);  color: #86efac; }
+.auth-alert--info    { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Tablet & Mobile: stack vertically ──────────────────────── */
+@media (max-width: 900px) {
+
   .kcc-split-layout {
     flex-direction: column;
+    align-items: stretch;
+    min-height: 100vh;
   }
 
+  /* Hero: un-sticky, compact fixed height */
   .kcc-hero-panel {
-    padding: 32px 24px 28px;
+    position: relative;
+    height: 220px;
+    flex-shrink: 0;
+    padding: 20px 20px 16px;
     border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    justify-content: flex-start;
   }
 
   .kcc-hero-bg::before {
-    background-position: center 25%;
-    opacity: 0.65;
+    background-position: center 20%;
+    opacity: 0.60;
   }
 
   .kcc-hero-bg::after {
-    background: linear-gradient(180deg, rgba(7, 13, 30, 0.85) 0%, rgba(8, 16, 36, 0.68) 100%);
+    background: linear-gradient(180deg, rgba(7,13,30,0.88) 0%, rgba(8,16,36,0.72) 100%);
   }
 
-  .kcc-hero-body {
-    margin: 20px 0;
-  }
-
-  .kcc-hero-headline {
-    font-size: 2.1rem;
-  }
-
-  .kcc-form-panel {
-    padding: 36px 24px 44px;
-    min-height: auto;
-  }
-}
-
-@media (max-width: 768px) {
-  .kcc-hero-header {
-    gap: 14px;
-  }
-
-  .kcc-brand-badge {
-    width: 70px !important;
-    height: 70px !important;
-  }
-
-  .kcc-brand-logo {
-    width: 70px !important;
-    height: 70px !important;
-    max-width: 70px !important;
-    max-height: 70px !important;
-  }
-
-  .kcc-inst-title {
-    font-size: 0.68rem;
-  }
-
-  .kcc-sys-name {
-    font-size: 1.3rem;
-  }
-
-  .kcc-hero-panel {
-    padding: 24px 20px 20px;
-  }
-
-  .kcc-hero-body {
-    margin: 14px 0 10px;
-  }
-
-  .kcc-tag-pill {
-    font-size: 0.58rem;
-    letter-spacing: 0.02em;
-    padding: 6px 12px;
-    border-radius: 14px;
-    gap: 6px;
-    max-width: 100%;
-    line-height: 1.45;
-    text-align: center;
-    margin-bottom: 10px;
-  }
+  .kcc-hero-body { margin: 10px 0 0; }
+  .kcc-hero-footer { display: none; }
 
   .kcc-hero-headline {
     font-size: 1.6rem;
-    line-height: 1.2;
+    line-height: 1.15;
+    margin-bottom: 0;
+  }
+
+  .kcc-hero-desc { display: none; }
+
+  .kcc-tag-pill {
+    font-size: 0.6rem;
+    padding: 4px 10px;
     margin-bottom: 8px;
   }
 
-  .kcc-hero-desc {
-    font-size: 0.85rem;
-    line-height: 1.5;
+  /* Form panel: auto height, page scrolls */
+  .kcc-form-panel,
+  .kcc-form-panel--register {
+    flex: none;
+    width: 100%;
+    min-height: 0;
+    height: auto;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 28px 20px 72px;
+    overflow: visible;
   }
 
-  .kcc-hero-footer {
-    display: none; /* Hide bottom pills on mobile to avoid vertical cramping */
-  }
-
-  .kcc-form-panel {
-    padding: 28px 20px 48px;
-  }
-
-  .kcc-form-container {
+  .kcc-form-container,
+  .kcc-form-container--wide {
     max-width: 100%;
     width: 100%;
+    margin: 0;
+    padding: 0;
   }
 
-  .kcc-form-header {
-    margin-bottom: 22px;
-  }
+  .kcc-form-header { margin-bottom: 20px; }
 
-  .kcc-form-title {
-    font-size: 1.55rem;
-    line-height: 1.25;
-  }
+  .kcc-form-title { font-size: 1.5rem; }
 
-  .kcc-form-subtitle {
-    font-size: 0.86rem;
-    margin-top: 4px;
-  }
-
-  .kcc-form-group {
-    margin-bottom: 18px;
-  }
-
-  .kcc-input-wrap {
-    height: 48px;
-  }
-
+  /* Prevent iOS auto-zoom on input focus (must be ≥16px) */
   .kcc-input {
-    height: 48px;
-    font-size: 0.95rem;
+    height: 50px !important;
+    font-size: 16px !important;
   }
 
-  .kcc-btn-submit {
-    height: 48px;
-    font-size: 1rem;
-    font-weight: 700;
-    margin-top: 8px;
-  }
-
-  .kcc-auth-footer {
-    margin-top: 24px;
-    font-size: 0.88rem;
-  }
-
-  .kcc-help-btn {
-    bottom: 14px;
-    right: 14px;
+  .kcc-btn-gold {
+    height: 52px !important;
+    font-size: 1rem !important;
   }
 }
 
-@media (max-width: 480px) {
-  .kcc-hero-panel {
-    padding: 20px 16px 16px;
+@media (max-width: 600px) {
+  .kcc-hero-panel { height: 190px; }
+
+  .kcc-brand-badge { width: 58px !important; height: 58px !important; }
+  .kcc-brand-logo  { width: 58px !important; height: 58px !important; max-width: 58px !important; max-height: 58px !important; }
+
+  .kcc-inst-title  { font-size: 0.62rem; letter-spacing: 0.04em; }
+  .kcc-sys-name    { font-size: 1.1rem; }
+  .kcc-hero-headline { font-size: 1.35rem; }
+
+  .kcc-form-panel,
+  .kcc-form-panel--register {
+    padding: 24px 16px 72px;
   }
 
-  .kcc-brand-badge {
-    width: 60px !important;
-    height: 60px !important;
-  }
-
-  .kcc-brand-logo {
-    width: 60px !important;
-    height: 60px !important;
-    max-width: 60px !important;
-    max-height: 60px !important;
-  }
-
-  .kcc-hero-headline {
-    font-size: 1.35rem;
-  }
-
-  .kcc-hero-desc {
-    display: none; /* Clean presentation: keep title and tagline, skip long paragraph on small phones */
-  }
-
-  .kcc-form-panel {
-    padding: 24px 14px 40px;
-  }
-
-  .kcc-form-title {
-    font-size: 1.4rem;
-  }
+  .kcc-form-title { font-size: 1.3rem; }
 }
 
-@media (max-width: 360px) {
-  .kcc-pill-dot {
-    display: none; /* Frees enough width for the tagline to stay on one line */
-  }
+@media (max-width: 400px) {
+  .kcc-hero-panel { height: 170px; }
+  .kcc-pill-dot   { display: none; }
 }

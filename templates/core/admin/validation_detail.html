@@ -120,7 +120,7 @@
       <div>
         <div class="font-semibold" style="color: var(--success);">Registration Approved</div>
         <div class="text-secondary text-sm">
-          Approved by <strong>{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username }}</strong> on {{ student_profile.approved_at|date:"F j, Y · g:i A" }}.
+          Approved by <strong>{% if student_profile.approved_by %}{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username }}{% else %}System{% endif %}</strong> on {{ student_profile.approved_at|date:"F j, Y · g:i A" }}.
         </div>
       </div>
     </div>
@@ -135,7 +135,7 @@
       <div>
         <div class="font-semibold" style="color: var(--danger);">Registration Rejected</div>
         <div class="text-secondary text-sm">
-          Rejected by <strong>{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username }}</strong> on {{ student_profile.approved_at|date:"F j, Y · g:i A" }}.
+          Rejected by <strong>{% if student_profile.approved_by %}{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username }}{% else %}System{% endif %}</strong> on {{ student_profile.approved_at|date:"F j, Y · g:i A" }}.
           {% if student_profile.approval_note %}<br><strong>Reason:</strong> {{ student_profile.approval_note }}{% endif %}
         </div>
       </div>
@@ -446,7 +446,7 @@
         <div style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
           <div class="text-xs uppercase font-bold text-muted mb-2">Audit Verification Record</div>
           <div class="text-sm text-secondary flex flex-col gap-1">
-            <div>Evaluated by: <strong class="text-primary">{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username|default:"System" }}</strong></div>
+            <div>Evaluated by: <strong class="text-primary">{% if student_profile.approved_by %}{{ student_profile.approved_by.get_full_name|default:student_profile.approved_by.username }}{% else %}System{% endif %}</strong></div>
             <div>Evaluated at: <span class="text-primary">{{ student_profile.approved_at|date:"F j, Y · g:i A" }}</span></div>
             {% if student_profile.approval_note %}
               <div class="mt-2 text-danger">Remarks: {{ student_profile.approval_note }}</div>

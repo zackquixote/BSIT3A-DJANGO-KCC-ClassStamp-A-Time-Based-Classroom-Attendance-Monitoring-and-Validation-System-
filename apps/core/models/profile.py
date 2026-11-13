@@ -93,6 +93,13 @@ class Profile(models.Model):
         related_name='profiles',
         help_text="// Faculty department affiliation (Required for TEACHER)"
     )
+    employee_number = models.CharField(
+        max_length=50,
+        unique=True,
+        null=True, blank=True,
+        verbose_name='Faculty ID',
+        help_text="// Institutional faculty / employee ID number (Required for TEACHER)"
+    )
 
     # // ------------------------------------------------------------------
     # // Student-Specific Attributes

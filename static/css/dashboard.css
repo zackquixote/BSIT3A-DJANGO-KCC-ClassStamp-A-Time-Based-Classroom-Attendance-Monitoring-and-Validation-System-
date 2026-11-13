@@ -1384,7 +1384,12 @@
 }
 
 @media (min-width: 1025px) and (min-height: 580px) {
-  html, body {
+  /* Screen lock — app shell only. This stylesheet ships in the global bundle,
+     so a bare `html, body` selector also hit the auth pages and clipped the
+     registration form with no way to scroll. Auth templates opt out by putting
+     class="kcc-auth-html" on <html>. */
+  html:not(.kcc-auth-html),
+  html:not(.kcc-auth-html) > body {
     height: 100vh !important;
     overflow: hidden !important;
   }

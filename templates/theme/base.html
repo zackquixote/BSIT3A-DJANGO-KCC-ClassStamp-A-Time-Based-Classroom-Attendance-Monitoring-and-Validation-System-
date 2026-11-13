@@ -106,6 +106,8 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if request.user.is_authenticated and request.user.classstamp_profile.role == 'STUDENT' %}role-student{% endif %}">
+
+  {% include "theme/boot_splash.html" %}
   <div class="app-layout">
 
     {% if request.user.is_authenticated %}
@@ -127,11 +129,18 @@
           </div>
           <div class="mobile-topbar-right" style="display: flex; align-items: center; gap: 10px;">
             <!-- Notification Bell Icon (for all mobile devices, especially students) -->
-            <a href="{% url 'notification_list' %}" class="mobile-bell-btn" id="mobileBellBtn"
-               aria-label="Notifications ({% if unread_notification_count %}{{ unread_notification_count }} unread{% else %}none{% endif %})"
-               title="Notifications">
+            <a href="{% if request.user.classstamp_profile.role == 'ADMIN' %}{% url 'validation_pending_queue' %}{% else %}{% url 'notification_list' %}{% endif %}" class="mobile-bell-btn" id="mobileBellBtn"
+               aria-label="Notifications{% if unread_notification_count %}: {{ unread_notification_count }} unread{% endif %}{% if pending_approval_count %} · {{ pending_approval_count }} pending validation{% endif %}"
+               title="Notifications{% if pending_approval_count %} · {{ pending_approval_count }} pending validation{% endif %}">
               <i class="fas fa-bell"></i>
-              {% if unread_notification_count and unread_notification_count > 0 %}
+              {% comment %}Admin: the pending-approval queue is the number that needs action, so it
+                 wins the badge. Everyone else (and admins with a clear queue) sees the
+                 unread notification count.{% endcomment %}
+              {% if pending_approval_count and pending_approval_count > 0 %}
+                <span class="mobile-bell-badge" id="mobileBellBadge">
+                  {% if pending_approval_count > 99 %}99+{% else %}{{ pending_approval_count }}{% endif %}
+                </span>
+              {% elif unread_notification_count and unread_notification_count > 0 %}
                 <span class="mobile-bell-badge" id="mobileBellBadge">
                   {% if unread_notification_count > 99 %}99+{% else %}{{ unread_notification_count }}{% endif %}
                 </span>
@@ -279,11 +288,15 @@
   </div>
 
   {% if request.user.is_authenticated %}
-    <button type="button" class="present-mode-toggle" data-present-toggle aria-pressed="false"
-            title="Presentation Mode — brighter, larger text for projector / live demo">
-      <i class="fas fa-display" aria-hidden="true"></i>
-      <span class="present-mode-toggle-label">Present</span>
-    </button>
+    {% with role=request.user.classstamp_profile.role %}
+      {% if role == 'ADMIN' or role == 'TEACHER' %}
+        <button type="button" class="present-mode-toggle" data-present-toggle aria-pressed="false"
+                title="Presentation Mode — brighter, larger text for projector / live demo">
+          <i class="fas fa-display" aria-hidden="true"></i>
+          <span class="present-mode-toggle-label">Present</span>
+        </button>
+      {% endif %}
+    {% endwith %}
   {% endif %}
 
   <!-- Modern Icon System (Lucide) & KCC ClassStamp Core Modules -->

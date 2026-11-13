@@ -198,11 +198,15 @@
         /notifications/, so the whole feed was reachable only by typing the URL.
       {% endcomment %}
       <span class="sidebar-section-label">Account</span>
-      <a href="{% url 'notification_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'notification_list' %}active{% endif %}">
-        {% icon "bell" "sidebar-link-icon" %}
-        <span>Notifications</span>
-        <span class="sidebar-badge" id="sidebarUnreadBadge"{% if not unread_notification_count %} style="display: none;"{% endif %}>{{ unread_notification_count }}</span>
-      </a>
+      {% comment %}Admins act from Account Validation; their bell and queue live there,
+        so the generic feed row is hidden for them.{% endcomment %}
+      {% if request.user.classstamp_profile.role != 'ADMIN' %}
+        <a href="{% url 'notification_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'notification_list' %}active{% endif %}">
+          {% icon "bell" "sidebar-link-icon" %}
+          <span>Notifications</span>
+          <span class="sidebar-badge" id="sidebarUnreadBadge"{% if not unread_notification_count %} style="display: none;"{% endif %}>{{ unread_notification_count }}</span>
+        </a>
+      {% endif %}
       <a href="{% url 'message_inbox' %}" class="sidebar-link {% if request.resolver_match.url_name in 'message_inbox message_compose message_thread' %}active{% endif %}">
         <i data-lucide="mail" class="sidebar-link-icon"></i>
         <i class="fas fa-envelope sidebar-link-icon lucide-fallback"></i>

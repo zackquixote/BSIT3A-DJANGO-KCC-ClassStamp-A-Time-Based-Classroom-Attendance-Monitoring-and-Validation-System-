@@ -11,17 +11,12 @@
 
 /* ── Wide Form Panel Scrolling & Spacing ─────────────────────── */
 .kcc-form-panel--register {
-  padding: 40px 48px;
-  align-items: flex-start;
-  overflow-y: auto;
-  max-height: 100vh;
+  padding: 56px 48px 72px;
 }
 
 .kcc-form-container--wide {
   max-width: 580px;
   width: 100%;
-  margin: auto;
-  padding: 20px 0;
 }
 
 /* ── Grid Row for Multi-Column Fields ────────────────────────── */
@@ -32,91 +27,262 @@
   margin-bottom: 4px;
 }
 
-/* ── Cascading Select Controls ───────────────────────────────── */
-select.kcc-input {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 14px center !important;
-  background-size: 12px !important;
-  padding-right: 38px !important;
-  cursor: pointer;
-}
-
-select.kcc-input:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  background-color: #09101c !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
-  color: #64748b !important;
-}
-
-/* ── Proof of Enrollment / COR File Upload ───────────────────── */
-input[type="file"].kcc-input {
-  padding: 8px 12px 8px 42px !important;
-  cursor: pointer;
-  line-height: 1.6;
-  height: auto;
-  min-height: 46px;
-}
-
-input[type="file"].kcc-input::file-selector-button {
-  background: #1e293b;
-  color: #f8fafc;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  padding: 5px 12px;
-  margin-right: 12px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-input[type="file"].kcc-input::file-selector-button:hover {
-  background: rgba(245, 196, 68, 0.2);
-  border-color: #f5c444;
+/* ── Required-field markers ─────────────────────────────────── */
+/* Every field on the registration and sign-in forms is mandatory, so the
+   asterisk is applied by CSS instead of 11 hand-edited labels. Labels that
+   carry their own badge (COR/ID proof) opt out with .form-label--tagged. */
+.auth-form .form-label:not(.form-label--tagged)::after {
+  content: "*";
+  margin-left: 4px;
   color: #f5c444;
+  font-weight: 700;
 }
 
-/* ── Live Availability Feedback Indicators ───────────────────── */
-#studentNumberStatus,
-#usernameStatus,
-#emailStatus {
-  transition: all 0.2s ease;
-  padding-left: 2px;
-  font-size: 0.78rem;
-  margin-top: 4px;
+.kcc-required-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid rgba(245, 196, 68, 0.45);
+  border-radius: 999px;
+  background: rgba(245, 196, 68, 0.14);
+  color: #f5c444;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
-#studentNumberStatus span,
-#usernameStatus span,
-#emailStatus span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 500;
+/* The form panel always paints above the hero, so no decorative panel can
+   ever sit on top of a field. */
+.kcc-split-layout .kcc-form-panel {
+  z-index: 1;
 }
 
-/* ── Form Error Text ─────────────────────────────────────────── */
-.kcc-field-error {
-  font-size: 0.78rem;
-  color: #ef4444;
-  margin-top: 4px;
+/* ── Server error summary inside the alert ──────────────────── */
+/* Only "review the highlighted fields" used to show up, and the field that
+   actually failed (usually the COR upload at the bottom) was off-screen. */
+.auth-alert .kcc-alert-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-alert .kcc-alert-list {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.auth-alert .kcc-alert-note {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+  opacity: 0.85;
+}
+
+.auth-alert .kcc-alert-list li + li {
+  margin-top: 2px;
+}
+
+/* ── Dark select (custom picker) ────────────────────────────── */
+/* Android draws <select> options as a white system sheet, which is painful on
+   this navy page (and in-app browsers ignore color-scheme). The native control
+   keeps the value; the visible button + listbox below are ours. */
+.input-wrap.has-kcc-select {
+  position: relative;
+}
+
+.input-wrap.has-kcc-select .kcc-select-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.kcc-select-display {
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 44px 0 42px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(255, 255, 255, 0.03);
+  color: #f4f6fb;
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kcc-select-display:hover { border-color: rgba(245, 196, 68, 0.55); }
+
+.kcc-select-display.is-open,
+.kcc-select-display:focus-visible {
+  outline: none;
+  border-color: #f5c518;
+  box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.18);
+}
+
+.kcc-select-display.is-placeholder .kcc-select-value { color: #94a3b8; }
+
+.kcc-select-display.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.kcc-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kcc-select-chevron {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  color: #f5c444;
+  transition: transform 0.18s ease;
+}
+
+.kcc-select-display.is-open .kcc-select-chevron { transform: rotate(180deg); }
+
+.kcc-select-panel {
+  position: absolute;
+  z-index: 60;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 264px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid rgba(245, 196, 68, 0.28);
+  border-radius: 12px;
+  background: #131e32;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  -webkit-overflow-scrolling: touch;
+}
+
+.kcc-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kcc-select-option + .kcc-select-option { margin-top: 2px; }
+
+.kcc-select-option:hover,
+.kcc-select-option:focus-visible {
+  background: rgba(245, 196, 68, 0.12);
+  outline: none;
+}
+
+.kcc-select-option.is-selected {
+  background: rgba(245, 196, 68, 0.16);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.kcc-select-option.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.kcc-select-tick {
+  font-size: 0.72rem;
+  color: #f5c444;
+  opacity: 0;
+}
+
+.kcc-select-option.is-selected .kcc-select-tick { opacity: 1; }
+
+@media (max-width: 900px) {
+  .kcc-select-display { height: 50px; font-size: 16px; }
+}
+
+/* ── Select dropdown chevron ─────────────────────────────────── */
+/* The auth theme resets `background` on .form-control, which wiped the shared
+   select arrow — the Department/Program pickers ended up looking like plain
+   text inputs. Draw the chevron explicitly, in gold, so students can see that
+   these fields are dropdowns they still have to pick. */
+.kcc-auth-page select.kcc-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f5c444' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 15px 15px !important;
+  padding-right: 44px !important;
+  cursor: pointer;
+}
+
+.kcc-auth-page select.kcc-input:hover {
+  border-color: rgba(245, 196, 68, 0.55) !important;
+}
+
+.kcc-auth-page select.kcc-input:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.35);
 }
 
 /* ── Responsive Mobile Adjustments ───────────────────────────── */
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .kcc-form-panel--register {
-    padding: 32px 20px;
+    padding: 28px 20px 72px;
   }
 
   .kcc-form-row {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 0;
+  }
+
+  /* Phones & tablets: the hero scrolls away with the page and can never grow
+     past its own content. A sticky 100vh hero is what used to sit on top of
+     "First Name" / "Last Name" while a student was scrolled down. */
+  .kcc-hero-panel {
+    position: relative !important;
+    height: auto !important;
+    min-height: 190px;
+    max-height: none !important;
+    flex: none;
+  }
+
+  /* Nothing on the auth page may clip the form on a small screen. */
+  .kcc-form-panel,
+  .kcc-form-panel--register {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .kcc-form-panel--register {
+    padding: 24px 16px 72px;
+  }
+
+  .kcc-hero-panel {
+    min-height: 175px;
   }
 }

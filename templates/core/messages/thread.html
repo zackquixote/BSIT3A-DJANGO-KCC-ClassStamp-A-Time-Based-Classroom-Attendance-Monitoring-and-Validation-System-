@@ -1,7 +1,25 @@
 {% extends "theme/base.html" %}
 {% block title %}{{ other.get_full_name|default:other.get_username }} — Messages{% endblock %}
 
+{% block extra_css %}
+<style>
+  /* Same centred column as Compose: the thread + reply card line up instead of
+     hugging the left edge of a wide laptop screen. */
+  .msg-thread { width: min(100%, 860px); margin: 0 auto; }
+  .msg-thread .card { max-width: none; }
+  .msg-thread .msg-log { padding: 16px; max-height: 55vh; overflow-y: auto; }
+  .msg-thread .msg-reply { padding: 20px; }
+  .msg-thread .form-group { margin-bottom: 18px; }
+  @media (max-width: 640px) {
+    .msg-thread .msg-log { padding: 12px; max-height: none; }
+    .msg-thread .msg-reply { padding: 16px; }
+    .msg-thread .msg-reply .btn { width: 100%; justify-content: center; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="msg-thread">
 <div class="page-header">
   <div>
     <h1 class="page-title">{{ other.get_full_name|default:other.get_username }}</h1>
@@ -12,7 +30,7 @@
   </a>
 </div>
 
-<div class="card mb-4" style="max-width: 860px; padding: 16px; max-height: 55vh; overflow-y: auto;">
+<div class="card mb-4 msg-log">
   {% if messages %}
     {% for message in messages %}
       <div style="margin-bottom:14px; {% if message.sender_id == other.pk and not message.is_read %}border-left:3px solid #3b82f6; padding-left:10px;{% endif %}">
@@ -30,7 +48,7 @@
   {% endif %}
 </div>
 
-<div class="card" style="max-width: 860px; padding: 20px;">
+<div class="card msg-reply">
   {% if error %}
     <div class="toast toast--error mb-3">{{ error }}</div>
   {% endif %}
@@ -49,5 +67,6 @@
       <i class="fas fa-paper-plane"></i> Send reply
     </button>
   </form>
+</div>
 </div>
 {% endblock %}

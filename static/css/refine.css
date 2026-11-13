@@ -1276,13 +1276,74 @@ label.form-label i { display: none !important; }
 /* Panel head: the title block yields space so trailing actions never wrap. */
 .dash-panel-head > div:first-child { flex: 1 1 0 !important; }
 
-/* ── Auth: centre the form, strengthen the split ─────────────── */
+/* ── Auth: centre login form, let register page scroll ───────── */
 
+/* Login panel: centred vertically, fills viewport height */
 .kcc-form-panel {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 100vh !important;
+  border-left: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Register panel: content anchors to top, min-height:0 so the panel
+   shrinks to fit its content and the PAGE grows taller than the
+   viewport — triggering the browser's native scroll */
+.kcc-form-panel--register {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+/* Phones & tablets (≤900px): the stacked layout must hug its content. The
+   rules above pin the panel to 100vh with !important, so under a 190px hero
+   the sign-in card was centred inside a full viewport and students had to
+   scroll through a screen of empty navy before reaching the fields. */
+@media (max-width: 900px) {
+  /* The hero absorbs whatever height the card leaves over, so the card sits
+     directly under it and the page ends at the fold: no dead band above the
+     card and no stretched empty footer below it. */
+  .kcc-hero-panel {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .kcc-form-panel,
+  .kcc-form-panel--register {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+  }
+
+  .kcc-form-panel {
+    padding-top: 24px !important;
+    padding-bottom: 56px !important; /* clears the floating help button */
+  }
+
+  /* Registration: a long form — keep it top-anchored so the page scrolls. */
+  .kcc-form-panel--register {
+    padding-top: 26px !important;
+    padding-bottom: 72px !important;
+  }
+}
+
+/* Auth pages must always scroll. dashboard.css locks html/body to 100vh with
+   overflow:hidden for the app shell; this layer is bundled last, so it keeps a
+   long form (registration) reachable even if such a lock comes back. */
+html.kcc-auth-html {
+  height: auto !important;
+  overflow: visible !important;
+  overflow-y: auto !important;
+}
+
+html.kcc-auth-html > body {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
 }
 
 .kcc-form-container { width: 100%; max-width: 372px; margin: 0 auto; }
@@ -3446,3 +3507,195 @@ select.form-control:focus {
   font-weight: 700 !important;
 }
 
+/* ── Mobile: the hero kicker stays on ONE row ────────────────────────────── */
+/* Kept last in the file on purpose: the 0.68rem/0.14em rule above wins on
+   order, so the scale-down has to come after it. */
+@media (max-width: 900px) {
+  .kcc-tag-pill {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;          /* never spill past the hero */
+  }
+
+  .kcc-tag-pill span:last-child {
+    white-space: nowrap;
+    letter-spacing: 0.045em;
+    /* Sized for the WIDEST case: Android fallback fonts (Roboto) are ~10%
+       wider than Inter, so leave headroom instead of trusting the webfont. */
+    font-size: clamp(0.48rem, 2.45vw, 0.6rem);
+  }
+}
+
+/* ── Mobile: real visible height + compact hero ─────────────────────────── */
+/* iOS/Android browsers report 100vh WITHOUT their toolbars, so a vh-sized
+   layout pushed the sign-in card under the fold on a real iPhone. dvh tracks
+   the visible area; the hero stays compact instead of stretching. */
+@media (max-width: 900px) {
+  .kcc-split-layout {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+}
+
+/* Short visible viewports (Safari/Chrome toolbars eat ~90px): trim the outer
+   padding a touch so the Sign In button still lands above the fold. */
+@media (max-width: 900px) and (max-height: 780px) {
+  .kcc-hero-panel {
+    min-height: 168px;
+  }
+
+  .kcc-form-panel {
+    padding-top: 16px !important;
+    padding-bottom: 44px !important;
+  }
+}
+
+/* ── Mobile: one continuous auth surface, compact card ──────────────────── */
+/* Anything height-driven (100vh, stretching) breaks on a real phone: 100vh
+   includes the Safari/Chrome toolbars and stretching either pushes the button
+   under the fold or collides with the floating help button. So the stacked
+   layout below keeps the card compact and lets the page background continue
+   seamlessly underneath — no seam, no dead card, no overlap, no scroll. */
+@media (max-width: 900px) {
+  .kcc-auth-page {
+    background-color: #0c152b;
+    background-image: linear-gradient(160deg, #0c152b 0%, #111d3b 62%, #0d1730 100%);
+    background-attachment: fixed;
+  }
+
+  .kcc-split-layout {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .kcc-hero-panel {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .kcc-form-panel,
+  .kcc-form-panel--register {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    background: transparent !important;
+  }
+
+  /* The floating help shortcut is a fixed 40px button at the bottom-right; on
+     phones it overlapped "Create an account" on some heights, so it steps
+     aside — the footer link and the signed-in sidebar still reach /info/. */
+  .kcc-help-btn {
+    display: none !important;
+  }
+
+  .kcc-form-panel {
+    padding-top: 24px !important;
+    padding-bottom: 56px !important;
+  }
+
+  .kcc-form-panel--register {
+    padding-top: 26px !important;
+    padding-bottom: 72px !important;
+  }
+}
+
+/* Short visible viewports (toolbars eat ~90px): trim the outer padding. */
+@media (max-width: 900px) and (max-height: 780px) {
+  .kcc-hero-panel {
+    min-height: 168px;
+  }
+
+  .kcc-form-panel {
+    padding-top: 16px !important;
+    padding-bottom: 44px !important;
+  }
+
+  .kcc-form-panel--register {
+    padding-top: 20px !important;
+    padding-bottom: 64px !important;
+  }
+}
+
+/* ── Phones: any data table becomes readable cards ──────────────────────── */
+/* app_responsive_tables.js copies each <th> into data-label; this turns the
+   row into a card so nothing scrolls sideways and the action buttons stay
+   on-screen. Tables that already ship their own mobile layout opt out. */
+@media (max-width: 820px) {
+  table.table.is-stacked {
+    display: block;
+    width: 100%;
+    border: 0;
+  }
+
+  table.table.is-stacked thead { display: none; }
+
+  table.table.is-stacked tbody,
+  table.table.is-stacked tr,
+  table.table.is-stacked td {
+    display: block;
+    width: auto;
+  }
+
+  table.table.is-stacked tr {
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  table.table.is-stacked td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 6px 0;
+    border: 0;
+    text-align: right;
+    line-height: 1.45;
+  }
+
+  table.table.is-stacked td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 46%;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding-top: 3px;
+  }
+
+  /* cells without a header keep their natural layout */
+  table.table.is-stacked td:not([data-label])::before { content: none; }
+
+  /* empty / "no records" rows */
+  table.table.is-stacked td[colspan] {
+    display: block;
+    text-align: center;
+  }
+
+  table.table.is-stacked td[colspan]::before { content: none; }
+
+  /* action clusters wrap instead of pushing the card wider */
+  table.table.is-stacked td > div,
+  table.table.is-stacked td > .flex {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}
+
+/* ── Phones: one notification bell, not two ─────────────────────────────── */
+/* The admin dashboard carries its own bell dropdown while the mobile top bar
+   already has one — on a phone they show up side by side and read as duplicate
+   notifications. The top bar bell stays; this one steps aside. */
+@media (max-width: 820px) {
+  .dash-header-actions .notif-bell-wrapper {
+    display: none !important;
+  }
+}

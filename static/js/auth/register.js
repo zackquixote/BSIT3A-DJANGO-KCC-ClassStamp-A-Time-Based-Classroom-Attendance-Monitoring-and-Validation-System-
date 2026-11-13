@@ -240,6 +240,74 @@
     if (confirmInput) {
       confirmInput.addEventListener('input', updateMatch);
     }
+
+    // 8. Submit feedback the student can actually see.
+    // Native validation bubbles are easy to miss on phones (they can appear
+    // off-screen above the keyboard), and a failed server submit used to say
+    // only "review the highlighted fields" — with the COR / ID upload, which
+    // sits at the bottom of the form, being the usual culprit.
+    function fieldLabel(el) {
+      var group = el.closest ? el.closest('.form-group') : null;
+      var label = group ? group.querySelector('.form-label') : null;
+      return label ? label.textContent.replace(/\s+/g, ' ').trim() : 'This field';
+    }
+
+    function showFieldNotice(el, message) {
+      var group = el.closest ? el.closest('.form-group') : null;
+      if (!group) return null;
+      var note = group.querySelector('.js-client-error');
+      if (!note) {
+        note = document.createElement('span');
+        note.className = 'kcc-field-error js-client-error';
+        group.appendChild(note);
+      }
+      note.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + message;
+      return note;
+    }
+
+    function scrollToEl(el) {
+      try {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        el.scrollIntoView();
+      }
+    }
+
+    if (registerForm) {
+      // Replace the browser's silent bubble with an inline message.
+      registerForm.addEventListener('invalid', function (event) {
+        var el = event.target;
+        event.preventDefault();                 // suppress the native tooltip
+        if (!el) return;
+        el.classList.add('is-invalid');
+        var isFile = el.type === 'file';
+        var label = fieldLabel(el).replace(/\s*\*\s*$/, '');
+        var msg = isFile
+          ? 'Please attach your COR or school ID photo — required ito bago makapag-submit.'
+          : label + ' — required, pakilagay ito.';
+        el.dataset.kccHint = msg;
+        showFieldNotice(el, msg);
+        scrollToEl(el);
+      }, true);
+
+      registerForm.addEventListener('input', function (event) {
+        var el = event.target;
+        if (!el || !el.classList) return;
+        el.classList.remove('is-invalid');
+        var note = el.closest && el.closest('.form-group')
+          ? el.closest('.form-group').querySelector('.js-client-error') : null;
+        if (note) note.remove();
+      }, true);
+
+      registerForm.addEventListener('change', function (event) {
+        if (event.target && event.target.type === 'file') {
+          event.target.classList.remove('is-invalid');
+          var group = event.target.closest('.form-group');
+          var note = group ? group.querySelector('.js-client-error') : null;
+          if (note) note.remove();
+        }
+      }, true);
+    }
   }
 
   if (document.readyState === 'loading') {

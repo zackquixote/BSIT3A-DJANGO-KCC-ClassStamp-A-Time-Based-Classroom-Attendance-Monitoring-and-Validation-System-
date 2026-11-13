@@ -89,6 +89,9 @@
               <div>
                 <div class="font-semibold text-primary">{{ t.user.get_full_name|default:t.user.username }}</div>
                 <div class="text-muted text-xs">{{ t.user.email }}</div>
+                <div class="text-xs font-mono" style="color: var(--gold, #fbbf24);">
+                  <i class="fas fa-id-badge"></i> {{ t.employee_number|default:"No Faculty ID" }}
+                </div>
               </div>
             </div>
           </td>
@@ -224,6 +227,11 @@
             <label class="form-label" for="teacherLastName">Last Name <span class="text-danger">*</span></label>
             <input type="text" id="teacherLastName" name="last_name" class="form-control" placeholder="e.g. Santos" autocomplete="family-name" required>
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="teacherFacultyId">Faculty ID <span class="text-danger">*</span></label>
+          <input type="text" id="teacherFacultyId" name="employee_number" class="form-control" placeholder="e.g. KCC-FAC-0142" maxlength="50" autocomplete="off" required>
+          <span class="form-hint"><i class="fas fa-circle-info"></i> Official faculty / employee ID number. Required — the teacher can also sign in with it.</span>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherEmail">Email Address <span class="text-danger">*</span></label>
@@ -500,8 +508,8 @@
 <div id="teacher-reassign-boot" hidden data-reassign-url="{% url 'teacher_reassign_ajax' 0 %}"></div>
 {% load static %}
 <script src="{% static 'js/teachers/teachers_common.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/teachers/add_teacher.js' %}?v=20261022_v4"></script>
-<script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261022_v3"></script>
+<script src="{% static 'js/teachers/add_teacher.js' %}?v=20261113_facid"></script>
+<script src="{% static 'js/teachers/edit_teacher.js' %}?v=20261113_facid"></script>
 <script src="{% static 'js/teachers/save_teacher.js' %}?v=20261022_v4"></script>
 <script src="{% static 'js/teachers/view_teacher.js' %}?v=20261022_v3"></script>
 <script src="{% static 'js/teachers/delete_teacher.js' %}?v=20261022_v3"></script>

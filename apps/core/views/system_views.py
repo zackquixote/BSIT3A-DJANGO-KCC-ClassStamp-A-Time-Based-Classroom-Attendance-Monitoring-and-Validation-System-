@@ -1,12 +1,42 @@
 import json
+from urllib.parse import urlparse
 
+from django.contrib import messages
 from django.core.cache import cache
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.core.models import AuditEvent
+
+
+def csrf_failure(request, reason=''):
+    """
+    // [Friendly 403] A sign-in or registration page left open on a phone gets a
+    // stale CSRF token; Django's default answer is a dead 403 page. Send the
+    // student back to where they came from with a retry message instead.
+    """
+    wants_json = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in (request.headers.get('Accept') or '')
+    )
+    if wants_json:
+        return JsonResponse(
+            {'ok': False, 'error': 'Your page expired. Please reload and try again.'},
+            status=403,
+        )
+
+    messages.warning(
+        request,
+        'Your page expired for security. Please try again.',
+    )
+    referer = request.META.get('HTTP_REFERER', '')
+    if referer:
+        parsed = urlparse(referer)
+        if parsed.netloc == request.get_host():
+            return redirect(referer)
+    return redirect('login')
 
 
 @require_GET

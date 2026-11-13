@@ -144,3 +144,72 @@ class NoBulkSelectionTests(TeacherPageBase):
         response = self.client.get(reverse('teacher_list'))
 
         self.assertNotContains(response, 'Teacher Stats Quick Filters')
+
+class TeacherFacultyIdTests(TeacherPageBase):
+    """Faculty ID is mandatory for TEACHER accounts, mirroring Student ID."""
+
+    def _payload(self, **overrides):
+        data = {
+            'first_name': 'Maria',
+            'last_name': 'Santos',
+            'email': 'msantos@kcc.edu.ph',
+            'dept_id': str(self.department.id),
+            'employee_number': 'KCC-FAC-0142',
+            'is_active': '1',
+        }
+        data.update(overrides)
+        return data
+
+    def test_create_without_faculty_id_is_rejected(self):
+        payload = self._payload()
+        payload.pop('employee_number')
+        response = self.client.post(reverse('teacher_create'), payload)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.filter(email='msantos@kcc.edu.ph').exists())
+
+    def test_create_stores_the_faculty_id(self):
+        response = self.client.post(reverse('teacher_create'), self._payload())
+
+        self.assertEqual(response.status_code, 200)
+        profile = Profile.objects.get(employee_number='KCC-FAC-0142')
+        self.assertEqual(profile.role, Profile.ROLE_TEACHER)
+
+    def test_duplicate_faculty_id_is_rejected(self):
+        self.client.post(reverse('teacher_create'), self._payload())
+        response = self.client.post(
+            reverse('teacher_create'),
+            self._payload(email='other@kcc.edu.ph'),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Profile.objects.filter(employee_number='KCC-FAC-0142').count(), 1)
+
+    def test_update_requires_faculty_id(self):
+        self.client.post(reverse('teacher_create'), self._payload())
+        profile = Profile.objects.get(employee_number='KCC-FAC-0142')
+
+        response = self.client.post(reverse('teacher_update', args=[profile.pk]), {
+            'first_name': 'Maria',
+            'last_name': 'Santos',
+            'email': 'msantos@kcc.edu.ph',
+            'dept_id': str(self.department.id),
+            'is_active': '1',
+        })
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_teacher_can_sign_in_with_faculty_id(self):
+        self.client.post(
+            reverse('teacher_create'),
+            self._payload(password='Str0ng!Pass123'),
+        )
+        self.client.logout()
+
+        response = self.client.post(reverse('login'), {
+            'username': 'KCC-FAC-0142',
+            'password': 'Str0ng!Pass123',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(response.get('Location'), reverse('login'))

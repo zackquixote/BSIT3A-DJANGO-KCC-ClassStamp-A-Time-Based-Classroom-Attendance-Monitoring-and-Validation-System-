@@ -212,6 +212,11 @@ def teacher_create(request):
         if not last_name:
             return JsonResponse({'ok': False, 'error': 'Last name is required.'}, status=400)
 
+        # // Faculty ID is mandatory for teacher accounts, mirroring Student ID.
+        employee_number = request.POST.get('employee_number', '').strip()
+        if not employee_number:
+            return JsonResponse({'ok': False, 'error': 'Faculty ID number is required.'}, status=400)
+
         from django.core.validators import validate_email
         try:
             validate_email(email)
@@ -250,6 +255,7 @@ def teacher_create(request):
             dept_id=dept_id,
             password=request.POST.get('password') or None,
             is_active=request.POST.get('is_active') == '1',
+            employee_number=employee_number,
         )
         resp = {
             'ok': True,
@@ -347,6 +353,10 @@ def teacher_update(request, pk: int):
         except (ValueError, TypeError):
             return JsonResponse({'ok': False, 'error': 'Invalid department selected.'}, status=400)
 
+        employee_number = request.POST.get('employee_number', '').strip()
+        if not employee_number:
+            return JsonResponse({'ok': False, 'error': 'Faculty ID number is required.'}, status=400)
+
         result = update_teacher_profile(
             actor=request.user,
             profile_id=pk,
@@ -356,6 +366,7 @@ def teacher_update(request, pk: int):
             dept_id=dept_id,
             is_active=request.POST.get('is_active') == '1',
             password=request.POST.get('password') or None,
+            employee_number=employee_number,
         )
         return JsonResponse({
             'ok': True,

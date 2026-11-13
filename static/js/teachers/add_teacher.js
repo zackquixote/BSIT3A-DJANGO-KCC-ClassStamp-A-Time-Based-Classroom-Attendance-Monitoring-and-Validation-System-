@@ -21,6 +21,7 @@
       var lnEl    = getEl('teacherLastName');          if (lnEl)    lnEl.value = '';
       var unEl    = getEl('teacherUsername');           if (unEl)    { unEl.value = ''; unEl.disabled = false; }
       var emEl    = getEl('teacherEmail');             if (emEl)    emEl.value = '';
+      var fidEl   = getEl('teacherFacultyId');         if (fidEl)   fidEl.value = '';
       var dpEl    = getEl('teacherDept');              if (dpEl)    dpEl.value = '';
       var pwEl    = getEl('teacherPassword');          if (pwEl)    pwEl.value = '';
       var acEl    = getEl('teacherIsActive');          if (acEl)    acEl.checked = true;
