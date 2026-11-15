@@ -870,4 +870,7 @@ class PushSubscriptionEndpointTests(TestCase):
     def test_subscribe_requires_login(self):
         self.client.logout()
         response = self._subscribe()
-        self.assertEqual(response.status_code, 302)
+        # /api/* answers 401 JSON for anonymous clients (rbac middleware): an XHR
+        # caller must not be handed an HTML login redirect.
+        self.assertEqual(response.status_code, 401)
+        self.assertIn('application/json', response.get('Content-Type', ''))
