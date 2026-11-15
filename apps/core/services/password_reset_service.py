@@ -102,7 +102,11 @@ def request_reset(identifier: str, request=None) -> bool:
 
     token = make_reset_token(user)
     path = f'/password-reset/{quote(token, safe="")}/'
-    base = request.build_absolute_uri('/')[:-1] if request is not None else ''
+    base = (getattr(settings, 'SITE_URL', '') or '').rstrip('/')
+    if not base and request is not None:
+        # Development fallback only; production always has SITE_URL, so the
+        # request Host header never reaches a reset email.
+        base = request.build_absolute_uri('/')[:-1]
     link = f'{base}{path}'
 
     display = user.get_full_name() or user.get_username()

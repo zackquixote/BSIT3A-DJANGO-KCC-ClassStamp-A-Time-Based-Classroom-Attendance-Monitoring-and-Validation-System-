@@ -45,7 +45,6 @@ from apps.core.services.two_factor_service import (
 from apps.core.views.helpers import (
     INVALID_LOGIN_MESSAGE,
     LOCK_DURATION,
-    LOCKED_MESSAGE,
     MAX_FAILED_ATTEMPTS,
     _get_lock_state,
     _reset_lock_state,
@@ -59,6 +58,30 @@ User = get_user_model()
 
 # // Constants and helpers are defined in helpers/auth_helpers.py
 # // and imported above — this file contains only HTTP view controllers.
+
+
+# // ==============================================================================
+# // HELPER: Refusal Response for a Locked Client
+# // ==============================================================================
+def _locked_response(request, remaining):
+    """
+    // [Authentication Guard] Renders the sign-in page in its locked state.
+    //
+    // The lockout lives in the cache (helpers/auth_helpers), so it already
+    // survives the page refresh a client-side countdown invites. Answering 429
+    // with Retry-After makes that visible: the form is shown locked instead of
+    // inviting an attempt the next POST would refuse, and a scripted client
+    // cannot read a 200 as permission to retry immediately.
+    """
+    wait = max(int(remaining or 0), 1)
+    response = render(
+        request,
+        'auth/login.html',
+        {'locked': True, 'remaining': wait},
+        status=429,
+    )
+    response['Retry-After'] = str(wait)
+    return response
 
 
 # // ==============================================================================
@@ -82,14 +105,18 @@ def login_view(request):
         return redirect('dashboard')
 
     if request.method == 'GET':
+        # // [Refresh Guard] An active lockout is read from the cache, not from
+        # // the page, so a reload must not hand back an unlocked form.
+        _, remaining = _get_lock_state(request)
+        if remaining is not None:
+            return _locked_response(request, remaining)
         return render(request, 'auth/login.html')
 
     login_input = request.POST.get('username', '').strip()
     password = request.POST.get('password', '')
     failed_attempts, remaining = _get_lock_state(request, login_input)
     if remaining is not None:
-        messages.error(request, f'Too many failed attempts. Try again in {remaining} seconds.')
-        return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
+        return _locked_response(request, remaining)
 
     # // [Flexible Identity Lookup]
     user_obj = None
@@ -159,9 +186,11 @@ def login_view(request):
     failed_attempts = _record_failed_attempt(request, login_input)
     request.session['failed_attempts'] = failed_attempts
     if failed_attempts >= MAX_FAILED_ATTEMPTS:
-        remaining = _set_lock_state(request, login_input)
-        messages.error(request, LOCKED_MESSAGE)
-        return render(request, 'auth/login.html', {'locked': True, 'remaining': remaining})
+        # // [Threshold Breach] The breach is itself a refusal, so it already
+        # // answers 429. The alert copy is rendered from the locked context
+        # // instead of the message queue: one node, one place for the countdown
+        # // to write into, and no duplicate alert above it.
+        return _locked_response(request, _set_lock_state(request, login_input))
 
     remaining_attempts = MAX_FAILED_ATTEMPTS - failed_attempts
     messages.error(request, f'{INVALID_LOGIN_MESSAGE} {remaining_attempts} attempts remaining.')

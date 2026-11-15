@@ -83,14 +83,26 @@
           <p class="kcc-form-subtitle">Enter your credentials to continue to your workspace.</p>
         </div>
 
-        {% if messages %}
+        {% comment %}
+        // [Single Live Region] Every sign-in outcome renders here. The old markup
+        // stamped id="status-message" on each alert, duplicating the id as soon as
+        // two messages queued; the countdown needs one stable node and assistive
+        // technology needs one region to follow.
+        {% endcomment %}
+        <div id="login-status" class="auth-status" role="status" aria-live="polite" aria-atomic="true">
           {% for message in messages %}
-            <div class="auth-alert {% if 'error' in message.tags %}auth-alert--error{% elif 'warning' in message.tags %}auth-alert--warning{% elif 'success' in message.tags %}auth-alert--success{% else %}auth-alert--info{% endif %}" id="status-message">
-              <i class="fas {% if 'error' in message.tags %}fa-circle-xmark{% elif 'warning' in message.tags %}fa-triangle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+            <div class="auth-alert {% if 'error' in message.tags %}auth-alert--error{% elif 'warning' in message.tags %}auth-alert--warning{% elif 'success' in message.tags %}auth-alert--success{% else %}auth-alert--info{% endif %}">
+              <i class="fas {% if 'error' in message.tags %}fa-circle-xmark{% elif 'warning' in message.tags %}fa-triangle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}" aria-hidden="true"></i>
               <span>{{ message }}</span>
             </div>
           {% endfor %}
-        {% endif %}
+          {% if locked %}
+            <div class="auth-alert auth-alert--warning" id="lockout-message">
+              <i class="fas fa-lock" aria-hidden="true"></i>
+              <span data-lockout-text aria-live="off">Too many failed attempts. Try again in {{ remaining|default:0 }} seconds.</span>
+            </div>
+          {% endif %}
+        </div>
 
         <form method="POST" action="{% url 'login' %}" class="auth-form" id="loginForm">
           {% csrf_token %}
@@ -124,10 +136,16 @@
                 class="form-control kcc-input has-toggle"
                 placeholder="Enter your password"
                 autocomplete="current-password"
+                aria-describedby="login-status"
                 {% if locked %}disabled{% endif %}
                 required
               >
-              <button type="button" class="kcc-toggle-btn" id="togglePassword" tabindex="-1" aria-label="Toggle password visibility">
+              {% comment %}
+              // [Two-State Control] aria-pressed carries the shown/hidden state;
+              // the button is keyboard reachable (tabindex="-1" made the toggle
+              // mouse-only for anyone without a pointer).
+              {% endcomment %}
+              <button type="button" class="kcc-toggle-btn" id="togglePassword" aria-pressed="false" aria-controls="id_password" aria-label="Show password">
                 Show
               </button>
             </div>
@@ -164,10 +182,14 @@
   </div>
 
   {% if locked %}
-  <div id="lockoutData" data-remaining="{{ remaining|default:0 }}" data-login-url="{% url 'login' %}" style="display:none;"></div>
+  <div id="lockoutData"
+       data-remaining="{{ remaining|default:0 }}"
+       data-message-template="Too many failed attempts. Try again in {seconds} seconds."
+       data-ready-message="You can try signing in again."
+       hidden></div>
   {% endif %}
 
-  <script src="{% static 'js/auth/login.js' %}?v=20261020_v1"></script>
+  <script src="{% static 'js/auth/login.js' %}?v=20261114_lock"></script>
   <script src="{% static 'js/core/service_worker.js' %}?v=20261102"></script>
 </body>
 </html>

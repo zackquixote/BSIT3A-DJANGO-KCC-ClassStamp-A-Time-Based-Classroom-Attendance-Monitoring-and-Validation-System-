@@ -9,30 +9,12 @@
 @import url('auth.css');
 
 /* ── Login-Specific Animations & Enhancements ────────────────── */
-#status-message {
+/* Colour and spacing come from .auth-alert in auth.css; this module only
+   adds the entry animation, so no id has to be duplicated onto a node
+   that may render more than once. */
+#login-status .auth-alert {
   animation: login-shake 0.4s ease-in-out;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #fca5a5;
-  border-radius: 8px;
-  padding: 12px 14px;
-  display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.86rem;
-  margin-bottom: 20px;
-}
-
-#status-message.auth-alert--success {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.25);
-  color: #86efac;
-}
-
-#status-message.auth-alert--warning {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.25);
-  color: #fde047;
 }
 
 @keyframes login-shake {

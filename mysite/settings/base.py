@@ -31,6 +31,11 @@ DEBUG = False  # overridden per-environment (dev.py / prod.py)
 
 ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
+# Absolute origin used in password-reset emails. Empty here; dev.py fills it
+# for local work and prod.py derives it from ALLOWED_HOSTS (or DJANGO_SITE_URL).
+# Never built from the request Host header — that is host-header poisoning.
+SITE_URL = os.environ.get('DJANGO_SITE_URL', '').strip().rstrip('/')
+
 # Web Push Notifications (VAPID keys) — single source of truth (task 4.1).
 # Generate VAPID keys with: python -c "from pywebpush import webpush; print(webpush.generate_vapid_keys())"
 # Or use the CLI: vapid --gen

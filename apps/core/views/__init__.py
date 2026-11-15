@@ -24,7 +24,6 @@
 from .auth_views import (
     INVALID_LOGIN_MESSAGE,
     LOCK_DURATION,
-    LOCKED_MESSAGE,
     MAX_FAILED_ATTEMPTS,
     _get_lock_state,
     _reset_lock_state,
@@ -41,6 +40,10 @@ from .auth_views import (
     two_factor_setup,
     two_factor_verify,
 )
+
+# // The lockout copy lives with the rate-limiting constants it belongs to; the
+# // login template renders it, so auth_views no longer imports it.
+from .helpers import LOCKED_MESSAGE
 
 # // ------------------------------------------------------------------------------
 # // 2. Role-Based Dashboards & Portal Subsystem

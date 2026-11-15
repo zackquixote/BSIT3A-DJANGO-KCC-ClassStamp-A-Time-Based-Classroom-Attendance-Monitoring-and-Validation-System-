@@ -26,6 +26,7 @@
 # // ==============================================================================
 """
 
+import math
 import re
 from datetime import timedelta
 
@@ -136,8 +137,12 @@ def _get_lock_state(request, identifier=''):
         _reset_lock_state(request)
         return 0, None
 
-    if timezone.now() < unlock_time:
-        remaining = int((unlock_time - timezone.now()).total_seconds())
+    now = timezone.now()
+    if now < unlock_time:
+        # // Rounded up, never truncated: int() released the client up to a
+        # // second before the server accepted an attempt again, so the first
+        # // retry after a visible countdown ended in a fresh lockout.
+        remaining = math.ceil((unlock_time - now).total_seconds())
         return failed_attempts, remaining
 
     # // Lockout duration has expired; restore clean state

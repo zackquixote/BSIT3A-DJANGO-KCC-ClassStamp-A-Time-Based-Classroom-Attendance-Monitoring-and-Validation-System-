@@ -7,7 +7,11 @@ application. It is an implementation reference, not a backlog.
 
 - Django `authenticate()` and `login()` are used for account authentication.
 - Login failures are tracked in cache by account and IP address, with a five-attempt
-  threshold and temporary lockout.
+  threshold and temporary lockout. Enforcement is server-side: while a lock is active
+  every attempt is refused with `429 Too Many Requests` and a `Retry-After` header,
+  including a plain reload of the sign-in page, and the account-level bucket holds
+  even when the client address changes. The countdown on the page is presentation
+  only.
 - Successful login and completed recovery flows rotate the Django session key.
 - Password changes are validated through Django's configured password validators.
 - Privileged admin and registrar accounts can use TOTP 2FA and hashed recovery codes.

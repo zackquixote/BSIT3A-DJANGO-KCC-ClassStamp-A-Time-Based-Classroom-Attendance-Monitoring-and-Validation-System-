@@ -66,6 +66,7 @@ from apps.core.services.attendance_policy import absence_threshold_percent
 from apps.core.services.class_join_service import generate_join_code
 from apps.core.services.in_app_notification_service import create_notification
 from apps.core.services.permission_service import PermissionService
+from apps.core.views.helpers.script_json import script_json
 
 
 def _class_setup_checklist(active_ay):
@@ -2155,7 +2156,7 @@ def class_wizard_setup(request):
     academic_years = AcademicYear.objects.order_by('-starts_on')
     active_ay = AcademicYear.objects.filter(is_active=True).first()
     departments = Department.objects.filter(is_active=True).order_by('name')
-    programs_json = json.dumps([
+    programs_json = script_json([
         {
             'id': p.id,
             'code': p.code,
@@ -2166,7 +2167,7 @@ def class_wizard_setup(request):
         }
         for p in programs
     ])
-    departments_json = json.dumps([
+    departments_json = script_json([
         {'id': d.id, 'name': d.name, 'code': d.code}
         for d in departments
     ])
@@ -2185,7 +2186,7 @@ def class_wizard_setup(request):
         'active_ay': active_ay,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
         'semester_choices': Curriculum.SEMESTER_CHOICES,
-        'existing_rooms_json': json.dumps(existing_rooms),
+        'existing_rooms_json': script_json(existing_rooms),
         'wizard_steps': wizard_steps,
     })
 

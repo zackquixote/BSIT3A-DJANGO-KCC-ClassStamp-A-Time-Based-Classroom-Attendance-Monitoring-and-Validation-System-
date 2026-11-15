@@ -1,7 +1,12 @@
 from django.urls import path
 from . import views
+from .views.system_views import robots_txt, security_txt
 
 urlpatterns = [
+    # // Well-known text endpoints (crawlers & security researchers)
+    path('robots.txt', robots_txt, name='robots_txt'),
+    path('.well-known/security.txt', security_txt, name='security_txt'),
+
     # // Auth routes
     path('', views.login_view, name='login'),
     path('login/2fa/', views.two_factor_verify, name='two_factor_verify'),

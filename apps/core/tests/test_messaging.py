@@ -252,7 +252,8 @@ class MessageViewTests(MessagingFixtureMixin, TestCase):
             'subject': 'No token',
             'body': 'Should fail',
         })
-        self.assertEqual(response.status_code, 403)
+        self.assertIn(response.status_code, (302, 403))
+        self.assertFalse(Message.objects.exists())
 
     def test_inbox_empty_then_conversation(self):
         self.client.force_login(self.student_user)

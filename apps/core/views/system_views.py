@@ -1,9 +1,10 @@
 import json
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
@@ -49,6 +50,40 @@ def service_worker(request):
     response['Service-Worker-Allowed'] = '/'
     response['Cache-Control'] = 'no-cache'
     return response
+
+
+@require_GET
+def robots_txt(request):
+    """
+    // [Crawlers] Keep indexers out of authenticated portals; only the
+    // login landing page is public.
+    """
+    body = '\n'.join([
+        'User-agent: *',
+        'Disallow: /admin/',
+        'Disallow: /teacher/',
+        'Disallow: /student/',
+        'Disallow: /users/',
+        'Disallow: /validation/',
+        'Allow: /$',
+        '',
+    ])
+    return HttpResponse(body, content_type='text/plain; charset=utf-8')
+
+
+@require_GET
+def security_txt(request):
+    """
+    // [RFC 9116] Machine-readable security contact for researchers.
+    """
+    contact = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or 'admin@classstamp.local'
+    body = '\n'.join([
+        'Contact: mailto:' + contact,
+        'Expires: 2027-12-31T00:00:00Z',
+        'Preferred-Languages: en',
+        '',
+    ])
+    return HttpResponse(body, content_type='text/plain; charset=utf-8')
 
 
 CSP_REPORT_MAX_BYTES = 8192

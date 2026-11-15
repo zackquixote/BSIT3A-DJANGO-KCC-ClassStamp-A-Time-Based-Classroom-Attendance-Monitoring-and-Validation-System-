@@ -17,6 +17,21 @@ if not SECRET_KEY:  # noqa: F405
 if not ALLOWED_HOSTS:  # noqa: F405
     raise RuntimeError('DJANGO_ALLOWED_HOSTS must be set in the environment for production.')
 
+# Absolute origin for password-reset emails. Never derived from the request
+# Host header: a forged Host plus an open ALLOWED_HOSTS is account takeover.
+if not SITE_URL:  # noqa: F405
+    real_hosts = [
+        h.strip() for h in ALLOWED_HOSTS  # noqa: F405
+        if h.strip() and h.strip() not in ('*', 'localhost', '127.0.0.1')
+    ]
+    if real_hosts:
+        SITE_URL = f'https://{real_hosts[0]}'  # noqa: F405
+    else:
+        raise RuntimeError(
+            'DJANGO_SITE_URL or a real DJANGO_ALLOWED_HOSTS entry is required '
+            'in production (reset emails must not follow the Host header).'
+        )
+
 # CSRF trusted origins for HTTPS in production (Django 4+)
 CSRF_TRUSTED_ORIGINS = [
     f"https://{h.strip()}"

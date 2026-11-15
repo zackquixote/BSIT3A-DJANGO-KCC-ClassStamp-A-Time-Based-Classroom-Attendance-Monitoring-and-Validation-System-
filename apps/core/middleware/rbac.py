@@ -17,7 +17,7 @@
 """
 
 from django.conf import settings
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 
 from apps.core.models import Profile
@@ -60,6 +60,13 @@ class RoleBasedAccessMiddleware:
         if not request.user.is_authenticated:
             # Requirement 5.5: redirect anonymous users to login before any
             # role check. Preserve ?next= so login returns them to the target.
+            # /api/* answers 401 JSON instead: XHR clients must not land on HTML.
+            # /api/csp-report/ stays public (the browser cannot attach a token).
+            if request.path.startswith('/api/') and request.path != '/api/csp-report/':
+                return JsonResponse(
+                    {'ok': False, 'error': 'Authentication required.'},
+                    status=401,
+                )
             if self._is_exempted(request.path):
                 return self.get_response(request)
             if self._required_role(request.path) is not None:
