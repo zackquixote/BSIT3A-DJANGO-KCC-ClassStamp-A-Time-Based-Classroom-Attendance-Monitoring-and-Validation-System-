@@ -18,12 +18,6 @@
      data-offline-url="{% url 'student_offline_badge_issue' %}">
 
   <div class="mb-4">
-    {% if proof and proof_is_image %}
-      <div class="badge-id-photo" title="Watermarked identity photo — proxy sharing deterrent">
-        <img src="{% url 'registration_proof_document' profile.pk %}" alt="Student ID photo" loading="lazy">
-        <span class="badge-id-photo__watermark" aria-hidden="true">{{ student_number }}</span>
-      </div>
-    {% endif %}
     <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">
       {{ request.user.get_full_name|default:request.user.get_username }}
     </div>
@@ -117,38 +111,6 @@
 {% block extra_js %}
 {% if has_qr_secret %}
 <style>
-  .badge-id-photo {
-    position: relative;
-    display: inline-block;
-    width: 150px;
-    height: 150px;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
-    margin-bottom: 12px;
-  }
-  .badge-id-photo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .badge-id-photo__watermark {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 1rem;
-    letter-spacing: 0.16em;
-    color: rgba(255, 255, 255, 0.5);
-    text-shadow: 0 0 4px rgba(0, 0, 0, 0.55);
-    transform: rotate(-24deg) scale(1.15);
-    pointer-events: none;
-    user-select: none;
-  }
   .qr-badge-card {
     max-width: 560px;
     margin: 0 auto;

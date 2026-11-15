@@ -40,6 +40,19 @@ from apps.core.services.curriculum_version_service import (
     ensure_draft_version,
 )
 
+# // Field ceilings mirrored from the models. The HTML inputs already carry the
+# // same maxlength, but a request that skips the browser must still be refused
+# // here: MySQL raises a DataError (HTTP 500) on an over-long value, while
+# // SQLite stores it without complaint, so the two deployments would disagree.
+MAX_DEPARTMENT_CODE_LEN = 20
+MAX_DEPARTMENT_NAME_LEN = 150
+MAX_PROGRAM_CODE_LEN = 20
+MAX_PROGRAM_NAME_LEN = 150
+MAX_SUBJECT_CODE_LEN = 40
+MAX_SUBJECT_NAME_LEN = 150
+# // A single subject above a dozen units is always a data-entry slip.
+MAX_SUBJECT_UNITS = 12
+
 
 class TermSwitchBlocked(Exception):
     """
@@ -74,6 +87,19 @@ def create_or_update_department(actor, code: str, name: str, is_active: bool, de
     """
     code = code.strip().upper()
     name = name.strip()
+
+    if not code:
+        raise ValueError('Department code is required (e.g. CCS, CITCS).')
+    if len(code) > MAX_DEPARTMENT_CODE_LEN:
+        raise ValueError(
+            f'Department code must be {MAX_DEPARTMENT_CODE_LEN} characters or fewer.'
+        )
+    if not name:
+        raise ValueError('Department name is required.')
+    if len(name) > MAX_DEPARTMENT_NAME_LEN:
+        raise ValueError(
+            f'Department name must be {MAX_DEPARTMENT_NAME_LEN} characters or fewer.'
+        )
 
     # // Uniqueness validation
     code_qs = Department.objects.filter(code__iexact=code)
@@ -201,6 +227,19 @@ def create_or_update_program(
     """
     code = code.strip().upper()
     name = name.strip()
+
+    if not code:
+        raise ValueError('Program code is required.')
+    if len(code) > MAX_PROGRAM_CODE_LEN:
+        raise ValueError(
+            f'Program code must be {MAX_PROGRAM_CODE_LEN} characters or fewer.'
+        )
+    if not name:
+        raise ValueError('Program name is required.')
+    if len(name) > MAX_PROGRAM_NAME_LEN:
+        raise ValueError(
+            f'Program name must be {MAX_PROGRAM_NAME_LEN} characters or fewer.'
+        )
 
     if years_total < 1 or years_total > 8:
         raise ValueError('Program duration must be between 1 and 8 years.')
@@ -360,14 +399,20 @@ def create_or_update_subject(
 
     if not code:
         raise ValueError('Subject code is required.')
+    if len(code) > MAX_SUBJECT_CODE_LEN:
+        raise ValueError(f'Subject code must be {MAX_SUBJECT_CODE_LEN} characters or fewer.')
     if not name:
         raise ValueError('Subject name is required.')
+    if len(name) > MAX_SUBJECT_NAME_LEN:
+        raise ValueError(f'Subject name must be {MAX_SUBJECT_NAME_LEN} characters or fewer.')
     try:
         units = int(units)
     except (TypeError, ValueError):
         raise ValueError('Units must be a whole number.')
     if units < 1:
         raise ValueError('Units must be at least 1.')
+    if units > MAX_SUBJECT_UNITS:
+        raise ValueError(f'Units cannot exceed {MAX_SUBJECT_UNITS}.')
 
     warning = ''
 

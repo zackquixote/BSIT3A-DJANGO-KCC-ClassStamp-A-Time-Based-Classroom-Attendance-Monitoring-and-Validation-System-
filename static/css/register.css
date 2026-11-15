@@ -27,6 +27,15 @@
   margin-bottom: 4px;
 }
 
+/* Password + Confirm Password stay stacked at every width. With two columns,
+   the live requirements checklist sat inside half a row and wrapped into a
+   tall, narrow box (one rule per three lines). Full width gives it the same
+   roomy, one-line-per-rule look the phone layout already had. */
+.kcc-form-row--stacked {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
 /* ── Required-field markers ─────────────────────────────────── */
 /* Every field on the registration and sign-in forms is mandatory, so the
    asterisk is applied by CSS instead of 11 hand-edited labels. Labels that
@@ -215,6 +224,79 @@
 }
 
 .kcc-select-option.is-selected .kcc-select-tick { opacity: 1; }
+
+/* ── Interactive Password Requirements Checklist ─────────────── */
+.kcc-pwd-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 15px;
+  margin-top: 8px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.kcc-pwd-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  transition: color 0.2s ease;
+}
+
+.kcc-pwd-rule .rule-icon {
+  font-size: 0.92rem;
+  color: #64748b;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.kcc-pwd-rule.is-satisfied {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.kcc-pwd-rule.is-satisfied .rule-icon {
+  color: #10b981;
+}
+
+.kcc-pwd-rule.is-satisfied .rule-text {
+  color: #10b981;
+}
+
+.kcc-pwd-rule .rule-text {
+  line-height: 1.4;
+}
+
+/* ── Inline field & upload feedback ─────────────────────────── */
+.kcc-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 6px;
+  font-size: 0.79rem;
+  line-height: 1.45;
+  color: #f87171;
+}
+
+.kcc-field-error[hidden] { display: none !important; }
+
+.kcc-field-error i {
+  margin-top: 0.15em;
+  flex-shrink: 0;
+}
+
+.kcc-upload-status {
+  display: none;
+  margin-top: 6px;
+  font-size: 0.79rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.kcc-upload-status i { margin-right: 6px; }
 
 @media (max-width: 900px) {
   .kcc-select-display { height: 50px; font-size: 16px; }

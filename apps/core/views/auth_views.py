@@ -119,24 +119,28 @@ def login_view(request):
         return _locked_response(request, remaining)
 
     # // [Flexible Identity Lookup]
+    # // Every accepted identifier is tried in turn: email, username, Student ID,
+    # // then Faculty ID. The old '@' branch was final, so an account whose
+    # // username is itself an address — or a student who signed in with a
+    # // Student ID that happens to contain '@' — could never get in.
     user_obj = None
     if '@' in login_input:
         user_obj = User.objects.filter(email__iexact=login_input).first()
-    else:
+    if user_obj is None:
         user_obj = User.objects.filter(username__iexact=login_input).first()
-        if not user_obj:
-            # // Students sign in with their Student ID, faculty with their
-            # // Faculty ID — both live on Profile.
-            id_profile = (
-                Profile.objects.filter(
-                    Q(student_number__iexact=login_input)
-                    | Q(employee_number__iexact=login_input)
-                )
-                .select_related('user')
-                .first()
+    if user_obj is None:
+        # // Students sign in with their Student ID, faculty with their
+        # // Faculty ID — both live on Profile.
+        id_profile = (
+            Profile.objects.filter(
+                Q(student_number__iexact=login_input)
+                | Q(employee_number__iexact=login_input)
             )
-            if id_profile:
-                user_obj = id_profile.user
+            .select_related('user')
+            .first()
+        )
+        if id_profile:
+            user_obj = id_profile.user
 
     user = None
     if user_obj:

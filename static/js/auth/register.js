@@ -154,60 +154,88 @@
       }
     }
 
-    // 7. Live Password Strength & Match Indicator
+    // 7. Live Password Requirements Checklist & Match Indicator
+    // Four rules that mirror the server policy in
+    // apps/core/views/helpers/auth_helpers.py. Each rule turns green the moment
+    // it is satisfied, so the student can see exactly which one is still
+    // missing instead of guessing why the form was rejected.
     var pwdInput = document.getElementById('id_password');
     var confirmInput = document.getElementById('id_confirm_password');
-    var strWrap = document.getElementById('passwordStrengthWrap');
-    var strBars = [
-      document.getElementById('strBar1'),
-      document.getElementById('strBar2'),
-      document.getElementById('strBar3'),
-      document.getElementById('strBar4')
-    ];
-    var strText = document.getElementById('passwordStrengthText');
+    var checklistWrap = document.getElementById('passwordChecklist');
+    var pwdErrorBox = document.getElementById('passwordErrorBox');
     var matchStatus = document.getElementById('passwordMatchStatus');
 
-    function checkPasswordStrength(val) {
-      if (!val) return 0;
-      if (val.length < 8) return 1;
+    var PASSWORD_RULES = [
+      {
+        el: document.getElementById('ruleLength'),
+        label: 'a minimum of 8 characters',
+        test: function (value) { return value.length >= 8; }
+      },
+      {
+        el: document.getElementById('ruleCase'),
+        label: 'lower and uppercase letters (a-z and A-Z)',
+        test: function (value) { return /[a-z]/.test(value) && /[A-Z]/.test(value); }
+      },
+      {
+        el: document.getElementById('ruleNumber'),
+        label: 'at least 1 number (0-9)',
+        test: function (value) { return /\d/.test(value); }
+      },
+      {
+        el: document.getElementById('ruleSymbol'),
+        label: 'at least 1 symbol or special character (!@#$%^&*)',
+        test: function (value) { return /[^A-Za-z0-9\s]/.test(value); }
+      }
+    ];
 
-      var variety = 0;
-      if (/[a-z]/.test(val)) variety++;
-      if (/[A-Z]/.test(val)) variety++;
-      if (/\d/.test(val)) variety++;
-      if (/[^A-Za-z0-9]/.test(val)) variety++;
-
-      if (val.length >= 16) return 4;
-      if (val.length >= 12 && variety >= 3) return 4;
-      if (val.length >= 10 && variety >= 4) return 4;
-      if (val.length >= 10 || variety >= 3) return 3;
-      return 2;
+    function setRuleState(ruleEl, isSatisfied) {
+      if (!ruleEl) return;
+      var icon = ruleEl.querySelector('.rule-icon');
+      if (isSatisfied) {
+        ruleEl.classList.add('is-satisfied');
+        if (icon) {
+          icon.className = 'fas fa-circle-check rule-icon';
+        }
+      } else {
+        ruleEl.classList.remove('is-satisfied');
+        if (icon) {
+          icon.className = 'far fa-circle rule-icon';
+        }
+      }
     }
 
-    function updateStrength() {
-      if (!pwdInput || !strWrap) return;
+    function unmetRules(value) {
+      return PASSWORD_RULES.filter(function (rule) { return !rule.test(value); });
+    }
+
+    function showPasswordError(message) {
+      if (!pwdErrorBox) return;
+      pwdErrorBox.hidden = false;
+      pwdErrorBox.innerHTML = '<i class="fas fa-circle-exclamation"></i> ' + message;
+    }
+
+    function hidePasswordError() {
+      if (!pwdErrorBox) return;
+      pwdErrorBox.hidden = true;
+      pwdErrorBox.innerHTML = '';
+    }
+
+    function updatePasswordChecklist() {
+      if (!pwdInput) return;
       var val = pwdInput.value;
-      if (!val) {
-        strWrap.style.display = 'none';
-        updateMatch();
-        return;
-      }
 
-      strWrap.style.display = 'block';
-      var score = checkPasswordStrength(val);
-
-      var colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
-      var labels = ['Weak (needs 8+ chars)', 'Fair', 'Good', 'Very strong'];
-
-      strBars.forEach(function (bar, idx) {
-        if (bar) {
-          bar.style.background = idx < score ? colors[score - 1] : 'transparent';
-        }
+      PASSWORD_RULES.forEach(function (rule) {
+        setRuleState(rule.el, rule.test(val));
       });
 
-      if (strText) {
-        strText.textContent = labels[score - 1];
-        strText.style.color = colors[score - 1];
+      // The checklist stays visible at all times: it is the instruction, not a
+      // reaction to typing, so a student sees the rules before choosing one.
+      if (checklistWrap) {
+        checklistWrap.style.display = 'flex';
+      }
+
+      if (val && unmetRules(val).length === 0) {
+        hidePasswordError();
       }
 
       updateMatch();
@@ -226,20 +254,23 @@
 
       matchStatus.style.display = 'block';
       if (pVal === cVal) {
-        matchStatus.innerHTML = '<span style="color: #10b981;"><i class="fas fa-circle-check"></i> Passwords match</span>';
+        matchStatus.innerHTML = '<span style="color: #10b981; display: inline-flex; align-items: center; gap: 5px;"><i class="fas fa-circle-check"></i> Passwords match</span>';
         confirmInput.style.borderColor = 'rgba(16, 185, 129, 0.6)';
       } else {
-        matchStatus.innerHTML = '<span style="color: #f87171;"><i class="fas fa-circle-xmark"></i> Passwords do not match</span>';
+        matchStatus.innerHTML = '<span style="color: #ef4444; display: inline-flex; align-items: center; gap: 5px;"><i class="fas fa-circle-xmark"></i> Passwords do not match</span>';
         confirmInput.style.borderColor = 'rgba(239, 68, 68, 0.6)';
       }
     }
 
     if (pwdInput) {
-      pwdInput.addEventListener('input', updateStrength);
+      pwdInput.addEventListener('input', updatePasswordChecklist);
+      pwdInput.addEventListener('focus', updatePasswordChecklist);
     }
     if (confirmInput) {
       confirmInput.addEventListener('input', updateMatch);
     }
+
+    updatePasswordChecklist();
 
     // 8. Submit feedback the student can actually see.
     // Native validation bubbles are easy to miss on phones (they can appear
@@ -283,8 +314,8 @@
         var isFile = el.type === 'file';
         var label = fieldLabel(el).replace(/\s*\*\s*$/, '');
         var msg = isFile
-          ? 'Please attach your COR or school ID photo — required ito bago makapag-submit.'
-          : label + ' — required, pakilagay ito.';
+          ? 'Please attach your Certificate of Registration (COR) or school ID photo — this document is required.'
+          : label + ' is required. Please fill in this field.';
         el.dataset.kccHint = msg;
         showFieldNotice(el, msg);
         scrollToEl(el);
@@ -307,6 +338,196 @@
           if (note) note.remove();
         }
       }, true);
+
+      // 9. Check the password rules, the match, and the COR / ID upload HERE,
+      // before the form leaves the page. A server round-trip rejects the whole
+      // submission and browsers deliberately drop the chosen file, which forced
+      // students to pick their document again — that was the real reason the
+      // upload felt strict.
+      registerForm.addEventListener('submit', function (event) {
+        var pwd = pwdInput ? pwdInput.value : '';
+
+        if (pwd) {
+          var missing = unmetRules(pwd);
+          if (missing.length) {
+            event.preventDefault();
+            showPasswordError('Your password still needs ' + joinLabels(missing) + '.');
+            scrollToEl(pwdInput);
+            return;
+          }
+        }
+
+        if (pwd && confirmInput && confirmInput.value !== pwd) {
+          event.preventDefault();
+          updateMatch();
+          scrollToEl(confirmInput);
+          return;
+        }
+
+        var file = proofInput && proofInput.files && proofInput.files[0];
+        if (file) {
+          var problem = uploadProblem(file);
+          if (problem) {
+            event.preventDefault();
+            setUploadStatus(problem, 'error');
+            scrollToEl(proofInput);
+          }
+        }
+      });
+    }
+
+    // 10. COR / ID upload guard.
+    // The server accepts JPG / PNG / WebP / PDF up to 5 MB and verifies the
+    // real file contents. Two things made that feel strict to students:
+    //   - a 12 MP phone photo is often 6–8 MB, so it was rejected only after the
+    //     page reloaded;
+    //   - iPhone HEIC files are not an accepted format at all.
+    // Both are caught (and large photos are shrunk) before the form is sent.
+    var MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+    var SHRINK_ABOVE_BYTES = 2.5 * 1024 * 1024;
+    var MAX_PHOTO_EDGE = 1800;
+    var ALLOWED_UPLOAD_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+    var proofInput = document.getElementById('id_registration_proof');
+    var proofStatus = document.getElementById('registrationProofStatus');
+
+    function fileExt(name) {
+      var parts = (name || '').toLowerCase().split('.');
+      return parts.length > 1 ? parts.pop() : '';
+    }
+
+    function humanSize(bytes) {
+      if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+      return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+    }
+
+    function setUploadStatus(message, tone) {
+      if (!proofStatus) return;
+      if (!message) {
+        proofStatus.innerHTML = '';
+        proofStatus.style.display = 'none';
+        return;
+      }
+      var color = tone === 'error' ? '#ef4444' : (tone === 'ok' ? '#10b981' : '#94a3b8');
+      var icon = tone === 'error' ? 'fa-circle-exclamation' : (tone === 'ok' ? 'fa-circle-check' : 'fa-circle-info');
+      proofStatus.style.display = 'block';
+      proofStatus.innerHTML = '<i class="fas ' + icon + '"></i> <span style="color:' + color + '">' + message + '</span>';
+    }
+
+    function uploadProblem(file) {
+      var ext = fileExt(file.name);
+      if (ext === 'heic' || ext === 'heif') {
+        return 'iPhone HEIC photos cannot be uploaded. Open Settings → Camera → Formats → Most Compatible, retake the photo, then attach it again.';
+      }
+      if (ALLOWED_UPLOAD_EXTS.indexOf(ext) === -1) {
+        return 'Unsupported file type ".' + ext + '". Please attach a JPG, PNG, WebP, or PDF file.';
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return 'This file is ' + humanSize(file.size) + ' — the limit is 5 MB. Please attach a smaller file.';
+      }
+      return '';
+    }
+
+    function joinLabels(rules) {
+      var labels = rules.map(function (rule) { return rule.label; });
+      if (labels.length === 1) return labels[0];
+      return labels.slice(0, -1).join(', ') + ' and ' + labels[labels.length - 1];
+    }
+
+    function replaceFile(input, newFile) {
+      try {
+        var transfer = new DataTransfer();
+        transfer.items.add(newFile);
+        input.files = transfer.files;
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // Downscale a phone photo in the browser so a 6–8 MB shot still fits under
+    // the 5 MB cap. The server re-encodes to WebP anyway, so nothing is lost.
+    function shrinkPhoto(file, done) {
+      var objectUrl = URL.createObjectURL(file);
+      var image = new Image();
+
+      image.onload = function () {
+        try {
+          var scale = Math.min(1, MAX_PHOTO_EDGE / Math.max(image.width, image.height));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          var context = canvas.getContext('2d');
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(function (blob) {
+            URL.revokeObjectURL(objectUrl);
+            if (!blob || blob.size >= file.size) {
+              done(null);
+              return;
+            }
+            var stem = file.name.replace(/\.[^.]+$/, '') || 'registration-proof';
+            done(new File([blob], stem + '.jpg', { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', 0.82);
+        } catch (err) {
+          URL.revokeObjectURL(objectUrl);
+          done(null);
+        }
+      };
+
+      image.onerror = function () {
+        URL.revokeObjectURL(objectUrl);
+        done(null);
+      };
+
+      image.src = objectUrl;
+    }
+
+    if (proofInput) {
+      proofInput.addEventListener('change', function () {
+        var file = this.files && this.files[0];
+        setUploadStatus('');
+        if (!file) return;
+
+        var ext = fileExt(file.name);
+        var problem = uploadProblem(file);
+
+        if (ext === 'heic' || ext === 'heif' || ALLOWED_UPLOAD_EXTS.indexOf(ext) === -1) {
+          setUploadStatus(problem, 'error');
+          return;
+        }
+
+        if (ext === 'pdf') {
+          if (problem) {
+            setUploadStatus(problem, 'error');
+            return;
+          }
+          setUploadStatus('Attached: ' + file.name + ' (' + humanSize(file.size) + ')', 'ok');
+          return;
+        }
+
+        if (file.size <= SHRINK_ABOVE_BYTES) {
+          setUploadStatus('Attached: ' + file.name + ' (' + humanSize(file.size) + ')', 'ok');
+          return;
+        }
+
+        setUploadStatus('Optimising your photo for upload…');
+        shrinkPhoto(file, function (shrunk) {
+          if (shrunk && shrunk.size <= MAX_UPLOAD_BYTES && replaceFile(proofInput, shrunk)) {
+            setUploadStatus('Photo optimised: ' + humanSize(file.size) + ' → ' + humanSize(shrunk.size), 'ok');
+            return;
+          }
+          if (file.size > MAX_UPLOAD_BYTES) {
+            setUploadStatus(
+              'This photo is ' + humanSize(file.size) + ' and could not be shrunk automatically. '
+              + 'Please retake it at a lower resolution or choose a smaller file (limit: 5 MB).',
+              'error'
+            );
+            return;
+          }
+          setUploadStatus('Attached: ' + file.name + ' (' + humanSize(file.size) + ')', 'ok');
+        });
+      });
     }
   }
 

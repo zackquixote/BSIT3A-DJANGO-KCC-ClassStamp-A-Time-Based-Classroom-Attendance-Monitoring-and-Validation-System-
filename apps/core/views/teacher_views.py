@@ -18,6 +18,7 @@ from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.core.decorators import role_required
@@ -35,6 +36,7 @@ from apps.core.models import (
     Subject,
 )
 from apps.core.serializers.teacher_serializers import serialize_teacher, serialize_teacher_summary
+from apps.core.views.helpers.date_windows import year_bounds
 from apps.core.services import (
     ClassAssignmentError,
     assign_class,
@@ -104,7 +106,13 @@ def teacher_list(request):
         teachers_qs = teachers_qs.filter(user__is_active=False)
 
     if year_filter.isdigit():
-        teachers_qs = teachers_qs.filter(user__date_joined__year=int(year_filter))
+        # // A range keeps this working when MySQL has no timezone tables, where
+        # // __year on a DateTimeField would match nothing.
+        year_start, year_end = year_bounds(int(year_filter))
+        teachers_qs = teachers_qs.filter(
+            user__date_joined__gte=year_start,
+            user__date_joined__lt=year_end,
+        )
 
     paginator = Paginator(teachers_qs, 15)
     page_number = request.GET.get('page', 1)
@@ -147,12 +155,14 @@ def teacher_list(request):
         s.is_ge = is_general_education_subject(s.code)
 
     # Distinct join years across the whole faculty (unfiltered) for the filter dropdown
+    # // Derive the years in Python: the SQL EXTRACT path needs CONVERT_TZ() on
+    # // MySQL and silently returns NULL there, leaving the dropdown empty.
     year_choices = sorted(
         {
-            year for year in
-            Profile.objects.filter(role=Profile.ROLE_TEACHER)
-            .values_list('user__date_joined__year', flat=True)
-            if year
+            timezone.localtime(joined).year
+            for joined in Profile.objects.filter(role=Profile.ROLE_TEACHER)
+            .values_list('user__date_joined', flat=True)
+            if joined
         },
         reverse=True,
     )

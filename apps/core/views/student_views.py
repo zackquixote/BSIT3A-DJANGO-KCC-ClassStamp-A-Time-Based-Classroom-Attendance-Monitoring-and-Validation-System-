@@ -259,10 +259,12 @@ def student_profile_update_ajax(request):
 
     try:
         year = int(year_level)
-        if year < 1 or year > 4:
+        # // The hard ceiling is the model's range; the program's own years_total
+        # // is checked below, so a 5-year course is not silently capped at Year 4.
+        if year < 1 or year > 8:
             raise ValueError
     except (ValueError, TypeError):
-        errors['year_level'] = 'Year level must be between 1 and 4.'
+        errors['year_level'] = 'Year level must be between 1 and 8.'
         year = None
 
     program = None

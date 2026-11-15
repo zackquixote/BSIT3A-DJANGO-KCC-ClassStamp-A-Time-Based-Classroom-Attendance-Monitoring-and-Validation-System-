@@ -20,6 +20,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
+
+from apps.core.views.helpers.date_windows import day_bounds, month_bounds
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_http_methods, require_POST
 
@@ -193,7 +195,10 @@ def admin_calendar_view(request):
     // category filters, and upcoming milestone summary.
     """
     now = timezone.now()
-    today = now.date()
+    # // now.date() is the UTC date: between 00:00 and 08:00 Manila it points at
+    # // yesterday, so the calendar opened on the wrong day. localdate() is the
+    # // date the admin is actually living in.
+    today = timezone.localdate()
     active_year = AcademicYear.objects.filter(is_active=True).first()
 
     # KPI Telemetry
@@ -203,10 +208,13 @@ def admin_calendar_view(request):
         status=AcademicEvent.STATUS_SCHEDULED
     ).count()
 
+    # // Range, not __year/__month: MySQL answers an extract through
+    # // CONVERT_TZ(), which returns NULL unless the server has timezone tables.
+    month_start, month_end = month_bounds(today)
     this_month_count = AcademicEvent.objects.filter(
-        start_datetime__year=now.year,
-        start_datetime__month=now.month,
-        status=AcademicEvent.STATUS_SCHEDULED
+        start_datetime__gte=month_start,
+        start_datetime__lt=month_end,
+        status=AcademicEvent.STATUS_SCHEDULED,
     ).count()
 
     holidays_count = AcademicEvent.objects.filter(
@@ -253,10 +261,11 @@ def admin_calendar_view(request):
     }
 
     # Today's events for sidebar "Today" panel
+    day_start, day_end = day_bounds(today)
     today_events = list(
         AcademicEvent.objects.filter(
-            start_datetime__date__lte=today,
-            end_datetime__date__gte=today,
+            start_datetime__lt=day_end,
+            end_datetime__gte=day_start,
             status=AcademicEvent.STATUS_SCHEDULED,
         )
         .select_related('academic_year')
@@ -475,6 +484,17 @@ def admin_calendar_event_save(request):
     # Validation
     if not title:
         return JsonResponse({'error': 'Event title is required.'}, status=400)
+
+    # // Both columns are VARCHARs: MySQL rejects an over-long value with a
+    # // DataError (500) while SQLite accepts it, so refuse it here in one place.
+    if len(title) > 200:
+        return JsonResponse(
+            {'error': 'Event title must be 200 characters or fewer.'}, status=400,
+        )
+    if len(location) > 150:
+        return JsonResponse(
+            {'error': 'Event location must be 150 characters or fewer.'}, status=400,
+        )
 
     if category not in dict(AcademicEvent.CATEGORY_CHOICES):
         return JsonResponse({'error': 'Invalid event category.'}, status=400)

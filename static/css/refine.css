@@ -3699,3 +3699,30 @@ select.form-control:focus {
     display: none !important;
   }
 }
+
+
+/* ── Phones: keep the last control above the fixed tab bar ───────────────────
+   The global `.main-content { padding: 16px 20px !important }` rule above wins
+   the cascade at every width, so on phones the 62px bottom tab bar sat on top
+   of the final control — the profile page's "Update Password" button could not
+   be reached at all. These rules come last and restore the clearance. */
+@media (max-width: 900px) {
+  .main-content {
+    padding: 16px 14px 96px 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-content {
+    padding: 14px 12px 96px 12px !important;
+  }
+}
+
+/* Panels that end the page (profile cards, forms) get a little extra room so a
+   focused field never sits flush against the bar when the keyboard opens. */
+@media (max-width: 900px) {
+  .profile-card:last-of-type,
+  #profileForm:last-of-type {
+    margin-bottom: 8px;
+  }
+}

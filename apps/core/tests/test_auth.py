@@ -142,6 +142,38 @@ class RegistrationViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(User.objects.count(), 0)
 
+    def test_registration_rejects_password_without_symbol(self):
+        """Rule 4 of the live checklist: at least 1 symbol / special character.
+        The server must reject exactly what the checklist shows as still gray."""
+        response = self._post(password='Juan2026', confirm_password='Juan2026')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(User.objects.count(), 0)
+        self.assertContains(response, 'at least 1 symbol or special character')
+
+    def test_registration_accepts_four_rule_password(self):
+        """8+ chars, mixed case, a digit and a symbol — all four rules green."""
+        response = self._post(password='Juan2026!', confirm_password='Juan2026!')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(User.objects.count(), 1)
+
+    def test_registration_is_not_stricter_than_the_visible_checklist(self):
+        """Registration only enforces the four rules shown on the form.
+
+        Django's similarity / common-password validators are bypassed here on
+        purpose: a student must never be rejected for a rule the checklist did
+        not display. The reset / change-password flows still apply them.
+        """
+        response = self._post(
+            username='jdelacruz',
+            password='Jdelacruz1!',
+            confirm_password='Jdelacruz1!',
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(User.objects.count(), 1)
+
     def test_registration_without_cor_or_id_proof_is_rejected(self):
         """The COR / school-ID proof is mandatory: the admin validates every
         student against it, so no account may be created without one."""
@@ -232,6 +264,76 @@ class LoginFlowTests(TestCase):
     def test_wrong_password_does_not_authenticate(self):
         response = self.client.post(reverse('login'), {
             'username': 'adminx', 'password': 'totally-wrong',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+    # // [Multi-Identifier Sign-In] The form says "Student ID or email", so both
+    # // must reach the same account, and the username path must keep working.
+    TEST_PASSWORD = 'MultiId!2026'
+
+    def _pin_known_password(self, user):
+        """Set a password this test knows, so the identifier is the only variable."""
+        user.set_password(self.TEST_PASSWORD)
+        user.save(update_fields=['password'])
+
+    def test_login_with_student_id_number(self):
+        """Student ID: the username is 'studx', the ID on the profile is different."""
+        self._pin_known_password(self.student_user)
+
+        response = self.client.post(reverse('login'), {
+            'username': '2023-1234', 'password': self.TEST_PASSWORD,
+        })
+        self.assertRedirects(response, reverse('dashboard'))
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.student_user.pk)
+
+    def test_login_with_email(self):
+        self.student_user.email = 'studx@example.com'
+        self.student_user.save(update_fields=['email'])
+        self._pin_known_password(self.student_user)
+
+        response = self.client.post(reverse('login'), {
+            'username': 'studx@example.com', 'password': self.TEST_PASSWORD,
+        })
+        self.assertRedirects(response, reverse('dashboard'))
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.student_user.pk)
+
+    def test_login_with_email_is_case_insensitive(self):
+        self.student_user.email = 'studx@example.com'
+        self.student_user.save(update_fields=['email'])
+        self._pin_known_password(self.student_user)
+
+        response = self.client.post(reverse('login'), {
+            'username': 'STUDX@EXAMPLE.COM', 'password': self.TEST_PASSWORD,
+        })
+        self.assertRedirects(response, reverse('dashboard'))
+
+    def test_login_with_username_still_works(self):
+        self._pin_known_password(self.student_user)
+
+        response = self.client.post(reverse('login'), {
+            'username': 'studx', 'password': self.TEST_PASSWORD,
+        })
+        self.assertRedirects(response, reverse('dashboard'))
+
+    def test_login_with_faculty_id_number(self):
+        """Faculty sign in with their Faculty ID, same as students with Student ID."""
+        teacher_profile = self.teacher_user.classstamp_profile
+        teacher_profile.employee_number = 'FAC-0912'
+        teacher_profile.save(update_fields=['employee_number'])
+        self._pin_known_password(self.teacher_user)
+
+        response = self.client.post(reverse('login'), {
+            'username': 'fac-0912', 'password': self.TEST_PASSWORD,
+        })
+        self.assertRedirects(response, reverse('dashboard'))
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.teacher_user.pk)
+
+    def test_unknown_identifier_does_not_authenticate(self):
+        self._pin_known_password(self.student_user)
+
+        response = self.client.post(reverse('login'), {
+            'username': '2099-0000', 'password': self.TEST_PASSWORD,
         })
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.wsgi_request.user.is_authenticated)

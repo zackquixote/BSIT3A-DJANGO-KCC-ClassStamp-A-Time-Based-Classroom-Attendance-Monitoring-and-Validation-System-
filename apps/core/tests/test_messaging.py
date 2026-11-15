@@ -252,7 +252,10 @@ class MessageViewTests(MessagingFixtureMixin, TestCase):
             'subject': 'No token',
             'body': 'Should fail',
         })
+        # The site installs CSRF_FAILURE_VIEW: a browser post is sent back to the
+        # form with a retry message (302); the bare 403 is reserved for AJAX.
         self.assertIn(response.status_code, (302, 403))
+        # Whatever the shape of the refusal, nothing may reach the outbox.
         self.assertFalse(Message.objects.exists())
 
     def test_inbox_empty_then_conversation(self):

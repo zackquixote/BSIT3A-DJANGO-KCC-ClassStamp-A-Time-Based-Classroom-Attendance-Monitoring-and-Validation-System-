@@ -394,15 +394,21 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
+<script nonce="{{ request.csp_nonce }}">
+  // The CSP allows inline scripts only through the per-request nonce, so the
+  // attribute above is what keeps this working on phones (desktop hides the
+  // button and shows the cards via CSS, which is why a missing nonce looked
+  // fine on a laptop). The readyState guard also binds when this markup is
+  // injected after DOMContentLoaded, e.g. inside in-app browsers.
+  function initStudentStatsToggle() {
     const statsBtn = document.getElementById('studentStatsToggleBtn');
     const collapsible = document.getElementById('studentKpiCollapsible');
-    if (statsBtn && collapsible) {
+    if (statsBtn && collapsible && !statsBtn.dataset.bound) {
+      statsBtn.dataset.bound = '1';
       statsBtn.addEventListener('click', function() {
         const isOpen = collapsible.classList.toggle('is-open');
         statsBtn.classList.toggle('is-active', isOpen);
-        statsBtn.setAttribute('aria-expanded', isOpen);
+        statsBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         if (isOpen && window.lucide && typeof window.lucide.createIcons === 'function') {
           window.lucide.createIcons();
         }
@@ -411,6 +417,11 @@
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
       window.lucide.createIcons();
     }
-  });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStudentStatsToggle);
+  } else {
+    initStudentStatsToggle();
+  }
 </script>
 {% endblock %}

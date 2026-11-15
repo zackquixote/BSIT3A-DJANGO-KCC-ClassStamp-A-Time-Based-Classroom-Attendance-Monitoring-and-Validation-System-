@@ -9,9 +9,10 @@
 # // ==============================================================================
 """
 
+import re
+
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
@@ -122,21 +123,28 @@ class RegistrationForm(forms.Form):
         last_name = cleaned_data.get('last_name')
         email = cleaned_data.get('email')
 
-        # Password matching & complexity check
+        # Password matching & complexity check (Student Registration)
+        # Same four rules as the live checklist on templates/auth/register.html.
         if password and confirm_password:
             if password != confirm_password:
                 self.add_error('confirm_password', 'Passwords do not match.')
             else:
-                dummy_user = User(
-                    username=username or '',
-                    email=email or '',
-                    first_name=first_name or '',
-                    last_name=last_name or '',
-                )
-                try:
-                    validate_password(password, dummy_user)
-                except ValidationError as e:
-                    self.add_error('password', ' '.join(e.messages))
+                pwd_problems = []
+                if len(password) < 8:
+                    pwd_problems.append('Password must be at least 8 characters long.')
+                if not re.search(r'[a-z]', password) or not re.search(r'[A-Z]', password):
+                    pwd_problems.append(
+                        'Password must include both lowercase and uppercase letters (a-z and A-Z).'
+                    )
+                if not re.search(r'\d', password):
+                    pwd_problems.append('Password must include at least 1 number (0-9).')
+                if not re.search(r'[^A-Za-z0-9\s]', password):
+                    pwd_problems.append(
+                        'Password must include at least 1 symbol or special character '
+                        '(for example ! @ # $ % ^ & *).'
+                    )
+                if pwd_problems:
+                    self.add_error('password', ' '.join(pwd_problems))
 
         # Academic constraints (program & year level)
         prog_id = cleaned_data.get('program_id')

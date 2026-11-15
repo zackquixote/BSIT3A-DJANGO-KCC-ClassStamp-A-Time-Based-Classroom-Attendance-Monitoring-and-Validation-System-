@@ -270,9 +270,13 @@ def class_list(request):
         .order_by('-academic_year__starts_on', 'class_code')
     )
 
+    # // A hand-edited ?ay= value must fall back to the default term instead of
+    # // being handed to the ORM, where a non-numeric id raises ValueError (500).
+    if ay_filter and ay_filter != 'ALL' and not ay_filter.isdigit():
+        ay_filter = ''
     if ay_filter:
         if ay_filter != 'ALL':
-            classes_qs = classes_qs.filter(academic_year_id=ay_filter)
+            classes_qs = classes_qs.filter(academic_year_id=int(ay_filter))
     elif active_ay:
         classes_qs = classes_qs.filter(academic_year=active_ay)
         ay_filter = str(active_ay.id)
@@ -290,11 +294,11 @@ def class_list(request):
     if year_filter.isdigit():
         classes_qs = classes_qs.filter(year_level=int(year_filter))
 
-    if subject_filter:
-        classes_qs = classes_qs.filter(subject_id=subject_filter)
+    if subject_filter.isdigit():
+        classes_qs = classes_qs.filter(subject_id=int(subject_filter))
 
-    if teacher_filter:
-        classes_qs = classes_qs.filter(teacher_profile_id=teacher_filter)
+    if teacher_filter.isdigit():
+        classes_qs = classes_qs.filter(teacher_profile_id=int(teacher_filter))
 
     if search_q:
         classes_qs = classes_qs.filter(

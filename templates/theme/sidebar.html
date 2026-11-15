@@ -216,7 +216,7 @@
 
   </nav>
 
-  <script>
+  <script nonce="{{ request.csp_nonce }}">
     /* Runs synchronously while the rail is still being parsed, so every job
        lands before the browser's first paint:
          1. migrate any legacy localStorage dropdown preference into the

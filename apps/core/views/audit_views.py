@@ -11,6 +11,8 @@
 # // ==============================================================================
 """
 
+from datetime import datetime
+
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -20,6 +22,7 @@ from django.utils import timezone
 
 from apps.core.decorators import role_required
 from apps.core.models import AuditEvent, Profile
+from apps.core.views.helpers.date_windows import day_bounds
 from apps.core.services.export_service import SafeCsvWriter
 from apps.core.views.helpers.dashboard_helpers import (
     get_activity_feed,
@@ -70,9 +73,12 @@ def admin_audit_log(request):
 
     # Date filter
     if date_filter:
+        # // Range instead of __date: the SQL extract needs CONVERT_TZ() on
+        # // MySQL and matches nothing when the server has no timezone tables.
         try:
-            events_qs = events_qs.filter(created_at__date=date_filter)
-        except Exception:
+            day_start, day_end = day_bounds(datetime.strptime(date_filter, '%Y-%m-%d').date())
+            events_qs = events_qs.filter(created_at__gte=day_start, created_at__lt=day_end)
+        except (ValueError, TypeError):
             pass
 
     # Keyword search across actor, action, object, and remarks
@@ -177,9 +183,12 @@ def admin_audit_log_export_csv(request):
         events_qs = events_qs.filter(actor__username=actor_filter)
 
     if date_filter:
+        # // Range instead of __date: the SQL extract needs CONVERT_TZ() on
+        # // MySQL and matches nothing when the server has no timezone tables.
         try:
-            events_qs = events_qs.filter(created_at__date=date_filter)
-        except Exception:
+            day_start, day_end = day_bounds(datetime.strptime(date_filter, '%Y-%m-%d').date())
+            events_qs = events_qs.filter(created_at__gte=day_start, created_at__lt=day_end)
+        except (ValueError, TypeError):
             pass
 
     if search_q:

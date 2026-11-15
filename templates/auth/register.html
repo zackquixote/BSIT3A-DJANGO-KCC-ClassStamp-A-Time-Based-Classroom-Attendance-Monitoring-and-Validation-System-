@@ -87,15 +87,15 @@
           <div class="auth-alert auth-alert--error" id="status-message" role="alert">
             <i class="fas fa-circle-xmark"></i>
             <div>
-              <strong class="kcc-alert-title">Hindi pa naisumite — ayusin muna ito:</strong>
+              <strong class="kcc-alert-title">Registration not submitted yet — please fix the following:</strong>
               <ul class="kcc-alert-list">
                 {% for field, message in errors.items %}
                   <li>{{ message }}</li>
                 {% endfor %}
               </ul>
               <p class="kcc-alert-note">
-                Para sa seguridad, hindi naka-save ang password at ang COR/ID file —
-                pakilagay at i-attach ulit bago mag-submit.
+                For your security, the password and the uploaded COR/ID document are never stored when
+                the form fails — please re-type your password and re-attach the document, then submit again.
               </p>
             </div>
           </div>
@@ -286,8 +286,10 @@
             {% endif %}
           </div>
 
-          <!-- Password Row -->
-          <div class="kcc-form-row">
+          <!-- Password + Confirm: stacked on every screen size.
+               Side by side, the live checklist was squeezed into half a row and
+               wrapped into a tall, narrow box; full width matches the phone layout. -->
+          <div class="kcc-form-row kcc-form-row--stacked">
             <div class="form-group">
               <label class="form-label" for="id_password">Password</label>
               <div class="input-wrap">
@@ -297,27 +299,35 @@
                   id="id_password"
                   name="password"
                   class="form-control kcc-input has-toggle {% if errors.password %}is-invalid{% endif %}"
-                  placeholder="At least 8 characters"
+                  placeholder="Create a password"
                   autocomplete="new-password"
                   required
+                  aria-describedby="passwordChecklist"
                 >
                 <button type="button" class="kcc-toggle-btn" id="togglePassword" tabindex="-1">
                   Show
                 </button>
               </div>
-              <!-- Live Password Strength Meter -->
-              <div id="passwordStrengthWrap" style="display: none; margin-top: 6px;">
-                <div style="display: flex; gap: 4px; height: 4px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, 0.1);">
-                  <div id="strBar1" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
-                  <div id="strBar2" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
-                  <div id="strBar3" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
-                  <div id="strBar4" style="flex: 1; background: transparent; transition: background 0.25s ease;"></div>
+              <!-- Live Password Requirements Checklist (4 rules, turns green as each is met) -->
+              <div id="passwordChecklist" class="kcc-pwd-checklist" aria-live="polite">
+                <div class="kcc-pwd-rule" id="ruleLength">
+                  <i class="far fa-circle rule-icon" aria-hidden="true"></i>
+                  <span class="rule-text">A minimum of 8 characters</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 0.74rem;">
-                  <span id="passwordStrengthLabel" style="color: #94a3b8; font-weight: 500;">Password strength</span>
-                  <span id="passwordStrengthText" style="font-weight: 600;"></span>
+                <div class="kcc-pwd-rule" id="ruleCase">
+                  <i class="far fa-circle rule-icon" aria-hidden="true"></i>
+                  <span class="rule-text">Lower and uppercase letters (a-z and A-Z)</span>
+                </div>
+                <div class="kcc-pwd-rule" id="ruleNumber">
+                  <i class="far fa-circle rule-icon" aria-hidden="true"></i>
+                  <span class="rule-text">At least 1 number (0-9)</span>
+                </div>
+                <div class="kcc-pwd-rule" id="ruleSymbol">
+                  <i class="far fa-circle rule-icon" aria-hidden="true"></i>
+                  <span class="rule-text">At least 1 symbol or special character (!@#$%^&amp;*)</span>
                 </div>
               </div>
+              <div class="kcc-field-error js-pwd-error" id="passwordErrorBox" hidden></div>
               {% if errors.password %}
                 <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.password }}</span>
               {% endif %}
@@ -361,17 +371,20 @@
                 id="id_registration_proof"
                 name="registration_proof"
                 class="form-control kcc-input {% if errors.registration_proof %}is-invalid{% endif %}"
-                accept="image/*,application/pdf"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
                 required
               >
             </div>
             <span class="text-xs text-muted" style="margin-top: 4px; display: block; color: #64748b;">
-              Required. Kunin sa <strong>camera ng phone</strong> o i-upload ang photo/scan ng COR
-              (JPG, PNG, WebP, o PDF — max 5MB). <strong>Hindi kailangan ng scanner.</strong>
-              Siguraduhing buo at maliwanag ang litrato. Kung iPhone at HEIC ang format,
-              i-set muna ang Camera → Formats → <em>Most Compatible</em>.
-              Kung ma-reject ang form, i-attach ulit ang file bago mag-submit.
+              Required. Take a clear photo with your phone camera, or upload your COR / school ID.
+              Accepted files: <strong>JPG, PNG, WebP, or PDF — up to 5 MB</strong>.
+              Make sure the whole document is readable (no blur, no glare, all four corners visible).
+              <br>
+              iPhone users: set Camera → Formats → <em>Most Compatible</em> before taking the photo,
+              because HEIC photos cannot be uploaded.
+              If your photo is larger than 5 MB, this page will automatically shrink it for you.
             </span>
+            <div id="registrationProofStatus" class="kcc-upload-status" aria-live="polite"></div>
             {% if errors.registration_proof %}
               <span class="kcc-field-error"><i class="fas fa-circle-exclamation"></i> {{ errors.registration_proof }}</span>
             {% endif %}

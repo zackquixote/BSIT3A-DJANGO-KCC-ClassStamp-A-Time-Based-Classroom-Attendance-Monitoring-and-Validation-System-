@@ -386,7 +386,7 @@ class StudentTimetableGridTests(TestCase, BaseDashboardFixtureMixin):
         self.client.force_login(self.student_user)
         res = self.client.get(reverse('student_dashboard'))
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, 'This week')  # weekly grid panel (renamed in the 2026-11 UI pass)
+        self.assertContains(res, 'Weekly Class Grid')  # weekly grid panel (renamed in the 2026-11 UI pass)
 
 
 # // ==============================================================================

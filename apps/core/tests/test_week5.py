@@ -260,8 +260,8 @@ class ExcuseTrackerTests(TestCase, BaseWeek5FixtureMixin):
     def test_dashboard_renders_excuse_slip_tracker(self):
         res = self.client.get(reverse('student_dashboard'))
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, 'My excuse slips')  # sentence-case section title
-        self.assertContains(res, 'Pending review')
+        self.assertContains(res, 'My Excuse Slips')  # section title (2026-11 UI pass)
+        self.assertContains(res, 'Pending Review')
         self.assertContains(res, 'Fever')
 
     def test_dashboard_stats_expose_slip_counts(self):

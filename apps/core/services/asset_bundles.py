@@ -31,6 +31,10 @@ CSS_SOURCES = [
     'css/validation.css',
     'css/dashboard.css',
     'css/app.css',
+    # Page stylesheets that are not part of the shared shell still have to ship:
+    # the calendar page had no bundle entry, so every rule it depends on (filter
+    # bar, sidebar cards, milestone list) silently never reached the browser.
+    'css/calendar.css',
     # Last: the refinement layer that enforces the visual system.
     'css/refine.css',
     # Presentation/demo overlay — stays last so it wins the cascade.

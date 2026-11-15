@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from apps.core.views.helpers.date_windows import day_bounds
 from apps.core.views.helpers.script_json import script_json
 
 from apps.core.models import (
@@ -107,24 +108,30 @@ def _admin_dashboard_stats():
     ).prefetch_related('programs').all()
 
     # // [3.4] KPI trend deltas: compare to snapshot before today
+    # // Half-open local-day windows instead of __date lookups: MySQL resolves
+    # // those through CONVERT_TZ(), which is NULL without timezone tables and
+    # // quietly zeroed every "as of yesterday" figure below.
+    day_start, day_end = day_bounds(today)
+    yesterday_start, yesterday_end = day_bounds(yesterday)
     student_count_yesterday = Profile.objects.filter(
         role=Profile.ROLE_STUDENT,
         approval_status=Profile.APPROVAL_APPROVED,
-        approved_at__date__lt=today,
+        approved_at__lt=day_start,
     ).count()
     teacher_count_yesterday = Profile.objects.filter(
         role=Profile.ROLE_TEACHER,
         approval_status=Profile.APPROVAL_APPROVED,
-        created_at__date__lt=today,
+        created_at__lt=day_start,
     ).count()
     pending_count_yesterday = Profile.objects.filter(
         role=Profile.ROLE_STUDENT,
         approval_status=Profile.APPROVAL_PENDING,
-        created_at__date__lt=today,
+        created_at__lt=day_start,
     ).count()
     session_count_yesterday = ClassSession.objects.filter(
         status=ClassSession.STATUS_OPEN,
-        opened_at__date=yesterday,
+        opened_at__gte=yesterday_start,
+        opened_at__lt=yesterday_end,
     ).count()
 
     # // [2.2] Weekly attendance analytics — last 7 calendar days (Optimized Single Query)
@@ -159,7 +166,7 @@ def _admin_dashboard_stats():
     # // Academic Calendar & Philippine Holiday Integration
     upcoming_calendar_events = list(
         AcademicEvent.objects.filter(
-            end_datetime__date__gte=today,
+            end_datetime__gte=day_start,
             status=AcademicEvent.STATUS_SCHEDULED,
         )
         .select_related('academic_year')
@@ -168,8 +175,8 @@ def _admin_dashboard_stats():
 
     today_events = list(
         AcademicEvent.objects.filter(
-            start_datetime__date__lte=today,
-            end_datetime__date__gte=today,
+            start_datetime__lt=day_end,
+            end_datetime__gte=day_start,
             status=AcademicEvent.STATUS_SCHEDULED,
         ).select_related('academic_year')
     )
@@ -178,9 +185,11 @@ def _admin_dashboard_stats():
     # Lightweight event dates for mini-calendar day dots
     month_start = today.replace(day=1) - timedelta(days=7)
     month_end = today.replace(day=28) + timedelta(days=45)
+    month_window_start, _ = day_bounds(month_start)
+    _month_last_day, month_window_end = day_bounds(month_end)
     month_events_qs = AcademicEvent.objects.filter(
-        start_datetime__date__lte=month_end,
-        end_datetime__date__gte=month_start,
+        start_datetime__lt=month_window_end,
+        end_datetime__gte=month_window_start,
         status=AcademicEvent.STATUS_SCHEDULED,
     ).values('id', 'title', 'category', 'start_datetime', 'end_datetime', 'is_all_day')
 

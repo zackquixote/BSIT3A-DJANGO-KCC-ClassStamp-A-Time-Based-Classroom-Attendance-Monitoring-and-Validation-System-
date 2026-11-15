@@ -650,3 +650,156 @@
     margin: 12mm;
   }
 }
+
+/* ── 2026-11 polish: filter bar + sidebar lists at every width ──────────────── */
+.calendar-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 14px 16px;
+}
+
+.calendar-filter-bar .search-box {
+  flex: 1 1 280px;
+  min-width: 200px;
+}
+
+.calendar-filter-bar .filter-field {
+  flex: 0 1 190px;
+  min-width: 150px;
+}
+
+.calendar-filter-bar .form-control {
+  height: 38px;
+}
+
+.calendar-filter-bar .filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-left: auto;
+}
+
+.calendar-filter-bar .filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 11px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.calendar-filter-bar .filter-toggle:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.calendar-filter-bar .filter-toggle input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.calendar-filter-bar .filter-toggle i {
+  color: var(--accent-gold);
+}
+
+.calendar-filter-bar .filter-toggle-count {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.66rem;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--accent-gold);
+}
+
+.calendar-filter-bar .filter-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-filter-bar .filter-jump label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.calendar-filter-bar .filter-jump input {
+  width: 150px;
+  height: 34px;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
+
+/* Below 1100px the sidebar drops under the grid, so its lists get the full
+   page width: lay them out as compact cards instead of one long bar each. */
+@media (max-width: 1100px) {
+  .upcoming-events-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 8px;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .upcoming-event-item {
+    margin-bottom: 0;
+  }
+
+  .upcoming-event-item:hover {
+    transform: none;
+  }
+
+  .category-legend-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 700px) {
+  .calendar-filter-bar {
+    padding: 12px;
+  }
+
+  .calendar-filter-bar .search-box {
+    flex: 1 1 100%;
+  }
+
+  .calendar-filter-bar .filter-field {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+  }
+
+  .calendar-filter-bar .filter-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .calendar-filter-bar .filter-jump input {
+    width: 138px;
+  }
+
+  .calendar-card {
+    padding: 14px;
+  }
+}

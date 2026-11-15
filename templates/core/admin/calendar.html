@@ -57,7 +57,7 @@
         <i class="fas fa-clock" style="font-size: 1.2rem;"></i>
       </div>
     </div>
-    <div class="mt-2 text-xs text-muted">{{ now|date:"F Y" }} activity window</div>
+    <div class="mt-2 text-xs text-muted">{{ today|date:"F Y" }} activity window</div>
   </div>
 
   <!-- Active Academic Term -->
@@ -118,7 +118,7 @@
   </div>
 
   <!-- Category Filter -->
-  <div style="min-width: 170px;">
+  <div class="filter-field">
     <select id="categoryFilter" class="form-control" title="Filter by event category">
       <option value="">All Categories</option>
       {% for code, label in categories %}
@@ -129,7 +129,7 @@
   </div>
 
   <!-- Academic Year Filter -->
-  <div style="min-width: 170px;">
+  <div class="filter-field">
     <select id="academicYearFilter" class="form-control" title="Filter by academic year">
       <option value="">All Academic Years</option>
       {% for ay in academic_years %}
@@ -141,7 +141,7 @@
   </div>
 
   <!-- Semester Filter -->
-  <div style="min-width: 150px;">
+  <div class="filter-field">
     <select id="semesterFilter" class="form-control" title="Filter by semester">
       <option value="">All Semesters</option>
       {% for code, label in semesters %}
@@ -151,7 +151,7 @@
   </div>
 
   <!-- Status Filter -->
-  <div style="min-width: 130px;">
+  <div class="filter-field">
     <select id="statusFilter" class="form-control" title="Filter by event status">
       <option value="">All Statuses</option>
       {% for code, label in statuses %}
@@ -160,30 +160,25 @@
     </select>
   </div>
 
-  <!-- Excuse Slips Toggle Layer -->
-  <div class="flex items-center gap-2" style="padding: 0 4px; white-space: nowrap;">
-    <label class="flex items-center gap-2 cursor-pointer mb-0" style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);" title="Toggle student excuse slips display on the calendar">
-      <input type="checkbox" id="toggleExcusesCheckbox" checked
-             style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;">
-      <span><i class="fas fa-file-medical text-warning mr-1"></i> Excuse Slips</span>
+  <!-- Toggle + Reset + Jump to Date -->
+  <div class="filter-actions">
+    <label class="filter-toggle" title="Toggle student excuse slips display on the calendar">
+      <input type="checkbox" id="toggleExcusesCheckbox" checked>
+      <span><i class="fas fa-file-medical"></i> Excuse Slips</span>
       {% if pending_excuses_count %}
-        <span class="badge badge--warning text-xs font-mono" style="font-size: 0.65rem; padding: 2px 6px;" title="{{ pending_excuses_count }} pending approval">
-          {{ pending_excuses_count }}
-        </span>
+        <span class="filter-toggle-count" title="{{ pending_excuses_count }} pending approval">{{ pending_excuses_count }}</span>
       {% endif %}
     </label>
-  </div>
 
-  <!-- Reset Button -->
-  <button type="button" class="btn btn-outline btn-sm" id="resetFiltersBtn" title="Reset all calendar filters">
-    <i class="fas fa-arrow-rotate-left"></i> Reset
-  </button>
+    <button type="button" class="btn btn-outline btn-sm" id="resetFiltersBtn" title="Reset all calendar filters">
+      <i class="fas fa-arrow-rotate-left"></i> Reset
+    </button>
 
-  <!-- Jump to Date -->
-  <div style="display:flex; align-items:center; gap:6px;">
-    <label style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap;"><i class="fas fa-location-crosshairs"></i> Go to:</label>
-    <input type="date" id="jumpToDateInput" class="form-control" style="width:148px; font-size:0.8rem; padding:6px 10px;"
-           title="Jump calendar to a specific date" value="{{ today|date:'Y-m-d' }}">
+    <div class="filter-jump">
+      <label for="jumpToDateInput"><i class="fas fa-location-crosshairs"></i> Go to</label>
+      <input type="date" id="jumpToDateInput" class="form-control"
+             title="Jump calendar to a specific date" value="{{ today|date:'Y-m-d' }}">
+    </div>
   </div>
 </div>
 

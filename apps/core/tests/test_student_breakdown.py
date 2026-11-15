@@ -117,7 +117,7 @@ class StudentBreakdownTests(TestCase):
         self.assertContains(res, 'Juan Dela Cruz')
         self.assertContains(res, '75.0%')
         self.assertContains(res, '100.0%')
-        self.assertContains(res, 'No meetings recorded for this section yet.')
+        self.assertContains(res, 'No meetings yet')  # empty-breakdown caption (2026-11 UI pass)
         self.assertContains(res, 'Meeting log')
 
     def test_meeting_log_lists_records(self):

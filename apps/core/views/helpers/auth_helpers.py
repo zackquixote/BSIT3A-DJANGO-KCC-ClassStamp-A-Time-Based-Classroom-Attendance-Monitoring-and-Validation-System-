@@ -31,7 +31,6 @@ import re
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.cache import cache
 from django.core.validators import validate_email
@@ -234,17 +233,31 @@ def _validate_registration_data(data, proof_file=None):
         except ValidationError:
             errors['email'] = 'Enter a valid email address.'
 
-    # // 3. Password Complexity Validation (uses Django AUTH_PASSWORD_VALIDATORS)
+    # // 3. Student Registration Password Validation
+    # Mirrors the live 4-rule checklist on the registration form
+    # (#passwordChecklist in templates/auth/register.html) one-to-one:
+    #   length >= 8, lower + upper case, at least 1 number, at least 1 symbol.
+    # Similarity / common-password rejection stays relaxed so a student is never
+    # rejected for a rule the checklist never showed.
     if not password:
         errors['password'] = 'Password is required.'
     elif password != confirm_password:
         errors['confirm_password'] = 'Passwords do not match.'
     else:
-        dummy_user = User(username=username, email=email, first_name=first_name, last_name=last_name)
-        try:
-            validate_password(password, dummy_user)
-        except ValidationError as e:
-            errors['password'] = ' '.join(e.messages)
+        pwd_problems = []
+        if len(password) < 8:
+            pwd_problems.append('Password must be at least 8 characters long.')
+        if not re.search(r'[a-z]', password) or not re.search(r'[A-Z]', password):
+            pwd_problems.append('Password must include both lowercase and uppercase letters (a-z and A-Z).')
+        if not re.search(r'\d', password):
+            pwd_problems.append('Password must include at least 1 number (0-9).')
+        if not re.search(r'[^A-Za-z0-9\s]', password):
+            pwd_problems.append(
+                'Password must include at least 1 symbol or special character '
+                '(for example ! @ # $ % ^ & *).'
+            )
+        if pwd_problems:
+            errors['password'] = ' '.join(pwd_problems)
 
     # // 4. Academic Enrollment Constraints
     if not student_number:

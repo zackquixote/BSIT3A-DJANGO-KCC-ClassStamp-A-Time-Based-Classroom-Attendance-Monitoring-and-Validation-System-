@@ -3,7 +3,7 @@
 # // KCC CLASSSTAMP - WEEK 6 QUICK WINS / POLISH TESTS
 # // ==============================================================================
 # // Covers:
-# //   - S-02: QR badge photo watermark (proxy-sharing deterrent)
+# //   - S-02: QR badge publishes no identity document (QR only)
 # //   - A-16: Automatic WebP compression of uploaded proof images
 # //   - A-15: 1-click database backup download (admin)
 # //   - A-12: Teacher department reassignment modal endpoint
@@ -39,7 +39,7 @@ def _png_bytes(width=64, height=64, color=(200, 30, 30)):
 
 
 # // ==============================================================================
-# // S-02: QR BADGE PHOTO WATERMARK
+# // S-02: QR BADGE SHOWS THE CODE ONLY (NO COR / ID PHOTO)
 # // ==============================================================================
 class QrBadgeWatermarkTests(BaseWeek5FixtureMixin, TestCase):
     @classmethod
@@ -63,28 +63,31 @@ class QrBadgeWatermarkTests(BaseWeek5FixtureMixin, TestCase):
     def _set_proof(self, name, content):
         self.student_profile.registration_proof.save(name, ContentFile(content), save=True)
 
-    def test_no_proof_renders_no_photo_block(self):
+    # // The COR / school ID is registrar evidence for Account Validation. It must
+    # // never be published on the student's attendance badge — the badge shows the
+    # // rotating QR only, so a screenshot of it can never leak the document.
+    def test_badge_never_renders_the_registration_proof(self):
         res = self.client.get(reverse('student_qr_badge'))
         self.assertEqual(res.status_code, 200)
-        self.assertFalse(res.context['proof_is_image'])
-        self.assertNotContains(res, '<div class="badge-id-photo"')
+        self.assertContains(res, 'qrImage')
+        self.assertNotContains(res, 'badge-id-photo')
+        self.assertNotContains(res, 'registration-proof/')
 
-    def test_image_proof_flags_and_watermarks(self):
+    def test_image_proof_is_not_published_on_the_badge(self):
         self._set_proof('cor.png', _png_bytes())
         res = self.client.get(reverse('student_qr_badge'))
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(res.context['proof_is_image'])
-        self.assertTrue(res.context['proof'])
-        self.assertContains(res, '<div class="badge-id-photo"')
-        self.assertContains(res, 'badge-id-photo__watermark')
-        self.assertContains(res, '2026-00421')
+        self.assertContains(res, 'qrImage')
+        self.assertNotContains(res, 'badge-id-photo')
+        self.assertNotContains(res, 'badge-id-photo__watermark')
+        self.assertNotContains(res, 'registration-proof/')
 
-    def test_non_image_proof_no_watermark(self):
+    def test_non_image_proof_is_not_published_on_the_badge(self):
         self._set_proof('cor.pdf', b'%PDF-1.4 fake pdf')
         res = self.client.get(reverse('student_qr_badge'))
         self.assertEqual(res.status_code, 200)
-        self.assertFalse(res.context['proof_is_image'])
-        self.assertNotContains(res, '<div class="badge-id-photo"')
+        self.assertNotContains(res, 'badge-id-photo')
+        self.assertNotContains(res, 'registration-proof/')
 
 
 # // ==============================================================================
