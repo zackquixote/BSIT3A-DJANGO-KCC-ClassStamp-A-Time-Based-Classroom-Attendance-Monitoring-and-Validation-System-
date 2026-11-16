@@ -142,6 +142,7 @@
           <th scope="col">Code</th>
           <th scope="col">Descriptive Title</th>
           <th scope="col" title="Credit units (1 unit = 1 class hour per week)">Units</th>
+          <th scope="col" title="Facility / Room requirement">Type</th>
           <th scope="col" title="Active class sections in the active academic year">Classes</th>
           <th scope="col" title="Teachers handling this subject in the active AY">
             Handled By
@@ -169,6 +170,13 @@
           </td>
           <td>
             <span class="badge badge--teal" title="{{ s.units }} class hour(s) per week">{{ s.units }}u</span>
+          </td>
+          <td>
+            {% if s.is_lab %}
+            <span class="badge badge--cyan" title="Laboratory course — requires Computer Laboratory"><i class="fas fa-desktop"></i> Lab</span>
+            {% else %}
+            <span class="badge badge--purple" title="Lecture course — regular classroom"><i class="fas fa-chalkboard"></i> Lecture</span>
+            {% endif %}
           </td>
           <td>
             <span class="badge {% if s.class_count > 0 %}badge--blue{% else %}badge--muted{% endif %}">
@@ -261,7 +269,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="9" style="padding: 64px 20px; text-align: center !important; vertical-align: middle;">
+          <td colspan="10" style="padding: 64px 20px; text-align: center !important; vertical-align: middle;">
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0 auto; max-width: 580px; gap: 10px;">
               <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; margin-bottom: 2px;">
                 <i class="fas fa-book-open text-muted" style="font-size: 1.5rem; opacity: 0.6;"></i>
@@ -380,6 +388,13 @@
               <option value="0">Non-major (general/core/elective)</option>
             </select>
           </div>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="subjectIsLab" name="is_lab"
+              style="width:16px;height:16px;accent-color:var(--accent-teal);">
+            <span><i class="fas fa-desktop text-teal"></i> Requires <strong>Computer Laboratory / Lab Room</strong> (e.g. IT lab subjects)</span>
+          </label>
         </div>
         <div class="form-group">
           <label class="form-check-label" style="display:flex;align-items:center;gap:10px;cursor:pointer;">

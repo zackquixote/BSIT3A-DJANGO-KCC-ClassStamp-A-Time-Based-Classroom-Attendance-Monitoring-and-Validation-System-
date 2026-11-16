@@ -62,6 +62,7 @@ def serialize_subject(subject) -> dict:
         'name': subject.name,
         'description': subject.description or '',
         'units': subject.units,
+        'is_lab': subject.is_lab,
         'is_active': subject.is_active,
         'class_count': getattr(subject, 'class_count', subject.classes.count() if hasattr(subject, 'classes') else 0),
         'curriculum_count': getattr(subject, 'curriculum_count', subject.curriculum_entries.count() if hasattr(subject, 'curriculum_entries') else 0),
@@ -80,7 +81,30 @@ def serialize_subject_summary(subject) -> dict:
         'code': subject.code,
         'name': subject.name,
         'units': subject.units,
+        'is_lab': subject.is_lab,
         'is_active': subject.is_active,
+    }
+
+
+def serialize_room(room) -> dict:
+    """
+    // Serializes a Room model instance including capacity and slot load.
+    """
+    if not room:
+        return {}
+
+    return {
+        'id': room.id,
+        'code': room.code,
+        'name': room.name,
+        'room_type': room.room_type,
+        'room_type_display': room.get_room_type_display(),
+        'capacity': room.capacity,
+        'is_active': room.is_active,
+        'notes': room.notes or '',
+        'is_lab': room.is_lab,
+        'is_lecture': room.is_lecture,
+        'slot_count': getattr(room, 'slot_count', room.slots.count() if hasattr(room, 'slots') else 0),
     }
 
 

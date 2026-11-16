@@ -53,6 +53,10 @@ def role_required(*roles):
                 return redirect('dashboard')
 
             return view_func(request, *args, **kwargs)
+        # URL-walk tests (and reviewers) read this off the wrapped view.
+        # The object urls.py holds is the outermost wrapper, so expose the
+        # allowed roles here rather than only on an inner function.
+        wrapper.allowed_roles = tuple(roles)
         return wrapper
     return decorator
 

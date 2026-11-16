@@ -130,6 +130,17 @@ from .department_views import (
 )
 
 # // ------------------------------------------------------------------------------
+# // 4b. Campus Room Management Subsystem
+# // ------------------------------------------------------------------------------
+from .room_views import (
+    room_delete,
+    room_detail_json,
+    room_list,
+    room_options_json,
+    room_save,
+)
+
+# // ------------------------------------------------------------------------------
 # // 5b. Excuse Slip Workflow Subsystem
 # // ------------------------------------------------------------------------------
 from .excuse_views import (
@@ -241,6 +252,7 @@ from .academic_year_views import (
     academic_year_get,
     academic_year_rollover,
     academic_year_clone,
+    academic_year_enable_join_codes,
 )
 from .readiness_views import (
     curriculum_readiness_export,
@@ -441,6 +453,7 @@ __all__ = [
     'academic_year_get',
     'academic_year_rollover',
     'academic_year_clone',
+    'academic_year_enable_join_codes',
     'curriculum_readiness_report',
     'curriculum_readiness_export',
 
@@ -462,6 +475,13 @@ __all__ = [
     'class_roster_enroll_batch',
     'class_roster_remove',
     'class_attendance_matrix',
+
+    # Rooms
+    'room_list',
+    'room_save',
+    'room_delete',
+    'room_detail_json',
+    'room_options_json',
 
     # Sessions & Live Scanner
     'teacher_session_open',

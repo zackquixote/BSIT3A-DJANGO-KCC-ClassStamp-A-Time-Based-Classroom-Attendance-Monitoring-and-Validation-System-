@@ -28,7 +28,8 @@ from apps.core.models import (
     Program,
     Subject,
 )
-from apps.core.services import clone_classes_academic_year
+from apps.core.services import clone_classes_academic_year, enable_join_codes_for_classes
+from apps.core.services.class_join_service import hash_join_code
 
 User = get_user_model()
 
@@ -325,3 +326,143 @@ class AcademicCloneViewTests(AcademicCloneFixtureMixin, TestCase):
         self.assertEqual(data['copied_class_count'], 0)
         self.assertEqual(len(data['errors']), 1)
         self.assertIn('already exists', data['errors'][0]['reason'])
+
+
+class EnableJoinCodesTests(AcademicCloneFixtureMixin, TestCase):
+    """P1-1: bulk join-code generation after term cloning."""
+
+    def _clone_two(self):
+        class_a = self._class("BSIT-3A-IT311")
+        class_b = self._class("BSIT-3A-IT312", subject=self.other_subject)
+        self._slot(class_a)
+        self._slot(class_b)
+        result = clone_classes_academic_year(
+            actor=self.admin_user, source_year=self.source, target_year=self.target,
+        )
+        self.assertEqual(result["copied_class_count"], 2)
+        target_ids = [item["target_class_id"] for item in result["class_mapping"]]
+        return target_ids
+
+    def test_service_generates_unique_active_codes(self):
+        target_ids = self._clone_two()
+
+        result = enable_join_codes_for_classes(self.admin_user, target_ids)
+
+        self.assertEqual(len(result["enabled"]), 2)
+        self.assertEqual(result["skipped"], [])
+        codes = [item["join_code"] for item in result["enabled"]]
+        self.assertEqual(len(codes), len(set(codes)))
+        for item in result["enabled"]:
+            parts = item["join_code"].split("-")
+            self.assertEqual(len(parts), 3)
+            self.assertTrue(all(len(part) == 4 for part in parts))
+            cloned = Class.objects.get(pk=item["class_id"])
+            self.assertTrue(cloned.join_code_active)
+            self.assertEqual(
+                cloned.join_code_digest,
+                hash_join_code(item["join_code"].replace("-", "")),
+            )
+            self.assertIsNotNone(cloned.join_code_created_at)
+            self.assertTrue(
+                AuditEvent.objects.filter(
+                    action="CLASS_JOIN_CODE_ROTATE",
+                    actor=self.admin_user,
+                    object_id=str(cloned.pk),
+                ).exists()
+            )
+
+    def test_service_rerun_skips_already_active(self):
+        target_ids = self._clone_two()
+        first = enable_join_codes_for_classes(self.admin_user, target_ids)
+        first_digests = {
+            item["class_code"]: Class.objects.get(pk=item["class_id"]).join_code_digest
+            for item in first["enabled"]
+        }
+
+        second = enable_join_codes_for_classes(self.admin_user, target_ids)
+
+        self.assertEqual(second["enabled"], [])
+        self.assertEqual(len(second["skipped"]), 2)
+        for item in first["enabled"]:
+            digest = Class.objects.get(pk=item["class_id"]).join_code_digest
+            self.assertEqual(Class.objects.get(pk=item["class_id"]).join_code_digest, digest)
+
+    def test_service_skips_inactive_and_rejects_empty(self):
+        target_ids = self._clone_two()
+        Class.objects.filter(pk=target_ids[0]).update(is_active=False)
+
+        result = enable_join_codes_for_classes(self.admin_user, target_ids)
+        self.assertEqual(len(result["enabled"]), 1)
+        self.assertEqual(len(result["skipped"]), 1)
+        self.assertIn("inactive", result["skipped"][0]["reason"])
+
+        with self.assertRaises(ValueError):
+            enable_join_codes_for_classes(self.admin_user, [])
+
+    def test_clone_view_with_join_codes_returns_plaintext_once(self):
+        class_a = self._class("BSIT-3A-IT311")
+        self._slot(class_a)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse("academic_year_clone"), {
+            "source_year_id": self.source.pk,
+            "target_year_id": self.target.pk,
+            "with_join_codes": "1",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["copied_class_count"], 1)
+        self.assertEqual(len(data["join_codes"]), 1)
+        self.assertTrue(data["join_codes"][0]["join_code"])
+        cloned = Class.objects.get(pk=data["class_mapping"][0]["target_class_id"])
+        self.assertTrue(cloned.join_code_active)
+
+    def test_clone_view_without_flag_leaves_codes_off(self):
+        class_a = self._class("BSIT-3A-IT311")
+        self._slot(class_a)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse("academic_year_clone"), {
+            "source_year_id": self.source.pk,
+            "target_year_id": self.target.pk,
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["join_codes"], [])
+        cloned = Class.objects.get(pk=data["class_mapping"][0]["target_class_id"])
+        self.assertFalse(cloned.join_code_active)
+
+    def test_enable_endpoint_by_term_and_access_control(self):
+        class_a = self._class("BSIT-3A-IT311")
+        self._slot(class_a)
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse("academic_year_enable_join_codes"), {
+            "academic_year_id": self.target.pk,
+        })
+        # Target term has no classes yet (clone was not run) — service raises.
+        self.assertEqual(response.status_code, 400)
+
+        clone_classes_academic_year(
+            actor=self.admin_user, source_year=self.source, target_year=self.target,
+        )
+        response = self.client.post(reverse("academic_year_enable_join_codes"), {
+            "academic_year_id": self.target.pk,
+        })
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(len(data["enabled"]), 1)
+
+        # Students cannot generate join codes.
+        student_user = User.objects.create_user(username="join_codes_student")
+        Profile.objects.create(user=student_user, role=Profile.ROLE_STUDENT)
+        self.client.force_login(student_user)
+        response = self.client.post(reverse("academic_year_enable_join_codes"), {
+            "academic_year_id": self.target.pk,
+        })
+        self.assertEqual(response.status_code, 302)

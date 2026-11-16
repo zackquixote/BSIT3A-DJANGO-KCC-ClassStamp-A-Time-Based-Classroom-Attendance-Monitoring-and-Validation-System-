@@ -33,7 +33,7 @@ def validate_slot_times(starts_at, ends_at):
 
 def detect_slot_conflicts(
     *, teacher_profile_id, weekday, starts_at, ends_at,
-    room=None, exclude_slot_ids=(), academic_year=None,
+    room=None, room_id=None, exclude_slot_ids=(), academic_year=None,
 ):
     """
     // [Service] Returns a list of conflict dicts for a proposed weekly slot.
@@ -58,13 +58,31 @@ def detect_slot_conflicts(
             ends_at__gt=starts_at,
         )
         .exclude(id__in=list(exclude_slot_ids))
-        .select_related('class_obj__teacher_profile__user')
+        .select_related('class_obj__teacher_profile__user', 'room_ref')
     )
     if academic_year is not None:
         overlapping = overlapping.filter(class_obj__academic_year=academic_year)
 
+    proposed_room_id = int(room_id) if room_id else None
     proposed_room = (room or '').strip().lower()
-    check_room = bool(proposed_room) and proposed_room != 'tba'
+
+    from apps.core.models import Room
+    if proposed_room_id:
+        # A picker submission (Manage Slots) carries the FK only. Resolve the
+        # canonical code so legacy string slots (room='LAB-1', room_ref=None)
+        # still clash instead of comparing against an empty proposed_room.
+        rm = Room.objects.filter(pk=proposed_room_id).first()
+        if rm is None:
+            proposed_room_id = None
+        else:
+            proposed_room = rm.code.lower()
+    elif proposed_room and proposed_room != 'tba':
+        rm = Room.objects.filter(Q(code__iexact=proposed_room) | Q(name__iexact=proposed_room)).first()
+        if rm:
+            proposed_room_id = rm.id
+            proposed_room = rm.code.lower()
+
+    check_room = (proposed_room_id is not None) or (bool(proposed_room) and proposed_room != 'tba')
 
     conflicts = []
     for slot in overlapping:
@@ -72,8 +90,18 @@ def detect_slot_conflicts(
         # using elif here silently dropped the room record in that case (Req 18.3).
         if slot.class_obj.teacher_profile_id == teacher_profile_id:
             conflicts.append(_conflict_dict(slot, 'teacher'))
-        if check_room and (slot.room or '').strip().lower() == proposed_room:
-            conflicts.append(_conflict_dict(slot, 'room'))
+        if check_room:
+            is_room_conflict = False
+            if proposed_room_id and slot.room_ref_id:
+                is_room_conflict = (slot.room_ref_id == proposed_room_id)
+            elif proposed_room_id and slot.room:
+                is_room_conflict = (slot.room.strip().lower() == proposed_room)
+            elif proposed_room:
+                slot_code = (slot.room_ref.code if slot.room_ref else slot.room or '').strip().lower()
+                is_room_conflict = (slot_code == proposed_room)
+
+            if is_room_conflict:
+                conflicts.append(_conflict_dict(slot, 'room'))
     return conflicts
 
 

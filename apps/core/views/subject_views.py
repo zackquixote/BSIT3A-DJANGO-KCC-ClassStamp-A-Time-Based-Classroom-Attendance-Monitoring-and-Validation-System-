@@ -393,12 +393,14 @@ def subject_save(request):
                     }, status=400)
                 ensure_draft_version(request.user, program)
 
+            is_lab = request.POST.get('is_lab') in ['1', 'true', 'on', True]
             result = create_or_update_subject(
                 actor=request.user,
                 code=request.POST.get('code', ''),
                 name=request.POST.get('name', ''),
                 description=request.POST.get('description', ''),
                 units=request.POST.get('units', '3'),
+                is_lab=is_lab,
                 is_active=request.POST.get('is_active') == '1',
                 subject_id=subject_id,
             )

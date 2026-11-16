@@ -15,6 +15,7 @@ from .academic_serializers import (
     serialize_curriculum_version,
     serialize_department,
     serialize_program,
+    serialize_room,
     serialize_subject,
     serialize_subject_summary,
 )
@@ -31,6 +32,7 @@ __all__ = [
     # Academic
     'serialize_department',
     'serialize_program',
+    'serialize_room',
     'serialize_subject',
     'serialize_subject_summary',
     'serialize_curriculum_entry',

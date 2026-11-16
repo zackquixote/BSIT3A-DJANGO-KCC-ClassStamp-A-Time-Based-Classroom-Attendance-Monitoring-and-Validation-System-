@@ -11,21 +11,23 @@
 """
 
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST, require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import AcademicYear, Profile
+from apps.core.models import AcademicYear, Class, Profile
 from apps.core.serializers.academic_serializers import serialize_academic_year
 from apps.core.services import (
     TermSwitchBlocked,
     clone_classes_academic_year,
     create_or_update_academic_year,
     delete_or_deactivate_academic_year,
+    enable_join_codes_for_classes,
     rollover_academic_year,
     set_active_academic_year,
 )
@@ -245,6 +247,8 @@ def academic_year_clone(request):
             status=400,
         )
 
+    with_join_codes = request.POST.get('with_join_codes', '') in ('1', 'true', 'on', 'True')
+
     try:
         result = clone_classes_academic_year(
             actor=request.user,
@@ -261,6 +265,22 @@ def academic_year_clone(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'An unexpected error occurred.'}, status=500)
 
+    # Newly copied classes must appear in the target term checklist immediately.
+    cache.delete(f'setup_checklist_{target_id}')
+
+    join_codes = []
+    join_codes_error = ''
+    if with_join_codes and result['class_mapping']:
+        target_ids = [item['target_class_id'] for item in result['class_mapping']]
+        try:
+            codes_result = enable_join_codes_for_classes(request.user, target_ids)
+            join_codes = codes_result['enabled']
+        except Exception:
+            join_codes_error = (
+                'Classes were cloned, but generating join codes failed. '
+                'Use Enable Join Codes to try again.'
+            )
+
     return JsonResponse({
         'ok': True,
         'message': result['message'],
@@ -268,4 +288,62 @@ def academic_year_clone(request):
         'copied_slot_count': result['copied_slot_count'],
         'class_mapping': result['class_mapping'],
         'errors': result['errors'],
+        'join_codes': join_codes,
+        'join_codes_error': join_codes_error,
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def academic_year_enable_join_codes(request):
+    """
+    // [AJAX] Generate student join codes for every active class in a term
+    // that does not already have one. Optionally limited to class_ids.
+    // Plaintext codes are returned once; the database stores only digests.
+    """
+    ay_id = request.POST.get('academic_year_id', '').strip()
+    class_ids = [value for value in request.POST.getlist('class_ids') if str(value).strip()]
+
+    if class_ids:
+        ids = class_ids
+        target_ay = None
+    else:
+        if not ay_id.isdigit():
+            return JsonResponse(
+                {'ok': False, 'error': 'Choose a term or at least one class.'},
+                status=400,
+            )
+        target_ay = AcademicYear.objects.filter(pk=int(ay_id)).first()
+        if target_ay is None:
+            return JsonResponse({'ok': False, 'error': 'Term not found.'}, status=404)
+        ids = list(
+            Class.objects.filter(academic_year=target_ay, is_active=True)
+            .values_list('pk', flat=True)
+        )
+
+    try:
+        result = enable_join_codes_for_classes(request.user, ids)
+    except ValueError as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
+    except Exception:
+        return JsonResponse(
+            {'ok': False, 'error': 'An unexpected error occurred while generating join codes.'},
+            status=500,
+        )
+
+    # The checklist cache is keyed by active term. Invalidate that key when the
+    # touched term is the active one (join-code items flip from missing to done).
+    if target_ay is not None and target_ay.is_active:
+        cache.delete(f'setup_checklist_{target_ay.pk}')
+    elif target_ay is None:
+        # class_ids path: invalidate every class's AY key that we can see
+        for class_obj in Class.objects.filter(pk__in=ids).select_related('academic_year'):
+            cache.delete(f'setup_checklist_{class_obj.academic_year_id}')
+
+    return JsonResponse({
+        'ok': True,
+        'message': result['message'],
+        'enabled': result['enabled'],
+        'skipped': result['skipped'],
     })

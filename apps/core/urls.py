@@ -94,6 +94,13 @@ urlpatterns = [
     path('departments/save/', views.department_save, name='department_save'),
     path('departments/delete/<int:pk>/', views.department_delete, name='department_delete'),
 
+    # // Admin: Campus Facilities & Room Management
+    path('rooms/', views.room_list, name='room_list'),
+    path('rooms/save/', views.room_save, name='room_save'),
+    path('rooms/delete/<int:pk>/', views.room_delete, name='room_delete'),
+    path('rooms/<int:pk>/json/', views.room_detail_json, name='room_detail_json'),
+    path('rooms/options/json/', views.room_options_json, name='room_options_json'),
+
     path('programs/', views.program_list, name='program_list'),
     path('programs/save/', views.program_save, name='program_save'),
     path('programs/delete/<int:pk>/', views.program_delete, name='program_delete'),
@@ -136,6 +143,7 @@ urlpatterns = [
     path('academic-years/get/<int:pk>/', views.academic_year_get, name='academic_year_get'),
     path('academic-years/rollover/', views.academic_year_rollover, name='academic_year_rollover'),
     path('academic-years/clone-classes/', views.academic_year_clone, name='academic_year_clone'),
+    path('academic-years/enable-join-codes/', views.academic_year_enable_join_codes, name='academic_year_enable_join_codes'),
 
     # // Admin: Academic Calendar & Institutional Schedule
     path('admin/calendar/', views.admin_calendar_view, name='admin_calendar'),

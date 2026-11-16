@@ -34,7 +34,10 @@ from .academic_service import (
     delete_or_deactivate_academic_year,
     rollover_academic_year,
     clone_classes_academic_year,
+    enable_join_codes_for_classes,
     promote_students,
+    create_or_update_room,
+    delete_or_deactivate_room,
 )
 from .approval_service import (
     approve_student_registration,

@@ -67,8 +67,7 @@ def message_thread(request, user_id):
         return redirect('message_inbox')
 
     # Opening a thread marks incoming messages read (recipient only).
-    for message in messages:
-        MessageService.mark_as_read(message, request.user)
+    MessageService.mark_thread_as_read(messages, request.user)
 
     error = ''
     if request.method == 'POST':

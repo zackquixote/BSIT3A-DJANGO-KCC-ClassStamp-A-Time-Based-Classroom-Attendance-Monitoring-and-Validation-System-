@@ -19,6 +19,7 @@ from django.db import models
 
 from .academic import AcademicYear, Program, Subject
 from .profile import Profile
+from .room import Room
 
 
 # // ==============================================================================
@@ -173,6 +174,13 @@ class ClassSlot(models.Model):
     // [Model] Weekly Recurring Class Schedule Slot
     // Defines recurring meeting times (e.g., Monday 08:00 - 10:00 in Room IT-Lab 1).
     """
+    SLOT_TYPE_LECTURE = 'LECTURE'
+    SLOT_TYPE_LABORATORY = 'LABORATORY'
+    SLOT_TYPE_CHOICES = [
+        (SLOT_TYPE_LECTURE, 'Lecture'),
+        (SLOT_TYPE_LABORATORY, 'Laboratory'),
+    ]
+
     WEEKDAY_CHOICES = [
         (0, 'Monday'), (1, 'Tuesday'), (2, 'Wednesday'),
         (3, 'Thursday'), (4, 'Friday'), (5, 'Saturday'), (6, 'Sunday'),
@@ -193,6 +201,20 @@ class ClassSlot(models.Model):
     starts_at = models.TimeField(help_text="// Scheduled start time")
     ends_at = models.TimeField(help_text="// Scheduled end time")
     room = models.CharField(max_length=100, default='', help_text="// Assigned physical or virtual classroom")
+    room_ref = models.ForeignKey(
+        Room,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='slots',
+        help_text="// Relational foreign key to the canonical Room record"
+    )
+    slot_type = models.CharField(
+        max_length=15,
+        choices=SLOT_TYPE_CHOICES,
+        default=SLOT_TYPE_LECTURE,
+        help_text="// Pedagogical slot type: Lecture vs Laboratory"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -204,6 +226,17 @@ class ClassSlot(models.Model):
 
     def __str__(self):
         return f'{self.class_obj.class_code} - {self.get_weekday_display()} {self.starts_at}'
+
+    def save(self, *args, **kwargs):
+        if self.room_ref:
+            if not self.room or self.room != self.room_ref.code:
+                self.room = self.room_ref.code
+        elif self.room:
+            matched = Room.objects.filter(code__iexact=self.room.strip()).first()
+            if matched:
+                self.room_ref = matched
+                self.room = matched.code
+        super().save(*args, **kwargs)
 
 
 class Enrollment(models.Model):

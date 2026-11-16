@@ -274,22 +274,35 @@ def attendance_period_report_page(request):
 @role_required(Profile.ROLE_TEACHER, Profile.ROLE_ADMIN)
 @require_POST
 def verify_classroom(request, session_id):
-    session = get_object_or_404(ClassSession.objects.select_related('slot__class_obj'), pk=session_id)
+    session = get_object_or_404(
+        ClassSession.objects.select_related('slot__class_obj', 'slot__room_ref'),
+        pk=session_id
+    )
     if not PermissionService.can_user_modify_session(request.user, session):
         return JsonResponse({'error': 'Not authorized for this class.'}, status=403)
 
-    expected = (session.slot.room or '').strip()
+    slot = session.slot
+    expected_code = (slot.room_ref.code if slot and slot.room_ref else (slot.room if slot else '') or '').strip()
+    expected_name = (slot.room_ref.name if slot and slot.room_ref else '')
     room = request.POST.get('room', '').strip()
     if not room:
         return JsonResponse({'error': 'Room is required.'}, status=400)
-    if expected and room.casefold() != expected.casefold():
+
+    valid_matches = [expected_code.casefold()]
+    if expected_name:
+        valid_matches.append(expected_name.casefold())
+    if slot and slot.room:
+        valid_matches.append(slot.room.strip().casefold())
+
+    if expected_code and (room.casefold() not in valid_matches):
         return JsonResponse({
-            'error': f'Room mismatch. This session is assigned to {expected}.',
+            'error': f'Room mismatch. This session is assigned to {expected_code}.',
         }, status=400)
 
+    canonical_room = expected_code if expected_code else room
     verification, _ = RoomVerification.objects.update_or_create(
         session=session,
-        defaults={'room': room, 'verified_by': request.user},
+        defaults={'room': canonical_room, 'verified_by': request.user},
     )
     return JsonResponse({
         'ok': True,

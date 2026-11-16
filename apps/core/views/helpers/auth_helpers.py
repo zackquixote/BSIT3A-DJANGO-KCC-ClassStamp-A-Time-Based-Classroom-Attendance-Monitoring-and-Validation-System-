@@ -89,6 +89,9 @@ def _reset_lock_state(request, identifier=''):
     cache.delete(f'login_lock:ip:{ip}')
     if normalized:
         cache.delete(f'login_failures:account:{normalized}')
+        cache.delete(f'login_failures:pair:{ip}:{normalized}')
+        cache.delete(f'login_lock:pair:{ip}:{normalized}')
+        # Legacy global account lock from the pre-P1-5 scheme.
         cache.delete(f'login_lock:account:{normalized}')
 
 
@@ -118,10 +121,14 @@ def _get_lock_state(request, identifier=''):
     ip_failures = cache.get(f'login_failures:ip:{ip}', 0)
     failed_attempts = max(account_failures, ip_failures, request.session.get('failed_attempts', 0))
     lock_time = request.session.get('lock_time')
-    locks = []
+    locks = [cache.get(f'login_lock:ip:{ip}')]
     if normalized:
-        locks.append(cache.get(f'login_lock:account:{normalized}'))
-    locks.append(cache.get(f'login_lock:ip:{ip}'))
+        locks.append(cache.get(f'login_lock:pair:{ip}:{normalized}'))
+        # Honor a leftover global account lock from the previous scheme so an
+        # already-locked account expires naturally instead of unlocking early.
+        legacy = cache.get(f'login_lock:account:{normalized}')
+        if legacy:
+            locks.append(legacy)
     active_locks = [value for value in locks if value]
     if active_locks:
         lock_time = max(active_locks)
@@ -162,7 +169,11 @@ def _set_lock_state(request, identifier=''):
     cache.set(f'login_lock:ip:{ip}', lock_until.isoformat(), timeout)
     cache.set(f'login_failures:ip:{ip}', MAX_FAILED_ATTEMPTS, timeout)
     if normalized:
-        cache.set(f'login_lock:account:{normalized}', lock_until.isoformat(), timeout)
+        # Combined IP+identifier lock only. A global account lock would let
+        # anyone who knows a semi-public student number take that account
+        # offline from every network with five wrong passwords (P1-5).
+        cache.set(f'login_lock:pair:{ip}:{normalized}', lock_until.isoformat(), timeout)
+        cache.set(f'login_failures:pair:{ip}:{normalized}', MAX_FAILED_ATTEMPTS, timeout)
         cache.set(f'login_failures:account:{normalized}', MAX_FAILED_ATTEMPTS, timeout)
     return int(LOCK_DURATION.total_seconds())
 

@@ -532,6 +532,9 @@
               <button type="button" class="btn btn-outline btn-icon-xs btn-manage-slots"
                       data-class-id="{{ c.id }}"
                       data-class-code="{{ c.class_code }}"
+                      data-class-capacity="{{ c.capacity|default_if_none:'' }}"
+                      data-subject-is-lab="{{ c.subject.is_lab|yesno:'1,0' }}"
+                      data-subject-code="{{ c.subject.code|default:'' }}"
                       title="Manage Weekly Schedule Slots" aria-label="Manage Weekly Schedule Slots">
                 <i class="fas fa-clock"></i>
               </button>
@@ -774,10 +777,30 @@
               </select>
             </div>
             <div>
-              <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">Assigned Room</label>
-              <input type="text" name="room" class="form-control" placeholder="e.g. IT-Lab 3 or Room 302" style="width: 100%;">
+              <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">Slot Type</label>
+              <select name="slot_type" id="slotTypeSelect" class="form-control" style="width: 100%;">
+                <option value="LECTURE">Lecture</option>
+                <option value="LABORATORY">Laboratory</option>
+              </select>
             </div>
           </div>
+          <div style="margin-bottom: 10px;">
+            <label class="form-label" style="font-size: 0.72rem; margin-bottom: 4px; display: block;">Assigned Room</label>
+              <select name="room_id" class="form-control" style="width: 100%;">
+                <option value="">TBA (Unassigned)</option>
+                <optgroup label="Computer Laboratories">
+                {% for r in slot_rooms %}{% if r.is_lab %}
+                <option value="{{ r.id }}" data-code="{{ r.code }}" data-capacity="{{ r.capacity }}" data-is-lab="1">{{ r.code }} &mdash; {{ r.name }} ({{ r.capacity }} cap)</option>
+                {% endif %}{% endfor %}
+                </optgroup>
+                <optgroup label="Lecture &amp; Other Rooms">
+                {% for r in slot_rooms %}{% if not r.is_lab %}
+                <option value="{{ r.id }}" data-code="{{ r.code }}" data-capacity="{{ r.capacity }}" data-is-lab="0">{{ r.code }} &mdash; {{ r.name }} ({{ r.capacity }} cap)</option>
+                {% endif %}{% endfor %}
+                </optgroup>
+              </select>
+              <p id="slotCapacityWarning" class="hidden text-xs mt-1" style="color: #f59e0b; display: none;"></p>
+            </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
             <div>
@@ -931,7 +954,7 @@
 {% load static %}
 <script src="{% static 'js/classes/classes_common.js' %}?v=20261104_setup1"></script>
 <script src="{% static 'js/classes/class_modal.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/classes/slots_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/classes/slots_modal.js' %}?v=20261116_p2"></script>
 <script src="{% static 'js/classes/roster_modal.js' %}?v=20261104_roster2"></script>
 <script src="{% static 'js/classes/class_matrix.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/classes/join_codes.js' %}?v=20261103_v1"></script>

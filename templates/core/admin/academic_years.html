@@ -269,9 +269,14 @@
     <div class="modal-body">
       <p class="text-muted text-xs mb-3">
         Copies every active class section and its weekly slots from one term into another.
-        Enrollments, sessions, attendance, and join codes are never copied; cloned sections
-        start with join codes disabled.
+        Enrollments, sessions, attendance, and existing join codes are never copied.
+        Existing classes in the target term are never overwritten.
       </p>
+      <label class="form-check-label mb-3" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="cloneWithCodes" checked
+          style="width:16px;height:16px;accent-color:var(--accent-teal);">
+        <span class="text-sm">Generate student join codes for copied classes</span>
+      </label>
       <div class="form-group mb-3">
         <label class="form-label" for="cloneSource">Source term <span class="text-danger">*</span></label>
         <select id="cloneSource" class="form-control">
@@ -296,6 +301,20 @@
       <div id="cloneResults" style="display: none;">
         <div id="cloneSummary" class="auth-alert auth-alert--success mb-2"></div>
         <div id="cloneErrors" class="text-xs"></div>
+        <div id="cloneCodesError" class="toast toast--error mt-2" style="display: none;"></div>
+        <div id="cloneCodesBox" style="display: none;">
+          <p class="font-semibold text-xs text-primary mt-2 mb-1">
+            <i class="fas fa-key text-gold"></i> Student join codes
+            <span class="text-muted text-xs">(shown once — copy them now)</span>
+          </p>
+          <div id="cloneCodesList" class="text-xs" style="max-height: 220px; overflow: auto;"></div>
+          <button type="button" class="btn btn-outline btn-sm mt-2" id="copyJoinCodesBtn">
+            <i class="fas fa-clipboard"></i> Copy all codes
+          </button>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm mt-2" id="cloneGenCodesBtn" style="display: none;">
+          <i class="fas fa-key"></i> Generate join codes for copied classes
+        </button>
       </div>
     </div>
     <div class="modal-footer">
@@ -412,7 +431,7 @@
 <script src="{% static 'js/academic_years/ay_set_active.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/academic_years/ay_delete.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/academic_years/ay_rollover.js' %}?v=20261026_v1"></script>
-<script src="{% static 'js/academic_years/ay_clone.js' %}?v=20261109_v1"></script>
+<script src="{% static 'js/academic_years/ay_clone.js' %}?v=20261116_v2"></script>
 
 <style>
 .rollover-steps {

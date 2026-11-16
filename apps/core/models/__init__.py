@@ -33,6 +33,9 @@ from .academic import (
 # // Identity & RBAC
 from .profile import PasswordHistory, Profile
 
+# // Facilities & Scheduling Infrastructure
+from .room import Room
+
 # // Classroom Structure & Rosters
 from .classroom import (
     Class,
@@ -84,6 +87,8 @@ __all__ = [
     'AcademicEvent',
     # Identity
     'Profile',
+    # Facilities
+    'Room',
     # Classroom
     'Class',
     'ClassSlot',

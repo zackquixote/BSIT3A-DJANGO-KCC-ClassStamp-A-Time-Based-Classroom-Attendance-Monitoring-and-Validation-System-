@@ -65,6 +65,9 @@
         const activeEl = getEl('subjectActive');
         if (activeEl) activeEl.checked = Boolean(s.is_active);
 
+        const isLabEl = getEl('subjectIsLab');
+        if (isLabEl) isLabEl.checked = Boolean(s.is_lab);
+
         const placement = getEl('subjectCurriculumPlacement');
         if (placement) placement.style.display = 'none';
         const curriculumProgram = getEl('subjectCurriculumProgram');

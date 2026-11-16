@@ -65,6 +65,10 @@
         {% icon "calendar-days" "sidebar-link-icon" %}
         <span>Section Timetable</span>
       </a>
+      <a href="{% url 'room_list' %}" class="sidebar-link {% if request.resolver_match.url_name|slice:':4' == 'room' %}active{% endif %}" title="Campus Rooms & Facilities">
+        {% icon "building" "sidebar-link-icon" %}
+        <span>Room Directory</span>
+      </a>
 
       <span class="sidebar-section-label">Student Management</span>
       {% with current_view=request.resolver_match.url_name %}

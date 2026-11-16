@@ -11,7 +11,7 @@
 """
 
 import json
-import sys
+import os
 from datetime import time, timedelta
 from urllib.parse import urlencode
 from django.contrib import messages
@@ -37,6 +37,7 @@ from apps.core.models import (
     Enrollment,
     Profile,
     Program,
+    Room,
     Subject,
 )
 from apps.core.services import (
@@ -79,7 +80,11 @@ def _class_setup_checklist(active_ay):
       actions        – list of {label, link, action_key, class_id}
     Result is cached for 60 s per active-year to avoid repeated heavy queries.
     """
-    is_testing = 'test' in sys.argv
+    # The project is tested with pytest, not `manage.py test`. Under pytest
+    # sys.argv is ['...\\pytest.exe', 'apps/core/tests/....py', ...] — no
+    # element equals 'test', so the old `'test' in sys.argv` check never
+    # fired and the 60 s cache served stale checklist rows across two GETs.
+    is_testing = 'PYTEST_CURRENT_TEST' in os.environ
     cache_key = f'setup_checklist_{active_ay.pk if active_ay else "none"}'
     if not is_testing:
         cached = cache.get(cache_key)
@@ -129,7 +134,13 @@ def _class_setup_checklist(active_ay):
             missing.append('Schedule')
             missing_badges.append(('No schedule slots', 'danger'))
         elif any(
-            not s.room or s.room.strip().upper() in {'TBA', 'ASSIGNED ROOM'}
+            # A room_ref FK is a real assignment even if someone wrote the
+            # row without syncing the legacy `room` string (P3-6). Only a
+            # slot with neither FK nor a real code is still TBA.
+            not (
+                s.room_ref_id
+                or (s.room and s.room.strip().upper() not in {'TBA', 'ASSIGNED ROOM'})
+            )
             for s in active_slots
         ):
             missing.append('Room')
@@ -422,6 +433,9 @@ def class_list(request):
                     'is_offered': bool(offered_codes),
                 })
 
+    # Active rooms for the Manage Slots picker (same ordering as the wizard).
+    slot_rooms = Room.objects.filter(is_active=True).order_by('room_type', 'code')
+
     _checklist_data = _class_setup_checklist(active_ay)
 
     return render(request, 'core/admin/classes.html', {
@@ -451,6 +465,7 @@ def class_list(request):
         'active_classes_count': active_classes_count,
         'total_slots_count': total_slots_count,
         'total_enrolled_count': total_enrolled_count,
+        'slot_rooms': slot_rooms,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
         'setup_checklist': _checklist_data['items'],
         'checklist_total': _checklist_data['total'],
@@ -628,10 +643,24 @@ def class_slot_save(request, class_id):
     // Adds a recurring weekly timetable slot to a class section.
     """
     class_obj = get_object_or_404(Class, pk=class_id)
+    if not class_obj.is_active:
+        return JsonResponse(
+            {'success': False, 'message': 'This class is inactive. Activate it before adding slots.'},
+            status=400,
+        )
+    if not class_obj.academic_year.is_active:
+        return JsonResponse(
+            {'success': False, 'message': 'Slots can only be added to classes in the active academic term.'},
+            status=400,
+        )
     weekday_str = request.POST.get('weekday', '').strip()
     starts_at = request.POST.get('starts_at', '').strip()
     ends_at = request.POST.get('ends_at', '').strip()
     room = request.POST.get('room', '').strip()
+    room_id = request.POST.get('room_id', '').strip()
+    slot_type = request.POST.get('slot_type', 'LECTURE').strip().upper()
+    if slot_type not in ['LECTURE', 'LABORATORY']:
+        slot_type = 'LECTURE'
 
     if not (weekday_str and starts_at and ends_at):
         return JsonResponse({'success': False, 'message': 'Weekday, Start Time, and End Time are required.'}, status=400)
@@ -662,12 +691,22 @@ def class_slot_save(request, class_id):
     # room clashes both hard-block by default. Room clashes may be overridden
     # only by an explicit admin confirmation (override_conflicts=1), which is
     # audited with the conflict details.
+    room_id_int = int(room_id) if room_id and room_id.isdigit() else None
+    room_ref_obj = None
+    if room_id_int:
+        room_ref_obj = Room.objects.filter(id=room_id_int).first()
+    elif room:
+        room_ref_obj = Room.objects.filter(code__iexact=room).first()
+
+    # Resolve the canonical code before conflict detection so a picker-only
+    # room_id still clashes with legacy string slots (room='TBA').
     conflicts = detect_slot_conflicts(
         teacher_profile_id=class_obj.teacher_profile_id,
         weekday=weekday,
         starts_at=starts_t,
         ends_at=ends_t,
-        room=room,
+        room=room_ref_obj.code if room_ref_obj else room,
+        room_id=room_ref_obj.id if room_ref_obj else None,
         academic_year=class_obj.academic_year,
     )
     teacher_conflicts = [c for c in conflicts if c['type'] == 'teacher']
@@ -699,12 +738,15 @@ def class_slot_save(request, class_id):
             'conflicts': room_labels,
         }, status=400)
 
+    room_text = room_ref_obj.code if room_ref_obj else (room or 'TBA')
     slot = ClassSlot.objects.create(
         class_obj=class_obj,
         weekday=weekday,
         starts_at=starts_t,
         ends_at=ends_t,
-        room=room or 'TBA',
+        room=room_text,
+        room_ref=room_ref_obj,
+        slot_type=slot_type,
         is_active=True,
     )
 
@@ -1417,11 +1459,19 @@ def _parse_wizard_slots(slots_json):
             validate_slot_times(starts_t, ends_t)
         except ValueError:
             return None, 'Each slot needs a weekday (0-6) and valid HH:MM start/end times.'
+        room_id_raw = entry.get('room_id')
+        room_id_val = int(room_id_raw) if room_id_raw and str(room_id_raw).isdigit() else None
+        slot_type_val = str(entry.get('slot_type') or 'LECTURE').strip().upper()
+        if slot_type_val not in ['LECTURE', 'LABORATORY']:
+            slot_type_val = 'LECTURE'
+
         parsed_slots.append({
             'weekday': weekday,
             'starts_at': starts_t,
             'ends_at': ends_t,
             'room': str(entry.get('room') or '').strip(),
+            'room_id': room_id_val,
+            'slot_type': slot_type_val,
         })
 
     for i, a in enumerate(parsed_slots):
@@ -1447,7 +1497,8 @@ def _collect_wizard_conflicts(teacher_profile_id, parsed_slots, academic_year=No
             weekday=slot['weekday'],
             starts_at=slot['starts_at'],
             ends_at=slot['ends_at'],
-            room=slot['room'],
+            room=slot.get('room'),
+            room_id=slot.get('room_id'),
             academic_year=academic_year,
         )
         teacher_labels = []
@@ -1545,6 +1596,7 @@ def class_wizard_options(request):
             'code': entry.subject.code,
             'name': entry.subject.name,
             'units': entry.subject.units,
+            'is_lab': entry.subject.is_lab,
             'is_major': entry.is_major,
         }
         for entry in _wizard_curriculum_entries(
@@ -1872,12 +1924,20 @@ def _class_wizard_save_batch(request, offerings_json):
                     )
                 created_slots = []
                 for slot in offering['slots']:
+                    room_ref_obj = None
+                    if slot.get('room_id'):
+                        room_ref_obj = Room.objects.filter(id=slot['room_id']).first()
+                    elif slot.get('room'):
+                        room_ref_obj = Room.objects.filter(code__iexact=slot['room'].strip()).first()
+                    room_text = room_ref_obj.code if room_ref_obj else (slot.get('room') or 'TBA')
                     created = ClassSlot.objects.create(
                         class_obj=class_obj,
                         weekday=slot['weekday'],
                         starts_at=slot['starts_at'],
                         ends_at=slot['ends_at'],
-                        room=slot['room'] or 'TBA',
+                        room=room_text,
+                        room_ref=room_ref_obj,
+                        slot_type=slot.get('slot_type', 'LECTURE'),
                         is_active=True,
                     )
                     AuditEvent.objects.create(
@@ -2059,12 +2119,20 @@ def class_wizard_save(request):
 
             created_slots = []
             for slot in parsed_slots:
+                room_ref_obj = None
+                if slot.get('room_id'):
+                    room_ref_obj = Room.objects.filter(id=slot['room_id']).first()
+                elif slot.get('room'):
+                    room_ref_obj = Room.objects.filter(code__iexact=slot['room'].strip()).first()
+                room_text = room_ref_obj.code if room_ref_obj else (slot.get('room') or 'TBA')
                 created = ClassSlot.objects.create(
                     class_obj=class_obj,
                     weekday=slot['weekday'],
                     starts_at=slot['starts_at'],
                     ends_at=slot['ends_at'],
-                    room=slot['room'] or 'TBA',
+                    room=room_text,
+                    room_ref=room_ref_obj,
+                    slot_type=slot.get('slot_type', 'LECTURE'),
                     is_active=True,
                 )
                 AuditEvent.objects.create(
@@ -2180,6 +2248,19 @@ def class_wizard_setup(request):
         ClassSlot.objects.exclude(room__isnull=True).exclude(room='')
         .values_list('room', flat=True).distinct().order_by('room')
     )
+    rooms = Room.objects.filter(is_active=True).order_by('room_type', 'code')
+    rooms_data = [
+        {
+            'id': r.id,
+            'code': r.code,
+            'name': r.name,
+            'room_type': r.room_type,
+            'room_type_display': r.get_room_type_display(),
+            'capacity': r.capacity,
+            'is_lab': r.is_lab,
+        }
+        for r in rooms
+    ]
     wizard_steps = [(1, 'Curriculum'), (2, 'Subject & Teacher'), (3, 'Section'), (4, 'Schedule'), (5, 'Review')]
     return render(request, 'core/admin/class_wizard.html', {
         'programs': programs,
@@ -2190,6 +2271,8 @@ def class_wizard_setup(request):
         'active_ay': active_ay,
         'weekday_choices': ClassSlot.WEEKDAY_CHOICES,
         'semester_choices': Curriculum.SEMESTER_CHOICES,
+        'rooms': rooms,
+        'rooms_json': script_json(rooms_data),
         'existing_rooms_json': script_json(existing_rooms),
         'wizard_steps': wizard_steps,
     })

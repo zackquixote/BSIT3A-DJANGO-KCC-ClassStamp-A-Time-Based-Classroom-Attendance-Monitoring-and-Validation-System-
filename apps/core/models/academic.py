@@ -84,6 +84,10 @@ class Subject(models.Model):
         validators=[MinValueValidator(1)],
         help_text="// Credit units; 1 unit = 1 class hour per week",
     )
+    is_lab = models.BooleanField(
+        default=False,
+        help_text="// Whether this subject requires a computer laboratory or lab room",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

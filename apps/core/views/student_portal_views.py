@@ -42,6 +42,7 @@ from apps.core.models import (
     Profile,
 )
 from apps.core.services.class_join_service import hash_join_code, normalize_join_code
+from apps.core.views.class_views import _invalidate_checklist_cache
 from apps.core.services.in_app_notification_service import create_notification
 from apps.core.services.schedule_service import student_overlap_conflicts
 from apps.core.services.qr_service import (
@@ -238,6 +239,10 @@ def student_join_class(request):
                 if not error_message:
                     if request_created:
                         cache.delete(throttle_key)
+                        # Admin-side enlistment already busts this cache;
+                        # the student self-join path must too, or the
+                        # "empty roster" warning sticks for up to 60 s.
+                        _invalidate_checklist_cache(class_obj.academic_year)
                         messages.success(
                             request,
                             f'You are now enrolled in {class_obj.class_code}. Check your class list.',

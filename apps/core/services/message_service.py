@@ -216,6 +216,39 @@ class MessageService:
         return other, messages
 
     @staticmethod
+    def mark_thread_as_read(messages, reader) -> int:
+        """
+        // Opening a thread used to walk every message through mark_as_read,
+        // which is one UPDATE plus one AuditEvent per row (P3-2). A long
+        // conversation therefore wrote N identical audit rows for one page
+        // view. Mark the unread incoming subset in a single UPDATE and keep
+        // one batch audit row.
+        """
+        unread = [
+            message for message in messages
+            if message.recipient_id == reader.pk and not message.is_read
+        ]
+        if not unread:
+            return 0
+        now = timezone.now()
+        updated = Message.objects.filter(pk__in=[m.pk for m in unread]).update(
+            is_read=True,
+            read_at=now,
+            updated_at=now,
+        )
+        for message in unread:
+            message.is_read = True
+            message.read_at = now
+        AuditEvent.objects.create(
+            actor=reader,
+            action='MESSAGE_READ',
+            object_type='Message',
+            object_id=','.join(str(m.pk) for m in unread),
+            reason=f'Thread opened: {updated} message(s) marked read',
+        )
+        return updated
+
+    @staticmethod
     def mark_as_read(message, reader) -> bool:
         """Only the recipient may mark a message read. Returns True on change."""
         if message.recipient_id != reader.pk:

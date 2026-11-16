@@ -3,6 +3,9 @@
   'use strict';
 
   var currentSlotClassId = null;
+  var currentClassCapacity = 0;
+  var currentIsLabSubject = false;
+  var currentSubjectCode = '';
 
   function getEl(id) { return document.getElementById(id); }
 
@@ -27,6 +30,55 @@
     existingSlotsContainer.innerHTML = html;
   }
 
+  function applySubjectDefaults(btn) {
+    currentClassCapacity = parseInt(btn.dataset.classCapacity || '0', 10) || 0;
+    currentIsLabSubject = btn.dataset.subjectIsLab === '1' || btn.dataset.subjectIsLab === 'true';
+    currentSubjectCode = btn.dataset.subjectCode || '';
+
+    var slotType = getEl('slotTypeSelect');
+    if (slotType) {
+      // Mirror the wizard: a lab subject defaults to a LABORATORY slot even
+      // when the admin is scheduling from Manage Slots instead of the wizard.
+      slotType.value = currentIsLabSubject ? 'LABORATORY' : 'LECTURE';
+    }
+    checkCapacity();
+  }
+
+  function checkCapacity() {
+    var warn = getEl('slotCapacityWarning');
+    var form = getEl('addSlotForm');
+    if (!warn || !form) return;
+
+    var roomSel = form.querySelector('select[name="room_id"]');
+    var opt = roomSel && roomSel.selectedOptions ? roomSel.selectedOptions[0] : null;
+    var roomCap = parseInt((opt && opt.dataset.capacity) || '0', 10) || 0;
+    var roomIsLab = opt && (opt.dataset.isLab === '1' || opt.dataset.isLab === 'true');
+    var roomCode = opt ? (opt.dataset.code || opt.textContent || '') : '';
+    var messages = [];
+
+    if (roomCap && currentClassCapacity && currentClassCapacity > roomCap) {
+      messages.push(
+        'Section capacity (' + currentClassCapacity + ') exceeds room capacity (' + roomCap + ').'
+      );
+    }
+    if (currentIsLabSubject && roomCode && roomIsLab === false) {
+      messages.push(
+        (currentSubjectCode || 'This subject') +
+        ' is a laboratory subject but is being scheduled in a lecture / non-lab room.'
+      );
+    }
+
+    if (messages.length) {
+      warn.textContent = messages.join(' ');
+      warn.style.display = 'block';
+      warn.classList.remove('hidden');
+    } else {
+      warn.textContent = '';
+      warn.style.display = 'none';
+      warn.classList.add('hidden');
+    }
+  }
+
   function initSlotsModal() {
     // Guard: only run if the slots modal exists on this page
     var slotsModal = getEl('slotsModal');
@@ -44,6 +96,7 @@
       e.preventDefault();
       currentSlotClassId = slotsBtn.dataset.classId;
       if (slotsModalClassCode) slotsModalClassCode.textContent = slotsBtn.dataset.classCode;
+      applySubjectDefaults(slotsBtn);
       if (typeof window.openModal === 'function') {
         window.openModal('slotsModal', slotsBtn);
       } else {
@@ -51,6 +104,14 @@
       }
       loadSlotsUI(slotsBtn);
     });
+
+    // Capacity / lab-room warning while the admin picks a room
+    if (addSlotForm) {
+      var roomSel = addSlotForm.querySelector('select[name="room_id"]');
+      if (roomSel) {
+        roomSel.addEventListener('change', checkCapacity);
+      }
+    }
 
     // Delete slot action
     document.addEventListener('click', function (e) {

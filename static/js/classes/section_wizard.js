@@ -518,6 +518,23 @@
     $('wiz-subject-units').textContent = subject
       ? `Requires ${fmtMinutes(requiredMinutes())} of schedule per week (${subject.units} credit unit${subject.units !== 1 ? 's' : ''}).`
       : '';
+
+    if (subject) {
+      const slotTypeSel = $('slot-type');
+      const roomSel = $('slot-room-select');
+      if (slotTypeSel) {
+        slotTypeSel.value = subject.is_lab ? 'LABORATORY' : 'LECTURE';
+      }
+      if (roomSel && (!roomSel.value || roomSel.value === 'TBA')) {
+        const targetOptgroup = subject.is_lab ? $('optgroup-labs') : $('optgroup-lectures');
+        const firstOpt = targetOptgroup ? targetOptgroup.querySelector('option') : null;
+        if (firstOpt) {
+          roomSel.value = firstOpt.value;
+          $('slot-room').value = firstOpt.value;
+          $('slot-room-id').value = firstOpt.dataset.id || '';
+        }
+      }
+    }
   }
 
   /* ── Step 4: auto-suggest end time based on subject units ────── */
@@ -551,9 +568,13 @@
     }
 
     const startInput = $('slot-start');
-    const roomInput = $('slot-room');
+    const roomSelect = $('slot-room-select');
+    const selectedOpt = roomSelect ? roomSelect.selectedOptions[0] : null;
+    const room = (roomSelect && roomSelect.value) ? roomSelect.value : ($('slot-room').value.trim() || 'TBA');
+    const roomId = selectedOpt ? (selectedOpt.dataset.id || null) : ($('slot-room-id')?.value || null);
+    const roomCap = selectedOpt ? parseInt(selectedOpt.dataset.cap || '0', 10) : null;
+    const slotType = $('slot-type') ? $('slot-type').value : (subject && subject.is_lab ? 'LABORATORY' : 'LECTURE');
     const startsAt = startInput.value || '08:00';
-    const room = roomInput.value.trim();
 
     const startMins = toMins(startsAt);
     const endMins = startMins + slotDurationMinutes;
@@ -578,7 +599,15 @@
 
     // Add all preset days
     targetDays.forEach((weekday) => {
-      state.slots.push({ weekday, starts_at: startsAt, ends_at: endsAt, room });
+      state.slots.push({
+        weekday,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        room,
+        room_id: roomId,
+        slot_type: slotType,
+        room_capacity: roomCap,
+      });
     });
 
     state.slots.sort((a, b) => a.weekday - b.weekday || toMins(a.starts_at) - toMins(b.starts_at));
@@ -598,7 +627,12 @@
     const weekday = parseInt($('slot-weekday').value, 10);
     const startsAt = $('slot-start').value;
     const endsAt = $('slot-end').value;
-    const room = $('slot-room').value.trim();
+    const roomSelect = $('slot-room-select');
+    const selectedOpt = roomSelect ? roomSelect.selectedOptions[0] : null;
+    const room = (roomSelect && roomSelect.value) ? roomSelect.value : ($('slot-room').value.trim() || 'TBA');
+    const roomId = selectedOpt ? (selectedOpt.dataset.id || null) : ($('slot-room-id')?.value || null);
+    const roomCap = selectedOpt ? parseInt(selectedOpt.dataset.cap || '0', 10) : null;
+    const slotType = $('slot-type') ? $('slot-type').value : 'LECTURE';
 
     if (!startsAt || !endsAt) {
       showError('Start and end times are required.');
@@ -615,10 +649,17 @@
       showError('That window overlaps another slot in this list.');
       return;
     }
-    state.slots.push({ weekday, starts_at: startsAt, ends_at: endsAt, room });
+    state.slots.push({
+      weekday,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      room,
+      room_id: roomId,
+      slot_type: slotType,
+      room_capacity: roomCap,
+    });
     state.slots.sort((a, b) => a.weekday - b.weekday || toMins(a.starts_at) - toMins(b.starts_at));
     showError('');
-    $('slot-room').value = '';
     renderSlots();
     updateTally();
     renderTimetableGrid();
@@ -718,11 +759,32 @@
       label.textContent = `${WEEKDAYS[slot.weekday]} · ${fmtTime(slot.starts_at)} – ${fmtTime(slot.ends_at)}`;
       row.appendChild(label);
 
+      if (slot.slot_type === 'LABORATORY') {
+        const typeBadge = document.createElement('span');
+        typeBadge.className = 'badge badge--teal badge--xs';
+        typeBadge.innerHTML = '<i class="fas fa-desktop"></i> Lab';
+        row.appendChild(typeBadge);
+      } else if (slot.slot_type === 'LECTURE') {
+        const typeBadge = document.createElement('span');
+        typeBadge.className = 'badge badge--purple badge--xs';
+        typeBadge.innerHTML = '<i class="fas fa-chalkboard"></i> Lecture';
+        row.appendChild(typeBadge);
+      }
+
       if (slot.room) {
         const roomBadge = document.createElement('span');
         roomBadge.className = 'badge badge--dark badge--xs';
         roomBadge.innerHTML = `<i class="fas fa-door-open"></i> ${slot.room}`;
         row.appendChild(roomBadge);
+
+        const secCap = parseInt($('wiz-capacity')?.value || '0', 10);
+        if (slot.room_capacity && secCap > slot.room_capacity) {
+          const capWarn = document.createElement('span');
+          capWarn.className = 'badge badge--danger badge--xs';
+          capWarn.title = `Section capacity (${secCap}) exceeds room capacity (${slot.room_capacity})`;
+          capWarn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Over cap (${secCap} > ${slot.room_capacity})`;
+          row.appendChild(capWarn);
+        }
       }
 
       const dur = document.createElement('span');
@@ -1080,12 +1142,12 @@
       if (e.target.tagName === 'TEXTAREA') return;
 
       // In Step 4 slot input form: Enter adds the slot instead of advancing wizard!
-      if (e.target.closest('#wizard-step-4') && (e.target.id === 'slot-start' || e.target.id === 'slot-end' || e.target.id === 'slot-room' || e.target.id === 'slot-weekday')) {
+      if (e.target.closest('#wizard-step-4') && (e.target.id === 'slot-start' || e.target.id === 'slot-end' || e.target.id === 'slot-room' || e.target.id === 'slot-room-select' || e.target.id === 'slot-type' || e.target.id === 'slot-weekday')) {
         e.preventDefault();
         e.stopPropagation();
         const addBtn = $('slot-add');
         if (addBtn) addBtn.click();
-        return;
+        return;``
       }
 
       const next = $('wiz-next');
@@ -1127,6 +1189,40 @@
     $('slot-add').addEventListener('click', addSlot);
     const clearBtn = $('slot-clear-all');
     if (clearBtn) clearBtn.addEventListener('click', clearAllSlots);
+
+    const roomSelect = $('slot-room-select');
+    if (roomSelect) {
+      roomSelect.addEventListener('change', function () {
+        const val = this.value;
+        const opt = this.selectedOptions[0];
+        $('slot-room').value = val || 'TBA';
+        $('slot-room-id').value = (opt && opt.dataset.id) || '';
+      });
+    }
+
+    const slotTypeSelect = $('slot-type');
+    if (slotTypeSelect && roomSelect) {
+      slotTypeSelect.addEventListener('change', function () {
+        const type = this.value;
+        if (type === 'LABORATORY') {
+          if (!roomSelect.value || roomSelect.value === 'TBA' || roomSelect.selectedOptions[0]?.dataset.type !== 'LABORATORY') {
+            const firstLab = $('optgroup-labs')?.querySelector('option');
+            if (firstLab) {
+              roomSelect.value = firstLab.value;
+              roomSelect.dispatchEvent(new Event('change'));
+            }
+          }
+        } else {
+          if (!roomSelect.value || roomSelect.value === 'TBA' || roomSelect.selectedOptions[0]?.dataset.type === 'LABORATORY') {
+            const firstLec = $('optgroup-lectures')?.querySelector('option');
+            if (firstLec) {
+              roomSelect.value = firstLec.value;
+              roomSelect.dispatchEvent(new Event('change'));
+            }
+          }
+        }
+      });
+    }
 
     $('wiz-create').addEventListener('click', createSection);
     $('wiz-add-offering').addEventListener('click', addOffering);

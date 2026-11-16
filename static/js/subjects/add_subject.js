@@ -76,6 +76,7 @@
         const nameEl  = getEl('subjectName');        if (nameEl)  nameEl.value = '';
         const descEl  = getEl('subjectDesc');        if (descEl)  descEl.value = '';
         const unitEl  = getEl('subjectUnits');       if (unitEl)  unitEl.value = '3';
+        const labEl   = getEl('subjectIsLab');       if (labEl)   labEl.checked = false;
         const actEl   = getEl('subjectActive');      if (actEl)   actEl.checked = true;
         const errEl   = getEl('subjectFormError');   if (errEl)   errEl.style.display = 'none';
         const placement = getEl('subjectCurriculumPlacement');
@@ -107,6 +108,8 @@
         const fd = new FormData(form);
         const activeEl = getEl('subjectActive');
         fd.set('is_active', (activeEl && activeEl.checked) ? '1' : '0');
+        const isLabEl = getEl('subjectIsLab');
+        fd.set('is_lab', (isLabEl && isLabEl.checked) ? '1' : '0');
 
         if (window.App && window.App.setButtonLoading) {
           window.App.setButtonLoading(saveBtn, true, 'Saving Subject...');

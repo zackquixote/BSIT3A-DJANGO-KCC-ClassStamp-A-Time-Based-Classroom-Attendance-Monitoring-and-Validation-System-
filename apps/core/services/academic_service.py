@@ -21,6 +21,9 @@ import re
 from django.db import transaction
 from django.db.models import Max, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+from apps.core.services.class_join_service import generate_join_code
 
 from apps.core.models import (
     AcademicYear,
@@ -32,6 +35,7 @@ from apps.core.models import (
     Department,
     Profile,
     Program,
+    Room,
     Subject,
 )
 from apps.core.services.curriculum_version_service import (
@@ -376,7 +380,7 @@ def delete_or_deactivate_program(actor, pk: int) -> dict:
 
 def create_or_update_subject(
     actor, code: str, name: str, description: str,
-    is_active: bool, units: int = 3, subject_id=None
+    is_active: bool, units: int = 3, is_lab: bool = False, subject_id=None
 ) -> dict:
     """
     // [Service] Create or Update Academic Subject
@@ -430,6 +434,7 @@ def create_or_update_subject(
         subject.name = name
         subject.description = description
         subject.units = units
+        subject.is_lab = is_lab
         subject.is_active = is_active
         subject.save()
         action = 'UPDATE_SUBJECT'
@@ -456,6 +461,7 @@ def create_or_update_subject(
             name=name,
             description=description,
             units=units,
+            is_lab=is_lab,
             is_active=is_active,
         )
         old_val = None
@@ -511,6 +517,7 @@ def delete_or_deactivate_subject(actor, pk: int) -> dict:
             reason='Protected deactivation due to existing class sections or curriculum entries',
         )
         msg = (
+            
             f'Subject "{subject.code}" was deactivated '
             f'(attached to {subject.classes.count()} class sections and {subject.curriculum_entries.count()} curriculum entries).'
         )
@@ -1284,6 +1291,8 @@ def clone_classes_academic_year(actor, source_year, target_year) -> dict:
                         starts_at=slot.starts_at,
                         ends_at=slot.ends_at,
                         room=slot.room,
+                        room_ref=slot.room_ref,
+                        slot_type=slot.slot_type,
                         is_active=True,
                     )
                     slot_count += 1
@@ -1334,6 +1343,96 @@ def clone_classes_academic_year(actor, source_year, target_year) -> dict:
     }
 
 
+def enable_join_codes_for_classes(actor, class_ids) -> dict:
+    """
+    // [Service] Generate and activate student join codes for a list of classes.
+    //
+    // Used after term cloning so admins do not have to rotate codes one class
+    // at a time. Plaintext codes are returned ONCE — the database stores only
+    // the digest. Classes that already have an active code are skipped (not
+    // rotated), so a re-run never orphans a code already given to students.
+    //
+    // Returns: {enabled, skipped, message}
+    // Raises: ValueError when no valid class IDs are provided.
+    """
+    if class_ids is None:
+        raise ValueError('No classes were selected.')
+
+    ids = []
+    for value in class_ids:
+        try:
+            ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        raise ValueError('No valid class IDs were provided.')
+
+    classes = list(
+        Class.objects.filter(pk__in=ids)
+        .select_related('subject', 'academic_year')
+        .order_by('class_code')
+    )
+    if not classes:
+        raise ValueError('Those classes were not found.')
+
+    existing_digests = set(
+        Class.objects.exclude(join_code_digest='').values_list('join_code_digest', flat=True)
+    )
+
+    enabled = []
+    skipped = []
+
+    with transaction.atomic():
+        for class_obj in classes:
+            if class_obj.join_code_active and class_obj.join_code_digest:
+                skipped.append({
+                    'class_code': class_obj.class_code,
+                    'reason': 'Already has an active join code; left untouched.',
+                })
+                continue
+            if not class_obj.is_active:
+                skipped.append({
+                    'class_code': class_obj.class_code,
+                    'reason': 'Class is inactive.',
+                })
+                continue
+
+            join_code, digest = generate_join_code()
+            while digest in existing_digests:
+                join_code, digest = generate_join_code()
+
+            class_obj.join_code_digest = digest
+            class_obj.join_code_active = True
+            class_obj.join_code_created_at = timezone.now()
+            class_obj.save(update_fields=[
+                'join_code_digest', 'join_code_active', 'join_code_created_at', 'updated_at',
+            ])
+            existing_digests.add(digest)
+            enabled.append({
+                'class_id': class_obj.pk,
+                'class_code': class_obj.class_code,
+                'join_code': join_code,
+            })
+            AuditEvent.objects.create(
+                actor=actor,
+                action='CLASS_JOIN_CODE_ROTATE',
+                object_type='Class',
+                object_id=str(class_obj.pk),
+                reason=f'Bulk-generated student join code for {class_obj.class_code}',
+            )
+
+    enabled_count = len(enabled)
+    skipped_count = len(skipped)
+    if enabled_count and skipped_count:
+        message = f'Generated {enabled_count} join code(s); skipped {skipped_count} class(es).'
+    elif enabled_count:
+        message = f'Generated {enabled_count} join code(s).'
+    else:
+        message = 'No new join codes were generated.'
+
+    return {'enabled': enabled, 'skipped': skipped, 'message': message}
+
+
 def delete_or_deactivate_academic_year(actor, pk: int) -> dict:
     """
     // [Service] Delete or Soft-Deactivate Academic Year Term
@@ -1372,3 +1471,162 @@ def delete_or_deactivate_academic_year(actor, pk: int) -> dict:
         ay = None
 
     return {'instance': ay, 'type': status_type, 'message': msg}
+
+
+# // ==============================================================================
+# // SECTION: ROOM CRUD OPERATIONS
+# // ==============================================================================
+
+def create_or_update_room(
+    actor,
+    code: str,
+    name: str,
+    room_type: str = 'LECTURE',
+    capacity: int = 40,
+    is_active: bool = True,
+    notes: str = '',
+    room_id=None,
+) -> dict:
+    """
+    // [Service] Create or Update Campus Room / Facility
+    //
+    // Validates code uniqueness, room type validity, and capacity bounds. Emits AuditEvent.
+    //
+    // Returns: dict with keys: instance, action, message
+    // Raises: ValueError on constraint violation.
+    """
+    code = (code or '').strip().upper()
+    name = (name or '').strip()
+    room_type = (room_type or Room.ROOM_TYPE_LECTURE).strip().upper()
+    notes = (notes or '').strip()
+
+    if not code:
+        raise ValueError('Room code is required (e.g. LAB-1, RM-101).')
+    if not name:
+        raise ValueError('Room name is required (e.g. Computer Laboratory 1).')
+    if len(code) > 30:
+        raise ValueError('Room code must be 30 characters or fewer.')
+    if not re.fullmatch(r'[A-Z0-9]+(?:-[A-Z0-9]+)*', code):
+        raise ValueError(
+            'Room code may only contain uppercase letters, digits, and single '
+            'hyphens (e.g. LAB-1, RM-101). No spaces or other punctuation.'
+        )
+    if len(name) > 100:
+        raise ValueError('Room name must be 100 characters or fewer.')
+
+    valid_types = [choice[0] for choice in Room.ROOM_TYPE_CHOICES]
+    if room_type not in valid_types:
+        raise ValueError(f'Invalid room type "{room_type}". Must be one of: {", ".join(valid_types)}.')
+
+    try:
+        capacity = int(capacity)
+        if capacity < 1 or capacity > 500:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise ValueError('Capacity must be a positive integer between 1 and 500.')
+
+    code_qs = Room.objects.filter(code__iexact=code)
+    if room_id:
+        code_qs = code_qs.exclude(pk=room_id)
+
+    if code_qs.exists():
+        raise ValueError(f'Room code "{code}" is already in use.')
+
+    if room_id:
+        room = get_object_or_404(Room, pk=room_id)
+        old_val = f'{room.code} - {room.name} ({room.room_type}, cap: {room.capacity}, active: {room.is_active})'
+        room.code = code
+        room.name = name
+        room.room_type = room_type
+        room.capacity = capacity
+        room.is_active = is_active
+        room.notes = notes
+        room.save()
+        action = 'UPDATE_ROOM'
+        msg = f'Room "{room.code}" updated successfully.'
+    else:
+        room = Room.objects.create(
+            code=code,
+            name=name,
+            room_type=room_type,
+            capacity=capacity,
+            is_active=is_active,
+            notes=notes,
+        )
+        old_val = None
+        action = 'CREATE_ROOM'
+        msg = f'Room "{room.code} — {room.name}" created successfully.'
+
+    AuditEvent.objects.create(
+        actor=actor,
+        action=action,
+        object_type='Room',
+        object_id=str(room.pk),
+        old_value=old_val,
+        new_value=f'{room.code} - {room.name} ({room.room_type}, cap: {room.capacity}, active: {room.is_active})',
+    )
+
+    return {'instance': room, 'action': action, 'message': msg}
+
+
+def delete_or_deactivate_room(actor, pk: int) -> dict:
+    """
+    // [Service] Delete or Soft-Deactivate Campus Room
+    //
+    // Protection: If scheduled slots or attendance records exist, soft-deactivates
+    // instead of hard-deleting to preserve timetable history and integrity.
+    //
+    // Returns: dict with keys: instance, type ('deleted'|'deactivated'), message
+    """
+    room = get_object_or_404(Room, pk=pk)
+
+    # Check for active open attendance sessions
+    open_sessions = ClassSession.objects.filter(
+        status=ClassSession.STATUS_OPEN,
+        slot__room_ref=room,
+    ).count()
+    if open_sessions:
+        raise ValueError(
+            f'Room "{room.code}" has {open_sessions} open attendance session(s). '
+            f'Close them before deactivating or deleting this room.'
+        )
+
+    # Check slot bindings
+    slot_count = ClassSlot.objects.filter(
+        Q(room_ref=room) | Q(room__iexact=room.code)
+    ).count()
+
+    if slot_count > 0:
+        room.is_active = False
+        room.save(update_fields=['is_active'])
+        AuditEvent.objects.create(
+            actor=actor,
+            action='DEACTIVATE_ROOM',
+            object_type='Room',
+            object_id=str(room.pk),
+            new_value='is_active=False',
+            reason=f'Protected deactivation due to {slot_count} associated class schedule slot(s)',
+        )
+        return {
+            'instance': room,
+            'type': 'deactivated',
+            'message': f'Room "{room.code}" was deactivated ({slot_count} schedule slot(s) attached).',
+        }
+
+    # No slots attached: safe to hard-delete
+    code = room.code
+    room.delete()
+    AuditEvent.objects.create(
+        actor=actor,
+        action='DELETE_ROOM',
+        object_type='Room',
+        object_id=str(pk),
+        old_value=f'{code}',
+        new_value=None,
+        reason='Permanently deleted room without schedule dependencies',
+    )
+    return {
+        'instance': None,
+        'type': 'deleted',
+        'message': f'Room "{code}" was permanently deleted.',
+    }

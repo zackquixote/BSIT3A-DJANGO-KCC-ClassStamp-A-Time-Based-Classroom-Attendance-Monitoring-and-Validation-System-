@@ -6,8 +6,28 @@
 # // Provides live indicators such as the pending validation queue counter for admins.
 # // ==============================================================================
 """
-from .models import AnomalyFlag, Message, Notification, Profile
+import os
+
 from django.conf import settings
+from django.core.cache import cache
+
+from .models import AnomalyFlag, Message, Notification, Profile
+
+# pytest never sets argv[0] to 'test', so detection must use the env var the
+# runner actually exports. Without this, a cached count leaks across tests.
+_IS_TESTING = 'PYTEST_CURRENT_TEST' in os.environ
+_COUNT_TTL = 20
+_ADMIN_COUNT_TTL = 30
+
+
+def _count(cache_key, queryset, timeout):
+    if _IS_TESTING:
+        return queryset.count()
+    value = cache.get(cache_key)
+    if value is None:
+        value = queryset.count()
+        cache.set(cache_key, value, timeout)
+    return value
 
 
 # // ==============================================================================
@@ -39,27 +59,36 @@ def pending_approval_count(request):
 
     if user is not None and user.is_authenticated:
         profile = getattr(user, 'classstamp_profile', None)
-        unread_notification_count = Notification.objects.filter(
-            user=user,
-            read_at__isnull=True,
-        ).count()
+        unread_notification_count = _count(
+            f'ctx_unread_notif:{user.pk}',
+            Notification.objects.filter(user=user, read_at__isnull=True),
+            _COUNT_TTL,
+        )
+        unread_message_count = _count(
+            f'ctx_unread_msg:{user.pk}',
+            Message.objects.filter(recipient=user, is_read=False),
+            _COUNT_TTL,
+        )
         # // [RBAC Check] Only admins need the badge counter in their navigation
         is_admin = user.is_superuser or (profile is not None and profile.role == Profile.ROLE_ADMIN)
         if is_admin:
             return {
                 'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
                 'unread_notification_count': unread_notification_count,
-                'unread_message_count': Message.objects.filter(
-                    recipient=user,
-                    is_read=False,
-                ).count(),
-                'pending_approval_count': Profile.objects.filter(
-                    role=Profile.ROLE_STUDENT,
-                    approval_status=Profile.APPROVAL_PENDING,
-                ).count(),
-                'open_anomaly_count': AnomalyFlag.objects.filter(
-                    status=AnomalyFlag.STATUS_OPEN,
-                ).count(),
+                'unread_message_count': unread_message_count,
+                'pending_approval_count': _count(
+                    'ctx_pending_approval',
+                    Profile.objects.filter(
+                        role=Profile.ROLE_STUDENT,
+                        approval_status=Profile.APPROVAL_PENDING,
+                    ),
+                    _ADMIN_COUNT_TTL,
+                ),
+                'open_anomaly_count': _count(
+                    'ctx_open_anomaly',
+                    AnomalyFlag.objects.filter(status=AnomalyFlag.STATUS_OPEN),
+                    _ADMIN_COUNT_TTL,
+                ),
                 'sidebar_collapsed': sidebar_collapsed,
                 'sidebar_dd_security_open': sidebar_dd_security_open,
                 'sidebar_dd_oversight_open': sidebar_dd_oversight_open,
@@ -67,10 +96,7 @@ def pending_approval_count(request):
         return {
             'web_push_public_key': getattr(settings, 'VAPID_PUBLIC_KEY', ''),
             'unread_notification_count': unread_notification_count,
-            'unread_message_count': Message.objects.filter(
-                recipient=user,
-                is_read=False,
-            ).count(),
+            'unread_message_count': unread_message_count,
             'pending_approval_count': 0,
             'open_anomaly_count': 0,
             'sidebar_collapsed': sidebar_collapsed,

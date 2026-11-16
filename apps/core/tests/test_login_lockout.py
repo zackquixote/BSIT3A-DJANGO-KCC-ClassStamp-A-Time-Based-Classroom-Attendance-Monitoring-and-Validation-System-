@@ -11,8 +11,10 @@
 # //      200 page that merely says "too many attempts".
 # //   2. Reloading the sign-in page cannot reopen the form: the lock is read
 # //      from the cache on GET as well as POST.
-# //   3. The account bucket holds across a different client address, so
-# //      changing network does not buy five more guesses.
+# //   3. The lock is combined IP+identifier, not a global account lock: a
+# //      clean network with the right password still signs in. Knowing a
+# //      semi-public student number cannot take the account offline from
+# //      every campus lab (P1-5).
 # //   4. A correct password is still refused while the window is open.
 # //   5. The window ends, a success clears the counters, and the page ships the
 # //      accessibility contract the controller relies on (aria-pressed, one
@@ -118,18 +120,31 @@ class LoginLockoutTests(TestCase):
         self.assertGreaterEqual(body.count('disabled'), 3, 'username, password and submit must all be disabled')
 
     # --------------------------------------------------------------------------
-    # 3. The account bucket follows the account, not the connection
+    # 3. Combined IP+identifier lock — not a global account DoS
     # --------------------------------------------------------------------------
-    def test_account_lock_holds_across_client_addresses(self):
+    def test_same_ip_stays_locked_even_with_the_right_password(self):
         self._exhaust_attempts(ip=CLIENT_IP)
 
-        # // A fresh client has no session and no cookie: only the account
-        # // bucket can still know about the lock.
+        response = self._post(password=RIGHT_PASSWORD)
+
+        self.assertEqual(response.status_code, 429)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_clean_ip_with_the_right_password_is_not_dossed(self):
+        """P1-5: five wrong passwords from one IP must not lock the account globally."""
+        self._exhaust_attempts(ip=CLIENT_IP)
+        self.assertIsNone(cache.get(f'login_lock:account:{USERNAME}'))
+
         other = self.client_class(REMOTE_ADDR=OTHER_IP)
         response = other.post(self.url, {'username': USERNAME, 'password': RIGHT_PASSWORD})
 
-        self.assertEqual(response.status_code, 429)
-        self.assertNotIn('_auth_user_id', other.session)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('_auth_user_id', other.session)
+        self.assertEqual(response.url, reverse('dashboard'))
+
+        # The attacking IP stays locked; the victim's network does not.
+        still_locked = self._post(password=RIGHT_PASSWORD)
+        self.assertEqual(still_locked.status_code, 429)
 
     # --------------------------------------------------------------------------
     # 4. The right password does not jump the queue

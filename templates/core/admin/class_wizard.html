@@ -392,7 +392,8 @@
   data-programs-url="{% url 'program_list' %}"
   data-classes-url="{% url 'class_list' %}"></div>
 <script nonce="{{ request.csp_nonce }}" id="wizard-programs" type="application/json">{{ programs_json|safe }}</script>
-<script nonce="{{ request.csp_nonce }}" id="wizard-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
+<script nonce="{{ request.csp_nonce }}" id="wizard-rooms" type="application/json">{{ rooms_json|safe }}</script>
+<script nonce="{{ request.csp_nonce }}" id="wizard-legacy-rooms" type="application/json">{{ existing_rooms_json|safe }}</script>
 <script nonce="{{ request.csp_nonce }}" id="wizard-departments" type="application/json">{{ departments_json|safe }}</script>
 
 <div class="wiz-head">
@@ -588,7 +589,7 @@
     </div>
 
     <!-- ── Slot Input Form ─────────────────────────────────── -->
-    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1.2fr auto;gap:10px;align-items:end;background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);" class="p-3 mb-3">
+    <div style="display:grid;grid-template-columns:1fr 0.9fr 0.9fr 0.9fr 1.5fr auto;gap:10px;align-items:end;background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);" class="p-3 mb-3">
       <div class="form-group" style="margin:0;">
         <label class="form-label" for="slot-weekday">Day</label>
         <select id="slot-weekday" class="form-control">
@@ -606,9 +607,38 @@
         <input type="time" id="slot-end" class="form-control" value="09:00">
       </div>
       <div class="form-group" style="margin:0;">
-        <label class="form-label" for="slot-room">Room</label>
-        <input type="text" id="slot-room" class="form-control" placeholder="TBA" list="room-suggestions" autocomplete="off">
-        <datalist id="room-suggestions"></datalist>
+        <label class="form-label" for="slot-type">Type</label>
+        <select id="slot-type" class="form-control">
+          <option value="LECTURE">Lecture</option>
+          <option value="LABORATORY">Lab</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label" for="slot-room-select">Room</label>
+        <select id="slot-room-select" class="form-control">
+          <option value="">Select Room (or TBA)</option>
+          <optgroup label="Computer Laboratories (40 cap)" id="optgroup-labs">
+            {% for r in rooms %}
+              {% if r.is_lab %}
+              <option value="{{ r.code }}" data-id="{{ r.id }}" data-type="{{ r.room_type }}" data-cap="{{ r.capacity }}">
+                {{ r.code }} &mdash; {{ r.name }} ({{ r.capacity }} cap)
+              </option>
+              {% endif %}
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Lecture Rooms (45 cap)" id="optgroup-lectures">
+            {% for r in rooms %}
+              {% if not r.is_lab %}
+              <option value="{{ r.code }}" data-id="{{ r.id }}" data-type="{{ r.room_type }}" data-cap="{{ r.capacity }}">
+                {{ r.code }} &mdash; {{ r.name }} ({{ r.capacity }} cap)
+              </option>
+              {% endif %}
+            {% endfor %}
+          </optgroup>
+          <option value="TBA">TBA (Unassigned)</option>
+        </select>
+        <input type="hidden" id="slot-room" value="TBA">
+        <input type="hidden" id="slot-room-id" value="">
       </div>
       <button type="button" class="btn btn-primary" id="slot-add" style="padding:9px 14px;"><i class="fas fa-plus"></i> Add</button>
     </div>

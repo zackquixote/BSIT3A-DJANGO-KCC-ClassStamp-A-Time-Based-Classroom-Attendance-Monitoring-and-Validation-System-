@@ -1,0 +1,353 @@
+{% extends "theme/base.html" %}
+{% block title %}Room Directory — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<div class="breadcrumb-nav">
+  <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+  <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+  <span class="breadcrumb-current">Room Directory</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Campus Rooms &amp; Laboratories</h1>
+    <p class="page-subtitle">Manage physical classrooms, computer laboratories, seating capacity, and scheduling facility constraints.</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-primary" id="addRoomBtn">
+      <i class="fas fa-plus-circle"></i> Add Room
+    </button>
+  </div>
+</div>
+
+<!-- Stats Metric Row -->
+<div class="grid grid-4 gap-4 mb-4">
+  <div class="card p-3">
+    <div class="text-muted text-xs uppercase font-semibold">Total Facilities</div>
+    <div class="font-bold text-2xl mt-1 text-primary">{{ total_count }}</div>
+    <div class="text-muted text-xs mt-1">All registered facilities</div>
+  </div>
+  <div class="card p-3">
+    <div class="text-muted text-xs uppercase font-semibold">Computer Labs</div>
+    <div class="font-bold text-2xl mt-1 text-teal">{{ lab_count }}</div>
+    <div class="text-muted text-xs mt-1">All computer laboratories</div>
+  </div>
+  <div class="card p-3">
+    <div class="text-muted text-xs uppercase font-semibold">Lecture Rooms</div>
+    <div class="font-bold text-2xl mt-1 text-purple">{{ lecture_count }}</div>
+    <div class="text-muted text-xs mt-1">All lecture halls</div>
+  </div>
+  <div class="card p-3">
+    <div class="text-muted text-xs uppercase font-semibold">Active &amp; Ready</div>
+    <div class="font-bold text-2xl mt-1 text-green">{{ active_count }}</div>
+    <div class="text-muted text-xs mt-1">Available for section scheduling</div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-4" style="padding: 16px 20px;">
+  <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
+    <div class="input-wrap" style="flex: 1; min-width: 240px;">
+      <i class="fas fa-magnifying-glass input-icon"></i>
+      <input type="text" name="q" value="{{ query }}" class="form-control"
+        placeholder="Search room code or name (e.g. LAB-1, 101)...">
+    </div>
+    <div style="min-width: 170px;">
+      <select name="type" class="form-control">
+        <option value="">All Room Types</option>
+        {% for val, lbl in room_type_choices %}
+        <option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width: 140px;">
+      <select name="status" class="form-control">
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
+      </select>
+    </div>
+    {% if query or type_filter or status_filter != 'all' %}
+    <a href="{% url 'room_list' %}" class="btn btn-outline">Clear</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+  </form>
+</div>
+
+<!-- Room Table Card -->
+<div class="card" style="padding: 0; overflow: visible;">
+  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="font-semibold text-primary">
+      Instructional Spaces {% if query %}<span class="text-muted text-sm">— results for "{{ query }}"</span>{% endif %}
+    </div>
+    <span class="text-muted text-xs">{{ rooms.paginator.count }} room{{ rooms.paginator.count|pluralize }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="roomTable">
+      <thead>
+        <tr>
+          <th scope="col" style="width: 50px;">ID</th>
+          <th scope="col">Code</th>
+          <th scope="col">Room Name</th>
+          <th scope="col">Facility Type</th>
+          <th scope="col" title="Workstation / Seating capacity">Capacity</th>
+          <th scope="col" title="Class schedule slots attached (any status)">Weekly Load</th>
+          <th scope="col">Status</th>
+          <th scope="col" class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rooms %}
+        <tr data-row-id="{{ r.id }}">
+          <td class="text-muted">{{ r.id }}</td>
+          <td>
+            {% if r.is_lab %}
+            <span class="badge badge--cyan font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
+            {% elif r.room_type == 'AVR' %}
+            <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
+            {% else %}
+            <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="font-semibold text-primary">{{ r.name }}</span>
+            {% if r.notes %}
+            <div class="text-muted text-xs truncate" style="max-width: 240px;" title="{{ r.notes }}">{{ r.notes }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.is_lab %}
+            <span class="badge badge--teal"><i class="fas fa-desktop"></i> Computer Lab</span>
+            {% elif r.room_type == 'AVR' %}
+            <span class="badge badge--gold"><i class="fas fa-film"></i> AVR</span>
+            {% elif r.room_type == 'LECTURE' %}
+            <span class="badge badge--purple"><i class="fas fa-chalkboard"></i> Lecture Hall</span>
+            {% else %}
+            <span class="badge badge--muted">{{ r.get_room_type_display }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge--teal" title="{{ r.capacity }} student capacity">
+              <i class="fas fa-users"></i> {{ r.capacity }} seats
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if r.slot_count > 0 %}badge--blue{% else %}badge--muted{% endif %}" title="{{ r.slot_count }} weekly schedule slot(s)">
+              <i class="fas fa-calendar-week"></i> {{ r.slot_count }} slot{{ r.slot_count|pluralize }}
+            </span>
+          </td>
+          <td>
+            {% if r.is_active %}
+            <span class="badge badge--success"><i class="fas fa-circle-check"></i> Active</span>
+            {% else %}
+            <span class="badge badge--danger"><i class="fas fa-circle-xmark"></i> Inactive</span>
+            {% endif %}
+          </td>
+          <td class="col-actions">
+            <div class="table-actions-cluster">
+              <button type="button"
+                      class="btn btn-outline btn-icon-xs js-edit-room"
+                      data-id="{{ r.id }}"
+                      data-code="{{ r.code }}"
+                      data-name="{{ r.name }}"
+                      data-type="{{ r.room_type }}"
+                      data-capacity="{{ r.capacity }}"
+                      data-notes="{{ r.notes }}"
+                      data-active="{{ r.is_active|yesno:'true,false' }}"
+                      title="Edit Room" aria-label="Edit Room">
+                <i class="fas fa-pen"></i>
+              </button>
+              <div class="action-dropdown">
+                <button type="button" class="btn btn-outline btn-icon-xs action-dropdown-toggle" title="More" aria-label="More">
+                  <i class="fas fa-ellipsis-vertical"></i>
+                </button>
+                <div class="action-dropdown-menu">
+                  <button type="button"
+                          class="action-dropdown-item action-dropdown-item--danger js-delete-room"
+                          data-id="{{ r.id }}"
+                          data-code="{{ r.code }}"
+                          data-slots="{{ r.slot_count }}">
+                    <i class="fas fa-trash"></i>
+                    <span>Delete / Deactivate</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 48px 20px;" class="text-muted">
+            <i class="fas fa-door-open" style="font-size: 2.2rem; margin-bottom: 12px; display: block; opacity: 0.5;"></i>
+            {% if query or type_filter or status_filter != 'all' %}
+            No campus rooms matched your filter criteria.
+            {% else %}
+            No campus rooms registered yet. Click <strong>Add Room</strong> above to define one.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if rooms.has_other_pages %}
+  <div style="padding: 14px 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+    <div class="text-muted text-xs">
+      Showing page {{ rooms.number }} of {{ rooms.paginator.num_pages }}
+    </div>
+    <div class="flex items-center gap-2">
+      {% if rooms.has_previous %}
+      <a href="?page={{ rooms.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+        class="btn btn-outline" style="padding: 6px 12px;">
+        <i class="fas fa-chevron-left"></i> Previous
+      </a>
+      {% endif %}
+      {% if rooms.has_next %}
+      <a href="?page={{ rooms.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+        class="btn btn-outline" style="padding: 6px 12px;">
+        Next <i class="fas fa-chevron-right"></i>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══ MODAL: Create / Edit Room ═══ -->
+<div class="modal" id="editRoomModal">
+  <div class="modal-dialog" style="max-width: 580px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="editRoomModalTitle">Add Campus Room</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="editRoomModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" action="{% url 'room_save' %}" id="editRoomForm" autocomplete="off">
+      {% csrf_token %}
+      <input type="hidden" name="id" id="room_id" value="">
+      <div class="modal-body">
+        <div id="roomFormError" class="auth-alert auth-alert--error mb-4" style="display: none;">
+          <i class="fas fa-circle-xmark"></i>
+          <span id="roomFormErrorMsg"></span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;" class="mb-4">
+          <div class="form-group">
+            <label class="form-label" for="room_code">Room Code <span class="text-danger">*</span></label>
+            <div class="input-wrap">
+              <i class="fas fa-door-closed input-icon"></i>
+              <input type="text" name="code" id="room_code" class="form-control"
+                placeholder="e.g. LAB-1, RM-101" maxlength="30" required
+                pattern="[A-Za-z0-9]+(-[A-Za-z0-9]+)*"
+                title="Uppercase letters, digits, and hyphens only (e.g. LAB-1, RM-101)"
+                style="text-transform: uppercase;">
+            </div>
+            <span class="text-muted text-xs">Unique canonical identifier</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="room_type">Facility Type <span class="text-danger">*</span></label>
+            <select name="room_type" id="room_type" class="form-control" required>
+              {% for val, lbl in room_type_choices %}
+              <option value="{{ val }}">{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="room_name">Descriptive Name <span class="text-danger">*</span></label>
+          <div class="input-wrap">
+            <i class="fas fa-signature input-icon"></i>
+            <input type="text" name="name" id="room_name" class="form-control"
+              placeholder="e.g. Computer Laboratory 1, Lecture Room 101" maxlength="100" required>
+          </div>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="room_capacity">Capacity <span class="text-danger">*</span></label>
+          <div class="input-wrap">
+            <i class="fas fa-users input-icon"></i>
+            <input type="number" name="capacity" id="room_capacity" class="form-control"
+              min="1" max="500" value="40" required>
+          </div>
+          <span class="text-muted text-xs">Max student seats</span>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="room_notes">Equipment &amp; Facilities Notes</label>
+          <textarea name="notes" id="room_notes" class="form-control" rows="2"
+            placeholder="e.g. 40 Desktop PCs, Gigabit LAN, Projector, Smart TV, Air-conditioned"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-switch">
+            <input type="checkbox" name="is_active" id="room_is_active" checked>
+            <span class="text-sm">Active (Available for weekly schedule assignment)</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="editRoomModal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveRoomBtn">
+          <i class="fas fa-save"></i> Save Room
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Delete / Deactivate Room ═══ -->
+<div class="modal" id="deleteRoomModal">
+  <div class="modal-dialog modal-dialog--sm">
+    <div class="modal-header">
+      <h3 class="modal-title">Delete / Deactivate Room</h3>
+      <button type="button" class="modal-close" data-modal-dismiss="deleteRoomModal">
+        <i class="fas fa-xmark"></i>
+      </button>
+    </div>
+    <form method="POST" id="deleteRoomForm" action="">
+      {% csrf_token %}
+      <div class="modal-body">
+        <p class="text-secondary">Are you sure you want to remove room <strong id="delete_room_code" class="text-primary"></strong>?</p>
+        <div id="delete_room_warning" class="auth-alert auth-alert--warning mt-3" style="display: none;">
+          <i class="fas fa-triangle-exclamation"></i>
+          <span>This room has <strong id="delete_room_slot_count"></strong> associated weekly class schedule slot(s). It will be <strong>safely deactivated</strong> instead of deleted to protect academic timetable records.</span>
+        </div>
+        <div id="deleteRoomError" class="auth-alert auth-alert--error mt-3" style="display: none;">
+          <i class="fas fa-circle-xmark"></i>
+          <span id="deleteRoomErrorMsg"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-modal-dismiss="deleteRoomModal">Cancel</button>
+        <button type="submit" class="btn btn-danger" id="confirmDeleteRoomBtn">Confirm</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/rooms/room_crud.js' %}?v=20261116_v2"></script>
+<script nonce="{{ request.csp_nonce }}">
+  /* Action Dropdown toggle */
+  document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.action-dropdown-toggle');
+    var all = document.querySelectorAll('.action-dropdown');
+    if (toggle) {
+      e.stopPropagation();
+      var parent = toggle.closest('.action-dropdown');
+      var wasOpen = parent.classList.contains('open');
+      all.forEach(function (d) { d.classList.remove('open'); });
+      if (!wasOpen) parent.classList.add('open');
+    } else {
+      all.forEach(function (d) { d.classList.remove('open'); });
+    }
+  });
+</script>
+{% endblock %}
