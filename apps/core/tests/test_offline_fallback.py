@@ -6,14 +6,19 @@ from django.urls import reverse
 
 
 class OfflineFallbackTests(TestCase):
-    def test_service_worker_is_served_without_noop_fetch_handler(self):
+    def test_service_worker_handles_fetch_for_installability(self):
+        # Chrome only offers "Install app" — and only fires beforeinstallprompt —
+        # when a service worker listens for fetch. The handler is a plain network
+        # passthrough, so it adds no caching and no stale pages; without it the
+        # install prompt never appeared on phones.
         response = self.client.get(reverse('service_worker'))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'].split(';')[0], 'application/javascript')
         self.assertEqual(response['Service-Worker-Allowed'], '/')
         content = response.content.decode()
-        self.assertNotIn("addEventListener('fetch'", content)
+        self.assertIn("addEventListener('fetch'", content)
+        self.assertIn('respondWith(fetch(event.request))', content)
         self.assertIn("addEventListener('push'", content)
 
     def test_offline_page_is_a_self_contained_static_asset(self):

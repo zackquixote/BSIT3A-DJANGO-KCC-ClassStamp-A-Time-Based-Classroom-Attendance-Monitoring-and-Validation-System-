@@ -12,6 +12,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Chrome only offers "Install app" (and only fires beforeinstallprompt) when a
+// service worker listens for fetch. The app is server-rendered, so this handler
+// simply goes to the network — no caching, no stale pages.
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+  event.respondWith(fetch(event.request));
+});
+
 self.addEventListener('push', (event) => {
   let payload = {};
   try {
