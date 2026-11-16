@@ -318,6 +318,12 @@ class ImportedRoomBindingTests(ImporterTests):
         self.assertIsNone(slot.room_ref_id)
         self.assertEqual(slot.room, 'LAB 1')
 
+    def test_other_building_labels_do_not_collapse_into_main_building_rooms(self):
+        # Matches migration 0034: the same number in another building is another room.
+        self.assertTrue(Room.objects.filter(code='RM-101').exists())
+        self.assertIsNone(resolve_room('ROOM 101 \u00b7 COLLEGE'))
+        self.assertIsNotNone(resolve_room('ROOM 101 \u00b7 CMAT'))
+
     def test_resolve_room_handles_building_suffix_and_room_alias(self):
         rm302, _ = Room.objects.get_or_create(
             code='RM-302',

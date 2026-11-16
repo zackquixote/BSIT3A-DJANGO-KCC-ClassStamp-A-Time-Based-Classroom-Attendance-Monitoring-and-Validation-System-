@@ -59,6 +59,20 @@ def parse_days(text):
     return sorted(set(days))
 
 
+# Mirror migration 0034: 'ROOM 101 · COLLEGE' is a different physical room from
+# 'RM-101'. A label tagged with another building keeps its raw text rather than
+# being collapsed into a Main Building record.
+ROOM_MAP_ALLOWED_BUILDINGS = {'', 'CMAT', 'LABORATORY', 'MAIN BUILDING', 'MAIN'}
+
+
+def building_tag(label):
+    """'ROOM 101 \u00b7 COLLEGE' -> 'COLLEGE'; 'LAB 5' -> ''."""
+    parts = str(label or '').split('\u00b7')
+    if len(parts) < 2:
+        return ''
+    return parts[-1].strip().upper()
+
+
 def room_code_candidates(label):
     """
     // Workbook room label -> plausible Room.code spellings.
@@ -88,6 +102,8 @@ def resolve_room(label):
     """
     from apps.core.models import Room
 
+    if building_tag(label) not in ROOM_MAP_ALLOWED_BUILDINGS:
+        return None
     candidates = room_code_candidates(label)
     if not candidates:
         return None
