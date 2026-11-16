@@ -56,9 +56,16 @@
     styleInjected = true;
     var style = document.createElement('style');
     style.textContent = [
-      '.kcc-install{position:fixed;left:12px;bottom:16px;z-index:1400;display:flex;align-items:center;gap:6px;',
+      // A top-centred pill, so it reads like a notification instead of a floating
+      // button that covers the form. On app pages it drops below the sticky header.
+      '.kcc-install{position:fixed;left:50%;transform:translateX(-50%);z-index:1400;display:flex;align-items:center;gap:6px;',
+      'top:calc(env(safe-area-inset-top, 0px) + 12px);max-width:calc(100vw - 24px);',
       'padding:6px 6px 6px 8px;border-radius:999px;border:1px solid rgba(245,158,11,0.45);',
-      'background:rgba(15,23,42,0.94);box-shadow:0 10px 24px rgba(0,0,0,0.45);backdrop-filter:blur(6px);}',
+      'background:rgba(15,23,42,0.94);box-shadow:0 10px 24px rgba(0,0,0,0.45);backdrop-filter:blur(6px);',
+      'animation:kccInstallDrop 0.32s ease-out;}',
+      'html:not(.kcc-auth-html) .kcc-install{top:calc(env(safe-area-inset-top, 0px) + 72px);}',
+      '@keyframes kccInstallDrop{from{opacity:0;transform:translate(-50%,-10px);}to{opacity:1;transform:translate(-50%,0);}}',
+      '@media (prefers-reduced-motion: reduce){.kcc-install{animation:none;}}',
       '.kcc-install-btn{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;',
       'color:#f8fafc;font-size:0.8rem;font-weight:600;padding:6px 10px;border-radius:999px;cursor:pointer;}',
       '.kcc-install-btn:hover{background:rgba(245,158,11,0.14);}',
@@ -66,7 +73,8 @@
       '.kcc-install-close{border:0;background:transparent;color:rgba(226,232,240,0.6);font-size:1rem;',
       'line-height:1;padding:2px 8px;border-radius:999px;cursor:pointer;}',
       '.kcc-install-close:hover{color:#fff;background:rgba(255,255,255,0.08);}',
-      '@media (max-width:900px){.kcc-install{bottom:84px;}}',
+      '@media (max-width:900px){.kcc-install{top:calc(env(safe-area-inset-top, 0px) + 10px);}}',
+      '@media (max-width:900px){html:not(.kcc-auth-html) .kcc-install{top:calc(env(safe-area-inset-top, 0px) + 64px);}}',
       '.kcc-install-sheet{position:fixed;inset:0;z-index:2001;display:flex;align-items:flex-end;',
       'justify-content:center;background:rgba(2,6,23,0.72);padding:18px;}',
       '.kcc-install-sheet__card{width:min(420px,100%);background:#111c31;border:1px solid rgba(255,255,255,0.12);',

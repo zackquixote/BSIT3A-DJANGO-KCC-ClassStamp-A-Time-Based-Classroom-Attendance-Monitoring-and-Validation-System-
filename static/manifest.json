@@ -1,7 +1,7 @@
 {
   "id": "/",
   "name": "KCC ClassStamp",
-  "short_name": "ClassStamp",
+  "short_name": "KCC ClassStamp",
   "description": "Time-based classroom attendance monitoring and validation for Kabankalan Catholic College.",
   "start_url": "/",
   "scope": "/",

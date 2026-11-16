@@ -291,6 +291,25 @@ ul {
 .text-primary    { color: var(--text-primary); }
 .text-gold       { color: var(--accent-gold); }
 .text-accent-gold { color: var(--accent-gold); }
+
+/* Status text + spacing utilities. These names were already used across ~25
+   templates but were never defined, so "Delete" never turned red and the
+   mt-3 / p-3 paddings silently did nothing. */
+.text-danger     { color: var(--danger); }
+.text-success    { color: var(--success); }
+.text-warning    { color: var(--warning); }
+.text-info       { color: var(--info); }
+.text-green      { color: var(--success); }
+.text-teal       { color: #4ecdc4; }
+.text-blue       { color: var(--accent-blue); }
+.text-purple     { color: var(--role-admin); }
+.text-cyan       { color: #4ecdc4; }
+.mt-3            { margin-top: 12px; }
+.mt-4            { margin-top: 16px; }
+.p-3             { padding: 12px; }
+.p-4             { padding: 16px; }
+.py-3            { padding-top: 12px; padding-bottom: 12px; }
+.badge--cyan     { color: #4ecdc4; border-color: rgba(78, 205, 196, 0.35); background: rgba(78, 205, 196, 0.12); }
 .text-sm         { font-size: 0.875rem; }
 .text-xs         { font-size: 0.75rem; }
 .font-medium     { font-weight: 500; }
