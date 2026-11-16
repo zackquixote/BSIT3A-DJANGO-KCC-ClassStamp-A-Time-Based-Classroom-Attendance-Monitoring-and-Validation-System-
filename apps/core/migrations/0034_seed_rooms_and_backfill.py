@@ -26,6 +26,20 @@ SEEDED_ROOMS = [
 ]
 
 
+# Rooms that belong to the canonical (Main Building) set. Anything tagged with a
+# different building keeps its raw label: we would rather show 'ROOM 101 · COLLEGE'
+# than pretend it is the same room as 'ROOM 101 · CMAT'.
+MAP_ALLOWED_BUILDINGS = {'', 'CMAT', 'LABORATORY', 'MAIN BUILDING', 'MAIN'}
+
+
+def building_tag(raw_room):
+    """'ROOM 101 · COLLEGE' -> 'COLLEGE'; 'LAB 5' -> ''."""
+    parts = (raw_room or '').split('·')
+    if len(parts) < 2:
+        return ''
+    return parts[-1].strip().upper()
+
+
 def seed_rooms_and_backfill(apps, schema_editor):
     Room = apps.get_model('core', 'Room')
     Subject = apps.get_model('core', 'Subject')
@@ -56,6 +70,9 @@ def seed_rooms_and_backfill(apps, schema_editor):
             continue
 
         matched_room = None
+        if building_tag(raw_room) not in MAP_ALLOWED_BUILDINGS:
+            continue  # different building — do not collapse it into a Main Building room
+
         # Exact code match
         if raw_room in room_map:
             matched_room = room_map[raw_room]

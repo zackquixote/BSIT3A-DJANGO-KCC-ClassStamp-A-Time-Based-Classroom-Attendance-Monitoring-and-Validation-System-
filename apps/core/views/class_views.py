@@ -12,6 +12,7 @@
 
 import json
 import os
+import sys
 from datetime import time, timedelta
 from urllib.parse import urlencode
 from django.contrib import messages
@@ -84,7 +85,10 @@ def _class_setup_checklist(active_ay):
     # sys.argv is ['...\\pytest.exe', 'apps/core/tests/....py', ...] — no
     # element equals 'test', so the old `'test' in sys.argv` check never
     # fired and the 60 s cache served stale checklist rows across two GETs.
-    is_testing = 'PYTEST_CURRENT_TEST' in os.environ
+    # `manage.py test` does not set PYTEST_CURRENT_TEST, so the guard has to
+    # cover both runners — otherwise the second GET in a test reads the cached
+    # checklist from the first one.
+    is_testing = 'PYTEST_CURRENT_TEST' in os.environ or 'test' in sys.argv
     cache_key = f'setup_checklist_{active_ay.pk if active_ay else "none"}'
     if not is_testing:
         cached = cache.get(cache_key)
