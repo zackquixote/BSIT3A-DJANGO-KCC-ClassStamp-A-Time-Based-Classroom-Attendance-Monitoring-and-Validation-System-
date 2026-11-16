@@ -2207,6 +2207,46 @@ body.role-student [class*="profile-photo"] {
 
 .qr-fast-scan-tip,
 .qr-tip,
+/* QR badge frame — the image used to rely on raw width/height attributes with
+   no container, so on very narrow screens max-width:100% shrank the width while
+   height stayed 280px and the code was rendered out of square (unscannable).
+   height:auto plus a white quiet zone fixes that. */
+.qr-badge-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 18px auto 0;
+  padding: 14px;
+  width: fit-content;
+  max-width: 100%;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+.qr-badge-frame img {
+  display: block;
+  width: 280px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.qr-badge-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  background: #ffffff;
+  border-radius: 14px;
+}
+
 .qr-scan-tip {
   background: transparent !important;
   border: 0 !important;
