@@ -14,7 +14,7 @@
 # // ==============================================================================
 """
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from io import StringIO
 from unittest import mock
 
@@ -185,6 +185,14 @@ class AnomalyDetectionTests(TestCase):
         # test below still covers records created outside the scan path.
         today = timezone.localdate()
         fixed_now = timezone.make_aware(datetime.combine(today, time(12, 0)))
+        # The clock jumps to noon below. SESSION_COOKIE_AGE is four hours, so a
+        # session created before 08:00 has an expire_date earlier than the mocked
+        # "now": the DB backend then refuses to load it, the request arrives
+        # anonymous and the scan answers 401 instead of 400. Push the row out.
+        from django.contrib.sessions.models import Session as SessionRow
+        SessionRow.objects.filter(
+            session_key=self.client.session.session_key
+        ).update(expire_date=timezone.now() + timedelta(days=365))
         with mock.patch(
             'apps.core.views.session_views.SCAN_CLOSE_TOLERANCE_MINUTES', 0
         ), mock.patch(

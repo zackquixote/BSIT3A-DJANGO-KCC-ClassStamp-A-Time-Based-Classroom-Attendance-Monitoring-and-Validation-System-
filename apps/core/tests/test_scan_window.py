@@ -136,6 +136,15 @@ class ScanAfterClassEndTests(TestCase):
 
     def _scan(self, session):
         token = current_token(self.student_profile)
+        # The clock jumps to noon below. SESSION_COOKIE_AGE is four hours, so a
+        # session created before 08:00 has an expire_date earlier than the mocked
+        # "now": the DB backend then refuses to load it, the request arrives
+        # anonymous and the scan answers 401 instead of 400. Push the row out.
+        from django.contrib.sessions.models import Session as SessionRow
+
+        SessionRow.objects.filter(
+            session_key=self.client.session.session_key
+        ).update(expire_date=timezone.now() + timedelta(days=365))
         with mock.patch(
             'apps.core.views.session_views.timezone.now', return_value=FIXED_NOW
         ), mock.patch(
