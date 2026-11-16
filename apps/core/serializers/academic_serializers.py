@@ -7,6 +7,10 @@
 # //   dictionaries for JSON API responses, AJAX forms, and client components.
 # // ==============================================================================
 """
+from apps.core.services.academic_service import (
+    classification_label, classify_subject, format_subject_code,
+)
+
 
 
 def serialize_department(department) -> dict:
@@ -98,12 +102,15 @@ def serialize_curriculum_version(version) -> dict:
     starts_on = version.effective_from.starts_on if version.effective_from else None
     batch_year = f'{starts_on.year}-{starts_on.year + 1}' if starts_on else None
     status_display = version.get_status_display()
+    revision_label = f'v{version.version_number}'
     if batch_year:
-        batch_label = f'{batch_year} ({status_display})'
+        # Two versions can share a cohort (an archived one plus the approved
+        # successor), so the revision number keeps the options distinguishable.
+        batch_label = f'{batch_year} ({status_display} · {revision_label})'
     elif version.status == 'DRAFT':
         batch_label = 'Draft (editing)'
     else:
-        batch_label = f'Legacy ({status_display})'
+        batch_label = f'Legacy ({status_display} · {revision_label})'
 
     return {
         'id': version.id,
@@ -134,6 +141,8 @@ def serialize_curriculum_entry(entry, teachers=None) -> dict:
         return {}
 
     version = entry.version if entry.version_id else None
+    subject_code = entry.subject.code if entry.subject else None
+    slug = classify_subject(subject_code, entry.is_major)
     return {
         'id': entry.id,
         'program_id': entry.program_id,
@@ -145,11 +154,14 @@ def serialize_curriculum_entry(entry, teachers=None) -> dict:
         'year_level': entry.year_level,
         'semester': entry.semester,
         'subject_id': entry.subject_id,
-        'subject_code': entry.subject.code if entry.subject else None,
+        'subject_code': subject_code,
+        'subject_code_display': format_subject_code(subject_code),
         'subject_name': entry.subject.name if entry.subject else None,
         'subject_units': entry.subject.units if entry.subject else 0,
         'teachers': teachers if teachers is not None else [],
         'is_major': entry.is_major,
+        'classification': slug,
+        'classification_label': classification_label(slug),
     }
 
 

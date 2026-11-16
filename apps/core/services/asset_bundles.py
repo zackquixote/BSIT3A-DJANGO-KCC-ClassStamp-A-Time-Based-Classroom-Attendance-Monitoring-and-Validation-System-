@@ -56,6 +56,7 @@ JS_SOURCES = [
     'js/core/app_lightbox.js',
     'js/core/app_responsive_tables.js',
     'js/core/service_worker.js',
+    'js/core/pwa_install.js',
     'js/core/push_notifications.js',
     'js/core/app_desktop_alerts.js',
 ]

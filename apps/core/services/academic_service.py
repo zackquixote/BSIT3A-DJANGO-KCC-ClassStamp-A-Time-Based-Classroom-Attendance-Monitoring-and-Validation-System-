@@ -567,6 +567,70 @@ PROGRAM_PREFIX_MAP = {
 
 GE_PREFIXES = ('GE', 'GEE', 'NSTP', 'PE', 'PATH', 'CWTS', 'ROTC')
 
+# Curriculum classification shown in the matrix. The prefix decides the bucket so
+# GE / NSTP / PE / Theology subjects are never mislabelled "Major".
+CLASSIFICATION_GENERAL_EDUCATION = 'general_education'
+CLASSIFICATION_NSTP = 'nstp'
+CLASSIFICATION_PE = 'physical_education'
+CLASSIFICATION_THEOLOGY = 'theology'
+CLASSIFICATION_MAJOR = 'major'
+CLASSIFICATION_CORE = 'core'
+
+CLASSIFICATION_LABELS = {
+    CLASSIFICATION_GENERAL_EDUCATION: 'General Education',
+    CLASSIFICATION_NSTP: 'NSTP',
+    CLASSIFICATION_PE: 'Physical Education',
+    CLASSIFICATION_THEOLOGY: 'Theology',
+    CLASSIFICATION_MAJOR: 'Major',
+    CLASSIFICATION_CORE: 'Core',
+}
+
+# Checked in order: 'PATHfit' must reach PE, 'NSTP'/'ROTC'/'CWTS' must reach NSTP.
+_CLASSIFICATION_PREFIXES = (
+    (CLASSIFICATION_NSTP, ('NSTP', 'ROTC', 'CWTS')),
+    (CLASSIFICATION_PE, ('PATHFIT', 'PATH', 'PE')),
+    (CLASSIFICATION_THEOLOGY, ('THEOLOGY', 'THEO', 'RELED', 'REED', 'REL')),
+    (CLASSIFICATION_GENERAL_EDUCATION, ('GE', 'GEE')),
+)
+
+
+def classify_subject(code: str, is_major: bool = True) -> str:
+    """
+    Map a subject code to its curriculum classification slug.
+
+    General Education, NSTP, PE and Theology are never returned as Major even when
+    the curriculum row has is_major=True, because that column previously claimed
+    every subject was a Major.
+    """
+    clean = re.sub(r'[^A-Za-z0-9]', '', str(code or '').upper())
+    match = re.match(r'^([A-Z]+)', clean)
+    if match:
+        alpha = match.group(1)
+        for slug, prefixes in _CLASSIFICATION_PREFIXES:
+            for prefix in sorted(prefixes, key=len, reverse=True):
+                if alpha.startswith(prefix):
+                    return slug
+    return CLASSIFICATION_MAJOR if is_major else CLASSIFICATION_CORE
+
+
+def format_subject_code(code: str) -> str:
+    """
+    Render a subject code the way the registrar writes it.
+
+    The catalogue holds both 'CC101' and 'CC 101'; the workbook always prints the
+    spaced form, so the matrix and the timetable show 'CC 101' either way.
+    """
+    text = str(code or '').strip()
+    match = re.fullmatch(r'([A-Za-z]+)(\d+)', text)
+    if match:
+        return f'{match.group(1)} {match.group(2)}'
+    return text
+
+
+def classification_label(slug: str) -> str:
+    """Human-readable label for a classification slug."""
+    return CLASSIFICATION_LABELS.get(slug, 'Major')
+
 
 def get_subject_prefix_program(code: str) -> str | None:
     """Extract leading alphabetic discipline tag from course code, e.g. 'IT' from 'IT101' or 'IT 103'."""

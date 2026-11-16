@@ -149,6 +149,9 @@ urlpatterns = [
 
     # // Admin: Class Sections, Schedules & Roster Enrollment
     path('classes/', views.class_list, name='class_list'),
+    path('classes/timetable/', views.section_timetable, name='section_timetable'),
+    path('classes/timetable/export/', views.section_timetable_export,
+         name='section_timetable_export'),
     path('classes/save/', views.class_save, name='class_save'),
     path('classes/toggle/<int:pk>/', views.class_toggle, name='class_toggle'),
     path('classes/<int:class_id>/slot/save/', views.class_slot_save, name='class_slot_save'),

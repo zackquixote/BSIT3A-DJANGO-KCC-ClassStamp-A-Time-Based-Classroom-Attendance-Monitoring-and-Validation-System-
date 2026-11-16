@@ -269,6 +269,9 @@ from .class_views import (
     class_wizard_slots_check,
 )
 
+# // Section timetable sheet rendered like the registrar's workbook
+from .timetable_views import section_timetable, section_timetable_export
+
 # // ------------------------------------------------------------------------------
 # // 12. Classroom Attendance Session & Live QR Scanner Subsystem
 # // ------------------------------------------------------------------------------
@@ -452,6 +455,8 @@ __all__ = [
     'class_wizard_save',
     'class_wizard_slots_check',
     'class_wizard_setup',
+    'section_timetable',
+    'section_timetable_export',
     'class_roster_get',
     'class_roster_enroll',
     'class_roster_enroll_batch',

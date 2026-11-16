@@ -32,6 +32,41 @@
     viewMode: 'prospectus'
   };
 
+  // Curriculum classification rendered in the matrix. General Education, NSTP,
+  // PE and Theology come from the subject code, so a GE row never reads "Major".
+  var CLASSIFICATION_STYLES = {
+    general_education: { label: 'General Education', badge: 'blue' },
+    nstp: { label: 'NSTP', badge: 'teal' },
+    physical_education: { label: 'Physical Education', badge: 'teal' },
+    theology: { label: 'Theology', badge: 'purple' },
+    major: { label: 'Major', badge: 'gold' },
+    core: { label: 'Core', badge: 'muted' }
+  };
+
+  // The catalogue stores 'CC101'; the registrar sheet prints 'CC 101'.
+  function codeOf(entry) {
+    if (!entry) return '';
+    return entry.subject_code_display || entry.subject_code || '';
+  }
+
+  // Four names in one cell is noise; two plus "+N" keeps the row readable.
+  var TEACHER_BADGE_LIMIT = 2;
+
+  function classificationOf(entry) {
+    var slug = entry && entry.classification;
+    if (slug && CLASSIFICATION_STYLES[slug]) {
+      return { slug: slug, style: CLASSIFICATION_STYLES[slug] };
+    }
+    var fallback = entry && entry.is_major ? 'major' : 'core';
+    return { slug: fallback, style: CLASSIFICATION_STYLES[fallback] };
+  }
+
+  // Only Major / Core can be toggled; GE, NSTP, PE and Theology are fixed by code.
+  function isToggleable(entry) {
+    var slug = classificationOf(entry).slug;
+    return slug === 'major' || slug === 'core';
+  }
+
   function yearNumberToWord(year) {
     var words = ['First Year', 'Second Year', 'Third Year', 'Fourth Year', 'Fifth Year', 'Sixth Year', 'Seventh Year', 'Eighth Year'];
     return words[year - 1] || ('Year ' + year);
@@ -99,10 +134,12 @@
     top.appendChild(unitsBadge);
 
 
-    var typeBadge = document.createElement(state.canEdit ? 'button' : 'span');
-    typeBadge.className = 'badge badge--' + (entry.is_major ? 'gold' : 'muted') +
-      ' badge--xs' + (state.canEdit ? ' curriculum-chip-major-toggle' : '');
-    if (state.canEdit) {
+    var info = classificationOf(entry);
+    var canToggle = state.canEdit && isToggleable(entry);
+    var typeBadge = document.createElement(canToggle ? 'button' : 'span');
+    typeBadge.className = 'badge badge--' + info.style.badge +
+      ' badge--xs' + (canToggle ? ' curriculum-chip-major-toggle' : '');
+    if (canToggle) {
       typeBadge.type = 'button';
       typeBadge.setAttribute('data-entry-id', entry.id);
       typeBadge.title = 'Click to toggle major / non-major';
@@ -111,8 +148,10 @@
         'Mark ' + (entry.subject_code || 'subject') + ' as ' +
           (entry.is_major ? 'non-major' : 'major')
       );
+    } else {
+      typeBadge.title = info.style.label + ' — set by the subject code';
     }
-    typeBadge.textContent = entry.is_major ? 'Major' : 'Core / GenEd';
+    typeBadge.textContent = info.style.label;
     top.appendChild(typeBadge);
 
     if (state.canEdit) {
@@ -289,7 +328,7 @@
 
             // Code
             var tdCode = document.createElement('td');
-            tdCode.innerHTML = '<span class="badge badge--' + (entry.is_major ? 'purple' : 'blue') + ' font-mono font-bold" style="font-size: 0.76rem;">' + (entry.subject_code || '') + '</span>';
+            tdCode.innerHTML = '<span class="badge badge--' + (entry.is_major ? 'purple' : 'blue') + ' font-mono font-bold" style="font-size: 0.76rem;">' + codeOf(entry) + '</span>';
             tr.appendChild(tdCode);
 
             // Descriptive Title
@@ -306,30 +345,41 @@
             // Classification
             var tdClass = document.createElement('td');
             tdClass.style.textAlign = 'center';
-            if (state.canEdit) {
+            var rowInfo = classificationOf(entry);
+            if (state.canEdit && isToggleable(entry)) {
               var majorBtn = document.createElement('button');
               majorBtn.type = 'button';
-              majorBtn.className = 'badge badge--' + (entry.is_major ? 'gold' : 'muted') + ' curriculum-chip-major-toggle';
+              majorBtn.className = 'badge badge--' + rowInfo.style.badge + ' curriculum-chip-major-toggle';
               majorBtn.style.border = 'none';
               majorBtn.style.cursor = 'pointer';
               majorBtn.setAttribute('data-entry-id', entry.id);
               majorBtn.title = 'Click to toggle Major / Core';
-              majorBtn.textContent = entry.is_major ? 'Major' : 'Core / GenEd';
+              majorBtn.textContent = rowInfo.style.label;
               tdClass.appendChild(majorBtn);
             } else {
-              tdClass.innerHTML = '<span class="badge badge--' + (entry.is_major ? 'gold' : 'muted') + '">' + (entry.is_major ? 'Major' : 'Core / GenEd') + '</span>';
+              tdClass.innerHTML = '<span class="badge badge--' + rowInfo.style.badge +
+                '" title="' + rowInfo.style.label + ' — set by the subject code">' +
+                rowInfo.style.label + '</span>';
             }
             tr.appendChild(tdClass);
 
             // Faculty
             var tdFaculty = document.createElement('td');
             if (entry.teachers && entry.teachers.length > 0) {
-              var teacherBadges = entry.teachers.map(function (t) {
+              var shown = entry.teachers.slice(0, TEACHER_BADGE_LIMIT);
+              var hidden = entry.teachers.length - shown.length;
+              var allNames = entry.teachers.join(', ');
+              var teacherBadges = shown.map(function (t) {
                 return '<span class="badge badge--teal" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px;">' +
                   '<i class="fas fa-chalkboard-user"></i> ' + t +
                 '</span>';
               }).join(' ');
-              tdFaculty.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 4px;">' + teacherBadges + '</div>';
+              if (hidden > 0) {
+                teacherBadges += ' <span class="badge badge--muted" title="' + allNames + '" ' +
+                  'style="font-size: 0.7rem;">+' + hidden + ' more</span>';
+              }
+              tdFaculty.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 4px;" title="' +
+                allNames + '">' + teacherBadges + '</div>';
             } else {
               tdFaculty.innerHTML = '<span class="text-muted text-xs" style="opacity: 0.6;">— unassigned</span>';
             }

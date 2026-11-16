@@ -1,0 +1,381 @@
+{% extends "theme/base.html" %}
+{% block title %}Section Timetable — KCC ClassStamp{% endblock %}
+
+{% block content %}
+<style>
+  /* The sheet keeps the registrar workbook's layout, but borrows the app palette
+     (KCC deep navy + institutional gold) so it does not glare next to every other
+     page. Printing flips it back to white paper — see @media print. */
+  .tt-toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    margin-bottom: 18px;
+  }
+  .tt-toolbar form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .tt-filters .form-select {
+    background-color: rgba(10, 18, 36, 0.55);
+    border: 1px solid var(--glass-border, rgba(245, 197, 24, 0.22));
+    color: var(--text-primary, #f4f6fb);
+    font-size: 0.82rem;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: var(--radius-md, 8px);
+  }
+  .tt-filters .form-select:focus {
+    outline: none;
+    border-color: var(--accent-gold, #f5c518);
+    box-shadow: 0 0 0 3px var(--accent-gold-glow, rgba(245, 197, 24, 0.25));
+  }
+  .tt-submit-hidden {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .tt-count {
+    margin-left: auto;
+    font-size: 0.76rem;
+    color: var(--text-muted, #9ba9c2);
+    white-space: nowrap;
+  }
+
+  .tt-sheets {
+    display: block;
+    width: 100%;
+    flex: 0 0 auto;      /* never shrink inside the app shell's flex column */
+  }
+  .tt-sheet {
+    flex: 0 0 auto;      /* keep the sheet at its natural height */
+    height: auto;
+    min-height: 0;
+    background: var(--bg-card, #182640);
+    color: var(--text-secondary, #d2dae9);
+    border: 1px solid var(--glass-border, rgba(245, 197, 24, 0.22));
+    border-radius: var(--radius-lg, 12px);
+    padding: 0;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    overflow-x: auto;    /* narrow windows scroll instead of hiding Units / Hrs-Wk */
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tt-caption {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary, #f4f6fb);
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border, rgba(245, 197, 24, 0.18));
+    background: linear-gradient(90deg, rgba(245, 197, 24, 0.10), transparent 55%);
+  }
+  .tt-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-gold, #f5c518);
+    background: rgba(245, 197, 24, 0.07);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border, rgba(245, 197, 24, 0.18));
+  }
+  table.tt {
+    width: 100%;
+    min-width: 560px;    /* only phones need to scroll sideways */
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    color: var(--text-secondary, #d2dae9);
+  }
+  table.tt th, table.tt td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 10px;
+    vertical-align: middle;
+  }
+  table.tt th:last-child, table.tt td:last-child { border-right: 0; }
+  table.tt thead th {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted, #9ba9c2);
+    background: rgba(10, 18, 36, 0.55);
+    text-align: center;
+    white-space: nowrap;
+  }
+  table.tt tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.018); }
+  table.tt tbody tr:hover { background: rgba(245, 197, 24, 0.055); }
+  table.tt td.c-code {
+    text-align: left; white-space: nowrap; font-weight: 700;
+    color: var(--accent-gold, #f5c518);
+    font-variant-numeric: tabular-nums;
+  }
+  table.tt td.c-desc { text-align: left; color: var(--text-primary, #f4f6fb); }
+  table.tt td.c-fac { text-align: left; }
+  table.tt td.c-room { text-align: center; white-space: nowrap; }
+  .tt-room-bldg {
+    display: block;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-dim, #75859d);
+  }
+  table.tt td.c-day,
+  table.tt td.c-time,
+  table.tt td.c-units,
+  table.tt td.c-hrs { text-align: center; white-space: nowrap; }
+  table.tt td.c-units { font-weight: 700; color: var(--text-primary, #f4f6fb); }
+  table.tt td.c-hrs { color: var(--text-muted, #9ba9c2); }
+  table.tt tfoot td {
+    font-weight: 700;
+    text-align: right;
+    border-top: 1px solid var(--glass-border, rgba(245, 197, 24, 0.22));
+    background: rgba(245, 197, 24, 0.08);
+    color: var(--accent-gold, #f5c518);
+  }
+  table.tt tfoot td.total-label { text-align: right; color: var(--text-primary, #f4f6fb); }
+
+  .tt-edit-link {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: var(--accent-gold, #f5c518);
+    text-decoration: none;
+    border: 1px solid var(--glass-border, rgba(245, 197, 24, 0.22));
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .tt-edit-link:hover {
+    background: rgba(245, 197, 24, 0.12);
+    border-color: var(--glass-border-gold, rgba(245, 197, 24, 0.5));
+  }
+  .tt-empty code {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--accent-gold, #f5c518);
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--glass-border, rgba(245, 197, 24, 0.22));
+    border-radius: 6px;
+    white-space: normal;
+    word-break: break-word;
+    text-align: left;
+    max-width: 100%;
+  }
+  .tt-empty {
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    padding: 34px 22px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  @media print {
+    @page { size: A4 landscape; margin: 10mm; }
+    .tt-toolbar, .breadcrumb-nav, .page-header-actions, .sidebar, .app-sidebar { display: none !important; }
+    html, body, .app-layout, .main-content {
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+      display: block !important;
+    }
+    .tt-sheet {
+      box-shadow: none;
+      border: 1px solid #999999;
+      border-radius: 0;
+      background: #ffffff !important;
+      color: #111111 !important;
+      page-break-after: always;
+      page-break-inside: avoid;
+      margin-bottom: 0;
+    }
+    .tt-caption { color: #111111 !important; background: #ffffff !important; border-bottom: 1px solid #999999; }
+    .tt-banner { color: #111111 !important; background: #f1f1f1 !important; border-bottom: 1px solid #999999; }
+    table.tt { color: #111111 !important; font-size: 10.5pt; }
+    table.tt th, table.tt td { border: 1px solid #bbbbbb !important; }
+    table.tt thead th { color: #111111 !important; background: #f4f4f4 !important; }
+    table.tt td.c-code, table.tt td.c-desc, table.tt td.c-units { color: #111111 !important; }
+    table.tt td.c-hrs { color: #333333 !important; }
+    table.tt tbody tr { background: #ffffff !important; }
+    table.tt tfoot td { background: #f4f4f4 !important; color: #111111 !important; }
+    table.tt tfoot td.total-label { color: #111111 !important; }
+    .tt-empty {
+      background: #ffffff !important;
+      border: 1px dashed #999999 !important;
+      color: #111111 !important;
+    }
+    .tt-empty p, .tt-empty code { color: #111111 !important; }
+  }
+</style>
+
+<div class="breadcrumb-nav">
+  <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
+  <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+  <a href="{% url 'class_list' %}">Class Sections</a>
+  <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+  <span class="breadcrumb-current">Section Timetable</span>
+</div>
+
+<div class="page-header" style="margin-bottom: 16px;">
+  <div>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="badge badge--purple" style="font-size: 0.72rem; padding: 2px 10px;">
+        <i class="fas fa-table"></i> Registrar Sheet Layout
+      </span>
+      {% if term %}
+        <span class="badge badge--success" style="font-size: 0.7rem; padding: 2px 8px;">
+          <i class="fas fa-calendar-check"></i> {{ term.name }}
+        </span>
+      {% endif %}
+    </div>
+    <h1 class="page-title" style="font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em;">
+      Section Timetable
+    </h1>
+    <p class="page-subtitle" style="font-size: 0.88rem;">
+      One sheet per section — Code, Description, Faculty, Day, Time, Room, Units and Hrs/Wk
+    </p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'section_timetable_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
+       class="btn btn-secondary" style="padding: 10px 16px;">
+      <i class="fas fa-file-excel"></i> Export Excel
+    </a>
+    <button type="button" id="ttPrintBtn" class="btn btn-secondary" style="padding: 10px 16px;">
+      <i class="fas fa-print"></i> Print
+    </button>
+    <a href="{% url 'class_list' %}" class="btn btn-primary" style="padding: 10px 16px;">
+      <i class="fas fa-list-check"></i> Class Sections
+    </a>
+  </div>
+</div>
+
+<div class="tt-toolbar">
+  <form method="get" class="tt-filters" id="ttFiltersForm">
+    <select name="ay" class="form-select" style="min-width: 190px;">
+      {% for item in terms %}
+        <option value="{{ item.id }}" {% if term and item.id == term.id %}selected{% endif %}>{{ item.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="department" class="form-select" style="min-width: 250px;">
+      {% for item in departments %}
+        <option value="{{ item.code }}" {% if department and item.id == department.id %}selected{% endif %}>{{ item.code }} — {{ item.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="program" class="form-select" style="min-width: 150px;">
+      {% for item in programs %}
+        <option value="{{ item.code }}" {% if program and item.id == program.id %}selected{% endif %}>{{ item.code }}</option>
+      {% endfor %}
+    </select>
+    <select name="section" class="form-select" style="min-width: 150px;">
+      <option value="">All sections</option>
+      {% for item in sections %}
+        <option value="{{ item.value }}" {% if section_filter == item.value %}selected{% endif %}>{{ item.label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="tt-submit-hidden" tabindex="-1" aria-hidden="true">Apply</button>
+  </form>
+  <span class="tt-count">
+    {{ grand.sections }} sections · {{ grand.subjects }} subject rows · {{ grand.units }} units · {{ grand.hours|floatformat:"-1" }} hrs/wk
+  </span>
+</div>
+
+<div class="tt-sheets">
+{% for sheet in sheets %}
+<div class="tt-sheet">
+  <div class="tt-caption">
+    {% if program %}{{ program.name }}{% else %}Degree Program{% endif %} | {{ semester_label }}, A.Y. {{ academic_year_label|default:"—" }} | {{ sheet.total_units }} units, {{ sheet.subject_count }} subjects
+  </div>
+  <div class="tt-banner">
+    <span>SUBJECTS — {{ sheet.section }}</span>
+    <a class="tt-edit-link"
+       href="{% url 'class_list' %}?q={{ sheet.section_code|urlencode }}"
+       title="Open in Class Sections to edit this schedule">
+      <i class="fas fa-pen-to-square"></i> Edit schedule
+    </a>
+  </div>
+  <table class="tt">
+    <thead>
+      <tr>
+        <th style="width: 12%;">Code</th>
+        <th style="width: 26%;">Description</th>
+        <th style="width: 18%;">Faculty</th>
+        <th style="width: 8%;">Day</th>
+        <th style="width: 16%;">Time</th>
+        <th style="width: 11%;">Room</th>
+        <th style="width: 5%;">Units</th>
+        <th style="width: 6%;">Hrs/Wk</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in sheet.rows %}
+        <tr>
+          <td class="c-code">{{ row.code }}</td>
+          <td class="c-desc">{{ row.description }}</td>
+          <td class="c-fac">{{ row.faculty }}</td>
+          <td class="c-day">{{ row.days }}</td>
+          <td class="c-time">{{ row.time }}</td>
+          <td class="c-room">{{ row.room_main }}{% if row.room_building %}<span class="tt-room-bldg">{{ row.room_building }}</span>{% endif %}</td>
+          <td class="c-units">{{ row.units }}</td>
+          <td class="c-hrs">{{ row.hours_label }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" style="text-align:center; padding: 16px;">No subjects on file for this section.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="6" class="total-label">Total — {{ sheet.subject_count }} subjects</td>
+        <td class="c-units">{{ sheet.total_units }}</td>
+        <td class="c-hrs">{{ sheet.total_hours_label }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% empty %}
+<div class="tt-empty">
+  <p style="font-size: 1rem; font-weight: 600; margin-bottom: 6px;">
+    No timetable for this selection.
+  </p>
+  <p style="font-size: 0.86rem; margin-bottom: 4px;">
+    {{ no_data_reason|default:"Try a different academic year or program above." }}
+  </p>
+</div>
+{% endfor %}
+</div>
+<script nonce="{{ request.csp_nonce }}">
+  (function () {
+    // The Content-Security-Policy allows only 'self' + this nonce, so inline
+    // onchange / onclick attributes are dropped by the browser. Every control is
+    // wired here instead.
+    var form = document.getElementById('ttFiltersForm');
+
+    if (form) {
+      Array.prototype.forEach.call(form.querySelectorAll('select'), function (select) {
+        select.addEventListener('change', function () { form.submit(); });
+      });
+
+      form.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.keyCode === 13) {
+          event.preventDefault();
+          form.submit();
+        }
+      });
+    }
+
+    var printBtn = document.getElementById('ttPrintBtn');
+    if (printBtn) {
+      printBtn.addEventListener('click', function () { window.print(); });
+    }
+  })();
+</script>
+{% endblock %}

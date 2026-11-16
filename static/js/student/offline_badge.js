@@ -92,6 +92,50 @@
     });
   }
 
+  // A data: URI is already in memory, so the file can be rebuilt without a
+  // second network call.
+  function dataUriToFile(dataUri, filename) {
+    var binary = window.atob((dataUri.split(',')[1] || ''));
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    return new window.File([bytes], filename, { type: 'image/png' });
+  }
+
+  function saveBadge() {
+    var img = getEl('offlineQrImage');
+    var hint = getEl('offlineBadgeSaveHint');
+    if (!img || !img.src || img.src.indexOf('data:image') !== 0) {
+      if (hint) { hint.textContent = 'Generate a badge first.'; }
+      return;
+    }
+    var filename = 'classstamp-offline-badge.png';
+
+    // Phones: the share sheet carries "Save image" / "Save to Photos", which is
+    // the only route into the gallery on iOS (the download attribute is ignored
+    // by Safari).
+    if (window.navigator.canShare && window.File) {
+      try {
+        var file = dataUriToFile(img.src, filename);
+        if (window.navigator.canShare({ files: [file] })) {
+          window.navigator.share({ files: [file], title: 'KCC ClassStamp offline badge' })
+            .then(function () {
+              if (hint) { hint.textContent = 'Choose "Save image" in the share sheet.'; }
+            })
+            .catch(function () { /* cancelled — keep the badge on screen */ });
+          return;
+        }
+      } catch (error) { /* fall through to a plain download */ }
+    }
+
+    var link = document.createElement('a');
+    link.href = img.src;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (hint) { hint.textContent = 'Saved to Downloads — open it in Photos/Gallery.'; }
+  }
+
   function init() {
     var root = getEl('qrBadgeRoot');
     var btn = getEl('offlineBadgeIssueBtn');
@@ -101,6 +145,11 @@
     btn.addEventListener('click', function () {
       issueOfflineBadge(url);
     });
+
+    var saveBtn = getEl('offlineBadgeSaveBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', saveBadge);
+    }
   }
 
   if (document.readyState === 'loading') {
