@@ -9,10 +9,11 @@ from pathlib import Path
 from django.test import SimpleTestCase, TestCase
 
 from apps.core.management.commands.import_section_timetable import (
-    Command, parse_days, parse_faculty, parse_time_range,
+    Command, parse_days, parse_faculty, parse_time_range, resolve_room,
 )
 from apps.core.models import (
-    AcademicYear, Class, ClassSlot, Curriculum, CurriculumVersion, Department, Profile, Program, Subject,
+    AcademicYear, Class, ClassSlot, Curriculum, CurriculumVersion, Department, Profile, Program, Room,
+    Subject,
 )
 from apps.core.serializers.academic_serializers import serialize_curriculum_entry
 from apps.core.services.academic_service import (
@@ -245,6 +246,91 @@ class ImporterTests(TestCase):
         cc101 = Class.objects.get(class_code='BSIT-1A-CC-101')
         self.assertEqual(cc101.subject_id, approved_subject.id)
         self.assertNotEqual(cc101.subject_id, spaced.id)
+
+
+class ImportedRoomBindingTests(ImporterTests):
+    """The importer must produce the same slot shape the Room Directory expects."""
+
+    def _seed_rooms(self):
+        # Migration 0034 seeds the campus rooms, so the labels in the fixture
+        # workbook ('ROOM 203', 'LAB 1', 'LAB 2') resolve out of the box.
+        return (
+            Room.objects.get(code='RM-203'),
+            Room.objects.get(code='LAB-1'),
+            Room.objects.get(code='LAB-2'),
+        )
+
+    def test_imported_slots_bind_room_ref_and_slot_type(self):
+        rm203, lab1, _lab2 = self._seed_rooms()
+
+        self.run_command('--apply')
+
+        cc101 = Class.objects.get(class_code='BSIT-1A-CC-101')
+        lecture = cc101.slots.get(weekday=0)      # Monday, 'ROOM 203'
+        laboratory = cc101.slots.get(weekday=2)   # Wednesday, 'LAB 1'
+
+        self.assertEqual(lecture.room_ref_id, rm203.pk)
+        self.assertEqual(lecture.room, 'RM-203')
+        self.assertEqual(lecture.slot_type, ClassSlot.SLOT_TYPE_LECTURE)
+
+        self.assertEqual(laboratory.room_ref_id, lab1.pk)
+        self.assertEqual(laboratory.room, 'LAB-1')
+        self.assertEqual(laboratory.slot_type, ClassSlot.SLOT_TYPE_LABORATORY)
+
+    def test_lab_room_types_the_slot_even_for_a_lecture_subject(self):
+        self._seed_rooms()
+
+        self.run_command('--apply')
+
+        it201 = Class.objects.get(class_code='BSIT-2B-IT-201')
+        self.assertTrue(
+            all(slot.slot_type == ClassSlot.SLOT_TYPE_LABORATORY for slot in it201.slots.all())
+        )
+
+    def test_rerun_repairs_a_legacy_string_only_slot(self):
+        _rm203, lab1, _lab2 = self._seed_rooms()
+        self.run_command('--apply')
+
+        # Simulate a row written the old way: canonical text, no FK, LECTURE.
+        ClassSlot.objects.filter(
+            class_obj__class_code='BSIT-1A-CC-101', weekday=0,
+        ).update(room='RM-203', room_ref=None, slot_type=ClassSlot.SLOT_TYPE_LECTURE)
+        ClassSlot.objects.filter(
+            class_obj__class_code='BSIT-1A-CC-101', weekday=2,
+        ).update(room='LAB-1', room_ref=None, slot_type=ClassSlot.SLOT_TYPE_LECTURE)
+
+        self.run_command('--apply')
+
+        laboratory = ClassSlot.objects.get(
+            class_obj__class_code='BSIT-1A-CC-101', weekday=2,
+        )
+        self.assertEqual(laboratory.room_ref_id, lab1.pk)
+        self.assertEqual(laboratory.slot_type, ClassSlot.SLOT_TYPE_LABORATORY)
+
+    def test_unmatched_room_labels_are_reported_and_kept_as_text(self):
+        Room.objects.filter(code__in=['RM-203', 'LAB-1', 'LAB-2']).delete()
+
+        output = self.run_command('--apply')
+
+        self.assertIn('unmatched rooms', output)
+        self.assertIn('LAB 1', output)
+        slot = ClassSlot.objects.get(class_obj__class_code='BSIT-1A-CC-101', weekday=2)
+        self.assertIsNone(slot.room_ref_id)
+        self.assertEqual(slot.room, 'LAB 1')
+
+    def test_resolve_room_handles_building_suffix_and_room_alias(self):
+        rm302, _ = Room.objects.get_or_create(
+            code='RM-302',
+            defaults={
+                'name': 'Room 302',
+                'room_type': Room.ROOM_TYPE_LECTURE,
+                'capacity': 45,
+            },
+        )
+        self.assertEqual(resolve_room('ROOM 302 \u00b7 CMAT'), rm302)
+        self.assertEqual(resolve_room('room 302'), rm302)
+        self.assertIsNone(resolve_room('ROOM 999'))
+        self.assertIsNone(resolve_room(''))
 
 
 class SerializerTests(TestCase):

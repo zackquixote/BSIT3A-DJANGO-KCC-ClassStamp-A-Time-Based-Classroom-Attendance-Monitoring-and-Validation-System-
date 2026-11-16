@@ -59,6 +59,47 @@ def parse_days(text):
     return sorted(set(days))
 
 
+def room_code_candidates(label):
+    """
+    // Workbook room label -> plausible Room.code spellings.
+
+    // The registrar writes 'LAB 1', 'ROOM 203', sometimes with the building
+    // appended ('ROOM 302 · CMAT'). Room.code is canonical and hyphenated
+    // (LAB-1, RM-203), so both spellings are tried before giving up.
+    """
+    base = str(label or '').split('\u00b7')[0].strip().upper()
+    base = re.sub(r'\s+', ' ', base)
+    if not base:
+        return []
+    candidates = [base, base.replace(' ', '-')]
+    if base.startswith('ROOM '):
+        tail = base[len('ROOM '):].strip()
+        candidates.append(f'RM-{tail.replace(" ", "-")}')
+        candidates.append(f'RM {tail}')
+    return [value for value in dict.fromkeys(candidates) if value]
+
+
+def resolve_room(label):
+    """
+    // Return the Room matching a workbook label, or None.
+
+    // Code spellings first, then an exact name match. None means the label is
+    // kept as free text (and reported), never invented as a new Room.
+    """
+    from apps.core.models import Room
+
+    candidates = room_code_candidates(label)
+    if not candidates:
+        return None
+    room = Room.objects.filter(code__in=candidates).first()
+    if room is not None:
+        return room
+    name = str(label or '').split('\u00b7')[0].strip()
+    if name:
+        return Room.objects.filter(name__iexact=name).first()
+    return None
+
+
 def parse_time_range(text):
     match = TIME_RE.search(text or '')
     if not match:
@@ -325,6 +366,7 @@ class Command(BaseCommand):
         subject_cache, created_subjects, repaired_classes = {}, [], []
         created_classes, skipped_classes, created_slots = 0, 0, 0
         skipped_slots, room_conflicts, refreshed_slots = [], [], []
+        unmatched_rooms = set()
         occupied = list(
             ClassSlot.objects
             .filter(class_obj__academic_year=term, is_active=True)
@@ -391,27 +433,67 @@ class Command(BaseCommand):
                     if span is None:
                         continue
                     starts_at, ends_at = span
-                    room = ' '.join((meeting['room'] or '').split())[:100]
+                    room_label = ' '.join((meeting['room'] or '').split())[:100]
+                    room_obj = resolve_room(room_label)
+                    if room_label and room_obj is None:
+                        unmatched_rooms.add(room_label)
+                    # Store the canonical code when the label resolves, so the
+                    # sheet, the room directory and the conflict check agree.
+                    room = room_obj.code if room_obj is not None else room_label
+                    slot_type = (
+                        ClassSlot.SLOT_TYPE_LABORATORY
+                        if (
+                            (subject is not None and subject.is_lab)
+                            or (room_obj is not None and room_obj.is_lab)
+                        )
+                        else ClassSlot.SLOT_TYPE_LECTURE
+                    )
                     for weekday in days:
                         existing = ClassSlot.objects.filter(
                             class_obj=class_obj, weekday=weekday, starts_at=starts_at,
                         ).first()
                         if existing is not None:
-                            # Already imported: only refresh the room label when the
-                            # workbook spells it differently and the room is free.
-                            if room and existing.room != room:
-                                if self._clash(occupied, weekday, starts_at, ends_at,
-                                               profile.pk, room, class_obj.pk) != 'room':
-                                    existing.room = room
-                                    existing.ends_at = ends_at
-                                    existing.save(update_fields=['room', 'ends_at'])
-                                    refreshed_slots.append(f'{item["section"]} {item["code"]} '
-                                                           f'day {weekday} -> {room}')
-                                    for row in occupied:
-                                        if (row['class_id'] == class_obj.pk
-                                                and row['weekday'] == weekday
-                                                and row['start'] == starts_at):
-                                            row['room'] = room
+                            # Already imported: refresh the room label only when
+                            # the workbook spells it differently and the room is
+                            # free. The FK and slot type always follow the file.
+                            changed = []
+                            relabel = False
+                            # One clash check governs both the label and the FK:
+                            # binding a room that another class already holds
+                            # would let save() overwrite the text back to it.
+                            room_allowed = True
+                            if room:
+                                room_allowed = self._clash(
+                                    occupied, weekday, starts_at, ends_at,
+                                    profile.pk, room, class_obj.pk,
+                                ) != 'room'
+                            if room_allowed and room and existing.room != room:
+                                existing.room = room
+                                relabel = True
+                                changed.append('room')
+                            if (
+                                room_allowed
+                                and room_obj is not None
+                                and existing.room_ref_id != room_obj.pk
+                            ):
+                                existing.room_ref = room_obj
+                                changed.append('room_ref')
+                            if existing.slot_type != slot_type:
+                                existing.slot_type = slot_type
+                                changed.append('slot_type')
+                            if existing.ends_at != ends_at:
+                                existing.ends_at = ends_at
+                                changed.append('ends_at')
+                            if changed:
+                                existing.save(update_fields=changed + ['updated_at'])
+                            if relabel:
+                                refreshed_slots.append(f'{item["section"]} {item["code"]} '
+                                                       f'day {weekday} -> {room}')
+                                for row in occupied:
+                                    if (row['class_id'] == class_obj.pk
+                                            and row['weekday'] == weekday
+                                            and row['start'] == starts_at):
+                                        row['room'] = room
                             continue
                         if self._clash(occupied, weekday, starts_at, ends_at, profile.pk, '',
                                        class_obj.pk) == 'teacher':
@@ -432,7 +514,15 @@ class Command(BaseCommand):
                             class_obj=class_obj,
                             weekday=weekday,
                             starts_at=starts_at,
-                            defaults={'ends_at': ends_at, 'room': slot_room, 'is_active': True},
+                            defaults={
+                                'ends_at': ends_at,
+                                'room': slot_room,
+                                # Blanking the room on a conflict must blank the
+                                # FK too, or save() would put the code back.
+                                'room_ref': room_obj if slot_room else None,
+                                'slot_type': slot_type,
+                                'is_active': True,
+                            },
                         )
                         if slot_created:
                             created_slots += 1
@@ -454,6 +544,13 @@ class Command(BaseCommand):
         self.stdout.write(f'teachers : {len(matched_teachers)} matched, {len(created_teachers)} placeholder(s) created')
         for name in created_teachers:
             self.stdout.write(self.style.WARNING(f'  + {name} (inactive placeholder — add Faculty ID and email)'))
+        if unmatched_rooms:
+            self.stdout.write(self.style.WARNING(
+                f'\nunmatched rooms: {len(unmatched_rooms)} label(s) have no Room record '
+                f'(kept as text — add them in Room Directory)'
+            ))
+            for label in sorted(unmatched_rooms):
+                self.stdout.write(f'  ? {label}')
         if room_conflicts:
             self.stdout.write(self.style.WARNING(
                 f'\nroom conflicts: {len(room_conflicts)} (slot kept, room left blank)'
