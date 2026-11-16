@@ -67,12 +67,16 @@
       '@keyframes kccInstallDrop{from{opacity:0;transform:translate(-50%,-10px);}to{opacity:1;transform:translate(-50%,0);}}',
       '@media (prefers-reduced-motion: reduce){.kcc-install{animation:none;}}',
       '.kcc-install-btn{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;',
+      'white-space:nowrap;',
       'color:#f8fafc;font-size:0.8rem;font-weight:600;padding:6px 10px;border-radius:999px;cursor:pointer;}',
       '.kcc-install-btn:hover{background:rgba(245,158,11,0.14);}',
       '.kcc-install-btn i{color:#f5c518;}',
       '.kcc-install-close{border:0;background:transparent;color:rgba(226,232,240,0.6);font-size:1rem;',
       'line-height:1;padding:2px 8px;border-radius:999px;cursor:pointer;}',
       '.kcc-install-close:hover{color:#fff;background:rgba(255,255,255,0.08);}',
+      // The login page starts with the KCC seal, so the pill gets its own strip of
+      // space instead of floating on top of the logo.
+      'body.kcc-auth-page.kcc-install-active{padding-top:56px;}',
       '@media (max-width:900px){.kcc-install{top:calc(env(safe-area-inset-top, 0px) + 10px);}}',
       '@media (max-width:900px){html:not(.kcc-auth-html) .kcc-install{top:calc(env(safe-area-inset-top, 0px) + 64px);}}',
       '.kcc-install-sheet{position:fixed;inset:0;z-index:2001;display:flex;align-items:flex-end;',
@@ -90,6 +94,7 @@
   function remove() {
     if (host && host.parentNode) { host.parentNode.removeChild(host); }
     host = null;
+    document.body.classList.remove('kcc-install-active');
   }
 
   function show(label, onActivate) {
@@ -117,6 +122,7 @@
     host.appendChild(action);
     host.appendChild(close);
     document.body.appendChild(host);
+    document.body.classList.add('kcc-install-active');
   }
 
   function showIosInstructions() {
