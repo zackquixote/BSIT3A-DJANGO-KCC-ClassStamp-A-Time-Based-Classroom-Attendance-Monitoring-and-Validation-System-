@@ -51,31 +51,48 @@
       </form>
       {% endfor %}
     {% else %}
-      <p class="s-note-line">
-        <i class="fas fa-circle-check"></i>
-        Nothing overdue to explain. You can still file ahead for an upcoming class below.
-      </p>
+      {% if upcoming_occurrences %}
+        <p class="s-note-line">
+          <i class="fas fa-circle-check"></i>
+          Nothing overdue to explain. You can still file ahead for an upcoming class below.
+        </p>
+      {% elif has_enrolled_classes %}
+        <p class="s-note-line">
+          <i class="fas fa-calendar-xmark"></i>
+          No upcoming meetings in the next {{ advance_days }} days.
+        </p>
+      {% else %}
+        <p class="s-note-line">
+          <i class="fas fa-circle-info"></i>
+          You are not enrolled in any class yet, so there is no schedule to excuse.
+        </p>
+        <a href="{% url 'student_join_class' %}" class="btn btn-outline btn-sm mt-2">
+          <i class="fas fa-key"></i> Join a Class
+        </a>
+      {% endif %}
     {% endif %}
 
-    {% if upcoming_sessions %}
+    {% if upcoming_occurrences %}
     <div style="margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--glass-border);">
       <h3 class="font-semibold text-primary mb-1" style="font-size: 0.95rem;">
         <i class="fas fa-calendar-plus text-gold"></i> File ahead
       </h3>
       <p class="text-muted text-xs mb-3">
-        Upcoming meetings in your enrolled classes, up to {{ advance_days }} days out. File now if you
-        already know you will be away — your instructor can approve it before the session opens.
+        Upcoming meetings in your enrolled classes, up to {{ advance_days }} days out. Choose the
+        meeting you will miss — your instructor can approve it before the session opens.
       </p>
-      {% for s in upcoming_sessions %}
-      <form method="POST" enctype="multipart/form-data" class="s-advance-form mb-3">
+      <form method="POST" enctype="multipart/form-data" class="s-advance-form">
         {% csrf_token %}
-        <input type="hidden" name="session_id" value="{{ s.id }}">
-        <div class="flex items-center justify-between mb-2" style="flex-wrap: wrap; gap: 6px;">
-          <div>
-            <span class="font-semibold text-primary">{{ s.slot.class_obj.subject.name }}</span>
-            <span class="badge badge--primary badge--xs font-mono ml-1">{{ s.slot.class_obj.class_code }}</span>
-          </div>
-          <span class="text-muted text-xs">{{ s.session_date|date:"M d, Y" }} · {{ s.slot.starts_at|time:"h:i A" }}</span>
+        <div class="form-group mb-2">
+          <label class="form-label" for="occurrence">Class meeting</label>
+          <select name="occurrence" id="occurrence" class="form-control" required>
+            <option value="">— Choose an upcoming meeting —</option>
+            {% for occurrence in upcoming_occurrences %}
+              <option value="{{ occurrence.slot.pk }}|{{ occurrence.session_date|date:'Y-m-d' }}">
+                {{ occurrence.session_date|date:"D, M d" }} · {{ occurrence.starts_at|time:"h:i A" }} — {{ occurrence.class_obj.subject.code }} ({{ occurrence.class_obj.class_code }})
+              </option>
+            {% endfor %}
+          </select>
         </div>
         <div class="form-group mb-2">
           <textarea name="reason" class="form-control text-sm" rows="2" required placeholder="Why will you miss this meeting?…"></textarea>
@@ -88,7 +105,6 @@
           <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-paper-plane"></i> File in advance</button>
         </div>
       </form>
-      {% endfor %}
     </div>
     {% endif %}
   </div>

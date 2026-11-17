@@ -40,11 +40,19 @@
     white-space: nowrap;
   }
 
+  .tt-view-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
   .tt-view-tabs {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 0;
   }
   .tt-view-tab {
     display: inline-flex;
@@ -65,6 +73,43 @@
     background: rgba(245, 158, 11, 0.15);
     border-color: rgba(251, 191, 36, 0.45);
     color: #fbbf24;
+  }
+  .occ-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* Let the search take the rest of the tab row instead of leaving a dead
+       band to its right on wide registrars' monitors. */
+    flex: 1 1 auto;
+    min-width: 260px;
+  }
+  .occ-search-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 200px;
+  }
+  .occ-search-wrap .fa-search {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted, #9ba9c2);
+    font-size: 0.78rem;
+    pointer-events: none;
+  }
+  .occ-search-input { padding-left: 34px; }
+  .occ-search-status {
+    font-size: 0.75rem;
+    color: var(--text-muted, #9ba9c2);
+    white-space: nowrap;
+  }
+  .occ-no-results {
+    padding: 18px;
+    text-align: center;
+    color: var(--text-muted, #9ba9c2);
+    border: 1px dashed var(--glass-border, rgba(245, 197, 24, 0.22));
+    border-radius: 10px;
+    font-size: 0.85rem;
   }
   .occ-wrap { display: flex; flex-direction: column; gap: 12px; }
   .occ-card {
@@ -88,7 +133,14 @@
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 6px;
   }
-  @media (max-width: 720px) { .occ-grid { grid-template-columns: repeat(4, 1fr); } }
+  /* Tablets (including iPad portrait/landscape) get four day columns instead
+     of seven narrow ones; phones fall back to two. */
+  @media (max-width: 1100px) { .occ-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 640px) { .occ-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 1024px) {
+    .tt-view-bar { flex-direction: column; align-items: stretch; }
+    .occ-search-bar { flex: 1 1 auto; width: 100%; }
+  }
   .occ-col {
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
@@ -260,7 +312,8 @@
 
   @media print {
     @page { size: A4 landscape; margin: 10mm; }
-    .tt-toolbar, .breadcrumb-nav, .page-header-actions, .sidebar, .app-sidebar { display: none !important; }
+    .tt-toolbar, .breadcrumb-nav, .page-header-actions, .sidebar, .app-sidebar,
+    .occ-search-bar, .occ-no-results { display: none !important; }
     html, body, .app-layout, .main-content {
       height: auto !important;
       max-height: none !important;
@@ -379,6 +432,7 @@
   </span>
 </div>
 
+<div class="tt-view-bar">
 <div class="tt-view-tabs" role="tablist" aria-label="Timetable view">
   <a class="tt-view-tab {% if view_mode == 'sections' %}is-active{% endif %}"
      href="{% if base_query %}?{{ base_query }}&view=sections{% else %}?view=sections{% endif %}">
@@ -392,6 +446,18 @@
      href="{% if base_query %}?{{ base_query }}&view=teachers{% else %}?view=teachers{% endif %}">
     <i class="fas fa-chalkboard-user"></i> Teachers this week
   </a>
+</div>
+{% if view_mode != 'sections' and occupancy %}
+<div class="occ-search-bar">
+  <div class="occ-search-wrap">
+    <i class="fas fa-search" aria-hidden="true"></i>
+    <input type="search" id="occSearch" class="form-control occ-search-input"
+           placeholder="Search room, teacher, or subject…"
+           autocomplete="off" aria-label="Search rooms or teachers">
+  </div>
+  <span class="occ-search-status" id="occSearchStatus" aria-live="polite"></span>
+</div>
+{% endif %}
 </div>
 
 {% if view_mode != 'sections' %}
@@ -484,6 +550,46 @@
     var printBtn = document.getElementById('ttPrintBtn');
     if (printBtn) {
       printBtn.addEventListener('click', function () { window.print(); });
+    }
+
+    // Client-side search over the occupancy cards. Every card carries a
+    // data-search string (room/teacher label, department, subjects, class
+    // codes), so the 30-40 cards can be narrowed without a server round-trip.
+    var occSearch = document.getElementById('occSearch');
+    var occCards = Array.prototype.slice.call(document.querySelectorAll('.occ-card'));
+    if (occSearch && occCards.length) {
+      var occStatus = document.getElementById('occSearchStatus');
+      var occEmpty = document.getElementById('occNoResults');
+
+      var applyOccSearch = function () {
+        var raw = occSearch.value.trim();
+        var tokens = raw.toLowerCase().split(/\s+/).filter(Boolean);
+        var visible = 0;
+
+        occCards.forEach(function (card) {
+          var haystack = (card.getAttribute('data-search') || '').toLowerCase();
+          var match = tokens.every(function (token) {
+            return haystack.indexOf(token) !== -1;
+          });
+          card.style.display = match ? '' : 'none';
+          if (match) {
+            visible += 1;
+          }
+        });
+
+        if (occStatus) {
+          occStatus.textContent = raw ? visible + ' of ' + occCards.length + ' shown' : '';
+        }
+        if (occEmpty) {
+          occEmpty.hidden = visible !== 0;
+          if (visible === 0) {
+            occEmpty.textContent = 'No room or teacher matches "' + raw + '".';
+          }
+        }
+      };
+
+      occSearch.addEventListener('input', applyOccSearch);
+      applyOccSearch();
     }
   })();
 </script>

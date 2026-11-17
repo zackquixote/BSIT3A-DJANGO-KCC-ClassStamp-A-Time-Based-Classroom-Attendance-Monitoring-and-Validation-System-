@@ -325,38 +325,6 @@
   }
   .wiz-actions .btn { min-width: 160px; }
 
-  /* Desktop: mirror the Student Masterlist viewport-fit layout. The page
-     itself never scrolls; the form card scrolls internally and the action
-     bar stays pinned, so nothing jumps or flashes when you move around. */
-  @media (min-width: 1025px) {
-    html, body { height: 100vh !important; overflow: hidden !important; }
-    .app-layout { height: 100vh !important; overflow: hidden !important; }
-    .main-content {
-      height: 100vh !important;
-      min-height: 0 !important;
-      overflow: hidden !important;
-      padding: 16px 24px !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 10px !important;
-    }
-    .main-footer { display: none !important; }
-    #wizard-card {
-      flex: 0 1 auto;
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-    .wiz-actions {
-      position: sticky;
-      bottom: 0;
-      z-index: 2;
-      margin: 0 -18px -16px;
-      padding: 10px 18px;
-      background: #131f33;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-  }
 </style>
 {% endblock %}
 

@@ -25,6 +25,16 @@
     line-height: 1.55;
   }
 
+  .msg-picker-search { margin-bottom: 8px; }
+
+  /* .form-group is a flex column, so a bare <a class="btn"> stretches to the
+     full card width. Keep the Join link the size of its label. */
+  .msg-join-link { align-self: flex-start; }
+
+  .msg-group-hint { margin-top: 6px; }
+
+  .msg-group-hint strong { color: var(--text-secondary); }
+
   .msg-actions {
     display: flex;
     align-items: center;
@@ -70,19 +80,66 @@
       {% csrf_token %}
       <div class="form-group">
         <label class="form-label" for="recipient">To <span class="text-danger">*</span></label>
-        <select name="recipient" id="recipient" class="form-control" required>
-          <option value="">— Choose a recipient —</option>
-          {% for user in recipients %}
-            <option value="{{ user.pk }}" {% if user.pk|stringformat:"s" == preselect|stringformat:"s" %}selected{% endif %}>
-              {{ user.get_full_name|default:user.get_username }} ({{ user.username }})
-            </option>
+        {% if has_recipients %}
+          <input type="text" id="recipient-search" class="form-control msg-picker-search"
+                 placeholder="Search a name, student number, or section" autocomplete="off"
+                 aria-label="Search recipients">
+          <select name="recipient" id="recipient" class="form-control" required aria-label="Recipient">
+            <option value="">— Choose a recipient —</option>
+            {% if class_targets %}
+              <optgroup label="Whole class">
+                {% for target in class_targets %}
+                  <option value="class:{{ target.pk }}"
+                          {% if selected_class_id == target.pk|stringformat:"s" %}selected{% endif %}
+                          {% if not target.recipient_count %}disabled{% endif %}>
+                    {{ target.class_code }} — {{ target.subject.code }} ({{ target.recipient_count }} enrolled)
+                  </option>
+                {% endfor %}
+              </optgroup>
+            {% endif %}
+            {% for group in groups %}
+              {% if group.contacts %}
+                <optgroup label="{{ group.label }}">
+                  {% for contact in group.contacts %}
+                    <option value="{{ contact.user.pk }}" {% if contact.user.pk|stringformat:"s" == preselect %}selected{% endif %}>
+                      {{ contact.name }} — {{ contact.role }}{% if contact.meta %} · {{ contact.meta }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+            {% endfor %}
+          </select>
+          {% if class_targets %}
+            <p class="form-hint">
+              Choosing a <strong>whole class</strong> sends a separate message to every
+              enrolled student — no need to select them one by one.
+            </p>
+          {% endif %}
+          <p class="form-hint" id="recipient-no-match" hidden>No contact matches that search.</p>
+          {% for group in groups %}
+            {% if not group.contacts and group.empty_hint %}
+              <p class="form-hint msg-group-hint">
+                <strong>{{ group.label }}:</strong> {{ group.empty_hint }}
+                {% if group.key == 'students' %}
+                  <a href="{% url 'teacher_classes' %}">Open My Classes</a> to check your rosters.
+                {% endif %}
+              </p>
+            {% endif %}
           {% endfor %}
-        </select>
-        {% if not recipients %}
-          <p class="form-hint">No one is available to message yet. Recipients appear once you share an active class with a teacher or student.</p>
+        {% else %}
+          <p class="form-hint">
+            No one is available to message yet.
+            {% if groups %}{{ groups.0.empty_hint }}{% endif %}
+          </p>
+          {% if request.user.classstamp_profile.role == 'STUDENT' %}
+            <a href="{% url 'student_join_class' %}" class="btn btn-outline btn-sm mt-2 msg-join-link">
+              <i class="fas fa-key"></i> Join a Class
+            </a>
+          {% endif %}
         {% endif %}
       </div>
 
+      {% if has_recipients %}
       <div class="form-group">
         <label class="form-label" for="subject">Subject <span class="text-danger">*</span></label>
         <input type="text" id="subject" name="subject" class="form-control" maxlength="{{ max_subject }}" value="{{ subject }}" required>
@@ -101,7 +158,49 @@
         </button>
         <a href="{% url 'message_inbox' %}" class="btn btn-outline">Cancel</a>
       </div>
+      {% endif %}
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+  /* Narrow a long roster without a page reload. Disabled options are skipped by
+     the select itself, so the browser cannot submit a filtered-out contact. */
+  (function () {
+    var input = document.getElementById('recipient-search');
+    var select = document.getElementById('recipient');
+    var noMatch = document.getElementById('recipient-no-match');
+    if (!input || !select || !noMatch) {
+      return;
+    }
+
+    var groups = Array.prototype.slice.call(select.querySelectorAll('optgroup'));
+
+    function applyFilter() {
+      var query = input.value.trim().toLowerCase();
+      var matches = 0;
+
+      groups.forEach(function (group) {
+        var visible = 0;
+        Array.prototype.forEach.call(group.querySelectorAll('option'), function (option) {
+          var text = (option.textContent || '').toLowerCase();
+          var match = !query || text.indexOf(query) !== -1;
+          option.hidden = !match;
+          option.disabled = !match;
+          if (match) {
+            visible += 1;
+          }
+        });
+        group.hidden = visible === 0;
+        matches += visible;
+      });
+
+      noMatch.hidden = matches !== 0;
+    }
+
+    input.addEventListener('input', applyFilter);
+  })();
+</script>
 {% endblock %}

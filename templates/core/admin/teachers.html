@@ -153,6 +153,12 @@
                     <i class="fas fa-chart-pie text-green"></i>
                     <span>Load Analytics</span>
                   </button>
+                  {% if t.user.is_active %}
+                  <a class="action-dropdown-item" href="{% url 'message_compose' %}?to={{ t.user.id }}" style="text-decoration:none;">
+                    <i class="fas fa-envelope text-blue"></i>
+                    <span>Send Message</span>
+                  </a>
+                  {% endif %}
                   <button type="button" class="action-dropdown-item js-reassign-teacher"
                           data-id="{{ t.id }}"
                           data-name="{{ t.user.get_full_name|default:t.user.username }}"

@@ -9,8 +9,8 @@ from apps.core.models import (
     AcademicYear, Class, ClassSlot, Department, Profile, Program, Subject,
 )
 from apps.core.views.timetable_views import (
-    academic_year_label, build_meeting_rows, build_section_sheet, display_code, display_section,
-    format_clock, format_days, normalize_section,
+    academic_year_label, build_meeting_rows, build_occupancy, build_section_sheet,
+    display_code, display_section, format_clock, format_days, normalize_section,
 )
 
 
@@ -154,6 +154,49 @@ class SheetTests(TestCase):
         self.assertContains(response, 'HS')
         self.assertContains(response, 'A.Y. 2026-2027')
         self.assertContains(response, 'Total — 1 subjects')
+
+    def test_occupancy_cells_carry_both_times_for_sorting(self):
+        subject = Subject.objects.create(code='GE 1', name='Understanding the Self', units=3)
+        class_obj = self.make_class(subject)
+        ClassSlot.objects.create(
+            class_obj=class_obj, weekday=0, starts_at=datetime.time(18, 0),
+            ends_at=datetime.time(19, 0), room='ROOM 107',
+        )
+
+        rows = build_occupancy(self.term, 'rooms')
+
+        self.assertEqual(rows[0]['label'], 'ROOM 107')
+        cells = [cell for day in rows[0]['days'] for cell in day['cells']]
+        self.assertEqual(len(cells), 1)
+        self.assertEqual(cells[0]['starts_at'], datetime.time(18, 0))
+        self.assertEqual(cells[0]['ends_at'], datetime.time(19, 0))
+        self.assertIn('room 107', rows[0]['search_text'])
+        self.assertIn('ge 1', rows[0]['search_text'])
+
+    def test_rooms_and_teachers_week_views_render(self):
+        subject = Subject.objects.create(code='GE 1', name='Understanding the Self', units=3)
+        class_obj = self.make_class(subject)
+        ClassSlot.objects.create(
+            class_obj=class_obj, weekday=0, starts_at=datetime.time(18, 0),
+            ends_at=datetime.time(19, 0), room='ROOM 107',
+        )
+        admin = self.make_admin()
+        self.client.force_login(admin)
+
+        rooms = self.client.get(reverse('section_timetable'), {'view': 'rooms'})
+        self.assertEqual(rooms.status_code, 200)
+        self.assertContains(rooms, 'Rooms this week')
+        self.assertContains(rooms, 'ROOM 107')
+        self.assertContains(rooms, 'occ-card')
+        self.assertContains(rooms, 'id="occSearch"')
+        self.assertContains(rooms, 'data-search=')
+
+        teachers = self.client.get(reverse('section_timetable'), {'view': 'teachers'})
+        self.assertEqual(teachers.status_code, 200)
+        self.assertContains(teachers, 'Teachers this week')
+        self.assertContains(teachers, 'Lezeth Rose Tabligan')
+        self.assertContains(teachers, 'occ-card')
+        self.assertContains(teachers, 'id="occSearch"')
 
     def test_section_filter_accepts_spaced_workbook_label(self):
         subject = Subject.objects.create(code='GE 1', name='Understanding the Self', units=3)

@@ -10,7 +10,7 @@
 // ==============================================================================
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -27,6 +27,7 @@ from apps.core.models import (
     AttendanceRecord,
     AuditEvent,
     ClassSession,
+    ClassSlot,
     Enrollment,
     ExcuseSlip,
     Profile,
@@ -42,6 +43,103 @@ from apps.core.validators import validate_uploaded_document
 # meeting from a term that has already closed.
 EXCUSE_ADVANCE_DAYS = 14
 EXCUSE_BACKFILL_DAYS = 30
+
+
+def _upcoming_excuse_occurrences(profile, *, today, advance_days):
+    """
+    // The weekly timetable is the source of truth for "file ahead": a slot
+    // already defines the weekday and time, so the next meeting dates can be
+    // offered even before the instructor has created a ClassSession row.
+    // Existing make-up sessions are merged in, and anything already marked or
+    // already excused is skipped.
+    """
+    window_end = today + timedelta(days=advance_days)
+    slots = list(
+        ClassSlot.objects.filter(
+            class_obj__enrollments__student_profile=profile,
+            class_obj__enrollments__status=Enrollment.STATUS_ACTIVE,
+            class_obj__is_active=True,
+            class_obj__academic_year__is_active=True,
+            is_active=True,
+        )
+        .select_related('class_obj', 'class_obj__subject')
+        .distinct()
+    )
+    if not slots:
+        return []
+
+    slot_ids = [slot.pk for slot in slots]
+    sessions = {
+        (session.slot_id, session.session_date): session
+        for session in ClassSession.objects.filter(
+            slot_id__in=slot_ids,
+            session_date__gte=today,
+            session_date__lte=window_end,
+        ).select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
+    }
+
+    blocked_session_ids = set(
+        ExcuseSlip.objects.filter(student_profile=profile)
+        .values_list('session_id', flat=True)
+    )
+    if sessions:
+        blocked_session_ids.update(
+            AttendanceRecord.objects.filter(
+                student_profile=profile,
+                session_id__in=[session.pk for session in sessions.values()],
+            ).values_list('session_id', flat=True)
+        )
+
+    occurrences = []
+    now_time = timezone.localtime().time()
+    for slot in slots:
+        first_date = today + timedelta(days=(slot.weekday - today.weekday()) % 7)
+        for week in range(0, advance_days + 1, 7):
+            session_date = first_date + timedelta(days=week)
+            if session_date < today or session_date > window_end:
+                continue
+            session = sessions.get((slot.pk, session_date))
+            if session is not None:
+                if session.status == ClassSession.STATUS_CANCELED:
+                    continue
+                if session.pk in blocked_session_ids:
+                    continue
+            elif session_date == today and slot.ends_at and slot.ends_at < now_time:
+                # Today's meeting already ended; the ABSENT-record flow is the
+                # right entry point for it, not an advance excuse.
+                continue
+            occurrences.append({
+                'slot': slot,
+                'class_obj': slot.class_obj,
+                'session_date': session_date,
+                'starts_at': slot.starts_at,
+                'ends_at': slot.ends_at,
+                'session': session,
+            })
+
+    # Make-up sessions can sit on a date the weekly slot does not normally meet.
+    seen = {(row['slot'].pk, row['session_date']) for row in occurrences}
+    for (slot_id, session_date), session in sessions.items():
+        if (slot_id, session_date) in seen:
+            continue
+        if session.status == ClassSession.STATUS_CANCELED:
+            continue
+        if session.pk in blocked_session_ids:
+            continue
+        slot = session.slot
+        occurrences.append({
+            'slot': slot,
+            'class_obj': slot.class_obj,
+            'session_date': session_date,
+            'starts_at': slot.starts_at,
+            'ends_at': slot.ends_at,
+            'session': session,
+        })
+
+    occurrences.sort(
+        key=lambda row: (row['session_date'], row['starts_at'], row['class_obj'].class_code)
+    )
+    return occurrences
 
 
 def _can_review_excuse(request, class_obj) -> bool:
@@ -72,26 +170,98 @@ def student_excuse_slips(request):
     profile = getattr(request.user, 'classstamp_profile', None)
 
     if request.method == 'POST':
-        session_id = request.POST.get('session_id', '').strip()
         reason = request.POST.get('reason', '').strip()
-        if not session_id or not reason:
+        session_id = request.POST.get('session_id', '').strip()
+        occurrence = request.POST.get('occurrence', '').strip()
+        if not reason:
             messages.error(request, 'A reason is required to file an excuse slip.')
             return redirect('student_excuse_slips')
 
-        try:
-            session_id = int(session_id)
-        except ValueError:
-            messages.error(request, 'Invalid session selected.')
-            return redirect('student_excuse_slips')
+        session = None
+        if session_id:
+            try:
+                session_id = int(session_id)
+            except (TypeError, ValueError):
+                messages.error(request, 'Invalid session selected.')
+                return redirect('student_excuse_slips')
 
-        session = (
-            ClassSession.objects
-            .select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
-            .filter(pk=session_id)
-            .first()
-        )
-        if session is None:
-            messages.error(request, 'That class meeting could not be found.')
+            session = (
+                ClassSession.objects
+                .select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
+                .filter(pk=session_id)
+                .first()
+            )
+            if session is None:
+                messages.error(request, 'That class meeting could not be found.')
+                return redirect('student_excuse_slips')
+        elif occurrence:
+            # The file-ahead form sends "slot_id|YYYY-MM-DD". Materialize the
+            # session if the instructor has not opened it yet, so the slip has
+            # the same anchor as an attendance session.
+            try:
+                slot_id, date_value = occurrence.split('|', 1)
+                slot_id = int(slot_id)
+                session_date = date.fromisoformat(date_value)
+            except (TypeError, ValueError):
+                messages.error(request, 'Invalid class meeting selected.')
+                return redirect('student_excuse_slips')
+
+            slot = (
+                ClassSlot.objects
+                .select_related('class_obj', 'class_obj__subject')
+                .filter(
+                    pk=slot_id,
+                    is_active=True,
+                    class_obj__is_active=True,
+                    class_obj__academic_year__is_active=True,
+                )
+                .first()
+            )
+            if slot is None:
+                messages.error(request, 'That class meeting could not be found.')
+                return redirect('student_excuse_slips')
+            if not PermissionService.can_user_access_class(request.user, slot.class_obj):
+                messages.error(request, 'You are not enrolled in that class section.')
+                return redirect('student_excuse_slips')
+
+            today = timezone.localdate()
+            existing_session = ClassSession.objects.filter(
+                slot=slot, session_date=session_date,
+            ).first()
+
+            # A manually created make-up session may sit on a different weekday;
+            # it is still fileable. A brand-new date must match the weekly slot.
+            if existing_session is None and session_date.weekday() != slot.weekday:
+                messages.error(request, 'That date does not match the class schedule.')
+                return redirect('student_excuse_slips')
+            if not (today <= session_date <= today + timedelta(days=EXCUSE_ADVANCE_DAYS)):
+                messages.error(
+                    request,
+                    f'Advance excuses can be filed up to {EXCUSE_ADVANCE_DAYS} days ahead.',
+                )
+                return redirect('student_excuse_slips')
+
+            if existing_session is not None:
+                session = existing_session
+            else:
+                try:
+                    session, _ = ClassSession.objects.get_or_create(
+                        slot=slot,
+                        session_date=session_date,
+                        defaults={'status': ClassSession.STATUS_SCHEDULED},
+                    )
+                except IntegrityError:
+                    session = ClassSession.objects.filter(
+                        slot=slot, session_date=session_date,
+                    ).first()
+                    if session is None:
+                        messages.error(request, 'That class meeting could not be prepared.')
+                        return redirect('student_excuse_slips')
+            if session.status == ClassSession.STATUS_CANCELED:
+                messages.error(request, 'That class meeting was canceled.')
+                return redirect('student_excuse_slips')
+        else:
+            messages.error(request, 'Choose a class meeting to excuse.')
             return redirect('student_excuse_slips')
 
         # Only a meeting the student is actually enrolled in can be excused.
@@ -197,23 +367,21 @@ def student_excuse_slips(request):
     )
     fileable_records = [r for r in absent_records if r.session_id not in existing_session_ids]
 
-    # Meetings that have not happened yet (or happen today) in the classes this
-    # student is enrolled in. Lets a known-in-advance absence be filed before the
-    # instructor has to mark it ABSENT.
+    # Upcoming meetings come from the weekly slots, so a student can file ahead
+    # even before any ClassSession row exists for the date.
     today = timezone.localdate()
-    upcoming_sessions = (
-        ClassSession.objects.filter(
-            slot__class_obj__enrollments__student_profile=profile,
-            slot__class_obj__enrollments__status=Enrollment.STATUS_ACTIVE,
-            session_date__gte=today,
-            session_date__lte=today + timedelta(days=EXCUSE_ADVANCE_DAYS),
-        )
-        .exclude(status=ClassSession.STATUS_CANCELED)
-        .exclude(pk__in=existing_session_ids)
-        .select_related('slot', 'slot__class_obj', 'slot__class_obj__subject')
-        .distinct()
-        .order_by('session_date', 'slot__starts_at')
+    upcoming_occurrences = _upcoming_excuse_occurrences(
+        profile, today=today, advance_days=EXCUSE_ADVANCE_DAYS,
     )
+    upcoming_sessions = [
+        row['session'] for row in upcoming_occurrences if row['session'] is not None
+    ]
+    has_enrolled_classes = Enrollment.objects.filter(
+        student_profile=profile,
+        status=Enrollment.STATUS_ACTIVE,
+        class_obj__is_active=True,
+        class_obj__academic_year__is_active=True,
+    ).exists()
 
     slips = (
         ExcuseSlip.objects.filter(student_profile=profile)
@@ -224,6 +392,8 @@ def student_excuse_slips(request):
     return render(request, 'core/student/excuse_slips.html', {
         'fileable_records': fileable_records,
         'upcoming_sessions': upcoming_sessions,
+        'upcoming_occurrences': upcoming_occurrences,
+        'has_enrolled_classes': has_enrolled_classes,
         'advance_days': EXCUSE_ADVANCE_DAYS,
         'slips': slips,
     })

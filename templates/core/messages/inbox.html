@@ -1,6 +1,106 @@
 {% extends "theme/base.html" %}
 {% block title %}Messages — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  .msg-inbox { display: flex; flex-direction: column; gap: 10px; }
+
+  .msg-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .msg-row:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--glass-border-hover);
+    color: inherit;
+  }
+
+  .msg-row--unread {
+    border-left: 3px solid var(--info);
+    background: rgba(59, 130, 246, 0.08);
+  }
+
+  .msg-avatar {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-full);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--glass-border);
+    background: rgba(245, 197, 24, 0.14);
+    color: var(--accent-gold);
+  }
+
+  .msg-avatar--admin { background: rgba(165, 140, 212, 0.16); color: #bda6e4; }
+  .msg-avatar--teacher { background: rgba(245, 197, 24, 0.16); color: var(--accent-gold); }
+  .msg-avatar--student { background: rgba(78, 202, 138, 0.14); color: #6ed9a3; }
+
+  .msg-row-main { min-width: 0; flex: 1; }
+
+  .msg-row-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .msg-name {
+    font-weight: 600;
+    font-size: 0.94rem;
+    color: var(--text-primary);
+  }
+
+  .msg-row-time {
+    margin-left: auto;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .msg-row-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .msg-snippet {
+    margin-top: 6px;
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .msg-snippet strong { color: var(--text-primary); font-weight: 600; }
+
+  .msg-you {
+    color: var(--accent-gold);
+    font-weight: 600;
+  }
+
+  @media (max-width: 640px) {
+    .msg-row { padding: 13px 14px; gap: 11px; }
+    .msg-avatar { width: 36px; height: 36px; font-size: 0.9rem; }
+    .msg-row-time { width: 100%; margin-left: 0; }
+    .msg-snippet { white-space: normal; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <div>
@@ -15,22 +115,26 @@
 </div>
 
 {% if conversations %}
-<div class="card" style="overflow: hidden;">
+<div class="msg-inbox">
   {% for row in conversations %}
     <a href="{% url 'message_thread' row.other.pk %}"
-       class="card-body"
-       style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--glass-border); padding:14px 18px; {% if row.unread %}background: rgba(59,130,246,0.08); border-left:3px solid #3b82f6;{% endif %}">
-      <div style="min-width:0;">
-        <div class="font-semibold text-primary text-sm">
-          {{ row.other.get_full_name|default:row.other.get_username }}
+       class="msg-row{% if row.unread %} msg-row--unread{% endif %}">
+      <span class="msg-avatar msg-avatar--{{ row.role_key }}" aria-hidden="true">{{ row.name|slice:":1"|upper }}</span>
+      <div class="msg-row-main">
+        <div class="msg-row-top">
+          <span class="msg-name">{{ row.name }}</span>
+          <span class="badge {{ row.role_badge }} badge--xs">{{ row.role }}</span>
+          {% if row.read_only %}<span class="badge badge--muted badge--xs">Read-only</span>{% endif %}
           {% if row.unread %}<span class="badge badge--warning badge--xs">{{ row.unread }} new</span>{% endif %}
+          <time class="msg-row-time">{{ row.last_message.created_at|date:"M d, Y h:i A" }}</time>
         </div>
-        <div class="text-muted text-xs">{{ row.other.username }}</div>
-        <div class="text-sm text-secondary" style="margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:520px;">
-          {{ row.last_message.subject }} — {{ row.last_message.body|truncatechars:80 }}
+        <div class="msg-row-meta">
+          {% if row.meta %}{{ row.meta }} · {% endif %}@{{ row.other.username }}
+        </div>
+        <div class="msg-snippet">
+          {% if row.is_mine %}<span class="msg-you">You:</span> {% endif %}<strong>{{ row.last_message.subject }}</strong> — {{ row.last_message.body|truncatechars:80 }}
         </div>
       </div>
-      <small class="text-muted text-xs" style="flex-shrink:0;">{{ row.last_message.created_at|date:"M d, Y h:i A" }}</small>
     </a>
   {% endfor %}
 </div>

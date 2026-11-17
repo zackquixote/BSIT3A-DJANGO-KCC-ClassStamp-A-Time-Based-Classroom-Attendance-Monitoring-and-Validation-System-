@@ -178,6 +178,138 @@ class AdvanceFilingTests(AdvanceExcuseBase):
 
         self.assertFalse(ExcuseSlip.objects.filter(session=foreign_session).exists())
 
+    def test_upcoming_meetings_come_from_the_weekly_schedule_without_sessions(self):
+        self.assertEqual(ClassSession.objects.count(), 0)
+
+        response = self.client.get(reverse('student_excuse_slips'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'File ahead')
+        self.assertContains(response, 'Choose an upcoming meeting')
+        occurrences = response.context['upcoming_occurrences']
+        self.assertTrue(occurrences)
+        for row in occurrences:
+            self.assertEqual(row['slot'].pk, self.slot.pk)
+            self.assertEqual(row['session_date'].weekday(), self.slot.weekday)
+            self.assertIsNone(row['session'])
+
+    def test_file_ahead_creates_a_scheduled_session_and_the_slip(self):
+        today = timezone.localdate()
+        target = today + timedelta(days=(self.slot.weekday - today.weekday()) % 7)
+        if target == today and self.slot.ends_at < timezone.localtime().time():
+            target += timedelta(days=7)
+
+        with self.settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            response = self.client.post(reverse('student_excuse_slips'), {
+                'occurrence': f'{self.slot.pk}|{target.isoformat()}',
+                'reason': 'Dental appointment',
+                'attachment': SimpleUploadedFile(
+                    'proof.png', _PROOF_PNG, content_type='image/png',
+                ),
+            })
+
+        self.assertEqual(response.status_code, 302)
+        session = ClassSession.objects.get(slot=self.slot, session_date=target)
+        self.assertEqual(session.status, ClassSession.STATUS_SCHEDULED)
+        slip = ExcuseSlip.objects.get(student_profile=self.student, session=session)
+        self.assertEqual(slip.status, ExcuseSlip.STATUS_PENDING)
+
+    def test_file_ahead_rejects_a_date_the_slot_does_not_meet(self):
+        wrong_date = timezone.localdate() + timedelta(days=1)
+
+        with self.settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self.client.post(reverse('student_excuse_slips'), {
+                'occurrence': f'{self.slot.pk}|{wrong_date.isoformat()}',
+                'reason': 'Wrong weekday',
+                'attachment': SimpleUploadedFile(
+                    'proof.png', _PROOF_PNG, content_type='image/png',
+                ),
+            })
+
+        self.assertFalse(
+            ClassSession.objects.filter(slot=self.slot, session_date=wrong_date).exists()
+        )
+        self.assertFalse(ExcuseSlip.objects.exists())
+
+    def test_file_ahead_rejects_a_slot_the_student_is_not_enrolled_in(self):
+        other_subject = Subject.objects.create(code='IT312', name='Mobile Development')
+        other_class = Class.objects.create(
+            academic_year=self.year, class_code='BSIT-3B-IT312', subject=other_subject,
+            teacher_profile=self.teacher, program=self.program, year_level=3,
+        )
+        other_slot = ClassSlot.objects.create(
+            class_obj=other_class, weekday=timezone.localdate().weekday(),
+            starts_at=time(10, 0), ends_at=time(11, 0), room='Room 2',
+        )
+        target = timezone.localdate() + timedelta(days=7)
+
+        with self.settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self.client.post(reverse('student_excuse_slips'), {
+                'occurrence': f'{other_slot.pk}|{target.isoformat()}',
+                'reason': 'Not my class',
+                'attachment': SimpleUploadedFile(
+                    'proof.png', _PROOF_PNG, content_type='image/png',
+                ),
+            })
+
+        self.assertFalse(ClassSession.objects.filter(slot=other_slot).exists())
+        self.assertFalse(ExcuseSlip.objects.exists())
+
+    def test_canceled_meetings_are_not_offered_for_advance_filing(self):
+        today = timezone.localdate()
+        next_week = today + timedelta(days=7)
+        canceled = ClassSession.objects.create(
+            slot=self.slot, session_date=next_week,
+            status=ClassSession.STATUS_CANCELED,
+        )
+
+        response = self.client.get(reverse('student_excuse_slips'))
+
+        occurrences = response.context['upcoming_occurrences']
+        self.assertNotIn(
+            next_week,
+            [row['session_date'] for row in occurrences if row['slot'].pk == self.slot.pk],
+        )
+        with self.settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self.client.post(reverse('student_excuse_slips'), {
+                'occurrence': f'{self.slot.pk}|{next_week.isoformat()}',
+                'reason': 'Canceled',
+                'attachment': SimpleUploadedFile(
+                    'proof.png', _PROOF_PNG, content_type='image/png',
+                ),
+            })
+        self.assertFalse(ExcuseSlip.objects.filter(session=canceled).exists())
+
+    def test_page_without_enrollment_points_to_join_a_class(self):
+        Enrollment.objects.all().delete()
+
+        response = self.client.get(reverse('student_excuse_slips'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'You are not enrolled in any class yet')
+        self.assertContains(response, reverse('student_join_class'))
+        self.assertNotContains(response, 'Choose an upcoming meeting')
+
+    def test_make_up_session_on_another_weekday_can_be_excused(self):
+        make_up_date = timezone.localdate() + timedelta(days=3)
+        session = ClassSession.objects.create(
+            slot=self.slot, session_date=make_up_date,
+            status=ClassSession.STATUS_SCHEDULED,
+        )
+
+        with self.settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self.client.post(reverse('student_excuse_slips'), {
+                'occurrence': f'{self.slot.pk}|{make_up_date.isoformat()}',
+                'reason': 'Make-up class conflict',
+                'attachment': SimpleUploadedFile(
+                    'proof.png', _PROOF_PNG, content_type='image/png',
+                ),
+            })
+
+        self.assertTrue(
+            ExcuseSlip.objects.filter(session=session, student_profile=self.student).exists()
+        )
+
 
 class AdvanceApprovalTests(AdvanceExcuseBase):
     def test_approval_creates_the_excused_record_for_a_future_session(self):

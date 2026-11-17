@@ -33,6 +33,8 @@ from apps.core.services.message_service import (
     MAX_SUBJECT,
     MessageError,
     MessageService,
+    display_name,
+    role_label,
 )
 
 User = get_user_model()
@@ -120,7 +122,7 @@ class MessageServiceTests(MessagingFixtureMixin, TestCase):
         self.assertFalse(MessageService.can_contact(self.student_user, self.admin_user))
         self.assertFalse(MessageService.can_contact(self.student_user, self.other_student_user))
 
-    def test_student_may_reply_to_admin_who_messaged_them(self):
+    def test_student_cannot_reply_to_an_administrator_even_with_history(self):
         MessageService.send(
             sender=self.admin_user,
             recipient_id=self.student_user.pk,
@@ -128,9 +130,13 @@ class MessageServiceTests(MessagingFixtureMixin, TestCase):
             body='Reply with your preferred time.',
         )
 
-        self.assertTrue(MessageService.can_contact(self.student_user, self.admin_user))
+        # Admin -> student announcements may exist, but the student side is
+        # read-only: students may only write to their instructors.
+        self.assertFalse(MessageService.can_contact(self.student_user, self.admin_user))
         recipients = list(MessageService.eligible_recipients(self.student_user))
-        self.assertIn(self.admin_user, recipients)
+        self.assertNotIn(self.admin_user, recipients)
+        groups = MessageService.recipient_groups(self.student_user)
+        self.assertEqual([group['key'] for group in groups], ['instructors'])
 
     def test_self_and_inactive_recipients_are_denied(self):
         self.assertFalse(MessageService.can_contact(self.student_user, self.student_user))
@@ -290,6 +296,96 @@ class MessageServiceTests(MessagingFixtureMixin, TestCase):
         self.assertIn('sender', message_admin.list_select_related)
         self.assertIn('recipient', message_admin.list_select_related)
 
+    def test_display_name_uses_role_when_the_account_has_no_name(self):
+        unnamed_admin = User.objects.create_user(username='unnamed_admin')
+        Profile.objects.create(user=unnamed_admin, role=Profile.ROLE_ADMIN)
+        self.assertEqual(display_name(unnamed_admin), 'Administrator')
+        self.assertEqual(display_name(self.student_user), 'Sam')
+        self.assertEqual(role_label(self.student_user), 'Student')
+
+    def test_teacher_groups_list_enrolled_students_with_their_section(self):
+        groups = MessageService.recipient_groups(self.teacher_user)
+        student_group = next(group for group in groups if group['key'] == 'students')
+        self.assertEqual(student_group['label'], 'My students')
+        students = [contact['user'] for contact in student_group['contacts']]
+        self.assertIn(self.student_user, students)
+        self.assertNotIn(self.other_student_user, students)
+
+        contact = next(
+            row for row in student_group['contacts'] if row['user'] == self.student_user
+        )
+        self.assertEqual(contact['role'], 'Student')
+        self.assertIn('2026-8200', contact['meta'])
+        self.assertIn('BSIT-3A', contact['meta'])
+        self.assertIn('IT311', contact['meta'])
+
+        admin_group = next(group for group in groups if group['key'] == 'administrators')
+        self.assertIn(self.admin_user, [row['user'] for row in admin_group['contacts']])
+
+    def test_student_groups_list_only_their_own_instructors(self):
+        groups = MessageService.recipient_groups(self.student_user)
+        teacher_group = next(group for group in groups if group['key'] == 'instructors')
+        teachers = [contact['user'] for contact in teacher_group['contacts']]
+        self.assertIn(self.teacher_user, teachers)
+        self.assertNotIn(self.other_teacher_user, teachers)
+        self.assertNotIn(self.admin_user, teachers)
+
+        contact = next(
+            row for row in teacher_group['contacts'] if row['user'] == self.teacher_user
+        )
+        self.assertEqual(contact['role'], 'Instructor')
+        self.assertIn('BSIT-3A', contact['meta'])
+        self.assertIn('IT311', contact['meta'])
+
+    def test_admin_groups_are_split_by_role_and_exclude_self(self):
+        groups = MessageService.recipient_groups(self.admin_user)
+        self.assertEqual(
+            [group['key'] for group in groups],
+            ['instructors', 'students', 'administrators', 'other'],
+        )
+        instructors = next(group for group in groups if group['key'] == 'instructors')
+        students = next(group for group in groups if group['key'] == 'students')
+        self.assertIn(self.teacher_user, [row['user'] for row in instructors['contacts']])
+        self.assertIn(self.student_user, [row['user'] for row in students['contacts']])
+        everyone = [
+            row['user'] for group in groups for row in group['contacts']
+        ]
+        self.assertNotIn(self.admin_user, everyone)
+
+    def test_previous_conversation_stays_in_the_picker_without_enrollment(self):
+        # The enrollment is withdrawn after the thread started; the reply still
+        # has to have a recipient in the compose picker.
+        MessageService.send(
+            sender=self.teacher_user,
+            recipient_id=self.student_user.pk,
+            subject='Before withdrawal',
+            body='Keep this thread reachable.',
+        )
+        Enrollment.objects.filter(
+            student_profile=self.student, class_obj=self.class_obj,
+        ).update(status=Enrollment.STATUS_WITHDRAWN)
+        groups = MessageService.recipient_groups(self.teacher_user)
+        history = next(group for group in groups if group['key'] == 'history')
+        self.assertIn(self.student_user, [row['user'] for row in history['contacts']])
+        self.assertTrue(MessageService.can_contact(self.teacher_user, self.student_user))
+
+    def test_class_targets_count_only_active_enrollments(self):
+        targets = MessageService.class_targets(self.teacher_user)
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(targets[0].pk, self.class_obj.pk)
+        self.assertEqual(targets[0].recipient_count, 1)
+
+        Enrollment.objects.create(
+            student_profile=self.other_student,
+            class_obj=self.class_obj,
+            status=Enrollment.STATUS_WITHDRAWN,
+        )
+        targets = MessageService.class_targets(self.teacher_user)
+        self.assertEqual(targets[0].recipient_count, 1)
+
+        self.assertEqual(MessageService.class_targets(self.student_user), [])
+        self.assertEqual(MessageService.class_targets(self.other_teacher_user), [])
+
 
 class MessageViewTests(MessagingFixtureMixin, TestCase):
     def setUp(self):
@@ -432,3 +528,217 @@ class MessageViewTests(MessagingFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "querySelector('.msg-log')")
         self.assertContains(response, 'nonce=')
+
+    def test_admin_feedback_reaches_the_teacher_and_teacher_can_reply(self):
+        MessageService.send(
+            sender=self.admin_user,
+            recipient_id=self.teacher_user.pk,
+            subject='Observation feedback',
+            body='Please adjust the rubric for the lab component.',
+        )
+
+        self.client.force_login(self.teacher_user)
+        response = self.client.get(reverse('message_inbox'))
+        self.assertContains(response, 'Observation feedback')
+        self.assertContains(response, 'Administrator')
+
+        response = self.client.get(
+            reverse('message_thread', args=[self.admin_user.pk]),
+        )
+        self.assertContains(response, 'Please adjust the rubric for the lab component.')
+        self.assertContains(response, 'Administrator')
+
+        response = self.client.post(
+            reverse('message_thread', args=[self.admin_user.pk]),
+            {'subject': 'Re: Observation feedback', 'body': 'Noted, I will update it.'},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Message.objects.filter(
+                sender=self.teacher_user,
+                recipient=self.admin_user,
+                body='Noted, I will update it.',
+            ).exists()
+        )
+
+    def test_teacher_messages_enrolled_student_and_student_replies(self):
+        self.client.force_login(self.teacher_user)
+        response = self.client.post(reverse('message_compose'), {
+            'recipient': self.student_user.pk,
+            'subject': 'Missing lab output',
+            'body': 'Please submit the week 4 output.',
+        })
+        self.assertEqual(response.status_code, 302)
+
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse('message_thread', args=[self.teacher_user.pk]),
+        )
+        self.assertContains(response, 'Missing lab output')
+        self.assertContains(response, 'Instructor')
+
+        response = self.client.post(
+            reverse('message_thread', args=[self.teacher_user.pk]),
+            {'subject': 'Re: Missing lab output', 'body': 'Uploading it tonight.'},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Message.objects.filter(
+                sender=self.student_user,
+                recipient=self.teacher_user,
+                body='Uploading it tonight.',
+            ).exists()
+        )
+
+    def test_compose_renders_grouped_searchable_picker(self):
+        self.client.force_login(self.teacher_user)
+        response = self.client.get(reverse('message_compose'))
+        self.assertContains(response, '<optgroup label="My students">')
+        self.assertContains(response, '<optgroup label="Administration">')
+        self.assertContains(response, '2026-8200')
+        self.assertContains(response, 'recipient-search')
+
+    def test_inbox_shows_role_meta_and_marks_own_last_message(self):
+        MessageService.send(
+            sender=self.teacher_user,
+            recipient_id=self.student_user.pk,
+            subject='From your instructor',
+            body='Bring your notebook.',
+        )
+        self.client.force_login(self.teacher_user)
+        response = self.client.get(reverse('message_inbox'))
+        self.assertContains(response, 'You:')
+        self.assertContains(response, 'badge--success')
+        self.assertContains(response, '2026-8200')
+
+    def test_student_admin_thread_is_read_only_in_the_ui(self):
+        MessageService.send(
+            sender=self.admin_user,
+            recipient_id=self.student_user.pk,
+            subject='Office notice',
+            body='Please visit the registrar.',
+        )
+
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse('message_thread', args=[self.admin_user.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Students can only reply to their instructors.')
+        self.assertNotContains(response, 'name="body"')
+
+        # A crafted POST must not create a student -> admin message either.
+        response = self.client.post(
+            reverse('message_thread', args=[self.admin_user.pk]),
+            {'subject': 'Re: Office notice', 'body': 'I will visit.'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Message.objects.count(), 1)
+        self.assertFalse(
+            Message.objects.filter(sender=self.student_user, recipient=self.admin_user).exists()
+        )
+
+    def test_student_compose_never_offers_administrators(self):
+        MessageService.send(
+            sender=self.admin_user,
+            recipient_id=self.student_user.pk,
+            subject='Office notice',
+            body='Please visit the registrar.',
+        )
+
+        self.client.force_login(self.student_user)
+        response = self.client.get(reverse('message_compose'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<optgroup label="My instructors">')
+        self.assertNotContains(response, '<optgroup label="Administration">')
+        self.assertNotContains(response, 'Administrator')
+
+    def test_teacher_can_message_a_whole_class_without_picking_students(self):
+        Enrollment.objects.create(
+            student_profile=self.other_student,
+            class_obj=self.class_obj,
+            status=Enrollment.STATUS_ACTIVE,
+        )
+        self.client.force_login(self.teacher_user)
+        response = self.client.post(reverse('message_compose'), {
+            'recipient': f'class:{self.class_obj.pk}',
+            'subject': 'Week 5 reminder',
+            'body': 'Submit the lab output before Friday.',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('message_inbox'))
+        self.assertEqual(
+            Message.objects.filter(subject='Week 5 reminder').count(), 2,
+        )
+        self.assertTrue(
+            Message.objects.filter(
+                sender=self.teacher_user,
+                recipient=self.student_user,
+                subject='Week 5 reminder',
+            ).exists()
+        )
+        self.assertTrue(
+            Message.objects.filter(
+                sender=self.teacher_user,
+                recipient=self.other_student_user,
+                subject='Week 5 reminder',
+            ).exists()
+        )
+
+    def test_class_message_skips_students_who_are_not_enrolled(self):
+        self.client.force_login(self.teacher_user)
+        response = self.client.post(reverse('message_compose'), {
+            'recipient': f'class:{self.class_obj.pk}',
+            'subject': 'Enrolled only',
+            'body': 'This should reach one student.',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Message.objects.count(), 1)
+        self.assertFalse(
+            Message.objects.filter(recipient=self.other_student_user).exists()
+        )
+
+    def test_teacher_cannot_message_someone_elses_class(self):
+        other_class = Class.objects.create(
+            academic_year=self.year,
+            class_code='BSIT-3B-IT311',
+            subject=self.subject,
+            teacher_profile=self.other_teacher,
+            program=self.program,
+            year_level=3,
+        )
+        self.client.force_login(self.teacher_user)
+        response = self.client.post(reverse('message_compose'), {
+            'recipient': f'class:{other_class.pk}',
+            'subject': 'Not mine',
+            'body': 'Should be rejected.',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'your own active classes')
+        self.assertFalse(Message.objects.exists())
+
+    def test_student_cannot_use_a_class_recipient(self):
+        self.client.force_login(self.student_user)
+        response = self.client.post(reverse('message_compose'), {
+            'recipient': f'class:{self.class_obj.pk}',
+            'subject': 'Nope',
+            'body': 'Students cannot address a class.',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Only instructors can message a whole class.')
+        self.assertFalse(Message.objects.exists())
+
+    def test_teacher_compose_offers_whole_class_option_with_enrolled_count(self):
+        self.client.force_login(self.teacher_user)
+        response = self.client.get(reverse('message_compose'))
+        self.assertContains(response, '<optgroup label="Whole class">')
+        self.assertContains(response, 'BSIT-3A-IT311')
+        self.assertContains(response, '(1 enrolled)')
+
+    def test_single_recipient_is_preselected(self):
+        self.client.force_login(self.student_user)
+        response = self.client.get(reverse('message_compose'))
+        self.assertContains(
+            response,
+            f'value="{self.teacher_user.pk}" selected',
+        )

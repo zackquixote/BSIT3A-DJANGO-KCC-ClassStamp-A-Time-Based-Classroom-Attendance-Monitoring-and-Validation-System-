@@ -5,7 +5,7 @@ Each row is one room or one teacher; columns are Monday–Sunday.
 <div class="occ-wrap">
   {% if occupancy %}
     {% for row in occupancy %}
-    <div class="occ-card">
+    <div class="occ-card" data-search="{{ row.search_text }}">
       <div class="occ-head">
         <div>
           <span class="occ-label">{{ row.label }}</span>
@@ -32,6 +32,7 @@ Each row is one room or one teacher; columns are Monday–Sunday.
       </div>
     </div>
     {% endfor %}
+    <div class="occ-no-results" id="occNoResults" hidden></div>
   {% else %}
     <div class="tt-empty">
       <p>No scheduled meetings for this term{% if program %} / {{ program.code }}{% endif %}.</p>

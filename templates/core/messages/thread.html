@@ -1,5 +1,5 @@
 {% extends "theme/base.html" %}
-{% block title %}{{ other.get_full_name|default:other.get_username }} — Messages{% endblock %}
+{% block title %}{{ other_name }} — Messages{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -7,9 +7,98 @@
      hugging the left edge of a wide laptop screen. */
   .msg-thread { width: min(100%, 860px); margin: 0 auto; }
   .msg-thread .card { max-width: none; }
-  .msg-thread .msg-log { padding: 16px; max-height: 55vh; overflow-y: auto; }
+  .msg-thread .msg-log {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    max-height: 55vh;
+    overflow-y: auto;
+  }
   .msg-thread .msg-reply { padding: 20px; }
+  .msg-thread .msg-reply--readonly {
+    border-style: dashed;
+    background: rgba(255, 255, 255, 0.02);
+  }
   .msg-thread .form-group { margin-bottom: 18px; }
+
+  .msg-item {
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid var(--info);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    padding: 13px 16px;
+  }
+
+  .msg-item--mine {
+    border-left-color: var(--accent-gold);
+    background: rgba(245, 197, 24, 0.05);
+  }
+
+  .msg-item-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  .msg-item-name {
+    font-weight: 600;
+    font-size: 0.84rem;
+    color: var(--text-primary);
+  }
+
+  .msg-item-time {
+    margin-left: auto;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .msg-item-subject {
+    font-weight: 600;
+    font-size: 0.87rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .msg-item-body {
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .msg-role-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border: 1px solid var(--glass-border);
+    background: rgba(245, 197, 24, 0.1);
+    color: var(--text-secondary);
+  }
+
+  .msg-role-chip--admin { color: #bda6e4; border-color: rgba(165, 140, 212, 0.32); background: rgba(165, 140, 212, 0.12); }
+  .msg-role-chip--teacher { color: var(--accent-gold); border-color: rgba(245, 197, 24, 0.32); background: rgba(245, 197, 24, 0.1); }
+  .msg-role-chip--student { color: #6ed9a3; border-color: rgba(78, 202, 138, 0.32); background: rgba(78, 202, 138, 0.1); }
+
+  .msg-header-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
   @media (max-width: 640px) {
     .msg-thread .msg-log { padding: 12px; max-height: none; }
     .msg-thread .msg-reply { padding: 16px; }
@@ -22,8 +111,12 @@
 <div class="msg-thread">
 <div class="page-header">
   <div>
-    <h1 class="page-title">{{ other.get_full_name|default:other.get_username }}</h1>
-    <p class="page-subtitle">@{{ other.username }}</p>
+    <h1 class="page-title">{{ other_name }}</h1>
+    <div class="msg-header-meta">
+      <span class="msg-role-chip msg-role-chip--{{ other_role_key }}">{{ other_role }}</span>
+      {% if other_meta %}<span>{{ other_meta }}</span>{% endif %}
+      <span>@{{ other.username }}</span>
+    </div>
   </div>
   <a href="{% url 'message_inbox' %}" class="btn btn-outline">
     <i class="fas fa-arrow-left"></i> Inbox
@@ -33,21 +126,24 @@
 <div class="card mb-4 msg-log">
   {% if messages %}
     {% for message in messages %}
-      <div style="margin-bottom:14px; {% if message.sender_id == other.pk and not message.is_read %}border-left:3px solid #3b82f6; padding-left:10px;{% endif %}">
-        <div class="text-xs text-muted mb-1">
-          <strong>{{ message.sender.get_full_name|default:message.sender.get_username }}</strong>
-          · {{ message.created_at|date:"M d, Y h:i A" }}
-          {% if message.sender_id == request.user.pk %}(you){% endif %}
+      <div class="msg-item{% if message.sender_id == request.user.pk %} msg-item--mine{% endif %}">
+        <div class="msg-item-head">
+          <span class="msg-item-name">
+            {% if message.sender_id == request.user.pk %}You{% else %}{{ message.sender_name }}{% endif %}
+          </span>
+          <span class="badge {{ message.sender_badge }} badge--xs">{{ message.sender_role }}</span>
+          <time class="msg-item-time">{{ message.created_at|date:"M d, Y h:i A" }}</time>
         </div>
-        <div class="font-semibold text-primary text-sm">{{ message.subject }}</div>
-        <div class="text-sm text-secondary" style="white-space:pre-wrap;">{{ message.body }}</div>
+        <div class="msg-item-subject">{{ message.subject }}</div>
+        <div class="msg-item-body">{{ message.body }}</div>
       </div>
     {% endfor %}
   {% else %}
-    <p class="text-muted text-sm mb-0">No messages in this conversation yet.</p>
+    <p class="text-muted text-sm mb-0">No messages in this conversation yet — send the first one below.</p>
   {% endif %}
 </div>
 
+{% if can_reply %}
 <div class="card msg-reply">
   {% if error %}
     <div class="toast toast--error mb-3">{{ error }}</div>
@@ -60,7 +156,7 @@
              value="{{ reply_subject }}">
     </div>
     <div class="form-group mb-3">
-      <label class="form-label" for="body">Reply <span class="text-danger">*</span></label>
+      <label class="form-label" for="body">Reply to {{ other_name }} <span class="text-danger">*</span></label>
       <textarea id="body" name="body" class="form-control" rows="5" maxlength="{{ max_body }}" required></textarea>
     </div>
     <button type="submit" class="btn btn-primary">
@@ -68,6 +164,13 @@
     </button>
   </form>
 </div>
+{% else %}
+<div class="card msg-reply msg-reply--readonly">
+  <p class="text-muted text-sm mb-0">
+    <i class="fas fa-lock"></i> {{ reply_notice }}
+  </p>
+</div>
+{% endif %}
 </div>
 
 <script nonce="{{ request.csp_nonce }}">

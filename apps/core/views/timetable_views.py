@@ -20,7 +20,7 @@ import datetime
 import re
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
 from django.shortcuts import render
 
 from apps.core.decorators import role_required
@@ -266,6 +266,7 @@ def build_occupancy(term, mode):
             'weekday': slot.weekday,
             'time': f'{format_clock(slot.starts_at)} – {format_clock(slot.ends_at)}',
             'starts_at': slot.starts_at,
+            'ends_at': slot.ends_at,
             'class_code': class_code,
             'subject': subject_code,
             'room': room_label,
@@ -280,10 +281,18 @@ def build_occupancy(term, mode):
             days[cell['weekday']].append(cell)
         for day_cells in days:
             day_cells.sort(key=lambda c: (c['starts_at'], c['ends_at']))
+        search_text = ' '.join(
+            [group['label'], group['sublabel']]
+            + [
+                f"{cell['class_code']} {cell['subject']} {cell['teacher']} {cell['room']}"
+                for cell in group['cells']
+            ]
+        ).lower()
         rows.append({
             'label': group['label'],
             'sublabel': group['sublabel'],
             'slot_count': len(group['cells']),
+            'search_text': search_text,
             'days': [
                 {'name': name, 'cells': days[i]}
                 for i, name in enumerate(('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'))
@@ -410,7 +419,14 @@ def build_timetable_context(request):
     if view_param not in ('sections', 'rooms', 'teachers'):
         view_param = 'sections'
 
-    base_qs = request.GET.copy()
+    # Real requests carry a QueryDict; build_timetable_context is also called
+    # from tests/export helpers with a plain dict. dict also has .copy(), but
+    # its copy still has no .urlencode(), so test for that explicitly.
+    if hasattr(request.GET, 'urlencode'):
+        base_qs = request.GET.copy()
+    else:
+        base_qs = QueryDict(mutable=True)
+        base_qs.update(request.GET)
     if 'view' in base_qs:
         del base_qs['view']
     base_query = base_qs.urlencode()

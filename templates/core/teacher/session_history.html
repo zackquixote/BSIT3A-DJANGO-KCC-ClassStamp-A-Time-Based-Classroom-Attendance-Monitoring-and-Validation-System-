@@ -9,9 +9,6 @@
     <p class="page-subtitle">Every class meeting you have conducted, with attendance aggregates and CSV export.</p>
   </div>
   <div class="flex items-center gap-2">
-    <a href="{% url 'teacher_dashboard' %}" class="btn btn-outline">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </a>
     <a href="{% url 'teacher_session_history_export' %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-primary">
       <i class="fas fa-file-csv"></i> Export CSV
     </a>

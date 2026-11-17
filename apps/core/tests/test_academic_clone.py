@@ -334,8 +334,10 @@ class EnableJoinCodesTests(AcademicCloneFixtureMixin, TestCase):
     def _clone_two(self):
         class_a = self._class("BSIT-3A-IT311")
         class_b = self._class("BSIT-3A-IT312", subject=self.other_subject)
-        self._slot(class_a)
-        self._slot(class_b)
+        # Two different meetings: identical slots would (correctly) be treated
+        # as a room/teacher clash in the target term and skip the second class.
+        self._slot(class_a, weekday=0, start=time(8, 0), end=time(10, 0), room='IT-Lab 1')
+        self._slot(class_b, weekday=1, start=time(8, 0), end=time(10, 0), room='RM-301')
         result = clone_classes_academic_year(
             actor=self.admin_user, source_year=self.source, target_year=self.target,
         )

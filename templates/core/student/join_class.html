@@ -1,81 +1,140 @@
 {% extends "theme/base.html" %}
 {% block title %}Join a Class — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  /* One centred column, same rhythm as Compose: the form and the class list
+     must not sit at two different widths on the left edge of a wide screen. */
+  .join-class {
+    width: min(100%, 760px);
+    margin: 0 auto;
+  }
+
+  .join-class .page-header { margin-bottom: 18px; }
+  .join-class .card { max-width: none; }
+  .join-class .join-card { padding: 22px 24px; }
+
+  .join-code-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  /* .form-control is width:100%; inside a flex row that would push the button
+     out of the card, so let the input flex and keep the button at its size. */
+  .join-code-row .form-control {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .join-code-row .btn { flex: 0 0 auto; }
+
+  .join-list-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .join-class .table { margin-bottom: 0; }
+  .join-class .table th { white-space: nowrap; }
+  .join-class .table td { vertical-align: middle; }
+  .join-empty { padding: 18px 20px; }
+
+  @media (max-width: 640px) {
+    .join-class .join-card { padding: 16px; }
+
+    .join-code-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .join-code-row .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header mb-4">
-  <div>
-    <h1 class="page-title">Join a Class</h1>
-    <p class="page-subtitle">Enter the join code shared by your teacher. Your request must be approved before attendance access is granted.</p>
-  </div>
-</div>
-
-<div class="card mb-4" style="max-width: 680px; padding: 22px;">
-  <form method="post">
-    {% csrf_token %}
-    <label class="form-label" for="join_code">Class join code</label>
-    <div class="flex items-center gap-2">
-      <input
-        type="text"
-        id="join_code"
-        name="join_code"
-        class="form-control"
-        maxlength="20"
-        minlength="12"
-        autocomplete="off"
-        autocapitalize="characters"
-        spellcheck="false"
-        placeholder="ABCD-EFGH-JKLM"
-        required
-      >
-      <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
-        <i class="fas fa-right-to-bracket"></i> Request to Join
-      </button>
+<div class="join-class">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Join a Class</h1>
+      <p class="page-subtitle">Enter the join code from your teacher. A valid code enrolls you immediately.</p>
     </div>
-    <p class="form-hint mt-2">Use the code for the exact subject class. Codes are case-insensitive.</p>
-  </form>
-</div>
+  </div>
 
-<div class="card" style="max-width: 900px; padding: 0;">
-  <div style="padding: 16px 20px; border-bottom: 1px solid var(--glass-border);">
-    <h2 class="font-bold text-primary" style="font-size: 1rem; margin: 0;">My Current Classes and Requests</h2>
-    {% if active_year %}
-      <p class="text-muted text-xs mt-1 mb-0">{{ active_year.name }}</p>
+  <div class="card join-card mb-4">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="join_code">Class join code</label>
+        <div class="join-code-row">
+          <input
+            type="text"
+            id="join_code"
+            name="join_code"
+            class="form-control"
+            maxlength="20"
+            minlength="12"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            placeholder="ABCD-EFGH-JKLM"
+            required
+          >
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-right-to-bracket"></i> Join class
+          </button>
+        </div>
+        <p class="form-hint">Use the code for the exact subject class. Codes are case-insensitive.</p>
+      </div>
+    </form>
+  </div>
+
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <div class="join-list-head">
+      <h2 class="font-bold text-primary" style="font-size: 1rem; margin: 0;">My Classes</h2>
+      {% if active_year %}
+        <p class="text-muted text-xs mt-1 mb-0">{{ active_year.name }}</p>
+      {% endif %}
+    </div>
+    {% if enrollments %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Class</th>
+              <th>Teacher</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for enrollment in enrollments %}
+              <tr>
+                <td>
+                  <strong>{{ enrollment.class_obj.subject.code }}</strong>
+                  <div class="text-xs text-muted">{{ enrollment.class_obj.subject.name }}</div>
+                </td>
+                <td>{{ enrollment.class_obj.class_code }}</td>
+                <td>{{ enrollment.class_obj.teacher_profile.user.get_full_name|default:enrollment.class_obj.teacher_profile.user.username }}</td>
+                <td>
+                  {% if enrollment.status == 'PENDING' %}
+                    <span class="badge badge--warning">Awaiting approval</span>
+                  {% else %}
+                    <span class="badge badge--success">Enrolled</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted text-sm join-empty mb-0">You have no current class enrollments or pending requests.</p>
     {% endif %}
   </div>
-  {% if enrollments %}
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Subject</th>
-            <th>Class</th>
-            <th>Teacher</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for enrollment in enrollments %}
-            <tr>
-              <td>
-                <strong>{{ enrollment.class_obj.subject.code }}</strong>
-                <div class="text-xs text-muted">{{ enrollment.class_obj.subject.name }}</div>
-              </td>
-              <td>{{ enrollment.class_obj.class_code }}</td>
-              <td>{{ enrollment.class_obj.teacher_profile.user.get_full_name|default:enrollment.class_obj.teacher_profile.user.username }}</td>
-              <td>
-                {% if enrollment.status == 'PENDING' %}
-                  <span class="badge badge--warning">Awaiting approval</span>
-                {% else %}
-                  <span class="badge badge--success">Enrolled</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p class="text-muted text-sm" style="padding: 18px 20px;">You have no current class enrollments or pending requests.</p>
-  {% endif %}
 </div>
 {% endblock %}
