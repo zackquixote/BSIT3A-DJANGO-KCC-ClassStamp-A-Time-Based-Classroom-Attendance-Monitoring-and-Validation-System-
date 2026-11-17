@@ -206,4 +206,167 @@
       }
     });
   }
+  /* ── Facility type manager (inside Add / Edit Room) ────────── */
+  (function () {
+    var panel = getEl('typeManager');
+    if (!panel) return;
+
+    var toggle = getEl('toggleTypeManager');
+    var list = getEl('typeManagerList');
+    var nameInput = getEl('newTypeName');
+    var addBtn = getEl('addTypeBtn');
+
+    nameInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addBtn.click();
+      }
+    });
+    var errorEl = getEl('typeManagerError');
+    var select = getEl('room_type');
+    var saveUrl = panel.dataset.saveUrl;
+    var deleteTemplate = panel.dataset.deleteUrlTemplate;
+    var csrfEl = document.querySelector('#editRoomForm [name="csrfmiddlewaretoken"]');
+    var csrf = csrfEl ? csrfEl.value : '';
+
+    function showError(msg) {
+      if (!errorEl) return;
+      errorEl.textContent = msg || '';
+      errorEl.style.display = msg ? 'block' : 'none';
+    }
+
+    function optionFor(code) {
+      for (var i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === code) return select.options[i];
+      }
+      return null;
+    }
+
+    function submitType(fields, onOk) {
+      var body = new FormData();
+      Object.keys(fields).forEach(function (key) { body.append(key, fields[key]); });
+      fetch(saveUrl, {
+        method: 'POST',
+        body: body,
+        headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data.status !== 'success') throw new Error(data.error || 'Save failed.');
+          showError('');
+          onOk(data.type);
+        })
+        .catch(function (err) { showError(err.message); });
+    }
+
+    function makeButton(cls, title, icon) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'type-icon-btn ' + cls;
+      btn.title = title;
+      var i = document.createElement('i');
+      i.className = 'fas ' + icon;
+      btn.appendChild(i);
+      return btn;
+    }
+
+    function makeRow(t) {
+      var row = document.createElement('div');
+      row.className = 'type-row';
+      row.dataset.id = t.id;
+      row.dataset.code = t.code;
+      row.dataset.name = t.name;
+      row.dataset.used = t.room_count || 0;
+      row.dataset.protected = t.protected ? 'true' : 'false';
+
+      var name = document.createElement('span');
+      name.className = 'type-name';
+      name.textContent = t.name;
+      row.appendChild(name);
+
+      if (t.protected) {
+        var flag = document.createElement('span');
+        flag.className = 'type-flag';
+        flag.textContent = 'built-in';
+        row.appendChild(flag);
+      }
+
+      row.appendChild(makeButton('js-type-rename', 'Rename facility type', 'fa-pen'));
+      row.appendChild(makeButton('js-type-delete', 'Delete facility type', 'fa-trash'));
+      return row;
+    }
+
+    toggle.addEventListener('click', function () {
+      var willOpen = panel.hidden;
+      panel.hidden = !willOpen;
+      toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      if (willOpen) showError('');
+    });
+
+    addBtn.addEventListener('click', function () {
+      var name = (nameInput.value || '').trim();
+      if (!name) {
+        showError('Enter a name for the new facility type.');
+        nameInput.focus();
+        return;
+      }
+      var code = name.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20);
+      if (!code) {
+        showError('Use letters or numbers in the type name.');
+        return;
+      }
+      submitType({ code: code, name: name }, function (t) {
+        if (!optionFor(t.code)) select.add(new Option(t.name, t.code));
+        list.appendChild(makeRow(t));
+        select.value = t.code;
+        nameInput.value = '';
+      });
+    });
+
+    list.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var row = btn.closest('.type-row');
+      if (!row) return;
+      var d = row.dataset;
+
+      if (btn.classList.contains('js-type-rename')) {
+        var next = window.prompt('Rename facility type', d.name);
+        if (!next || !next.trim() || next.trim() === d.name) return;
+        submitType({ id: d.id, code: d.code, name: next.trim() }, function (t) {
+          row.dataset.name = t.name;
+          row.querySelector('.type-name').textContent = t.name;
+          var option = optionFor(t.code);
+          if (option) option.textContent = t.name;
+        });
+        return;
+      }
+
+      if (btn.classList.contains('js-type-delete')) {
+        if (d.protected === 'true') {
+          showError('Built-in types can be renamed but not deleted.');
+          return;
+        }
+        if (parseInt(d.used || '0', 10) > 0) {
+          showError(d.name + ' is used by ' + d.used + ' room(s). Reassign them first.');
+          return;
+        }
+        if (!window.confirm('Delete "' + d.name + '"?')) return;
+        fetch(deleteTemplate.replace('/0/', '/' + d.id + '/'), {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data.status !== 'success') throw new Error(data.error || 'Delete failed.');
+            var option = optionFor(d.code);
+            if (option) option.remove();
+            row.remove();
+            showError('');
+          })
+          .catch(function (err) { showError(err.message); });
+      }
+    });
+  })();
+
 })();

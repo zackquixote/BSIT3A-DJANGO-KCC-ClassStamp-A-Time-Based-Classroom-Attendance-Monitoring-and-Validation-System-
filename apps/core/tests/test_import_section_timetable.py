@@ -319,10 +319,15 @@ class ImportedRoomBindingTests(ImporterTests):
         self.assertEqual(slot.room, 'LAB 1')
 
     def test_other_building_labels_do_not_collapse_into_main_building_rooms(self):
-        # Matches migration 0034: the same number in another building is another room.
+        # Matches migrations 0034/0036: the same number in another building is
+        # another room. 'ROOM 101 · COLLEGE' resolves to COLLEGE-101, never to
+        # Main Building RM-101; an unknown building still stays unresolved.
         self.assertTrue(Room.objects.filter(code='RM-101').exists())
-        self.assertIsNone(resolve_room('ROOM 101 \u00b7 COLLEGE'))
+        college = resolve_room('ROOM 101 \u00b7 COLLEGE')
+        self.assertIsNotNone(college)
+        self.assertEqual(college.code, 'COLLEGE-101')
         self.assertIsNotNone(resolve_room('ROOM 101 \u00b7 CMAT'))
+        self.assertIsNone(resolve_room('ROOM 101 \u00b7 XYZ'))
 
     def test_resolve_room_handles_building_suffix_and_room_alias(self):
         rm302, _ = Room.objects.get_or_create(
@@ -337,6 +342,35 @@ class ImportedRoomBindingTests(ImporterTests):
         self.assertEqual(resolve_room('room 302'), rm302)
         self.assertIsNone(resolve_room('ROOM 999'))
         self.assertIsNone(resolve_room(''))
+
+    def test_building_prefixed_labels_resolve_to_their_own_rooms(self):
+        # Migration 0036 seeds the off-main-building rooms; those labels bind
+        # to their own codes instead of a Main Building RM-###.
+        self.assertEqual(resolve_room('ROOM 22 \u00b7 ELEM').code, 'ELEM-22')
+        self.assertEqual(resolve_room('ROOM 112 \u00b7 HS').code, 'HS-112')
+        self.assertEqual(resolve_room('ROOM 301 \u00b7 CMAT').code, 'RM-301')
+        self.assertEqual(resolve_room('LAB 7').code, 'LAB-7')
+
+    def test_gym_and_qa_labels_resolve(self):
+        self.assertEqual(resolve_room('GYM').code, 'GYM')
+        self.assertEqual(resolve_room('GYM 3').code, 'GYM-3')
+        self.assertEqual(resolve_room('GYM 1 \u00b7 GYM 1').code, 'GYM-1')
+        self.assertEqual(resolve_room('QA Conference Room').code, 'QA-CONF')
+
+    def test_rerun_does_not_desync_a_bound_slot_from_an_unresolved_label(self):
+        self.run_command('--apply')
+        slot = ClassSlot.objects.get(class_obj__class_code='BSIT-1A-CC-101', weekday=2)
+        self.assertEqual(slot.room, 'LAB-1')
+        self.assertIsNotNone(slot.room_ref_id)
+        # Repoint the room's code without the rename service, leaving the slot
+        # text stale on purpose; the workbook label 'LAB 1' then no longer
+        # resolves. A rerun must keep the bound slot's canonical text instead
+        # of overwriting it with the raw label (which would desync room/room_ref).
+        Room.objects.filter(code='LAB-1').update(code='LAB-1B')
+        self.run_command('--apply')
+        slot.refresh_from_db()
+        self.assertEqual(slot.room, 'LAB-1')
+        self.assertIsNotNone(slot.room_ref_id)
 
 
 class SerializerTests(TestCase):

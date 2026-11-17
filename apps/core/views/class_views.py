@@ -38,6 +38,7 @@ from apps.core.models import (
     Enrollment,
     Profile,
     Program,
+    FacilityType,
     Room,
     Subject,
 )
@@ -687,8 +688,11 @@ def class_slot_save(request, class_id):
     except ValueError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
 
-    # Check for slot duplicate
-    if ClassSlot.objects.filter(class_obj=class_obj, weekday=weekday, starts_at=starts_t).exists():
+    # Check for slot duplicate. Inactive (retired) slots must not block
+    # rebuilding the same meeting time after a soft-delete.
+    if ClassSlot.objects.filter(
+        class_obj=class_obj, weekday=weekday, starts_at=starts_t, is_active=True,
+    ).exists():
         return JsonResponse({'success': False, 'message': 'A schedule slot already exists for this day and time.'}, status=400)
 
     # Cross-class timetable conflicts (A-19, task 2.5): teacher clashes and
@@ -1860,7 +1864,7 @@ def _class_wizard_save_batch(request, offerings_json):
                 'success': False,
                 'message': (
                     f'Room conflict: {offering_room_conflicts[0]}. '
-                    'Confirm the override to save anyway.'
+                    'Pick a different room or a different time.'
                 ),
                 'override_available': True,
                 'conflicts': offering_room_conflicts,
@@ -1886,6 +1890,19 @@ def _class_wizard_save_batch(request, offerings_json):
                     }, status=400)
                 room = (slot['room'] or '').strip().casefold()
                 if room and room not in {'tba', 'assigned room'} and room == prior_room.casefold():
+                    # Same physical room, same time, different teachers in this
+                    # batch: apply the same hard-block policy as a cross-class
+                    # room clash. Only an explicit override may save it.
+                    if not override_conflicts:
+                        return JsonResponse({
+                            'success': False,
+                            'message': (
+                                f'Room conflict: {prior_room} is already used by '
+                                f'{prior_subject.code} at that time. Pick a different room or time.'
+                            ),
+                            'override_available': True,
+                            'conflicts': [f'{prior_subject.code} {prior_room}'],
+                        }, status=400)
                     room_warnings.append(
                         f'{subject.code}: {room} also has {prior_subject.code} at the same time.'
                     )
@@ -1915,7 +1932,7 @@ def _class_wizard_save_batch(request, offerings_json):
                     year_level=year_level,
                 )
                 class_obj = result['class']
-                if offering.get('room_override_labels'):
+                if offering.get('room_override_labels') and override_conflicts:
                     AuditEvent.objects.create(
                         actor=request.user,
                         action='WIZARD_ROOM_CONFLICT_OVERRIDE',
@@ -1987,6 +2004,7 @@ def _class_wizard_save_batch(request, offerings_json):
             '/teacher/classes/',
         )
 
+    _invalidate_checklist_cache(active_ay=academic_year)
     return JsonResponse({
         'success': True,
         'section_code': section_code,
@@ -2100,7 +2118,7 @@ def class_wizard_save(request):
         return JsonResponse({
             'success': False,
             'message': (
-                f"Room conflict: {room_warnings[0]}. Confirm the override to save anyway."
+                f"Room conflict: {room_warnings[0]}. Pick a different room or a different time."
             ),
             'override_available': True,
             'conflicts': room_warnings,
@@ -2179,6 +2197,7 @@ def class_wizard_save(request):
             '/teacher/classes/',
         )
 
+    _invalidate_checklist_cache(active_ay=academic_year)
     return JsonResponse({
         'success': True,
         'class_id': class_obj.id,
@@ -2253,13 +2272,14 @@ def class_wizard_setup(request):
         .values_list('room', flat=True).distinct().order_by('room')
     )
     rooms = Room.objects.filter(is_active=True).order_by('room_type', 'code')
+    facility_labels = dict(FacilityType.objects.values_list('code', 'name'))
     rooms_data = [
         {
             'id': r.id,
             'code': r.code,
             'name': r.name,
             'room_type': r.room_type,
-            'room_type_display': r.get_room_type_display(),
+            'room_type_display': facility_labels.get(r.room_type, r.get_room_type_display()),
             'capacity': r.capacity,
             'is_lab': r.is_lab,
         }

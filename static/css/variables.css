@@ -10,11 +10,11 @@
 /* ── CSS Custom Properties ───────────────────────────────────── */
 :root {
   /* Canvas — KCC deep navy blue, matches the seal background */
-  --bg-base:             #121b2e;
-  --bg-surface:          #16223a;
-  --bg-elevated:         #1b2a44;
-  --bg-card:             #182640;
-  --bg-card-hover:       #1e2f4c;
+  --bg-base:             #0d1626;
+  --bg-surface:          #111d31;
+  --bg-elevated:         #16243c;
+  --bg-card:             #131f33;
+  --bg-card-hover:       #182841;
 
   /* Hairline structure */
   --border:              rgba(245, 197, 24, 0.18);
@@ -47,10 +47,10 @@
   --info-glow:           rgba(91, 155, 213, 0.2);
 
   /* Text */
-  --text-primary:        #f4f6fb;
-  --text-secondary:      #d2dae9;
-  --text-muted:          #9ba9c2;
-  --text-dim:            #75859d;
+  --text-primary:        #e2eaf5;
+  --text-secondary:      #bfcbdd;
+  --text-muted:          #8a99b0;
+  --text-dim:            #6a7a90;
 
   /* Role labels */
   --role-admin:          #a58cd4;

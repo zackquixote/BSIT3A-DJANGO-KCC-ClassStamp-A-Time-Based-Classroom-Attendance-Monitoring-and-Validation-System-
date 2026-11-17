@@ -13,9 +13,13 @@
 """
 
 from datetime import date, time, timedelta
+import io as _io
+
+from PIL import Image
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -404,10 +408,15 @@ class ExcuseSlipTests(TestCase, BaseWeek4FixtureMixin):
         )
 
     def _submit(self, session_id=None, reason='Medical appointment'):
+        buffer = _io.BytesIO()
+        Image.new('RGB', (16, 16), (20, 120, 220)).save(buffer, format='PNG')
         self.client.force_login(self.student_user)
         return self.client.post(reverse('student_excuse_slips'), {
             'session_id': session_id or self.session.id,
             'reason': reason,
+            'attachment': SimpleUploadedFile(
+                'proof.png', buffer.getvalue(), content_type='image/png',
+            ),
         })
 
     def _review(self, slip, action, note=''):

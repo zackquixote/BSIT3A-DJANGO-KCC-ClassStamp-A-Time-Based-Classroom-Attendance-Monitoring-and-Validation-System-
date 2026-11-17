@@ -215,8 +215,6 @@ def teacher_create(request):
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
 
-        if not email:
-            return JsonResponse({'ok': False, 'error': 'Email address is required.'}, status=400)
         if not first_name:
             return JsonResponse({'ok': False, 'error': 'First name is required.'}, status=400)
         if not last_name:
@@ -227,17 +225,33 @@ def teacher_create(request):
         if not employee_number:
             return JsonResponse({'ok': False, 'error': 'Faculty ID number is required.'}, status=400)
 
-        from django.core.validators import validate_email
-        try:
-            validate_email(email)
-        except Exception:
-            return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'}, status=400)
+        # // Email is optional on the faculty form. When present it still drives
+        # // the username prefix and must be a valid, unused address. When blank,
+        # // the teacher signs in with username / Faculty ID and email notices skip.
+        if email:
+            from django.core.validators import validate_email
+            try:
+                validate_email(email)
+            except Exception:
+                return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'}, status=400)
 
         # Auto-generate username from email prefix (e.g. msantos@kcc.edu.ph → msantos)
-        # If that username is taken, append a counter suffix (msantos2, msantos3, …)
+        # or, without email, from the name (Juan Dela Cruz → juan.dela.cruz).
+        # If that username is taken, append a counter suffix (msantos2, juan.dela.cruz2, …)
         from django.contrib.auth import get_user_model as _get_user_model
         _User = _get_user_model()
-        base_username = email.split('@')[0].lower().replace(' ', '')
+        if email:
+            base_username = email.split('@')[0].lower().replace(' ', '')
+        else:
+            # Juan Dela Cruz → juan.dela.cruz (spaces become dots, not dropped).
+            raw = f'{first_name} {last_name}'.lower().replace(' ', '.')
+            base_username = ''.join(
+                ch if (ch.isalnum() or ch == '.') else ''
+                for ch in raw
+            )
+            while '..' in base_username:
+                base_username = base_username.replace('..', '.')
+            base_username = base_username.strip('.') or 'faculty'
         username = base_username
         counter = 2
         while _User.objects.filter(username=username).exists():

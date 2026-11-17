@@ -11,12 +11,30 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.core.models import Profile
 from apps.core.services.message_service import (
     MAX_BODY,
     MAX_SUBJECT,
     MessageError,
     MessageService,
 )
+
+
+def _inbox_empty_hint(user) -> str:
+    """
+    // Role-accurate compose hint. Students cannot message administrators
+    // (MessageService.can_contact), so the empty inbox must not say they can.
+    """
+    profile = getattr(user, 'classstamp_profile', None)
+    if profile is None:
+        if getattr(user, 'is_superuser', False):
+            return 'you can write to any active user.'
+        return 'recipients appear once your account profile is complete.'
+    if profile.role == Profile.ROLE_STUDENT:
+        return 'you can write to instructors of your active classes, and reply to administrators who messaged you.'
+    if profile.role == Profile.ROLE_TEACHER:
+        return 'you can write to your own students or administrators.'
+    return 'you can write to any active user.'
 
 
 @login_required(login_url='login')
@@ -26,6 +44,7 @@ def message_inbox(request):
     return render(request, 'core/messages/inbox.html', {
         'conversations': conversations,
         'unread_message_total': unread,
+        'empty_hint': _inbox_empty_hint(request.user),
     })
 
 
@@ -82,10 +101,15 @@ def message_thread(request, user_id):
         except MessageError as exc:
             error = str(exc)
 
+    # Prefill the reply subject from the LATEST message. `messages` is
+    # oldest-first; quoting messages[0] pinned every reply to the first topic.
+    reply_subject = f'Re: {messages[-1].subject}' if messages else ''
+
     return render(request, 'core/messages/thread.html', {
         'other': other,
         'messages': messages,
         'error': error,
+        'reply_subject': reply_subject,
         'max_subject': MAX_SUBJECT,
         'max_body': MAX_BODY,
     })

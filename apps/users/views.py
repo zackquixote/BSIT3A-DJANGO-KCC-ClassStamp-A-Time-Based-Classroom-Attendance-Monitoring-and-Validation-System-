@@ -613,16 +613,21 @@ def user_reset_password_ajax(request, pk):
     custom_pwd = request.POST.get('password', '').strip()
 
     if custom_pwd:
-        # // [Policy Gate] An administrator typing a password by hand must clear
-        # // the same validators as self-service registration. Without this an
-        # // admin could set a trivially guessable password on any account.
-        try:
-            validate_password(custom_pwd, target_user)
-        except ValidationError as exc:
+        # // [Policy Gate] Same four rules as the registration checklist
+        # // (length 8+, upper+lower, digit, symbol). Do NOT run Django's
+        # // UserAttributeSimilarityValidator here: admins routinely set a
+        # // temporary password that echoes the username (Glennazuelo@1 for
+        # // glennazuelo), and that validator silently rejected those resets.
+        from apps.core.validators.password_validators import (
+            password_composition_problems,
+        )
+        problems = password_composition_problems(custom_pwd)
+        if problems:
             return JsonResponse({
                 'status': 'error',
-                'errors': list(exc.messages),
-                'message': ' '.join(exc.messages),
+                'error': ' '.join(problems),
+                'errors': problems,
+                'message': ' '.join(problems),
             }, status=400)
         new_password = custom_pwd
     else:
@@ -634,7 +639,10 @@ def user_reset_password_ajax(request, pk):
         set_user_password(
             target_user,
             new_password,
-            validate=bool(custom_pwd),
+            # Composition was already checked above (or the password was
+            # generated to satisfy it). validate=True here would re-run
+            # UserAttributeSimilarityValidator and reject Glennazuelo@1.
+            validate=False,
             actor=request.user,
             audit_action='RESET_PASSWORD',
             reason=f'Administrative password reset for {target_user.username}',

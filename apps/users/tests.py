@@ -178,6 +178,38 @@ class AdminPasswordPolicyTests(TestCase):
         self.target_user.refresh_from_db()
         self.assertTrue(self.target_user.check_password('Kcc-Str0ng-Pass-2026'))
 
+    def test_password_similar_to_username_is_accepted(self):
+        # Admin temporary passwords routinely echo the username
+        # (Glenn Azuelo / glennazuelo → Glennazuelo@1). Registration already
+        # relaxes UserAttributeSimilarityValidator; admin reset must too,
+        # otherwise the modal looks dead with no readable reason.
+        response = self._reset('Policytarget@1')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password('Policytarget@1'))
+
+    def test_rejection_includes_error_field_for_the_modal(self):
+        response = self._reset('123')
+
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertTrue(body['errors'])
+        self.assertEqual(body['message'], ' '.join(body['errors']))
+        self.assertEqual(body['error'], body['message'])
+
+    def test_auto_generate_still_works(self):
+        response = self.client.post(
+            reverse('users:user_reset_password_ajax', args=[self.target_user.pk]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['status'], 'success')
+        self.assertTrue(body['temporary_password'])
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.check_password(body['temporary_password']))
+
 
 class UserProvisioningIntegrityTests(TestCase):
     def setUp(self):

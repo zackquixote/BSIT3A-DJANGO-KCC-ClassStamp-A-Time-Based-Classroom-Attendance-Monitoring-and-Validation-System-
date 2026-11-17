@@ -74,6 +74,7 @@ class MessageAdmin(admin.ModelAdmin):
     """
     list_display = ('subject', 'sender', 'recipient', 'is_read', 'created_at')
     list_filter = ('is_read', 'created_at')
+    list_select_related = ('sender', 'recipient')
     search_fields = ('subject', 'body', 'sender__username', 'sender__first_name', 'sender__last_name', 
                      'recipient__username', 'recipient__first_name', 'recipient__last_name')
     readonly_fields = ('sender', 'recipient', 'created_at', 'updated_at', 'read_at')
@@ -95,5 +96,10 @@ class MessageAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         # Messages should be created through the messaging interface, not admin
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Deleting a Message would orphan its MESSAGE_SENT / MESSAGE_READ
+        # AuditEvents. Admin reads the log; it does not shred it.
         return False
 

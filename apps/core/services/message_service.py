@@ -13,6 +13,7 @@
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.core.models import AuditEvent, Enrollment, Message, Profile
@@ -66,6 +67,15 @@ class MessageService:
         if _is_admin(sender):
             return True
 
+        # Existing conversations stay replyable. Without this an administrator
+        # could open a thread with a student that the student is policy-blocked
+        # from answering (students cannot cold-message administrators).
+        if Message.objects.filter(
+            Q(sender=sender, recipient=recipient)
+            | Q(sender=recipient, recipient=sender)
+        ).exists():
+            return True
+
         sender_role = _profile_role(sender)
         recipient_role = _profile_role(recipient)
         sender_profile = getattr(sender, 'classstamp_profile', None)
@@ -117,9 +127,15 @@ class MessageService:
                 class_obj__academic_year__is_active=True,
                 status=Enrollment.STATUS_ACTIVE,
             ).values_list('class_obj__teacher_profile__user_id', flat=True)
-            return User.objects.filter(is_active=True, pk__in=teacher_ids).exclude(
-                pk=user.pk,
-            ).order_by('first_name', 'last_name', 'username')
+            # Administrators who already opened a thread with this student, so
+            # the reply they are allowed to send has a recipient in the picker.
+            admin_thread_ids = Message.objects.filter(
+                recipient=user,
+                sender__classstamp_profile__role=Profile.ROLE_ADMIN,
+            ).values_list('sender_id', flat=True)
+            return User.objects.filter(is_active=True).filter(
+                pk__in=list(set(list(teacher_ids) + list(admin_thread_ids)))
+            ).exclude(pk=user.pk).order_by('first_name', 'last_name', 'username')
 
         return User.objects.none()
 
@@ -176,7 +192,7 @@ class MessageService:
                     f'{sender.get_full_name() or sender.get_username()} sent you '
                     f'a message: {body[:80]}'
                 ),
-                '/messages/',
+                f'/messages/thread/{sender.pk}/',
             )
             notify_user(
                 recipient,
@@ -211,7 +227,7 @@ class MessageService:
         messages = list(
             Message.objects.filter(
                 Q(sender=viewer, recipient=other) | Q(sender=other, recipient=viewer),
-            ).order_by('created_at')
+            ).select_related('sender').order_by('created_at')
         )
         return other, messages
 

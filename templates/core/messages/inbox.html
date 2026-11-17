@@ -38,8 +38,7 @@
 <div class="card" style="padding:24px;">
   <p class="text-muted text-sm mb-0">
     <i class="fas fa-inbox text-gold"></i> No conversations yet. Use
-    <a href="{% url 'message_compose' %}">New message</a> to start one — you can
-    write to instructors of your active classes, your own students, or administrators.
+    <a href="{% url 'message_compose' %}">New message</a> to start one — {{ empty_hint }}
   </p>
 </div>
 {% endif %}

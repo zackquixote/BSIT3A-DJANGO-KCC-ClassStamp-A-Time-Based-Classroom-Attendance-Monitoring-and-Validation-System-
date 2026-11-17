@@ -251,38 +251,38 @@ class BatchOfferingTests(WizardBase):
         self.assertFalse(Class.objects.filter(academic_year=self.academic_year).exists())
 
 
-class StepperAccessibilityTests(WizardBase):
+class AddSectionPageTests(WizardBase):
+    """The old 5-step wizard is now a one-page Add Section form."""
+
     def setUp(self):
         super().setUp()
         self.client.force_login(self.admin_user)
 
-    def test_stepper_is_keyboard_reachable(self):
+    def test_page_is_a_single_form_not_a_stepper(self):
         response = self.client.get(reverse('class_wizard_setup'))
         body = response.content.decode('utf-8')
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('<nav id="wizard-progress"', body)
-        self.assertIn('aria-label="Section builder steps"', body)
-        self.assertIn('role="button"', body)
-        self.assertIn('aria-label="Step 1 of 5: Curriculum"', body)
-        self.assertIn('aria-current="step"', body)
+        self.assertIn('Add Section', body)
+        self.assertNotIn('id="wizard-progress"', body)
+        self.assertNotIn('data-step-indicator', body)
+        self.assertIn('id="wiz-create"', body)
         self.assertIn('id="wiz-code-status"', body)
-        self.assertIn('id="wiz-added-offerings-list"', body)
+        self.assertIn('id="slot-add"', body)
+        self.assertIn('id="hours-tally"', body)
+        self.assertIn('id="wiz-add-another"', body)
         self.assertIn('data-programs-url="/programs/"', body)
         self.assertIn('data-code-check-url', body)
-        self.assertIn('js/classes/section_wizard.js?v=20261110_v1', body)
+        self.assertIn('js/classes/section_wizard.js?v=20261117_v2', body)
 
-    def test_setup_page_includes_department_filtering_and_presets(self):
+    def test_setup_page_still_wires_departments_and_rooms(self):
         response = self.client.get(reverse('class_wizard_setup'))
         self.assertEqual(response.status_code, 200)
         body = response.content.decode('utf-8')
-        # Department cascade elements
         self.assertIn('id="wiz-department"', body)
         self.assertIn('id="wizard-departments"', body)
-        self.assertIn('id="wiz-coverage-banner"', body)
-        # 2-unit presets
-        self.assertIn('data-pattern="MW"', body)
-        # Context variables
+        self.assertIn('id="wizard-programs"', body)
+        self.assertIn('id="slot-room-select"', body)
         self.assertIn('departments', response.context)
         self.assertIn('departments_json', response.context)
 

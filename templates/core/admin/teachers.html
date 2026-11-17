@@ -25,7 +25,7 @@
   <form method="GET" class="flex items-center gap-3" style="flex-wrap: wrap;">
     <div class="input-wrap" style="flex: 1; min-width: 240px;">
       <i class="fas fa-magnifying-glass input-icon"></i>
-      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, username, or email..." autocomplete="off">
+      <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name or email..." autocomplete="off">
     </div>
     <select name="department" class="form-control" style="width: 200px;">
       <option value="">All Departments</option>
@@ -69,7 +69,7 @@
         <tr>
           <th scope="col" style="width: 44px;">ID</th>
           <th scope="col">Faculty Member</th>
-          <th scope="col">Username</th>
+          <th scope="col">Email</th>
           <th scope="col">Department</th>
           <th scope="col">Teaching Load &amp; Subjects</th>
           <th scope="col">Account Status</th>
@@ -88,14 +88,13 @@
               </div>
               <div>
                 <div class="font-semibold text-primary">{{ t.user.get_full_name|default:t.user.username }}</div>
-                <div class="text-muted text-xs">{{ t.user.email }}</div>
                 <div class="text-xs font-mono" style="color: var(--gold, #fbbf24);">
                   <i class="fas fa-id-badge"></i> {{ t.employee_number|default:"No Faculty ID" }}
                 </div>
               </div>
             </div>
           </td>
-          <td class="text-muted font-mono text-xs">{{ t.user.username }}</td>
+          <td class="text-muted text-xs">{{ t.user.email|default:"—" }}</td>
           <td>
             {% if t.department %}
               <span class="badge badge--blue">{{ t.department.code }}</span>
@@ -234,9 +233,9 @@
           <span class="form-hint"><i class="fas fa-circle-info"></i> Official faculty / employee ID number. Required — the teacher can also sign in with it.</span>
         </div>
         <div class="form-group">
-          <label class="form-label" for="teacherEmail">Email Address <span class="text-danger">*</span></label>
-          <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" autocomplete="email" required>
-          <span class="form-hint"><i class="fas fa-circle-info"></i> Login username will be auto-set to the email prefix (e.g. <code>msantos</code>).</span>
+          <label class="form-label" for="teacherEmail">Email Address</label>
+          <input type="email" id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" autocomplete="email">
+          <span class="form-hint"><i class="fas fa-circle-info"></i> Optional. Used for password reset and email notices. Username falls back to <code>first.last</code> if blank.</span>
         </div>
         <div class="form-group">
           <label class="form-label" for="teacherDept">Department <span class="text-danger">*</span></label>

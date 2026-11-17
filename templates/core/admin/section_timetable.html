@@ -40,6 +40,85 @@
     white-space: nowrap;
   }
 
+  .tt-view-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .tt-view-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .tt-view-tab:hover { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4); }
+  .tt-view-tab.is-active {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(251, 191, 36, 0.45);
+    color: #fbbf24;
+  }
+  .occ-wrap { display: flex; flex-direction: column; gap: 12px; }
+  .occ-card {
+    background: var(--bg-card, #182640);
+    border: 1px solid var(--glass-border, rgba(245, 197, 24, 0.22));
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .occ-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .occ-label { font-weight: 700; color: var(--text-primary, #f4f6fb); font-size: 0.95rem; }
+  .occ-sub { margin-left: 8px; font-size: 0.75rem; color: var(--text-muted, #9ba9c2); }
+  .occ-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+  }
+  @media (max-width: 720px) { .occ-grid { grid-template-columns: repeat(4, 1fr); } }
+  .occ-col {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    min-height: 56px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .occ-col.has-slots { border-color: rgba(99, 102, 241, 0.35); }
+  .occ-day {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #7c8aa0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .occ-pill {
+    font-size: 0.66rem;
+    background: rgba(99, 102, 241, 0.18);
+    color: #c7d2fe;
+    border-radius: 6px;
+    padding: 4px 5px;
+    margin-bottom: 4px;
+    line-height: 1.25;
+  }
+  .occ-time { display: block; font-weight: 700; }
+  .occ-code { display: block; opacity: 0.85; font-size: 0.62rem; }
+  .occ-empty { color: #475569; text-align: center; font-size: 0.7rem; padding-top: 12px; }
+
   .tt-sheets {
     display: block;
     width: 100%;
@@ -242,14 +321,22 @@
       Section Timetable
     </h1>
     <p class="page-subtitle" style="font-size: 0.88rem;">
-      One sheet per section — Code, Description, Faculty, Day, Time, Room, Units and Hrs/Wk
+      {% if view_mode == 'rooms' %}
+        Who is in each room this week — place new sections without double-booking a space.
+      {% elif view_mode == 'teachers' %}
+        Each instructor's weekly meetings — spot overloaded faculty at a glance.
+      {% else %}
+        One sheet per section — Code, Description, Faculty, Day, Time, Room, Units and Hrs/Wk
+      {% endif %}
     </p>
   </div>
   <div class="page-header-actions">
+    {% if view_mode == 'sections' %}
     <a href="{% url 'section_timetable_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
        class="btn btn-secondary" style="padding: 10px 16px;">
       <i class="fas fa-file-excel"></i> Export Excel
     </a>
+    {% endif %}
     <button type="button" id="ttPrintBtn" class="btn btn-secondary" style="padding: 10px 16px;">
       <i class="fas fa-print"></i> Print
     </button>
@@ -282,6 +369,9 @@
         <option value="{{ item.value }}" {% if section_filter == item.value %}selected{% endif %}>{{ item.label }}</option>
       {% endfor %}
     </select>
+    {% if view_mode != 'sections' %}
+    <input type="hidden" name="view" value="{{ view_mode }}">
+    {% endif %}
     <button type="submit" class="tt-submit-hidden" tabindex="-1" aria-hidden="true">Apply</button>
   </form>
   <span class="tt-count">
@@ -289,7 +379,26 @@
   </span>
 </div>
 
-<div class="tt-sheets">
+<div class="tt-view-tabs" role="tablist" aria-label="Timetable view">
+  <a class="tt-view-tab {% if view_mode == 'sections' %}is-active{% endif %}"
+     href="{% if base_query %}?{{ base_query }}&view=sections{% else %}?view=sections{% endif %}">
+    <i class="fas fa-table"></i> Sections
+  </a>
+  <a class="tt-view-tab {% if view_mode == 'rooms' %}is-active{% endif %}"
+     href="{% if base_query %}?{{ base_query }}&view=rooms{% else %}?view=rooms{% endif %}">
+    <i class="fas fa-door-open"></i> Rooms this week
+  </a>
+  <a class="tt-view-tab {% if view_mode == 'teachers' %}is-active{% endif %}"
+     href="{% if base_query %}?{{ base_query }}&view=teachers{% else %}?view=teachers{% endif %}">
+    <i class="fas fa-chalkboard-user"></i> Teachers this week
+  </a>
+</div>
+
+{% if view_mode != 'sections' %}
+  {% include "core/admin/_occupancy_grid.html" %}
+{% endif %}
+
+<div class="tt-sheets" {% if view_mode != 'sections' %}style="display:none;"{% endif %}>
 {% for sheet in sheets %}
 <div class="tt-sheet">
   <div class="tt-caption">

@@ -1,0 +1,40 @@
+{% comment %}
+Weekly occupancy grid for Section Timetable ?view=rooms / ?view=teachers.
+Each row is one room or one teacher; columns are Monday–Sunday.
+{% endcomment %}
+<div class="occ-wrap">
+  {% if occupancy %}
+    {% for row in occupancy %}
+    <div class="occ-card">
+      <div class="occ-head">
+        <div>
+          <span class="occ-label">{{ row.label }}</span>
+          {% if row.sublabel %}<span class="occ-sub">{{ row.sublabel }}</span>{% endif %}
+        </div>
+        <span class="badge badge--dark badge--xs">{{ row.slot_count }} meeting{{ row.slot_count|pluralize }}</span>
+      </div>
+      <div class="occ-grid">
+        {% for day in row.days %}
+        <div class="occ-col {% if day.cells %}has-slots{% endif %}">
+          <div class="occ-day">{{ day.name }}</div>
+          {% if day.cells %}
+            {% for cell in day.cells %}
+            <div class="occ-pill" title="{{ cell.class_code }} · {{ cell.subject }} · {{ cell.teacher|default:'—' }} · {{ cell.room }}">
+              <span class="occ-time">{{ cell.time }}</span>
+              <span class="occ-code">{{ cell.subject|default:cell.class_code }}</span>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="occ-empty">—</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="tt-empty">
+      <p>No scheduled meetings for this term{% if program %} / {{ program.code }}{% endif %}.</p>
+    </div>
+  {% endif %}
+</div>

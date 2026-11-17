@@ -81,9 +81,9 @@
   {% endcomment %}
   <meta name="color-scheme" content="dark">
   <style>
-    html, body { background: #121b2e; margin: 0; }
+    html, body { background: #0d1626; margin: 0; }
     a { color: #f5c518; }
-    .sidebar { background: linear-gradient(180deg, #0f1d3a 0%, #0d1830 60%, #091425 100%); }
+    .sidebar { background: linear-gradient(180deg, #0b1626 0%, #091322 60%, #06101c 100%); }
     .sidebar-link { color: #d2dae9; text-decoration: none; }
     .sidebar-section-label { text-transform: uppercase; color: #75859d; }
     .sidebar-collapse-btn, .sidebar-close-btn { display: none; }
@@ -290,10 +290,9 @@
   {% if request.user.is_authenticated %}
     {% with role=request.user.classstamp_profile.role %}
       {% if role == 'ADMIN' or role == 'TEACHER' %}
-        <button type="button" class="present-mode-toggle" data-present-toggle aria-pressed="false"
+        <button type="button" class="present-mode-toggle" data-present-toggle aria-pressed="false" aria-label="Presentation mode"
                 title="Presentation Mode — brighter, larger text for projector / live demo">
           <i class="fas fa-display" aria-hidden="true"></i>
-          <span class="present-mode-toggle-label">Present</span>
         </button>
       {% endif %}
     {% endwith %}

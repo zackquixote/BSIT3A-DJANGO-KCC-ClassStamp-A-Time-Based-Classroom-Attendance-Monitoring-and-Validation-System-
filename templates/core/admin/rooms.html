@@ -2,6 +2,41 @@
 {% block title %}Room Directory — KCC ClassStamp{% endblock %}
 
 {% block content %}
+<style>
+  .type-field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .type-manage-link {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    color: var(--accent-gold); font-size: 0.7rem; font-weight: 600;
+  }
+  .type-manage-link:hover { color: var(--accent-gold-h); }
+  .type-manager {
+    margin: 8px 0 14px; padding: 8px 10px;
+    border: 1px solid var(--glass-border); border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+  }
+  .type-manager[hidden] { display: none !important; }
+  .type-manager-list { max-height: 150px; overflow-y: auto; }
+  .type-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.78rem;
+  }
+  .type-row:last-child { border-bottom: 0; }
+  .type-name { flex: 1; color: var(--text-secondary); }
+  .type-flag {
+    font-size: 0.58rem; color: var(--text-muted);
+    border: 1px solid var(--glass-border); border-radius: 4px; padding: 0 4px;
+  }
+  .type-icon-btn {
+    background: none; border: 0; padding: 2px 4px;
+    color: var(--text-muted); cursor: pointer; font-size: 0.72rem;
+  }
+  .type-icon-btn:hover { color: var(--accent-gold); }
+  .type-manager-add { display: flex; gap: 6px; margin-top: 8px; }
+  .type-manager-add .form-control { height: 32px; padding: 4px 8px; font-size: 0.78rem; }
+  .type-manager-add .btn { height: 32px; padding: 0 10px; font-size: 0.74rem; }
+  .type-manager-error { margin-top: 6px; font-size: 0.72rem; color: #fca5a5; }
+</style>
 <div class="breadcrumb-nav">
   <a href="{% url 'admin_dashboard' %}"><i class="fas fa-gauge"></i> Dashboard</a>
   <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
@@ -120,8 +155,10 @@
           <td>
             {% if r.is_lab %}
             <span class="badge badge--teal font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
-            {% elif r.room_type == 'AVR' %}
+            {% elif r.room_type == 'HS' %}
             <span class="badge badge--gold font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
+            {% elif r.room_type == 'ELEM' %}
+            <span class="badge badge--info font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
             {% else %}
             <span class="badge badge--purple font-semibold" style="letter-spacing: 0.5px;">{{ r.code }}</span>
             {% endif %}
@@ -134,13 +171,15 @@
           </td>
           <td>
             {% if r.is_lab %}
-            <span class="badge badge--teal"><i class="fas fa-desktop"></i> Computer Lab</span>
-            {% elif r.room_type == 'AVR' %}
-            <span class="badge badge--gold"><i class="fas fa-film"></i> AVR</span>
+            <span class="badge badge--teal"><i class="fas fa-desktop"></i> {{ r.type_label }}</span>
+            {% elif r.room_type == 'HS' %}
+            <span class="badge badge--gold"><i class="fas fa-school"></i> {{ r.type_label }}</span>
+            {% elif r.room_type == 'ELEM' %}
+            <span class="badge badge--info"><i class="fas fa-shapes"></i> {{ r.type_label }}</span>
             {% elif r.room_type == 'LECTURE' %}
-            <span class="badge badge--purple"><i class="fas fa-chalkboard"></i> Lecture Hall</span>
+            <span class="badge badge--purple"><i class="fas fa-chalkboard"></i> {{ r.type_label }}</span>
             {% else %}
-            <span class="badge badge--muted">{{ r.get_room_type_display }}</span>
+            <span class="badge badge--muted">{{ r.type_label }}</span>
             {% endif %}
           </td>
           <td>
@@ -265,14 +304,48 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="room_type">Facility Type <span class="text-gold">*</span></label>
+            <div class="type-field-head">
+              <label class="form-label" for="room_type">Facility Type <span class="text-gold">*</span></label>
+              <button type="button" class="type-manage-link" id="toggleTypeManager" aria-expanded="false">
+                <i class="fas fa-sliders"></i> Manage types
+              </button>
+            </div>
             <select name="room_type" id="room_type" class="form-control" required>
               {% for val, lbl in room_type_choices %}
               <option value="{{ val }}">{{ lbl }}</option>
               {% endfor %}
             </select>
+
           </div>
         </div>
+
+            <div id="typeManager" class="type-manager" hidden
+                 data-save-url="{% url 'facility_type_save' %}"
+                 data-delete-url-template="{% url 'facility_type_delete' 0 %}">
+              <div id="typeManagerList" class="type-manager-list">
+                {% for t in facility_types_admin %}
+                <div class="type-row" data-id="{{ t.id }}" data-code="{{ t.code }}" data-name="{{ t.name }}"
+                     data-used="{{ t.room_count }}" data-protected="{{ t.protected|yesno:'true,false' }}">
+                  <span class="type-name">{{ t.name }}</span>
+                  {% if t.protected %}<span class="type-flag">built-in</span>{% endif %}
+                  <button type="button" class="type-icon-btn js-type-rename" title="Rename facility type">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button type="button" class="type-icon-btn js-type-delete" title="Delete facility type">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="type-manager-add">
+                <input type="text" id="newTypeName" class="form-control" maxlength="60"
+                       placeholder="New type, e.g. HS Room">
+                <button type="button" class="btn btn-outline btn-sm" id="addTypeBtn">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+              <div id="typeManagerError" class="type-manager-error" style="display:none;"></div>
+            </div>
 
         <div class="form-group mb-4">
           <label class="form-label" for="room_name">Descriptive Name <span class="text-gold">*</span></label>
@@ -349,7 +422,7 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/rooms/room_crud.js' %}?v=20261116_v2"></script>
+<script src="{% static 'js/rooms/room_crud.js' %}?v=20261117_v4"></script>
 <script nonce="{{ request.csp_nonce }}">
   /* Action Dropdown toggle */
   document.addEventListener('click', function (e) {

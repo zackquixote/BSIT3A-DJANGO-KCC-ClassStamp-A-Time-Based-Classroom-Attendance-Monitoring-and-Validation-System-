@@ -57,9 +57,9 @@
         {% icon "calendar-range" "sidebar-link-icon" %}
         <span>Class Sections</span>
       </a>
-      <a href="{% url 'class_wizard_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'class_wizard_setup' %}active{% endif %}" title="Section Setup Wizard">
+      <a href="{% url 'class_wizard_setup' %}" class="sidebar-link {% if request.resolver_match.url_name == 'class_wizard_setup' %}active{% endif %}" title="Add a class section">
         {% icon "wand-sparkles" "sidebar-link-icon" %}
-        <span>Section Wizard</span>
+        <span>Add Section</span>
       </a>
       <a href="{% url 'section_timetable' %}" class="sidebar-link {% if request.resolver_match.url_name == 'section_timetable' %}active{% endif %}" title="Section Timetable Sheet">
         {% icon "calendar-days" "sidebar-link-icon" %}

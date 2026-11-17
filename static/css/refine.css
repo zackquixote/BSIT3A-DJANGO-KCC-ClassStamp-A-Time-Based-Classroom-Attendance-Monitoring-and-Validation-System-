@@ -175,7 +175,6 @@ h3 { font-size: 0.95rem; }
 
 .dash-kpi-card:hover {
   border-color: var(--border-strong) !important;
-  background: var(--bg-card-hover) !important;
   transform: none !important;
   box-shadow: none !important;
 }
@@ -526,6 +525,20 @@ textarea.form-control:focus {
 .badge--muted   { background: rgba(255, 255, 255, 0.05); border-color: var(--border); color: var(--text-muted); }
 .badge--outline { background: transparent; border-color: var(--border-strong); color: var(--text-secondary); }
 
+/* Alias variants used by older templates (subjects, academic years, teachers,
+   validation hub). Without these the Active/Approved pills fell back to grey. */
+.badge--green {
+  background: rgba(78, 168, 122, 0.14);
+  border-color: rgba(78, 168, 122, 0.32);
+  color: #7fe0a6;
+}
+.badge--red,
+.badge--error {
+  background: rgba(217, 102, 102, 0.14);
+  border-color: rgba(217, 102, 102, 0.32);
+  color: #e59292;
+}
+
 /* Role and count pills keep their meaning but lose the full-round shelf. */
 .role-badge {
   height: 20px;
@@ -620,7 +633,7 @@ textarea.form-control:focus {
 /* ── 11. Sidebar ──────────────────────────────────────────────── */
 
 .sidebar {
-  background: linear-gradient(180deg, #0f1d3a 0%, #0d1830 60%, #091425 100%);
+  background: linear-gradient(180deg, #0b1626 0%, #091322 60%, #06101c 100%);
   border-right: 1px solid rgba(245, 197, 24, 0.12);
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
   padding: 0 10px 10px;
@@ -2817,8 +2830,9 @@ span.excc-chip:hover { filter: none; }
 /* ── Cards — gold top border for active ones ─────────────────── */
 .card:hover,
 .dash-panel:hover {
+  /* Border cue only — swapping the whole surface to --bg-card-hover read as a
+     sudden brightness jump on big cards (Department / Programs tables). */
   border-color: rgba(245, 197, 24, 0.25) !important;
-  background: var(--bg-card-hover) !important;
 }
 
 /* ── Bell notification badge ─────────────────────────────────── */
@@ -3475,14 +3489,14 @@ textarea.form-control:focus {
 select.form-control {
   background-color: #142036 !important;
   border: 1px solid rgba(245, 197, 24, 0.22) !important;
-  color: #f4f6fb !important;
+  color: #e2eaf5 !important;
 }
 
 .form-control:focus,
 select.form-control:focus {
   border-color: #f5c518 !important;
   box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.18) !important;
-  background-color: #182640 !important;
+  background-color: #131f33 !important;
 }
 
 /* ── Action Buttons in Table Rows (View, Edit, Delete, Security) */

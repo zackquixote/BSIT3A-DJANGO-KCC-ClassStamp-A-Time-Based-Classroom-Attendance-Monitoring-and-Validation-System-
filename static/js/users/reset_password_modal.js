@@ -76,9 +76,9 @@
         var isManual = modeManual && modeManual.checked;
         var customPwd = isManual ? (customResetPassword.value || '').trim() : '';
 
-        if (isManual && (!customPwd || customPwd.length < 6)) {
+        if (isManual && (!customPwd || customPwd.length < 8)) {
           if (resetPasswordAlert) {
-            resetPasswordAlert.textContent = 'Custom password must be at least 6 characters.';
+            resetPasswordAlert.textContent = 'Custom password must be at least 8 characters.';
             resetPasswordAlert.style.display = 'flex';
           }
           return;
@@ -96,17 +96,37 @@
           headers: { 'X-CSRFToken': getCSRF() },
           body: postData
         })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          // CSRF / 500 responses are HTML; never assume the body is JSON.
+          return r.text().then(function (text) {
+            try {
+              return JSON.parse(text);
+            } catch (parseErr) {
+              return {
+                status: 'error',
+                error: 'Server error (' + r.status + '). Please reload and try again.',
+              };
+            }
+          });
+        })
         .then(function (data) {
           if (data.status === 'success') {
             if (newTempPasswordText) newTempPasswordText.textContent = data.temporary_password;
             if (resetResultCard) resetResultCard.style.display = 'block';
             if (submitResetBtn) submitResetBtn.style.display = 'none';
             if (resetPasswordAlert) resetPasswordAlert.style.display = 'none';
-            if (App) App.showAlert(data.message || 'Password reset successfully.');
+            if (App && typeof App.showAlert === 'function') {
+              App.showAlert(data.message || 'Password reset successfully.');
+            }
           } else {
+            // The view puts the human reason in `message`/`errors`/`error`.
+            // Reading only `error` used to hide "too similar to the username".
+            var reason = data.message
+              || data.error
+              || (data.errors && data.errors.join(' '))
+              || 'Failed to reset password.';
             if (resetPasswordAlert) {
-              resetPasswordAlert.textContent = data.error || 'Failed to reset password.';
+              resetPasswordAlert.textContent = reason;
               resetPasswordAlert.style.display = 'flex';
             }
           }

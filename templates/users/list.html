@@ -350,7 +350,7 @@
               {% elif u.classstamp_profile.approval_status == 'REJECTED' %}
                 <span class="badge badge--danger" title="Rejected Registration"><i class="fas fa-circle-xmark"></i> Rejected</span>
               {% else %}
-                <span class="badge badge--muted">Active</span>
+                <span class="badge badge--green">Active</span>
               {% endif %}
             </td>
             <!-- Account Access Status Toggle -->
@@ -806,7 +806,7 @@
 <script src="{% static 'js/users/users_common.js' %}?v=20261026_v1"></script>
 <script src="{% static 'js/users/user_modal.js' %}?v=20261020_v1"></script>
 <script src="{% static 'js/users/toggle_user_status.js' %}?v=20261020_v1"></script>
-<script src="{% static 'js/users/reset_password_modal.js' %}?v=20261020_v1"></script>
+<script src="{% static 'js/users/reset_password_modal.js' %}?v=20261117_v1"></script>
 <script src="{% static 'js/users/delete_user.js' %}?v=20261020_v1"></script>
 
 <script nonce="{{ request.csp_nonce }}">

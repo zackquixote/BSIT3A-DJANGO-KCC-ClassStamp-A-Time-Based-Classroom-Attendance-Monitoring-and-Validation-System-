@@ -1,4 +1,4 @@
-/* KCC ClassStamp — Section Builder Wizard v3 (Enhanced UX, Presets, Timetable Grid) */
+/* KCC ClassStamp — Add Section (one-page form) */
 (function () {
   'use strict';
 
@@ -8,27 +8,25 @@
   const $ = (id) => document.getElementById(id);
   const programs = JSON.parse($('wizard-programs').textContent || '[]');
   const departments = JSON.parse(($('wizard-departments') || { textContent: '[]' }).textContent || '[]');
-  const existingRooms = JSON.parse(($('wizard-rooms') || { textContent: '[]' }).textContent || '[]');
+  const rooms = JSON.parse(($('wizard-rooms') || { textContent: '[]' }).textContent || '[]');
+
   const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const WEEKDAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const csrfMeta = document.querySelector('meta[name="csrf-token"]');
   const csrf = csrfMeta ? csrfMeta.content : (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
-  const GRACE_MINUTES = 5; // ±5 min tolerance for hours matching
 
   const state = {
-    step: 1,
-    maxStep: 1,
-    step1Key: '',
     options: null,
+    step1Key: '',
     slots: [],
     conflicts: [],
-    offerings: [],
-    sectionCode: '',
-    finalOffering: null,
-    codeStatus: { available: true, message: '' }
+    codeStatus: { available: true, message: '' },
+    checkTimer: null,
+    lastSavedSection: '',
+    pinnedSection: '',
   };
 
-  /* ── Utilities ───────────────────────────────────────────────── */
+  /* ── Small helpers ──────────────────────────────────────────── */
   function showError(msg) {
     const el = $('wiz-error');
     if (!el) return;
@@ -36,9 +34,24 @@
     el.style.display = msg ? 'block' : 'none';
   }
 
+  function showSuccess(msg) {
+    const el = $('wiz-success');
+    if (!el) return;
+    $('wiz-success-text').textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function toMins(hhmm) {
     const parts = String(hhmm).split(':').map(Number);
-    return parts[0] * 60 + (parts[1] || 0);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
   }
 
   function fromMins(mins) {
@@ -74,566 +87,412 @@
     return subject ? subject.units * 60 : 0;
   }
 
-  function hasTeacherConflicts() {
-    return state.conflicts.some((c) => c.teacher && c.teacher.length);
+  function step1Key() {
+    return [$('wiz-program').value, $('wiz-year').value, $('wiz-semester').value, $('wiz-ay').value].join('|');
   }
 
-  function isHoursOk() {
-    const diff = Math.abs(totalMinutes() - requiredMinutes());
-    return diff <= GRACE_MINUTES;
-  }
-
-  function getStep1Key() {
-    return `${$('wiz-program').value}|${$('wiz-year').value}|${$('wiz-semester').value}|${$('wiz-ay').value}`;
-  }
-
-  /* ── Loading indicator on Continue button ───────────────────── */
-  function setLoading(on) {
-    const btn = $('wiz-next');
-    const icon = $('wiz-next-icon');
-    const spinner = $('wiz-next-spinner');
+  function setBusy(on) {
+    const btn = $('wiz-create');
     btn.disabled = on;
-    if (icon) icon.style.display = on ? 'none' : '';
-    if (spinner) spinner.style.display = on ? '' : 'none';
+    $('wiz-create-icon').style.display = on ? 'none' : '';
+    $('wiz-create-spinner').style.display = on ? '' : 'none';
+    $('wiz-create-label').textContent = on ? 'Saving…' : 'Create this subject';
   }
 
-  /* ── Step navigation ─────────────────────────────────────────── */
-  function setStep(n) {
-    state.step = n;
-    state.maxStep = Math.max(state.maxStep || 1, n);
-
-    for (let i = 1; i <= 5; i++) {
-      const section = $('wizard-step-' + i);
-      if (section) section.style.display = i === n ? '' : 'none';
-    }
-
-    document.querySelectorAll('[data-step-indicator]').forEach((el) => {
-      const s = parseInt(el.dataset.stepIndicator, 10);
-      const clickable = s <= state.maxStep && s !== n;
-      el.classList.toggle('is-active', s === n);
-      el.classList.toggle('is-done', s < n);
-      el.classList.toggle('is-clickable', clickable);
-      // Keyboard reachability mirrors the pointer affordance: a step you can
-      // click is a step you can tab to.
-      el.tabIndex = clickable ? 0 : -1;
-      if (s === n) {
-        el.setAttribute('aria-current', 'step');
-      } else {
-        el.removeAttribute('aria-current');
-      }
-    });
-
-    $('wiz-back').style.visibility = n === 1 ? 'hidden' : 'visible';
-    $('wiz-next').style.display = n < 5 ? '' : 'none';
-    $('wiz-create').style.display = n === 5 ? '' : 'none';
-    showError('');
-
-    if (n === 4) {
-      renderSlots();
-      updateTally();
-      renderTimetableGrid();
-      checkConflicts();
-    }
-    if (n === 5) buildReview();
-  }
-
-  /* ── Step indicator click ───────────────────────────────────── */
-  document.querySelectorAll('[data-step-indicator]').forEach((el) => {
-    el.addEventListener('click', function () {
-      const target = parseInt(this.dataset.stepIndicator, 10);
-      if (target <= state.maxStep && target !== state.step) {
-        setStep(target);
-      }
-    });
-    el.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-        // Stop the document-level "Enter advances the wizard" handler from
-        // also firing on the same keystroke.
-        event.preventDefault();
-        event.stopPropagation();
-        this.click();
-      }
-    });
-  });
-
-  /* ── Room datalist autocomplete ─────────────────────────────── */
-  function populateRoomSuggestions() {
-    const dl = $('room-suggestions');
-    if (!dl || !existingRooms.length) return;
-    dl.innerHTML = '';
-    existingRooms.forEach((room) => {
-      const opt = document.createElement('option');
-      opt.value = room;
-      dl.appendChild(opt);
+  /* ── Cascades ───────────────────────────────────────────────── */
+  function fillDepartments() {
+    const sel = $('wiz-department');
+    departments.forEach((d) => {
+      sel.appendChild(new Option(d.code ? d.code + ' · ' + d.name : d.name, String(d.id)));
     });
   }
 
-  /* ── Step 1: Department / Program / Year cascade ────────────── */
-  function onDepartmentChange() {
-    const deptSel = $('wiz-department');
-    const deptId = deptSel ? deptSel.value : '';
-    const progSel = $('wiz-program');
-    if (!progSel) return;
-    const prevProgId = progSel.value;
-    progSel.innerHTML = '<option value="">Select Program</option>';
-
-    const filtered = deptId
+  function fillPrograms() {
+    const deptId = $('wiz-department').value;
+    const prev = $('wiz-program').value;
+    const sel = $('wiz-program');
+    sel.innerHTML = '<option value="">Select Program</option>';
+    const list = deptId
       ? programs.filter((p) => String(p.department_id) === String(deptId))
       : programs;
-
-    filtered.forEach((p) => {
-      progSel.appendChild(new Option(`${p.code} · ${p.name}`, String(p.id)));
+    list.forEach((p) => {
+      sel.appendChild(new Option(p.code + ' · ' + p.name, String(p.id)));
     });
-
-    if (filtered.some((p) => String(p.id) === prevProgId)) {
-      progSel.value = prevProgId;
-    } else {
-      progSel.value = '';
-      onProgramChange();
-    }
+    if (list.some((p) => String(p.id) === prev)) sel.value = prev;
+    else onProgramChange();
   }
 
   function onProgramChange() {
-    const yearSel = $('wiz-year');
     const program = programs.find((p) => String(p.id) === $('wiz-program').value);
+    const yearSel = $('wiz-year');
     yearSel.innerHTML = '';
     if (!program) {
       yearSel.disabled = true;
       yearSel.appendChild(new Option('Select program first', ''));
-      return;
+    } else {
+      yearSel.disabled = false;
+      yearSel.appendChild(new Option('Select year', ''));
+      for (let y = 1; y <= program.years_total; y++) {
+        yearSel.appendChild(new Option('Year ' + y, String(y)));
+      }
     }
-    yearSel.disabled = false;
-    for (let y = 1; y <= program.years_total; y++) {
-      yearSel.appendChild(new Option('Year ' + y, String(y)));
-    }
-    onStep1InputModified();
+    resetOptions();
   }
 
-  function onStep1InputModified() {
-    const currentKey = getStep1Key();
-    if (state.step1Key && state.step1Key !== currentKey) {
-      state.maxStep = 1;
-      document.querySelectorAll('[data-step-indicator]').forEach((el) => {
-        const s = parseInt(el.dataset.stepIndicator, 10);
-        el.classList.toggle('is-clickable', s === 1);
-        if (s > 1) el.classList.remove('is-done', 'is-active');
-      });
-    }
+  function resetOptions() {
+    state.options = null;
+    state.slots = [];
+    state.conflicts = [];
+    state.codeStatus = { available: true, message: '' };
+    const subject = $('wiz-subject');
+    subject.innerHTML = '<option value="">Select program / year first</option>';
+    $('wiz-teacher').innerHTML = '<option value="">Select subject first</option>';
+    $('wiz-code').value = '';
+    $('wiz-subject-units').textContent = '';
+    $('wiz-existing').innerHTML = '';
+    renderCodeStatus();
+    renderSlots();
+    updateTally();
+    renderPresets();
+    renderWeekGrid();
   }
 
+  /* ── Options feed ───────────────────────────────────────────── */
   async function loadOptions() {
-    if (!$('wiz-program').value || !$('wiz-year').value) {
-      showError('Select a program and year level first.');
+    const programId = $('wiz-program').value;
+    const year = $('wiz-year').value;
+    if (!programId || !year) {
+      resetOptions();
       return;
     }
-
-    const currentKey = getStep1Key();
-    // Non-destructive step navigation: if already loaded and unchanged, keep existing data!
-    if (state.options && state.step1Key === currentKey) {
-      setStep(2);
-      return;
-    }
+    const key = step1Key();
+    if (state.options && state.step1Key === key) return;
 
     showError('');
-    setLoading(true);
+    showSuccess('');
     try {
       const params = new URLSearchParams({
-        program_id: $('wiz-program').value,
-        year_level: $('wiz-year').value,
+        program_id: programId,
+        year_level: year,
         semester: $('wiz-semester').value,
         ay_id: $('wiz-ay').value,
       });
       const res = await fetch(boot.dataset.optionsUrl + '?' + params.toString());
       const data = await res.json();
       if (!res.ok || !data.success) {
-        showError(data.message || 'Failed to load wizard options.');
+        showError(data.message || 'Failed to load subjects and teachers.');
         return;
       }
       state.options = data;
-      state.step1Key = currentKey;
-      state.offerings = [];
-      state.sectionCode = '';
-      state.finalOffering = null;
+      state.step1Key = key;
       state.slots = [];
       state.conflicts = [];
+      if (state.pinnedSection) {
+        $('wiz-code').value = state.pinnedSection;
+      } else if (!$('wiz-code').value.trim()) {
+        $('wiz-code').value = data.suggested_code || '';
+      }
       populateSubjects();
       populateTeachers();
-      populateExistingCodes(data);
-      renderCoverageIndicator(data);
-      $('wiz-code').value = data.suggested_code || '';
-      setStep(2);
+      populateExisting(data);
+      renderCodeStatus();
+      renderSlots();
+      updateTally();
+      renderPresets();
+      renderWeekGrid();
+      // A new program/year should get a fresh availability verdict.
+      checkCodeAvailability();
     } catch (err) {
-      console.error('Unable to load class setup options:', err);
-      showError('Unable to prepare setup options. Please retry or reload the page.');
-    } finally {
-      setLoading(false);
+      console.error('Unable to load section options:', err);
+      showError('Unable to load subjects. Please retry or reload the page.');
     }
-  }
-
-  function renderCoverageIndicator(data) {
-    const banner = $('wiz-coverage-banner');
-    if (!banner) return;
-    if (!data || typeof data.subjects_total !== 'number' || data.subjects_total === 0) {
-      banner.style.display = 'none';
-      banner.innerHTML = '';
-      return;
-    }
-    const total = data.subjects_total;
-    const covered = data.subjects_covered || 0;
-    const pct = Math.min(100, Math.round((covered / total) * 100));
-    const isFull = covered >= total;
-    banner.style.display = 'block';
-    banner.innerHTML = `
-      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px 16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
-          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-muted);">
-            <i class="fas fa-chart-pie text-primary"></i> Curriculum Sectioning Progress (This Term)
-          </span>
-          <span class="badge ${isFull ? 'badge--success' : 'badge--gold'} badge--xs">
-            ${covered} of ${total} subjects scheduled (${pct}%)
-          </span>
-        </div>
-        <div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
-          <div style="width:${pct}%; height:100%; background:${isFull ? '#22c55e' : '#6366f1'}; transition:width 0.3s ease;"></div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderAddedOfferings() {
-    const container = $('wiz-added-offerings');
-    const list = $('wiz-added-offerings-list');
-    if (!container || !list) return;
-    list.innerHTML = '';
-    if (!state.offerings.length) {
-      container.style.display = 'none';
-      return;
-    }
-
-    container.style.display = '';
-    const message = container.querySelector('span');
-    if (message) {
-      message.textContent =
-        `${state.offerings.length} subject offering${state.offerings.length === 1 ? '' : 's'} saved for ${state.sectionCode}. You can remove one before creating the section.`;
-    }
-
-    state.offerings.forEach((offering, index) => {
-      const subject = (state.options.subjects || []).find(
-        (item) => String(item.id) === String(offering.subject_id)
-      );
-      const teacher = (state.options.teachers || []).find(
-        (item) => String(item.profile_id) === String(offering.teacher_profile_id)
-      );
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid rgba(255,255,255,.08);';
-
-      const details = document.createElement('span');
-      details.textContent = `${subject ? subject.code : 'Subject'} · ${teacher ? teacher.name : 'Teacher'} · ${(offering.slots || []).length} schedule slot(s)`;
-      row.appendChild(details);
-
-      const removeButton = document.createElement('button');
-      removeButton.type = 'button';
-      removeButton.className = 'btn btn-outline btn-xs';
-      removeButton.style.marginLeft = 'auto';
-      removeButton.textContent = 'Remove';
-      removeButton.setAttribute(
-        'aria-label',
-        `Remove ${subject ? subject.code : 'subject'} offering`
-      );
-      removeButton.addEventListener('click', () => {
-        state.offerings.splice(index, 1);
-        populateSubjects();
-      });
-      row.appendChild(removeButton);
-      list.appendChild(row);
-    });
   }
 
   function populateSubjects() {
     const sel = $('wiz-subject');
-    const emptyBox = $('wiz-empty-subjects');
-    const emptyDesc = $('wiz-empty-subjects-desc');
-    const link = $('wiz-curriculum-link');
-    const selectedSubjectId = sel.value;
+    const empty = $('wiz-empty-subjects');
     sel.innerHTML = '';
-
-    const addedSubjectIds = new Set(state.offerings.map((offering) => String(offering.subject_id)));
-    const subjects = (state.options.subjects || [])
-      .filter((subject) => !addedSubjectIds.has(String(subject.id)));
+    const subjects = (state.options && state.options.subjects) || [];
     if (!subjects.length) {
-      if (emptyBox) emptyBox.style.display = 'block';
+      sel.appendChild(new Option('No curriculum subjects', ''));
       const p = programs.find((pr) => String(pr.id) === $('wiz-program').value);
-      const pName = p ? p.code : 'this program';
-      if (emptyDesc) {
-        emptyDesc.textContent = state.offerings.length
-          ? 'All curriculum subjects have been added to this section.'
-          : `No active subjects found in curriculum matrix for ${pName}, Year ${$('wiz-year').value}, ${$('wiz-semester').selectedOptions[0].textContent}.`;
-      }
+      $('wiz-empty-subjects-desc').textContent =
+        'No active subjects in the curriculum for ' + (p ? p.code : 'this program') +
+        ', Year ' + $('wiz-year').value + '. Map them in the Curriculum Matrix first.';
+      empty.style.display = 'block';
+      const link = $('wiz-curriculum-link');
       if (link && p) {
-        const curriculumUrl = new URL(boot.dataset.programsUrl, window.location.origin);
-        curriculumUrl.searchParams.set('open_curriculum', p.id);
-        link.href = curriculumUrl.toString();
+        const url = new URL(boot.dataset.programsUrl, window.location.origin);
+        url.searchParams.set('open_curriculum', p.id);
+        link.href = url.toString();
       }
-      sel.appendChild(new Option('No curriculum subjects for this selection', ''));
-      updateUnitsHint();
-      renderAddedOfferings();
+      updateTally();
+      renderPresets();
       return;
     }
-
-    if (emptyBox) emptyBox.style.display = 'none';
+    empty.style.display = 'none';
     sel.appendChild(new Option('Select subject', ''));
     subjects.forEach((s) => {
-      const majorLabel = s.is_major ? ' · MAJOR' : '';
-      const option = new Option(`${s.code} · ${s.name}${majorLabel} (${s.units} units)`, String(s.id));
-      option.dataset.code = s.code;
-      sel.appendChild(option);
+      const major = s.is_major ? ' · MAJOR' : '';
+      sel.appendChild(new Option(s.code + ' · ' + s.name + major + ' (' + s.units + 'u)', String(s.id)));
     });
-    if (subjects.some((subject) => String(subject.id) === selectedSubjectId)) {
-      sel.value = selectedSubjectId;
-    }
-    updateUnitsHint();
-    renderAddedOfferings();
+    updateTally();
+    renderPresets();
   }
 
   function populateTeachers() {
     const sel = $('wiz-teacher');
     sel.innerHTML = '';
-    const teachers = state.options.teachers || [];
+    const teachers = (state.options && state.options.teachers) || [];
     if (!teachers.length) {
       sel.appendChild(new Option('No active teachers in this department', ''));
       return;
     }
-
     sel.appendChild(new Option('Select teacher', ''));
     teachers.forEach((t) => {
-      const load = `${t.active_classes} class(es), ${t.active_slots} slot(s)/week`;
-      // Clean option formatting
-      sel.appendChild(new Option(`${t.name} (${load})`, String(t.profile_id)));
+      const load = t.active_classes + ' class(es), ' + t.active_slots + ' slot(s)/week';
+      sel.appendChild(new Option(t.name + ' (' + load + ')', String(t.profile_id)));
     });
   }
 
-  function populateExistingCodes(data) {
-    const el = $('wiz-existing-sections');
-    if (!el) return;
-
-    const sections = data.existing_sections || [];
-    el.style.display = 'block';
-
+  function populateExisting(data) {
+    const box = $('wiz-existing');
+    box.innerHTML = '';
+    const sections = (data && data.existing_sections) || [];
     if (!sections.length) {
-      const legacy = data.existing_codes || [];
-      el.innerHTML = legacy.length
-        ? '<span class="text-muted">Existing sections in this term:</span> ' +
-          legacy.map((c) => `<span class="badge badge--dark badge--xs" style="margin-right:4px;">${c}</span>`).join(' ')
-        : '<span class="text-muted">No sections created yet for this year level (starting with letter A).</span>';
+      box.innerHTML = '<span>No sections yet for this year level — starting at A.</span>';
       return;
     }
-
-    // One badge per SECTION, with the subject count — repeating the full
-    // class_code once per subject is what made the old list unreadable.
-    el.innerHTML = '<span class="text-muted">Existing sections in this term:</span> ' +
-      sections.map((s) => {
-        const subjects = (s.subjects || []).join(' · ');
-        const label = `${s.section_code} · ${s.subject_count} subject${s.subject_count === 1 ? '' : 's'}`;
-        return `<span class="badge badge--dark badge--xs" style="margin-right:4px;" title="${escapeHtml(subjects)}">${escapeHtml(label)}</span>`;
-      }).join(' ');
+    const label = document.createElement('span');
+    label.textContent = 'Already this term:';
+    box.appendChild(label);
+    sections.forEach((s) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.title = (s.subjects || []).join(', ');
+      chip.textContent = s.section_code + ' · ' + s.subject_count + (s.subject_count === 1 ? ' subject' : ' subjects');
+      box.appendChild(chip);
+    });
   }
 
-  function escapeHtml(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  /* ── Section-code availability (step 3) ─────────────────────── */
+  /* ── Section code ───────────────────────────────────────────── */
   async function checkCodeAvailability() {
     const codeInput = $('wiz-code');
-    if (!codeInput) return true;
     const code = codeInput.value.trim().toUpperCase();
     codeInput.value = code;
-
     if (!code) {
-      state.codeStatus = { available: false, message: 'Section code is required.' };
+      state.codeStatus = { available: true, message: '' };
       renderCodeStatus();
-      return false;
+      return true;
     }
-
-    const subjectSelect = $('wiz-subject');
-    const subjectCode = subjectSelect && subjectSelect.selectedOptions.length
-      ? (subjectSelect.selectedOptions[0].dataset.code || '')
-      : '';
-
+    const subject = currentSubject();
     const params = new URLSearchParams({
       code: code,
-      ay: $('wiz-ay') ? $('wiz-ay').value : '',
-      subject: subjectCode,
+      ay: $('wiz-ay').value,
+      subject: subject ? subject.code : '',
       batch: '1',
     });
-
     try {
       const res = await fetch(boot.dataset.codeCheckUrl + '?' + params.toString(), {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       });
       state.codeStatus = await res.json();
     } catch (err) {
-      // A failed check must not block the wizard; the server still enforces the
-      // unique constraint at save time.
+      // Do not block the form on a failed check; the server still enforces uniqueness.
       state.codeStatus = { available: true, message: '' };
     }
-
     renderCodeStatus();
     return !!state.codeStatus.available;
   }
 
   function renderCodeStatus() {
     const el = $('wiz-code-status');
-    if (!el) return;
-
     const status = state.codeStatus || {};
     if (status.available) {
       el.style.display = 'none';
       el.innerHTML = '';
       return;
     }
-
     el.style.display = 'block';
-    let html = `<span class="text-danger text-xs"><i class="fas fa-circle-exclamation"></i> ${escapeHtml(status.message || 'That code is already taken.')}</span>`;
-    if (status.suggestion) {
-      html += ` <button type="button" class="btn btn-outline btn-xs" id="wiz-code-suggest" style="margin-left:6px;">Use ${escapeHtml(status.suggestion)}</button>`;
-    }
-    el.innerHTML = html;
-
-    const btn = $('wiz-code-suggest');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        $('wiz-code').value = status.suggestion;
-        checkCodeAvailability();
-      });
-    }
+    el.innerHTML =
+      '<span style="color:#fca5a5;"><i class="fas fa-circle-exclamation"></i> ' +
+      escapeHtml(status.message || 'That section code is already taken.') +
+      '</span>';
   }
 
-  function updateUnitsHint() {
-    const subject = currentSubject();
-    $('wiz-subject-units').textContent = subject
-      ? `Requires ${fmtMinutes(requiredMinutes())} of schedule per week (${subject.units} credit unit${subject.units !== 1 ? 's' : ''}).`
-      : '';
-
-    if (subject) {
-      const slotTypeSel = $('slot-type');
-      const roomSel = $('slot-room-select');
-      if (slotTypeSel) {
-        slotTypeSel.value = subject.is_lab ? 'LABORATORY' : 'LECTURE';
-      }
-      if (roomSel && (!roomSel.value || roomSel.value === 'TBA')) {
-        const targetOptgroup = subject.is_lab ? $('optgroup-labs') : $('optgroup-lectures');
-        const firstOpt = targetOptgroup ? targetOptgroup.querySelector('option') : null;
-        if (firstOpt) {
-          roomSel.value = firstOpt.value;
-          $('slot-room').value = firstOpt.value;
-          $('slot-room-id').value = firstOpt.dataset.id || '';
-        }
-      }
-    }
+  /* ── Rooms ──────────────────────────────────────────────────── */
+  function fillRooms() {
+    const sel = $('slot-room-select');
+    sel.innerHTML = '<option value="TBA">TBA (Unassigned)</option>';
+    const labs = rooms.filter((r) => r.is_lab || r.room_type === 'LABORATORY');
+    const lecs = rooms.filter((r) => !labs.includes(r));
+    appendRoomGroup(sel, 'Computer Laboratories', labs);
+    appendRoomGroup(sel, 'Lecture / Other Rooms', lecs);
   }
 
-  /* ── Step 4: auto-suggest end time based on subject units ────── */
-  function autoSuggestEndTime() {
-    const startInput = $('slot-start');
-    const endInput = $('slot-end');
-    const endHint = $('slot-end-hint');
-    const subject = currentSubject();
-    if (!subject || !startInput.value) return;
-
-    const needed = requiredMinutes() - totalMinutes();
-    if (needed <= 0) return;
-
-    const startMins = toMins(startInput.value);
-    const endMins = startMins + Math.min(needed, 180); // max 3 hours per slot
-    const endStr = fromMins(endMins);
-
-    endInput.value = endStr;
-    if (endHint) {
-      endHint.textContent = `(auto: +${fmtMinutes(endMins - startMins)})`;
-      setTimeout(() => { if (endHint) endHint.textContent = ''; }, 3000);
-    }
+  function appendRoomGroup(sel, label, list) {
+    if (!list.length) return;
+    const group = document.createElement('optgroup');
+    group.label = label;
+    list.forEach((r) => {
+      const opt = new Option(
+        r.code + ' — ' + r.name + ' (' + r.capacity + ' cap)',
+        r.code,
+      );
+      opt.dataset.id = r.id;
+      opt.dataset.type = r.room_type;
+      opt.dataset.cap = r.capacity;
+      group.appendChild(opt);
+    });
+    sel.appendChild(group);
   }
 
-  /* ── Step 4: 1-Click Quick Schedule Presets ─────────────────── */
-  function applyPreset(pattern, slotDurationMinutes) {
+  function onRoomChange() {
+    const sel = $('slot-room-select');
+    const opt = sel.selectedOptions[0];
+    $('slot-room').value = sel.value || 'TBA';
+    $('slot-room-id').value = (opt && opt.dataset.id) || '';
+  }
+
+  /* ── Units / presets / hours ────────────────────────────────── */
+  function updateTally() {
+    const el = $('hours-tally');
     const subject = currentSubject();
     if (!subject) {
-      showError('Please pick a subject first.');
+      el.textContent = 'Pick a subject to see required hours';
+      el.classList.remove('is-ok');
       return;
     }
+    const total = totalMinutes();
+    const required = requiredMinutes();
+    if (total === required) {
+      el.textContent = fmtMinutes(total) + ' of ' + fmtMinutes(required) + ' — ready';
+      el.classList.add('is-ok');
+    } else {
+      const diff = required - total;
+      el.textContent =
+        fmtMinutes(total) + ' of ' + fmtMinutes(required) +
+        (diff > 0 ? ' — add ' + fmtMinutes(diff) : ' — ' + fmtMinutes(-diff) + ' too much');
+      el.classList.remove('is-ok');
+    }
+  }
 
-    const startInput = $('slot-start');
-    const roomSelect = $('slot-room-select');
-    const selectedOpt = roomSelect ? roomSelect.selectedOptions[0] : null;
-    const room = (roomSelect && roomSelect.value) ? roomSelect.value : ($('slot-room').value.trim() || 'TBA');
-    const roomId = selectedOpt ? (selectedOpt.dataset.id || null) : ($('slot-room-id')?.value || null);
-    const roomCap = selectedOpt ? parseInt(selectedOpt.dataset.cap || '0', 10) : null;
-    const slotType = $('slot-type') ? $('slot-type').value : (subject && subject.is_lab ? 'LABORATORY' : 'LECTURE');
-    const startsAt = startInput.value || '08:00';
+  function renderPresets() {
+    const bar = $('preset-bar');
+    bar.innerHTML = '';
+    const subject = currentSubject();
+    if (!subject) return;
+    const needed = subject.units * 60;
 
+    const presets = [];
+    if (needed >= 60 && needed <= 300) {
+      presets.push({ label: 'One ' + fmtMinutes(needed) + ' block', pattern: 'SAT', duration: needed });
+    }
+    if (needed % 3 === 0) {
+      presets.push({ label: 'MWF ' + fmtMinutes(needed / 3), pattern: 'MWF', duration: needed / 3 });
+    }
+    if (needed % 2 === 0) {
+      presets.push({ label: 'TTh ' + fmtMinutes(needed / 2), pattern: 'TTH', duration: needed / 2 });
+      presets.push({ label: 'MW ' + fmtMinutes(needed / 2), pattern: 'MW', duration: needed / 2 });
+    }
+
+    presets.forEach((p) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'preset-btn';
+      btn.textContent = p.label;
+      btn.title = 'Fill ' + p.label + ' at the Start time below';
+      btn.addEventListener('click', () => applyPreset(p.pattern, p.duration));
+      bar.appendChild(btn);
+    });
+  }
+
+  function currentRoomFromForm() {
+    const sel = $('slot-room-select');
+    const opt = sel.selectedOptions[0];
+    return {
+      room: sel.value || 'TBA',
+      room_id: (opt && opt.dataset.id) || null,
+      room_capacity: opt && opt.dataset.cap ? parseInt(opt.dataset.cap, 10) : null,
+    };
+  }
+
+  function applyPreset(pattern, durationMinutes) {
+    const subject = currentSubject();
+    if (!subject) {
+      showError('Pick a subject first.');
+      return;
+    }
+    const startsAt = $('slot-start').value || '08:00';
     const startMins = toMins(startsAt);
-    const endMins = startMins + slotDurationMinutes;
+    const endMins = startMins + durationMinutes;
+    if (endMins > 24 * 60) {
+      showError('That preset would end after midnight. Pick an earlier start time.');
+      return;
+    }
     const endsAt = fromMins(endMins);
+    const roomInfo = currentRoomFromForm();
+    const slotType = subject.is_lab ? 'LABORATORY' : 'LECTURE';
 
-    let targetDays = [];
-    if (pattern === 'MWF') targetDays = [0, 2, 4]; // Monday, Wednesday, Friday
-    else if (pattern === 'TTH') targetDays = [1, 3]; // Tuesday, Thursday
-    else if (pattern === 'MW') targetDays = [0, 2]; // Monday, Wednesday
-    else if (pattern === 'SAT') targetDays = [5]; // Saturday
+    let days = [];
+    if (pattern === 'MWF') days = [0, 2, 4];
+    else if (pattern === 'TTH') days = [1, 3];
+    else if (pattern === 'MW') days = [0, 2];
+    else if (pattern === 'SAT') days = [5];
 
-    // Check overlaps
-    for (const d of targetDays) {
-      const overlaps = state.slots.some((s) =>
-        s.weekday === d && toMins(s.starts_at) < toMins(endsAt) && toMins(startsAt) < toMins(s.ends_at)
+    for (const d of days) {
+      const overlap = state.slots.some(
+        (s) => s.weekday === d && toMins(s.starts_at) < endMins && startMins < toMins(s.ends_at),
       );
-      if (overlaps) {
-        showError(`Slot overlaps existing schedule on ${WEEKDAYS[d]}.`);
+      if (overlap) {
+        showError('Preset overlaps an existing meeting on ' + WEEKDAYS[d] + '.');
         return;
       }
     }
 
-    // Add all preset days
-    targetDays.forEach((weekday) => {
+    days.forEach((weekday) => {
       state.slots.push({
         weekday,
         starts_at: startsAt,
         ends_at: endsAt,
-        room,
-        room_id: roomId,
+        room: roomInfo.room,
+        room_id: roomInfo.room_id,
         slot_type: slotType,
-        room_capacity: roomCap,
+        room_capacity: roomInfo.room_capacity,
       });
     });
-
     state.slots.sort((a, b) => a.weekday - b.weekday || toMins(a.starts_at) - toMins(b.starts_at));
     showError('');
-    $('wiz-schedule-subject').textContent = subject ? `${subject.code} — ${subject.name}` : 'this subject';
-    $('wiz-offering-count').textContent = state.offerings.length
-      ? `${state.offerings.length} subject offering${state.offerings.length === 1 ? '' : 's'} ready for this section.`
-      : 'No subject offerings added yet.';
+    $('slot-end').value = endsAt;
     renderSlots();
     updateTally();
-    renderTimetableGrid();
-    checkConflicts();
+    renderWeekGrid();
+    queueConflictCheck();
   }
 
-  /* ── Step 4: Add / Remove custom slot ───────────────────────── */
+  function autoSuggestEndTime() {
+    const subject = currentSubject();
+    const startInput = $('slot-start');
+    if (!subject || !startInput.value) return;
+    const needed = requiredMinutes() - totalMinutes();
+    if (needed <= 0) return;
+    const startMins = toMins(startInput.value);
+    const endMins = startMins + Math.min(needed, 180);
+    $('slot-end').value = fromMins(endMins);
+    $('slot-end-hint').textContent = 'auto: ' + fmtMinutes(endMins - startMins);
+    setTimeout(() => { $('slot-end-hint').textContent = ''; }, 2500);
+  }
+
+  /* ── Slots ──────────────────────────────────────────────────── */
   function addSlot() {
+    const subject = currentSubject();
+    if (!subject) {
+      showError('Pick a subject first.');
+      return;
+    }
     const weekday = parseInt($('slot-weekday').value, 10);
     const startsAt = $('slot-start').value;
     const endsAt = $('slot-end').value;
-    const roomSelect = $('slot-room-select');
-    const selectedOpt = roomSelect ? roomSelect.selectedOptions[0] : null;
-    const room = (roomSelect && roomSelect.value) ? roomSelect.value : ($('slot-room').value.trim() || 'TBA');
-    const roomId = selectedOpt ? (selectedOpt.dataset.id || null) : ($('slot-room-id')?.value || null);
-    const roomCap = selectedOpt ? parseInt(selectedOpt.dataset.cap || '0', 10) : null;
-    const slotType = $('slot-type') ? $('slot-type').value : 'LECTURE';
-
     if (!startsAt || !endsAt) {
       showError('Start and end times are required.');
       return;
@@ -642,192 +501,164 @@
       showError('End time must be after the start time.');
       return;
     }
-    const overlaps = state.slots.some((s) =>
-      s.weekday === weekday && toMins(s.starts_at) < toMins(endsAt) && toMins(startsAt) < toMins(s.ends_at)
+    const overlap = state.slots.some(
+      (s) => s.weekday === weekday && toMins(s.starts_at) < toMins(endsAt) && toMins(startsAt) < toMins(s.ends_at),
     );
-    if (overlaps) {
-      showError('That window overlaps another slot in this list.');
+    if (overlap) {
+      showError('That window overlaps another meeting in this list.');
       return;
     }
+    const roomInfo = currentRoomFromForm();
     state.slots.push({
       weekday,
       starts_at: startsAt,
       ends_at: endsAt,
-      room,
-      room_id: roomId,
-      slot_type: slotType,
-      room_capacity: roomCap,
+      room: roomInfo.room,
+      room_id: roomInfo.room_id,
+      slot_type: subject.is_lab ? 'LABORATORY' : 'LECTURE',
+      room_capacity: roomInfo.room_capacity,
     });
     state.slots.sort((a, b) => a.weekday - b.weekday || toMins(a.starts_at) - toMins(b.starts_at));
     showError('');
     renderSlots();
     updateTally();
-    renderTimetableGrid();
-    checkConflicts();
+    renderWeekGrid();
+    queueConflictCheck();
   }
 
   function removeSlot(index) {
     state.slots.splice(index, 1);
+    state.conflicts = [];
     renderSlots();
     updateTally();
-    renderTimetableGrid();
-    checkConflicts();
+    renderWeekGrid();
+    queueConflictCheck();
   }
 
-  function clearAllSlots() {
+  function clearSlots() {
     if (!state.slots.length) return;
     state.slots = [];
     state.conflicts = [];
     renderSlots();
     updateTally();
-    renderTimetableGrid();
-  }
-
-  function updateTally() {
-    const total = totalMinutes();
-    const required = requiredMinutes();
-    const diff = total - required;
-    const el = $('hours-tally');
-    let label = `Scheduled: ${fmtMinutes(total)} / Required: ${fmtMinutes(required)}`;
-    if (total > 0 && diff !== 0) {
-      label += diff > 0 ? ` (+${fmtMinutes(diff)} over)` : ` (${fmtMinutes(-diff)} remaining)`;
-    }
-    el.textContent = label;
-    const ok = isHoursOk();
-    el.classList.toggle('badge--success', ok && total > 0);
-    el.classList.toggle('badge--gold', !ok || total === 0);
-  }
-
-  /* ── Visual Weekly Timetable Grid Preview ────────────────────── */
-  function renderTimetableGrid() {
-    const container = $('wizard-timetable-grid');
-    if (!container) return;
-    container.innerHTML = '';
-
-    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-      const daySlots = state.slots.filter((s) => s.weekday === dayIndex);
-      const col = document.createElement('div');
-      col.className = 'wizard-day-col' + (daySlots.length ? ' has-slots' : '');
-
-      const head = document.createElement('div');
-      head.className = 'wizard-day-head';
-      head.textContent = WEEKDAYS_SHORT[dayIndex];
-      col.appendChild(head);
-
-      if (daySlots.length) {
-        daySlots.forEach((slot) => {
-          const pill = document.createElement('div');
-          pill.className = 'wizard-slot-pill';
-          pill.innerHTML = `
-            <div class="wizard-slot-pill-time">${fmtTime(slot.starts_at)} &ndash; ${fmtTime(slot.ends_at)}</div>
-            ${slot.room ? `<div class="wizard-slot-pill-room"><i class="fas fa-door-open"></i> ${slot.room}</div>` : ''}
-          `;
-          col.appendChild(pill);
-        });
-      } else {
-        const empty = document.createElement('div');
-        empty.className = 'wizard-day-empty';
-        empty.textContent = '&mdash;';
-        col.appendChild(empty);
-      }
-
-      container.appendChild(col);
-    }
+    renderWeekGrid();
   }
 
   function renderSlots() {
     const list = $('slot-list');
     list.innerHTML = '';
     if (!state.slots.length) {
-      const empty = document.createElement('p');
-      empty.className = 'text-muted text-sm';
-      empty.textContent = 'No slots added yet. Use the 1-Click presets above or add custom meeting times.';
-      list.appendChild(empty);
+      const p = document.createElement('p');
+      p.className = 'field-hint';
+      p.textContent = 'No meetings yet. Use a preset above, or pick a day/time/room and click Add.';
+      list.appendChild(p);
       return;
     }
     state.slots.forEach((slot, index) => {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);margin-bottom:6px;';
+      row.className = 'slot-row';
 
-      const icon = document.createElement('i');
-      icon.className = 'fas fa-clock text-muted';
-      icon.style.fontSize = '0.85rem';
-      row.appendChild(icon);
-
-      const label = document.createElement('span');
-      label.className = 'font-semibold text-primary text-sm';
-      label.textContent = `${WEEKDAYS[slot.weekday]} · ${fmtTime(slot.starts_at)} – ${fmtTime(slot.ends_at)}`;
-      row.appendChild(label);
-
-      if (slot.slot_type === 'LABORATORY') {
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'badge badge--teal badge--xs';
-        typeBadge.innerHTML = '<i class="fas fa-desktop"></i> Lab';
-        row.appendChild(typeBadge);
-      } else if (slot.slot_type === 'LECTURE') {
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'badge badge--purple badge--xs';
-        typeBadge.innerHTML = '<i class="fas fa-chalkboard"></i> Lecture';
-        row.appendChild(typeBadge);
-      }
-
-      if (slot.room) {
-        const roomBadge = document.createElement('span');
-        roomBadge.className = 'badge badge--dark badge--xs';
-        roomBadge.innerHTML = `<i class="fas fa-door-open"></i> ${slot.room}`;
-        row.appendChild(roomBadge);
-
-        const secCap = parseInt($('wiz-capacity')?.value || '0', 10);
-        if (slot.room_capacity && secCap > slot.room_capacity) {
-          const capWarn = document.createElement('span');
-          capWarn.className = 'badge badge--danger badge--xs';
-          capWarn.title = `Section capacity (${secCap}) exceeds room capacity (${slot.room_capacity})`;
-          capWarn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Over cap (${secCap} > ${slot.room_capacity})`;
-          row.appendChild(capWarn);
-        }
-      }
+      const when = document.createElement('span');
+      when.className = 'slot-when';
+      when.textContent = WEEKDAYS[slot.weekday] + ' · ' + fmtTime(slot.starts_at) + ' – ' + fmtTime(slot.ends_at);
+      row.appendChild(when);
 
       const dur = document.createElement('span');
-      dur.className = 'text-muted text-xs';
+      dur.className = 'slot-dur';
       dur.textContent = fmtMinutes(toMins(slot.ends_at) - toMins(slot.starts_at));
       row.appendChild(dur);
 
+      if (slot.slot_type === 'LABORATORY') {
+        const b = document.createElement('span');
+        b.className = 'badge badge--teal badge--xs';
+        b.textContent = 'Lab';
+        row.appendChild(b);
+      }
+      if (slot.room && slot.room !== 'TBA') {
+        const b = document.createElement('span');
+        b.className = 'badge badge--dark badge--xs';
+        b.textContent = slot.room;
+        row.appendChild(b);
+        const cap = parseInt(($('wiz-capacity') && $('wiz-capacity').value) || '0', 10);
+        if (slot.room_capacity && cap > slot.room_capacity) {
+          const w = document.createElement('span');
+          w.className = 'slot-warn slot-warn--room';
+          w.title = 'Section capacity exceeds room capacity';
+          w.textContent = 'Over room cap';
+          row.appendChild(w);
+        }
+      }
+
       const conflicts = state.conflicts[index] || { teacher: [], room: [] };
       (conflicts.teacher || []).forEach((text) => {
-        const badge = document.createElement('span');
-        badge.className = 'badge badge--danger badge--xs';
-        badge.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Teacher clash: ${text}`;
-        row.appendChild(badge);
+        const b = document.createElement('span');
+        b.className = 'slot-warn slot-warn--teacher';
+        b.textContent = 'Teacher clash: ' + text;
+        row.appendChild(b);
       });
       (conflicts.room || []).forEach((text) => {
-        const badge = document.createElement('span');
-        badge.className = 'badge badge--gold badge--xs';
-        badge.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Room used: ${text}`;
-        row.appendChild(badge);
+        const b = document.createElement('span');
+        b.className = 'slot-warn slot-warn--room';
+        b.textContent = 'Room used: ' + text;
+        row.appendChild(b);
       });
 
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'btn btn-outline btn-xs';
-      removeBtn.style.marginLeft = 'auto';
-      removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      removeBtn.title = 'Remove this slot';
-      removeBtn.addEventListener('click', () => removeSlot(index));
-      row.appendChild(removeBtn);
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'slot-remove';
+      rm.textContent = 'Remove';
+      rm.setAttribute('aria-label', 'Remove ' + WEEKDAYS[slot.weekday] + ' meeting');
+      rm.addEventListener('click', () => removeSlot(index));
+      row.appendChild(rm);
 
       list.appendChild(row);
     });
   }
 
+  function renderWeekGrid() {
+    const grid = $('week-grid');
+    grid.innerHTML = '';
+    for (let d = 0; d < 6; d++) {
+      const col = document.createElement('div');
+      const daySlots = state.slots.filter((s) => s.weekday === d);
+      col.className = 'week-col' + (daySlots.length ? ' has-slots' : '');
+      const head = document.createElement('div');
+      head.className = 'week-head';
+      head.textContent = WEEKDAYS_SHORT[d];
+      col.appendChild(head);
+      if (daySlots.length) {
+        daySlots.forEach((s) => {
+          const pill = document.createElement('div');
+          pill.className = 'week-pill';
+          pill.textContent = fmtTime(s.starts_at) + ' – ' + fmtTime(s.ends_at);
+          col.appendChild(pill);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'week-empty';
+        empty.textContent = '—';
+        col.appendChild(empty);
+      }
+      grid.appendChild(col);
+    }
+  }
+
+  /* ── Conflict preview ───────────────────────────────────────── */
+  function queueConflictCheck() {
+    clearTimeout(state.checkTimer);
+    state.checkTimer = setTimeout(checkConflicts, 350);
+  }
+
   async function checkConflicts() {
-    if (!state.slots.length || !$('wiz-teacher').value) {
+    const teacher = $('wiz-teacher').value;
+    if (!state.slots.length || !teacher) {
       state.conflicts = [];
       renderSlots();
       return true;
     }
     try {
       const body = new URLSearchParams();
-      body.set('teacher_profile_id', $('wiz-teacher').value);
+      body.set('teacher_profile_id', teacher);
       body.set('ay_id', $('wiz-ay').value);
       body.set('slots', JSON.stringify(state.slots));
       const res = await fetch(boot.dataset.checkUrl, {
@@ -849,152 +680,58 @@
     }
   }
 
-  function currentOfferingData() {
-    return {
-      subject_id: $('wiz-subject').value,
-      teacher_profile_id: $('wiz-teacher').value,
-      slots: state.slots.map((slot) => ({ ...slot }))
-    };
+  function hasTeacherConflicts() {
+    return state.conflicts.some((c) => c.teacher && c.teacher.length);
   }
 
-  async function validateCurrentOffering() {
-    if (!$('wiz-subject').value) {
-      showError('Select a subject.');
-      return null;
-    }
-    if (!$('wiz-teacher').value) {
-      showError('Select a teacher.');
-      return null;
-    }
-    if (!isHoursOk()) {
-      showError(
-        `This subject needs ~${fmtMinutes(requiredMinutes())} per week; your slots total ${fmtMinutes(totalMinutes())}.`
-      );
-      return null;
-    }
-    if (!await checkConflicts()) return null;
-    if (hasTeacherConflicts()) {
-      showError('Resolve the teacher schedule clashes below before continuing.');
-      return null;
-    }
-    return currentOfferingData();
-  }
-
-  async function addOffering() {
-    const offering = await validateCurrentOffering();
-    if (!offering) return;
+  /* ── Save ───────────────────────────────────────────────────── */
+  async function createSection() {
+    const subject = currentSubject();
     const sectionCode = $('wiz-code').value.trim().toUpperCase();
-    if (!sectionCode) {
-      showError('Enter the section code before adding subject offerings.');
+
+    if (!$('wiz-program').value || !$('wiz-year').value) {
+      showError('Pick a program and year level.');
       return;
     }
-    state.sectionCode = sectionCode;
-    state.offerings.push(offering);
-    state.slots = [];
-    state.conflicts = [];
-    state.finalOffering = null;
-    populateSubjects();
-    updateUnitsHint();
-    $('wiz-teacher').value = '';
-    setStep(2);
-  }
-
-  /* ── Step 5: Review ─────────────────────────────────────────── */
-  function buildReview() {
-    const summary = $('review-summary');
-    summary.innerHTML = '';
-    const offerings = state.offerings.concat(state.finalOffering ? [state.finalOffering] : []);
-
-    const rows = [
-      { label: 'Academic Year', value: $('wiz-ay').selectedOptions[0].textContent },
-      { label: 'Program', value: $('wiz-program').selectedOptions[0].textContent },
-      { label: 'Year Level', value: 'Year ' + $('wiz-year').value },
-      { label: 'Semester', value: $('wiz-semester').selectedOptions[0].textContent },
-      { label: 'Section Code', value: state.sectionCode || $('wiz-code').value.trim().toUpperCase(), badge: true },
-      { label: 'Subject Offerings', value: String(offerings.length) },
-      { label: 'Capacity', value: $('wiz-capacity').value || 'Unlimited' },
-      { label: 'Grace Minutes', value: ($('wiz-grace').value || '10') + ' minutes' },
-    ];
-
-    const grid = document.createElement('div');
-    grid.className = 'review-grid';
-
-    rows.forEach(({ label, value, badge, html, full }) => {
-      const item = document.createElement('div');
-      item.className = 'review-item' + (full ? ' review-item--full' : '');
-
-      const lbl = document.createElement('div');
-      lbl.className = 'review-item-label';
-      lbl.textContent = label;
-      item.appendChild(lbl);
-
-      const val = document.createElement('div');
-      val.className = 'review-item-value';
-      if (badge) {
-        val.innerHTML = `<span class="badge badge--purple" style="font-size:0.85rem;padding:4px 10px;">${value}</span>`;
-      } else if (html) {
-        val.innerHTML = value || '<span class="text-muted">—</span>';
-      } else {
-        val.textContent = value || '—';
-      }
-      item.appendChild(val);
-      grid.appendChild(item);
-    });
-
-    summary.appendChild(grid);
-
-    offerings.forEach((offering, index) => {
-      const subject = (state.options.subjects || []).find(
-        (item) => String(item.id) === String(offering.subject_id)
-      );
-      const teacher = (state.options.teachers || []).find(
-        (item) => String(item.profile_id) === String(offering.teacher_profile_id)
-      );
-      const card = document.createElement('div');
-      card.className = 'review-item review-item--full';
-      const title = document.createElement('div');
-      title.className = 'review-item-label';
-      title.textContent = `${index + 1}. ${subject ? `${subject.code} — ${subject.name}` : 'Subject'}`;
-      card.appendChild(title);
-      const details = document.createElement('div');
-      details.className = 'review-item-value';
-      details.textContent = `Class ${state.sectionCode || $('wiz-code').value.trim().toUpperCase()}-${subject ? subject.code : ''} · ${subject && subject.is_major ? 'Major' : 'Non-major'} · Teacher: ${teacher ? teacher.name : '—'} · ${subject ? fmtMinutes(subject.units * 60) : '—'} per week`;
-      card.appendChild(details);
-      const schedule = document.createElement('div');
-      schedule.className = 'text-muted text-xs mt-1';
-      schedule.textContent = (offering.slots || []).map((slot) =>
-        `${WEEKDAYS[slot.weekday]} · ${fmtTime(slot.starts_at)}–${fmtTime(slot.ends_at)} · ${slot.room || 'TBA'}`
-      ).join(' | ');
-      card.appendChild(schedule);
-      summary.appendChild(card);
-    });
-
-    const warnings = $('review-warnings');
-    warnings.innerHTML = '';
-    let hasRoomConflicts = false;
-    state.conflicts.forEach((c) => {
-      (c.room || []).forEach((text) => {
-        hasRoomConflicts = true;
-        const div = document.createElement('div');
-        div.className = 'badge badge--gold';
-        div.style.cssText = 'display:block;margin:8px 0 0;padding:8px 12px;';
-        div.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Room conflict (blocks saving): ${text}`;
-        warnings.appendChild(div);
-      });
-    });
-    const overrideBox = $('review-override');
-    if (overrideBox) {
-      overrideBox.style.display = hasRoomConflicts ? '' : 'none';
-      const overrideCheck = $('wiz-override-room');
-      if (overrideCheck && !hasRoomConflicts) overrideCheck.checked = false;
+    if (!sectionCode) {
+      showError('Enter a section code (e.g. BSIT-3A).');
+      return;
     }
-  }
+    if (!subject) {
+      showError('Pick a subject.');
+      return;
+    }
+    if (!$('wiz-teacher').value) {
+      showError('Pick a teacher.');
+      return;
+    }
+    if (!state.slots.length) {
+      showError('Add at least one weekly meeting. A preset button fills this in one click.');
+      return;
+    }
+    const total = totalMinutes();
+    const required = requiredMinutes();
+    if (total !== required) {
+      showError(
+        subject.code + ' needs ' + fmtMinutes(required) + ' per week. Your meetings total ' +
+        fmtMinutes(total) + '. Use a preset or adjust the times.',
+      );
+      return;
+    }
+    const free = await checkCodeAvailability();
+    if (!free) {
+      showError((state.codeStatus && state.codeStatus.message) || 'That section code is already taken.');
+      return;
+    }
+    const cleanConflicts = await checkConflicts();
+    if (!cleanConflicts) return;
+    if (hasTeacherConflicts()) {
+      const first = state.conflicts.find((c) => c.teacher && c.teacher.length);
+      showError('Schedule conflict: ' + first.teacher[0] + '. Move this meeting to a free time.');
+      return;
+    }
 
-  /* ── Create Section ─────────────────────────────────────────── */
-  async function createSection() {
-    const btn = $('wiz-create');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+    setBusy(true);
     showError('');
     try {
       const body = new URLSearchParams();
@@ -1002,14 +739,22 @@
       body.set('year_level', $('wiz-year').value);
       body.set('semester', $('wiz-semester').value);
       body.set('ay_id', $('wiz-ay').value);
-      body.set('class_code', state.sectionCode || $('wiz-code').value.trim().toUpperCase());
+      body.set('class_code', sectionCode);
       body.set('capacity', $('wiz-capacity').value);
       body.set('grace_minutes', $('wiz-grace').value || '10');
-      const overrideRoom = $('wiz-override-room');
-      body.set('override_conflicts', overrideRoom && overrideRoom.checked ? '1' : '0');
-      body.set('offerings', JSON.stringify(
-        state.offerings.concat(state.finalOffering ? [state.finalOffering] : [])
-      ));
+      body.set('override_conflicts', '0');
+      body.set('offerings', JSON.stringify([{
+        subject_id: subject.id,
+        teacher_profile_id: $('wiz-teacher').value,
+        slots: state.slots.map((s) => ({
+          weekday: s.weekday,
+          starts_at: s.starts_at,
+          ends_at: s.ends_at,
+          room: s.room,
+          room_id: s.room_id,
+          slot_type: s.slot_type,
+        })),
+      }]));
       const res = await fetch(boot.dataset.saveUrl, {
         method: 'POST',
         headers: { 'X-CSRFToken': csrf },
@@ -1021,230 +766,213 @@
         return;
       }
 
-      /* Show success panel */
-      $('wizard-card').style.display = 'none';
-      $('wizard-progress').style.display = 'none';
-      $('wizard-success').style.display = '';
-      $('success-code').textContent =
-        `Section ${data.section_code} created with ${data.classes.length} subject offering(s).`;
-
-      /* Populate success summary with quick-action links */
-      const sumDiv = $('success-summary');
-      sumDiv.innerHTML = '';
-      const list = document.createElement('div');
-      list.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
-
-      const classesUrl = boot.dataset.classesUrl || '/classes/';
-      const classesList = data.classes || (data.class_id ? [{
-        class_id: data.class_id,
-        class_code: data.class_code,
-        subject: '',
-        teacher: '',
-        slots: data.slots || [],
-      }] : []);
-
-      classesList.forEach((item) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;flex-wrap:wrap;gap:8px;';
-
-        const info = document.createElement('div');
-        info.innerHTML = `<strong>${escapeHtml(item.class_code)}</strong> &middot; ${escapeHtml(item.subject || '')} &middot; <span class="text-muted">${escapeHtml(item.teacher || '')}</span> &middot; <span class="badge badge--dark badge--xs">${(item.slots || []).length} slot(s)</span>`;
-        row.appendChild(info);
-
-        const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex;align-items:center;gap:6px;';
-
-        if (item.class_id) {
-          const rosterLink = document.createElement('a');
-          rosterLink.className = 'btn btn-outline btn-xs';
-          rosterLink.href = `${classesUrl}?setup_class=${item.class_id}&setup_action=roster`;
-          rosterLink.innerHTML = '<i class="fas fa-users"></i> Enlist Students';
-          actions.appendChild(rosterLink);
-
-          const joinCodeLink = document.createElement('a');
-          joinCodeLink.className = 'btn btn-outline btn-xs';
-          joinCodeLink.href = `${classesUrl}?setup_class=${item.class_id}&setup_action=joincode`;
-          joinCodeLink.innerHTML = '<i class="fas fa-key"></i> Join Code';
-          actions.appendChild(joinCodeLink);
-        }
-
-        row.appendChild(actions);
-        list.appendChild(row);
-      });
-      sumDiv.appendChild(list);
-
-      const gotoBtn = $('success-goto');
-      if (gotoBtn && data.section_code) {
-        gotoBtn.href = `${classesUrl}?search=${encodeURIComponent(data.section_code)}`;
+      state.lastSavedSection = data.section_code || sectionCode;
+      const first = (data.classes && data.classes[0]) || {};
+      const count = (data.classes || []).length;
+      showSuccess(
+        'Saved ' + (first.class_code || sectionCode) +
+        ' (' + subject.code + ') with ' + (first.slots ? first.slots.length : state.slots.length) +
+        ' weekly meeting(s). ' +
+        (count > 1 ? count + ' offerings were created.' : 'Add the next subject to ' + state.lastSavedSection + ' below.'),
+      );
+      renderSuccessActions(data);
+      if ((data.warnings || []).length) {
+        showError('Saved, but: ' + data.warnings[0]);
       }
 
-      const warnBox = $('success-warnings');
-      warnBox.innerHTML = '';
-      (data.warnings || []).forEach((text) => {
-        const div = document.createElement('div');
-        div.className = 'badge badge--gold';
-        div.style.cssText = 'display:block;margin:4px 0;padding:8px 12px;';
-        div.textContent = `Room warning: ${text}`;
-        warnBox.appendChild(div);
-      });
+      // Keep section identity; clear the subject so the next one can be added.
+      state.slots = [];
+      state.conflicts = [];
+      $('wiz-subject').value = '';
+      $('wiz-teacher').value = '';
+      $('wiz-subject-units').textContent = '';
+      renderSlots();
+      updateTally();
+      renderPresets();
+      renderWeekGrid();
+      // Refresh existing chips / suggested next letter without wiping the code.
+      refreshExistingQuietly();
+      $('wiz-subject').focus();
     } catch (err) {
-      showError('Network error while creating the section.');
+      showError('Network error while saving. Please try again.');
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-check"></i> Create Section & Offerings';
+      setBusy(false);
     }
   }
 
-  /* ── Next / Back ─────────────────────────────────────────────── */
-  async function onNext() {
-    if (state.step === 1) return loadOptions();
-    if (state.step === 2) {
-      if (!$('wiz-subject').value && state.offerings.length) {
-        state.finalOffering = null;
-        setStep(5);
-        return;
-      }
-      if (!$('wiz-subject').value) return showError('Select a subject.');
-      if (!$('wiz-teacher').value) return showError('Select a teacher.');
-      if (state.sectionCode) {
-        const free = await checkCodeAvailability();
-        if (!free) {
-          showError((state.codeStatus && state.codeStatus.message) || 'This subject is already added to that section.');
-          return;
-        }
-        setStep(4);
-        return;
-      }
-      setStep(3);
+  function renderSuccessActions(data) {
+    const box = $('wiz-success-classes');
+    if (!box) return;
+    box.innerHTML = '';
+    const classesUrl = boot.dataset.classesUrl || '/classes/';
+    const items = (data && data.classes) || [];
+    if (!items.length) {
+      box.style.display = 'none';
       return;
     }
-    if (state.step === 3) {
-      if (!$('wiz-code').value.trim()) return showError('Section code is required.');
-      const free = await checkCodeAvailability();
-      if (!free) {
-        showError((state.codeStatus && state.codeStatus.message) || 'That section code is already taken.');
-        return;
-      }
-      state.sectionCode = $('wiz-code').value.trim().toUpperCase();
-      setStep(4);
-      return;
-    }
-    if (state.step === 4) {
-      state.finalOffering = await validateCurrentOffering();
-      if (!state.finalOffering) return;
-      setStep(5);
-    }
-  }
-
-  /* ── Keyboard: Enter to advance or add slot ─────────────────── */
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') {
-      if (e.target.tagName === 'TEXTAREA') return;
-
-      // In Step 4 slot input form: Enter adds the slot instead of advancing wizard!
-      if (e.target.closest('#wizard-step-4') && (e.target.id === 'slot-start' || e.target.id === 'slot-end' || e.target.id === 'slot-room' || e.target.id === 'slot-room-select' || e.target.id === 'slot-type' || e.target.id === 'slot-weekday')) {
-        e.preventDefault();
-        e.stopPropagation();
-        const addBtn = $('slot-add');
-        if (addBtn) addBtn.click();
-        return;``
-      }
-
-      const next = $('wiz-next');
-      const create = $('wiz-create');
-      if (next && next.style.display !== 'none' && !next.disabled) next.click();
-      else if (create && create.style.display !== 'none' && !create.disabled) create.click();
-    }
-  });
-
-  /* ── Init ────────────────────────────────────────────────────── */
-  function init() {
-    const deptSel = $('wiz-department');
-    if (deptSel) deptSel.addEventListener('change', onDepartmentChange);
-    $('wiz-program').addEventListener('change', onProgramChange);
-    $('wiz-year').addEventListener('change', onStep1InputModified);
-    $('wiz-semester').addEventListener('change', onStep1InputModified);
-    $('wiz-ay').addEventListener('change', onStep1InputModified);
-
-    $('wiz-subject').addEventListener('change', () => {
-      updateUnitsHint();
-      autoSuggestEndTime();
+    box.style.display = 'flex';
+    items.forEach((item) => {
+      if (!item.class_id) return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 12px;background:rgba(255,255,255,0.06);border-radius:8px;';
+      const label = document.createElement('span');
+      label.textContent = (item.class_code || '') + (item.subject ? ' · ' + item.subject : '');
+      row.appendChild(label);
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+      const slotsLink = document.createElement('a');
+      slotsLink.className = 'btn btn-outline btn-xs';
+      slotsLink.href = classesUrl + '?setup_class=' + item.class_id + '&setup_action=schedule';
+      slotsLink.innerHTML = '<i class="fas fa-clock"></i> Schedule';
+      actions.appendChild(slotsLink);
+      const rosterLink = document.createElement('a');
+      rosterLink.className = 'btn btn-outline btn-xs';
+      rosterLink.href = classesUrl + '?setup_class=' + item.class_id + '&setup_action=roster';
+      rosterLink.innerHTML = '<i class="fas fa-users"></i> Enlist';
+      actions.appendChild(rosterLink);
+      row.appendChild(actions);
+      box.appendChild(row);
     });
+  }
+
+  async function refreshExistingQuietly() {
+    if (!$('wiz-program').value || !$('wiz-year').value) return;
+    try {
+      const params = new URLSearchParams({
+        program_id: $('wiz-program').value,
+        year_level: $('wiz-year').value,
+        semester: $('wiz-semester').value,
+        ay_id: $('wiz-ay').value,
+      });
+      const res = await fetch(boot.dataset.optionsUrl + '?' + params.toString());
+      const data = await res.json();
+      if (res.ok && data.success) {
+        state.options = data;
+        state.step1Key = step1Key();
+        const prevSubject = $('wiz-subject').value;
+        const prevTeacher = $('wiz-teacher').value;
+        populateSubjects();
+        populateTeachers();
+        populateExisting(data);
+        if (prevSubject) $('wiz-subject').value = prevSubject;
+        if (prevTeacher) $('wiz-teacher').value = prevTeacher;
+      }
+    } catch (err) {
+      /* silent: chips are a convenience */
+    }
+  }
+
+  /* ── Wire-up ────────────────────────────────────────────────── */
+  function on(id, event, handler) {
+    const el = $(id);
+    if (el) el.addEventListener(event, handler);
+    return el;
+  }
+
+  function init() {
+    fillDepartments();
+    fillPrograms();
+    fillRooms();
+
+    on('wiz-department', 'change', () => {
+      fillPrograms();
+      resetOptions();
+    });
+    on('wiz-program', 'change', onProgramChange);
+    on('wiz-year', 'change', () => {
+      state.step1Key = '';
+      loadOptions();
+    });
+    on('wiz-semester', 'change', () => {
+      state.step1Key = '';
+      loadOptions();
+    });
+    on('wiz-ay', 'change', () => {
+      state.step1Key = '';
+      loadOptions();
+    });
+
+    on('wiz-subject', 'change', () => {
+      const subject = currentSubject();
+      if (subject) {
+        $('wiz-subject-units').textContent =
+          'Requires ' + fmtMinutes(subject.units * 60) + ' per week (' +
+          subject.units + ' credit unit' + (subject.units !== 1 ? 's' : '') + ').';
+        // Nudge the room list toward the right kind of room.
+        const sel = $('slot-room-select');
+        if (sel && (!sel.value || sel.value === 'TBA')) {
+          const wanted = subject.is_lab ? 'LABORATORY' : 'LECTURE';
+          const match = rooms.find((r) => (r.room_type === wanted) || (subject.is_lab && r.is_lab));
+          if (match) {
+            sel.value = match.code;
+            onRoomChange();
+          }
+        }
+      } else {
+        const units = $('wiz-subject-units');
+        if (units) units.textContent = '';
+      }
+      state.slots = [];
+      state.conflicts = [];
+      renderSlots();
+      updateTally();
+      renderPresets();
+      renderWeekGrid();
+      checkCodeAvailability();
+    });
+
+    on('wiz-teacher', 'change', queueConflictCheck);
 
     const codeInput = $('wiz-code');
     if (codeInput) {
       codeInput.addEventListener('blur', checkCodeAvailability);
       codeInput.addEventListener('input', () => {
-        // Typing invalidates the previous verdict; the check re-runs on blur.
+        codeInput.value = codeInput.value.toUpperCase();
         state.codeStatus = { available: true, message: '' };
         renderCodeStatus();
       });
     }
 
-    $('wiz-next').addEventListener('click', onNext);
-    $('wiz-back').addEventListener('click', () => {
-      if (state.step > 1) setStep(state.step - 1);
+    on('slot-add', 'click', addSlot);
+    on('slot-room-select', 'change', onRoomChange);
+    on('slot-start', 'change', autoSuggestEndTime);
+    on('wiz-create', 'click', createSection);
+    on('wiz-add-another', 'click', () => {
+      showSuccess('');
+      const subject = $('wiz-subject');
+      if (subject) subject.focus();
     });
 
-    $('slot-add').addEventListener('click', addSlot);
-    const clearBtn = $('slot-clear-all');
-    if (clearBtn) clearBtn.addEventListener('click', clearAllSlots);
-
-    const roomSelect = $('slot-room-select');
-    if (roomSelect) {
-      roomSelect.addEventListener('change', function () {
-        const val = this.value;
-        const opt = this.selectedOptions[0];
-        $('slot-room').value = val || 'TBA';
-        $('slot-room-id').value = (opt && opt.dataset.id) || '';
-      });
+    // Pre-fill from Classes → Add Section links.
+    const params = new URLSearchParams(window.location.search);
+    const presetProgram = params.get('program_id');
+    const presetYear = params.get('year_level');
+    const presetSection = (params.get('section') || '').trim().toUpperCase();
+    if (presetProgram) $('wiz-program').value = presetProgram;
+    onProgramChange();
+    if (presetSection) {
+      state.pinnedSection = presetSection;
+      $('wiz-code').value = presetSection;
+    }
+    if (presetYear) {
+      $('wiz-year').value = presetYear;
+      loadOptions();
     }
 
-    const slotTypeSelect = $('slot-type');
-    if (slotTypeSelect && roomSelect) {
-      slotTypeSelect.addEventListener('change', function () {
-        const type = this.value;
-        if (type === 'LABORATORY') {
-          if (!roomSelect.value || roomSelect.value === 'TBA' || roomSelect.selectedOptions[0]?.dataset.type !== 'LABORATORY') {
-            const firstLab = $('optgroup-labs')?.querySelector('option');
-            if (firstLab) {
-              roomSelect.value = firstLab.value;
-              roomSelect.dispatchEvent(new Event('change'));
-            }
-          }
-        } else {
-          if (!roomSelect.value || roomSelect.value === 'TBA' || roomSelect.selectedOptions[0]?.dataset.type === 'LABORATORY') {
-            const firstLec = $('optgroup-lectures')?.querySelector('option');
-            if (firstLec) {
-              roomSelect.value = firstLec.value;
-              roomSelect.dispatchEvent(new Event('change'));
-            }
-          }
-        }
-      });
-    }
+    renderSlots();
+    updateTally();
+    renderWeekGrid();
 
-    $('wiz-create').addEventListener('click', createSection);
-    $('wiz-add-offering').addEventListener('click', addOffering);
-
-    // 1-Click preset buttons
-    document.querySelectorAll('.js-preset-slot').forEach((btn) => {
-      btn.addEventListener('click', function () {
-        const pattern = this.dataset.pattern;
-        const duration = parseInt(this.dataset.duration, 10);
-        applyPreset(pattern, duration);
-      });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.target.tagName === 'TEXTAREA') return;
+      if (e.target.closest('.slot-form')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const addBtn = $('slot-add');
+        if (addBtn) addBtn.click();
+      }
     });
-
-    // Auto-suggest end time when start time changes
-    $('slot-start').addEventListener('change', autoSuggestEndTime);
-    $('slot-end').addEventListener('change', () => {
-      const endHint = $('slot-end-hint');
-      if (endHint) endHint.textContent = '';
-    });
-
-    populateRoomSuggestions();
-    setStep(1);
   }
 
   if (document.readyState === 'loading') {

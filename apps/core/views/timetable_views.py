@@ -24,11 +24,11 @@ from django.http import HttpResponse
 from django.shortcuts import render
 
 from apps.core.decorators import role_required
-from apps.core.models import AcademicYear, Class, Department, Profile, Program
+from apps.core.models import AcademicYear, Class, ClassSlot, Department, Profile, Program
 from apps.core.services.academic_service import format_subject_code
 
-WEEKDAY_TOKENS = ('M', 'T', 'W', 'TH', 'F', 'S')
-DAY_WORDS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')
+WEEKDAY_TOKENS = ('M', 'T', 'W', 'TH', 'F', 'S', 'SU')
+DAY_WORDS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 
 
 def normalize_section(text):
@@ -68,8 +68,8 @@ def semester_label_for(term):
 
 
 def format_days(weekdays):
-    """[0, 2, 4] -> 'MWF'; [1, 3] -> 'TTH'."""
-    return ''.join(WEEKDAY_TOKENS[day] for day in sorted(weekdays) if 0 <= day < 6)
+    """[0, 2, 4] -> 'MWF'; [1, 3] -> 'TTH'; [6] -> 'SU'."""
+    return ''.join(WEEKDAY_TOKENS[day] for day in sorted(weekdays) if 0 <= day < 7)
 
 
 def format_clock(value):
@@ -110,7 +110,7 @@ def build_meeting_rows(class_obj):
         room_main, _, room_building = room.partition('·')
         rows.append({
             'days': format_days(weekdays),
-            'days_long': ', '.join(DAY_WORDS[d] for d in sorted(weekdays) if d < 6),
+            'days_long': ', '.join(DAY_WORDS[d] for d in sorted(weekdays) if d < 7),
             'time': f'{format_clock(starts_at)} - {format_clock(ends_at)}',
             'room': room or '—',
             'room_main': room_main.strip() or '—',
@@ -212,6 +212,84 @@ def _classes_in_scope(term, program):
     if program is not None:
         classes_qs = classes_qs.filter(program=program)
     return classes_qs
+
+
+def build_occupancy(term, mode):
+    """
+    Weekly occupancy rows for the Room and Teacher views.
+
+    mode='rooms' groups active slots by canonical room (room_ref code, falling
+    back to the legacy string). mode='teachers' groups by the assigned
+    instructor. Each row is one room or teacher with seven day columns of
+    meeting pills, so a registrar can see where a new section can physically
+    go without opening every section sheet.
+    """
+    if mode not in ('rooms', 'teachers'):
+        return []
+
+    slots = (
+        ClassSlot.objects
+        .filter(is_active=True, class_obj__is_active=True)
+        .select_related(
+            'class_obj__subject',
+            'class_obj__teacher_profile__user',
+            'room_ref',
+        )
+    )
+    if term is not None:
+        slots = slots.filter(class_obj__academic_year=term)
+
+    groups = {}
+    for slot in slots:
+        teacher = slot.class_obj.teacher_profile
+        teacher_name = ''
+        if teacher is not None:
+            teacher_name = teacher.user.get_full_name() or teacher.user.username
+        subject_code = slot.class_obj.subject.code if slot.class_obj.subject_id else ''
+        class_code = slot.class_obj.class_code
+        room_label = slot.room_ref.code if slot.room_ref else (slot.room or 'TBA')
+
+        if mode == 'rooms':
+            key = (slot.room_ref.code if slot.room_ref else (slot.room or '')).strip().upper() or 'TBA'
+            label = key
+            sublabel = slot.room_ref.name if slot.room_ref else ''
+        else:
+            if teacher is None:
+                key, label, sublabel = '0', 'Unassigned', ''
+            else:
+                key = str(teacher.pk)
+                label = teacher_name
+                sublabel = teacher.department.code if teacher.department_id else ''
+
+        groups.setdefault(key, {'label': label, 'sublabel': sublabel, 'cells': []})
+        groups[key]['cells'].append({
+            'weekday': slot.weekday,
+            'time': f'{format_clock(slot.starts_at)} – {format_clock(slot.ends_at)}',
+            'starts_at': slot.starts_at,
+            'class_code': class_code,
+            'subject': subject_code,
+            'room': room_label,
+            'teacher': teacher_name,
+        })
+
+    rows = []
+    for key in sorted(groups, key=lambda k: groups[k]['label'].lower()):
+        group = groups[key]
+        days = [[] for _ in range(7)]
+        for cell in group['cells']:
+            days[cell['weekday']].append(cell)
+        for day_cells in days:
+            day_cells.sort(key=lambda c: (c['starts_at'], c['ends_at']))
+        rows.append({
+            'label': group['label'],
+            'sublabel': group['sublabel'],
+            'slot_count': len(group['cells']),
+            'days': [
+                {'name': name, 'cells': days[i]}
+                for i, name in enumerate(('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'))
+            ],
+        })
+    return rows
 
 
 def build_timetable_context(request):
@@ -328,8 +406,24 @@ def build_timetable_context(request):
                 f'{term.name if term else "—"}.'
             )
 
+    view_param = request.GET.get('view', 'sections').strip().lower()
+    if view_param not in ('sections', 'rooms', 'teachers'):
+        view_param = 'sections'
+
+    base_qs = request.GET.copy()
+    if 'view' in base_qs:
+        del base_qs['view']
+    base_query = base_qs.urlencode()
+
+    occupancy = []
+    if view_param in ('rooms', 'teachers'):
+        occupancy = build_occupancy(term, view_param)
+
     return {
-        'sheets': sheets,
+        'sheets': sheets if view_param == 'sections' else [],
+        'view_mode': view_param,
+        'occupancy': occupancy,
+        'base_query': base_query,
         'term': term,
         'semester_label': semester_label_for(term),
         'academic_year_label': academic_year_label(term.name) if term else '',

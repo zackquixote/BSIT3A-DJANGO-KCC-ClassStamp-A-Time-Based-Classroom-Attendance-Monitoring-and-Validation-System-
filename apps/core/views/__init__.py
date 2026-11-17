@@ -133,6 +133,8 @@ from .department_views import (
 # // 4b. Campus Room Management Subsystem
 # // ------------------------------------------------------------------------------
 from .room_views import (
+    facility_type_delete,
+    facility_type_save,
     room_delete,
     room_detail_json,
     room_list,
@@ -482,6 +484,8 @@ __all__ = [
     'room_delete',
     'room_detail_json',
     'room_options_json',
+    'facility_type_save',
+    'facility_type_delete',
 
     # Sessions & Live Scanner
     'teacher_session_open',

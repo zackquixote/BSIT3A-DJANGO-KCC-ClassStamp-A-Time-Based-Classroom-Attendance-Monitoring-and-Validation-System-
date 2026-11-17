@@ -9,6 +9,7 @@
 
 from datetime import date, time
 
+from django.contrib.admin import AdminSite
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -25,6 +26,7 @@ from apps.core.models import (
     Program,
     Subject,
 )
+from apps.core.admin import MessageAdmin
 from apps.core.models.messaging import Message
 from apps.core.services.message_service import (
     MAX_BODY,
@@ -117,6 +119,18 @@ class MessageServiceTests(MessagingFixtureMixin, TestCase):
     def test_student_cannot_message_admin_or_peer(self):
         self.assertFalse(MessageService.can_contact(self.student_user, self.admin_user))
         self.assertFalse(MessageService.can_contact(self.student_user, self.other_student_user))
+
+    def test_student_may_reply_to_admin_who_messaged_them(self):
+        MessageService.send(
+            sender=self.admin_user,
+            recipient_id=self.student_user.pk,
+            subject='Please call the office',
+            body='Reply with your preferred time.',
+        )
+
+        self.assertTrue(MessageService.can_contact(self.student_user, self.admin_user))
+        recipients = list(MessageService.eligible_recipients(self.student_user))
+        self.assertIn(self.admin_user, recipients)
 
     def test_self_and_inactive_recipients_are_denied(self):
         self.assertFalse(MessageService.can_contact(self.student_user, self.student_user))
@@ -239,6 +253,43 @@ class MessageServiceTests(MessagingFixtureMixin, TestCase):
         self.assertIn(self.student_user, admin_choices)
         self.assertIn(self.teacher_user, admin_choices)
 
+    def test_send_notification_links_to_the_thread(self):
+        MessageService.send(
+            sender=self.student_user,
+            recipient_id=self.teacher_user.pk,
+            subject='Deep link',
+            body='Should open the conversation, not the inbox.',
+        )
+        notification = Notification.objects.filter(
+            user=self.teacher_user, category='message',
+        ).order_by('-pk').first()
+        self.assertIsNotNone(notification)
+        self.assertEqual(
+            notification.link,
+            f'/messages/thread/{self.student_user.pk}/',
+        )
+
+    def test_thread_selects_related_sender(self):
+        MessageService.send(
+            sender=self.student_user,
+            recipient_id=self.teacher_user.pk,
+            subject='No N+1',
+            body='Body',
+        )
+        other, messages = MessageService.thread(self.student_user, self.teacher_user.pk)
+        self.assertEqual(other, self.teacher_user)
+        self.assertEqual(len(messages), 1)
+        # select_related('sender') must already have the user; no extra query.
+        with self.assertNumQueries(0):
+            self.assertEqual(messages[0].sender.username, 'msg_student')
+
+    def test_message_admin_is_read_only(self):
+        message_admin = MessageAdmin(Message, AdminSite())
+        self.assertFalse(message_admin.has_add_permission(None))
+        self.assertFalse(message_admin.has_delete_permission(None))
+        self.assertIn('sender', message_admin.list_select_related)
+        self.assertIn('recipient', message_admin.list_select_related)
+
 
 class MessageViewTests(MessagingFixtureMixin, TestCase):
     def setUp(self):
@@ -334,3 +385,50 @@ class MessageViewTests(MessagingFixtureMixin, TestCase):
     def test_messages_require_login(self):
         response = self.client.get(reverse('message_inbox'))
         self.assertEqual(response.status_code, 302)
+
+    def test_inbox_empty_state_copy_matches_role(self):
+        self.client.force_login(self.student_user)
+        response = self.client.get(reverse('message_inbox'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'instructors of your active classes')
+        self.assertNotContains(response, 'your own students or administrators')
+
+        self.client.force_login(self.teacher_user)
+        response = self.client.get(reverse('message_inbox'))
+        self.assertContains(response, 'your own students or administrators')
+        self.assertNotContains(response, 'instructors of your active classes')
+
+        self.client.force_login(self.admin_user)
+        response = self.client.get(reverse('message_inbox'))
+        self.assertContains(response, 'any active user')
+
+    def test_thread_reply_prefills_latest_subject(self):
+        MessageService.send(
+            sender=self.student_user,
+            recipient_id=self.teacher_user.pk,
+            subject='First topic',
+            body='hello',
+        )
+        MessageService.send(
+            sender=self.teacher_user,
+            recipient_id=self.student_user.pk,
+            subject='Latest topic',
+            body='hi',
+        )
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse('message_thread', args=[self.teacher_user.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        # Reply box quotes the newest subject, not messages[0].
+        self.assertContains(response, 'value="Re: Latest topic"')
+        self.assertNotContains(response, 'value="Re: First topic"')
+
+    def test_thread_auto_scrolls_with_csp_nonce(self):
+        self.client.force_login(self.student_user)
+        response = self.client.get(
+            reverse('message_thread', args=[self.teacher_user.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "querySelector('.msg-log')")
+        self.assertContains(response, 'nonce=')

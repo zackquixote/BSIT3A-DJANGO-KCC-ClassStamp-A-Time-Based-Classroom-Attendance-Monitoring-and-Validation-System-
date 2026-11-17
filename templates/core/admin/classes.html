@@ -403,7 +403,7 @@
           <a href="{% url 'class_wizard_setup' %}?program_id={{ selected_prog.id }}&year_level={{ item.year_level }}"
              class="text-gold font-bold hover:underline"
              style="margin-left: 3px; font-size: 0.68rem; text-decoration: none;"
-             title="Open Section Wizard for {{ item.subject.code }}">
+             title="Add a section offering {{ item.subject.code }}">
             <i class="fas fa-plus"></i> Add Section
           </a>
         </span>
@@ -573,6 +573,13 @@
                     <i class="fas fa-pen text-gold"></i>
                     <span>Edit Section</span>
                   </button>
+                  {% if c.program_id %}
+                  <a class="action-dropdown-item"
+                     href="{% url 'class_wizard_setup' %}?program_id={{ c.program_id }}{% if c.year_level %}&year_level={{ c.year_level }}{% endif %}{% if c.section_code %}&section={{ c.section_code|urlencode }}{% endif %}">
+                    <i class="fas fa-plus text-teal"></i>
+                    <span>Add subject to this section</span>
+                  </a>
+                  {% endif %}
                   <button type="button" class="action-dropdown-item js-manage-join-code"
                           data-class-code="{{ c.class_code }}"
                           data-code-active="{{ c.join_code_active|yesno:'true,false' }}"
@@ -594,7 +601,7 @@
                           data-id="{{ c.id }}"
                           data-code="{{ c.class_code }}"
                           data-active="{{ c.is_active|yesno:'true,false' }}"
-                          data-csrf="{% csrf_token %}"
+                          data-csrf="{{ csrf_token }}"
                           data-toggle-url="{% url 'class_toggle' c.id %}">
                     {% if c.is_active %}
                       <i class="fas fa-pause"></i><span>Deactivate</span>
@@ -720,6 +727,19 @@
           <label class="form-label" style="font-size: 0.78rem; font-weight: 600; margin-bottom: 6px; display: block;">Grace Period Buffer (Minutes)</label>
           <input type="number" name="grace_minutes" id="formGraceMinutes" class="form-control" min="0" max="60" value="10" required style="width: 100%;">
           <span class="text-muted text-xs mt-1" style="display: block;">Minutes allowed after slot start time before marking LATE</span>
+        </div>
+
+        <div style="border-top: 1px solid var(--glass-border); padding-top: 12px;">
+          <div class="font-bold text-xs text-primary mb-2">
+            <i class="fas fa-calendar-week"></i> Weekly schedule
+          </div>
+          <div id="editClassSlots" class="flex flex-col gap-2 mb-2">
+            <span class="text-muted text-xs">Open the section to load its meetings.</span>
+          </div>
+          <button type="button" id="editOpenSlots" class="btn btn-outline btn-xs">
+            <i class="fas fa-clock"></i> Manage weekly schedule
+          </button>
+          <span class="text-muted text-xs" style="margin-left:8px;">Subject and term lock once attendance sessions exist.</span>
         </div>
       </div>
 

@@ -57,7 +57,7 @@
     <div class="form-group mb-3">
       <label class="form-label" for="subject">Subject</label>
       <input type="text" id="subject" name="subject" class="form-control" maxlength="{{ max_subject }}"
-             value="{% if messages %}Re: {{ messages.0.subject }}{% endif %}">
+             value="{{ reply_subject }}">
     </div>
     <div class="form-group mb-3">
       <label class="form-label" for="body">Reply <span class="text-danger">*</span></label>
@@ -69,4 +69,15 @@
   </form>
 </div>
 </div>
+
+<script nonce="{{ request.csp_nonce }}">
+  /* Open the conversation on the newest message, not the top of the log.
+     CSP drops inline handlers, so this must stay in a nonce'd block. */
+  (function () {
+    var log = document.querySelector('.msg-log');
+    if (log) {
+      log.scrollTop = log.scrollHeight;
+    }
+  })();
+</script>
 {% endblock %}

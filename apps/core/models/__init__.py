@@ -34,7 +34,7 @@ from .academic import (
 from .profile import PasswordHistory, Profile
 
 # // Facilities & Scheduling Infrastructure
-from .room import Room
+from .room import FacilityType, Room
 
 # // Classroom Structure & Rosters
 from .classroom import (

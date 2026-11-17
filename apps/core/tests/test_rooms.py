@@ -30,6 +30,7 @@ from apps.core.models import (
     ClassSlot,
     Curriculum,
     Department,
+    FacilityType,
     Profile,
     Program,
     Room,
@@ -119,11 +120,15 @@ class RoomModelTest(RoomTestMixin, TestCase):
         self.assertFalse(self.lecture_room.is_lab)
 
     def test_seeded_campus_rooms_exist(self):
-        # The 14 campus rooms seeded by migration 0034
-        for lab_num in range(1, 7):
+        # Campus rooms seeded by migrations 0034 and 0036
+        for lab_num in range(1, 8):
             self.assertTrue(Room.objects.filter(code=f'LAB-{lab_num}').exists())
-        for rm_num in [101, 102, 103, 104, 201, 202, 203, 204]:
+        for rm_num in [101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, 304]:
             self.assertTrue(Room.objects.filter(code=f'RM-{rm_num}').exists())
+        for code in ['ELEM-21', 'ELEM-22', 'HS-107', 'HS-108', 'HS-109', 'HS-111',
+                     'HS-112', 'COLLEGE-101', 'COLLEGE-203', 'GYM', 'GYM-1',
+                     'GYM-2', 'GYM-3', 'GYM-4', 'QA-CONF']:
+            self.assertTrue(Room.objects.filter(code=code).exists())
 
 
 class RoomServiceTest(RoomTestMixin, TestCase):
@@ -133,13 +138,13 @@ class RoomServiceTest(RoomTestMixin, TestCase):
     def test_create_room_service(self):
         result = create_or_update_room(
             actor=self.admin_user,
-            code='AVR-1',
-            name='Audio Visual Room 1',
-            room_type='AVR',
+            code='HS-1',
+            name='HS Room 1',
+            room_type='HS',
             capacity=100,
         )
         room = result['instance']
-        self.assertEqual(room.code, 'AVR-1')
+        self.assertEqual(room.code, 'HS-1')
         self.assertEqual(room.capacity, 100)
         self.assertTrue(AuditEvent.objects.filter(actor=self.admin_user, action='CREATE_ROOM', object_id=str(room.pk)).exists())
 
@@ -352,7 +357,9 @@ class RoomViewsTest(RoomTestMixin, TestCase):
         ClassSlot.objects.filter(pk=legacy.pk).update(room_ref=None)
 
         self.client.force_login(self.admin_user)
-        res = self.client.get(reverse('room_list'))
+        # Search for the two test rooms: the directory now holds more rooms
+        # than one page (migration 0036), and RM-TEST-101 sorts onto page 2.
+        res = self.client.get(reverse('room_list'), {'q': 'TEST'})
         counts = {r.code: r.slot_count for r in res.context['rooms']}
         self.assertEqual(counts['LAB-TEST-1'], 1)
         self.assertEqual(counts['RM-TEST-101'], 1)
@@ -721,3 +728,155 @@ class SubjectLabFlagTest(RoomTestMixin, TestCase):
         lab_subj = next((s for s in subjs if s['code'] == 'IT102_T'), None)
         self.assertIsNotNone(lab_subj)
         self.assertTrue(lab_subj['is_lab'])
+
+
+class RoomRenamePropagationTests(RoomTestMixin, TestCase):
+    """
+    // Renaming a Room code must keep every slot's room text and room_ref FK
+    // in sync (the latent drift gap found in the room scheduling audit).
+    """
+
+    def test_rename_propagates_to_fk_and_adopts_text_only_slots(self):
+        room = Room.objects.create(
+            code='LAB-9', name='Computer Laboratory 9',
+            room_type=Room.ROOM_TYPE_LABORATORY, capacity=40,
+        )
+        class_obj = Class.objects.create(
+            academic_year=self.ay,
+            class_code='BSIT-3A-IT309T',
+            subject=self.subj_lab,
+            teacher_profile=self.teacher_profile,
+        )
+        bound = ClassSlot.objects.create(
+            class_obj=class_obj, weekday=0,
+            starts_at=time(8, 0), ends_at=time(10, 0), room_ref=room,
+        )
+        legacy = ClassSlot.objects.create(
+            class_obj=class_obj, weekday=2,
+            starts_at=time(8, 0), ends_at=time(10, 0), room='LAB-9',
+        )
+        # Simulate a legacy row written without the FK link.
+        ClassSlot.objects.filter(pk=legacy.pk).update(room_ref=None)
+
+        result = create_or_update_room(
+            actor=self.admin_user, code='LAB-10', name='Computer Laboratory 10',
+            room_type=Room.ROOM_TYPE_LABORATORY, capacity=40, room_id=room.pk,
+        )
+
+        room.refresh_from_db()
+        bound.refresh_from_db()
+        legacy.refresh_from_db()
+        self.assertEqual(room.code, 'LAB-10')
+        # FK-bound slot follows the rename in its text.
+        self.assertEqual(bound.room, 'LAB-10')
+        self.assertEqual(bound.room_ref_id, room.pk)
+        # Text-only slot spelled with the old code is adopted by the FK.
+        self.assertEqual(legacy.room, 'LAB-10')
+        self.assertEqual(legacy.room_ref_id, room.pk)
+        # No slot keeps a stale label.
+        self.assertFalse(
+            ClassSlot.objects.filter(room_ref=room).exclude(room='LAB-10').exists()
+        )
+        self.assertIn('schedule slot(s) follow the rename', result['message'])
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                action='UPDATE_ROOM', object_id=str(room.pk),
+                reason__icontains='LAB-9 -> LAB-10',
+            ).exists()
+        )
+
+    def test_rename_without_slots_reports_plain_update(self):
+        room = Room.objects.create(
+            code='RM-301T', name='Room 301 Test',
+            room_type=Room.ROOM_TYPE_LECTURE, capacity=45,
+        )
+        result = create_or_update_room(
+            actor=self.admin_user, code='RM-302T', name='Room 302 Test',
+            room_type=Room.ROOM_TYPE_LECTURE, capacity=45, room_id=room.pk,
+        )
+        room.refresh_from_db()
+        self.assertEqual(room.code, 'RM-302T')
+        self.assertNotIn('follow the rename', result['message'])
+
+
+class FacilityTypeCrudTests(RoomTestMixin, TestCase):
+    """
+    // Facility Types are a registrar-managed lookup (not a frozen choices list):
+    // create/rename/delete, wiring into the Room form, and the guards that keep
+    // built-in or in-use types from being removed.
+    """
+
+    def setUp(self):
+        self.client.force_login(self.admin_user)
+
+    def test_seeded_types_use_the_new_set(self):
+        codes = set(FacilityType.objects.values_list('code', flat=True))
+
+        self.assertIn('LECTURE', codes)
+        self.assertIn('LABORATORY', codes)
+        self.assertIn('HS', codes)
+        self.assertIn('ELEM', codes)
+        self.assertNotIn('AVR', codes)
+
+    def test_create_type_and_assign_to_room(self):
+        response = self.client.post(reverse('facility_type_save'), {
+            'code': 'hsb', 'name': 'HS Building Room',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        facility = FacilityType.objects.get(code='HSB')
+        self.assertEqual(facility.name, 'HS Building Room')
+
+        room_response = self.client.post(reverse('room_save'), {
+            'code': 'HSB-101', 'name': 'HS Building Room 101',
+            'room_type': 'HSB', 'capacity': '45', 'is_active': 'true', 'notes': '',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertEqual(room_response.status_code, 200, room_response.content)
+        room = Room.objects.get(code='HSB-101')
+        self.assertEqual(room.room_type, 'HSB')
+        self.assertEqual(room.get_room_type_display(), 'HS Building Room')
+
+    def test_rename_type_keeps_its_code(self):
+        facility = FacilityType.objects.get(code='HS')
+
+        response = self.client.post(reverse('facility_type_save'), {
+            'id': facility.pk, 'code': 'HS', 'name': 'High School Room',
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertEqual(response.status_code, 200, response.content)
+        facility.refresh_from_db()
+        self.assertEqual(facility.name, 'High School Room')
+        self.assertEqual(facility.code, 'HS')
+
+    def test_in_use_type_cannot_be_deleted(self):
+        facility = FacilityType.objects.create(code='HSB', name='HS Building Room', sort_order=50)
+        Room.objects.create(code='HSB-102', name='HS Building Room 102',
+                            room_type='HSB', capacity=40)
+
+        response = self.client.post(
+            reverse('facility_type_delete', args=[facility.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('still use', response.json()['error'])
+        self.assertTrue(FacilityType.objects.filter(pk=facility.pk).exists())
+
+    def test_builtin_type_cannot_be_deleted(self):
+        lecture = FacilityType.objects.get(code='LECTURE')
+
+        response = self.client.post(
+            reverse('facility_type_delete', args=[lecture.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('built-in', response.json()['error'])
+
+    def test_unknown_room_type_is_rejected(self):
+        with self.assertRaises(ValueError):
+            create_or_update_room(
+                actor=self.admin_user, code='RM-900',
+                name='Room 900', room_type='NOPE',
+            )

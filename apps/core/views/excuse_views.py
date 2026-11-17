@@ -131,12 +131,17 @@ def student_excuse_slips(request):
             return redirect('student_excuse_slips')
 
         attachment = request.FILES.get('attachment')
-        if attachment is not None:
-            try:
-                validate_uploaded_document(attachment)
-            except ValidationError as exc:
-                messages.error(request, ' '.join(exc.messages))
-                return redirect('student_excuse_slips')
+        if attachment is None:
+            messages.error(
+                request,
+                'Proof is required: attach the letter, medical certificate, or photo for that day.',
+            )
+            return redirect('student_excuse_slips')
+        try:
+            validate_uploaded_document(attachment)
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+            return redirect('student_excuse_slips')
 
         slip = ExcuseSlip(
             student_profile=profile,

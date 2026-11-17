@@ -225,8 +225,29 @@ def _admin_dashboard_stats():
         active_enrolment &= Q(enrollments__class_obj__academic_year=active_year)
     unassigned_count = unassigned_qs.exclude(active_enrolment).distinct().count()
 
+    # Active sections in the current term that still miss a teacher, a
+    # weekly schedule, or a program link — the same gaps the Classes
+    # checklist flags. Surfaced on the dashboard so the classroom setup
+    # flow is discoverable without knowing the sidebar.
+    incomplete_sections = 0
+    active_term_classes = 0
+    if active_year is not None:
+        term_classes = Class.objects.filter(
+            is_active=True, academic_year=active_year,
+        ).annotate(
+            active_slot_count=Count('slots', filter=Q(slots__is_active=True)),
+        )
+        active_term_classes = term_classes.count()
+        incomplete_sections = term_classes.filter(
+            Q(teacher_profile__isnull=True)
+            | Q(active_slot_count=0)
+            | Q(program__isnull=True),
+        ).count()
+
     return {
         'unassigned_count': unassigned_count,
+        'incomplete_sections': incomplete_sections,
+        'active_term_classes': active_term_classes,
         'pending_count': pending_count,
         'student_count': student_count,
         'teacher_count': teacher_count,

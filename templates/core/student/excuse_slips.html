@@ -21,7 +21,7 @@
     <h2 class="font-semibold text-primary mb-4"><i class="fas fa-file-pen text-gold"></i> File an Excuse</h2>
     <p class="text-muted text-sm mb-4">
       Excuse a meeting you already missed, or file ahead of one you know you cannot attend
-      (a scheduled appointment, for example). Add the reason and any proof, and your instructor
+      (a scheduled appointment, for example). Attach proof (letter, medical certificate, or photo) — required — and your instructor
       reviews it. If approved, the record is updated from <strong>ABSENT</strong> to
       <strong class="text-success">EXCUSED</strong>.
     </p>
@@ -42,7 +42,10 @@
           <textarea name="reason" class="form-control text-sm" rows="2" required placeholder="Reason for absence (e.g. medical appointment, family emergency)…"></textarea>
         </div>
         <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
-          <input type="file" name="attachment" class="text-xs text-muted" accept=".pdf,.jpg,.jpeg,.png">
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <input type="file" name="attachment" class="text-xs text-muted" accept=".pdf,.jpg,.jpeg,.png" required>
+            <span class="text-muted text-xs"><i class="fas fa-paperclip"></i> Proof required</span>
+          </div>
           <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Submit Excuse</button>
         </div>
       </form>
@@ -78,7 +81,10 @@
           <textarea name="reason" class="form-control text-sm" rows="2" required placeholder="Why will you miss this meeting?…"></textarea>
         </div>
         <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: 8px;">
-          <input type="file" name="attachment" class="text-xs text-muted" accept=".pdf,.jpg,.jpeg,.png">
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <input type="file" name="attachment" class="text-xs text-muted" accept=".pdf,.jpg,.jpeg,.png" required>
+            <span class="text-muted text-xs"><i class="fas fa-paperclip"></i> Proof required</span>
+          </div>
           <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-paper-plane"></i> File in advance</button>
         </div>
       </form>

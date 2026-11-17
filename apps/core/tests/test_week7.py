@@ -826,7 +826,7 @@ class WizardSetupPageTests(BaseWeek5FixtureMixin, TestCase):
         self.client.force_login(self.admin)
         res = self.client.get(reverse('class_wizard_setup'))
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, 'Section Builder Wizard')
+        self.assertContains(res, 'Add Section')
         self.assertContains(res, 'wizard-boot')
 
     def test_setup_page_teacher_redirects(self):

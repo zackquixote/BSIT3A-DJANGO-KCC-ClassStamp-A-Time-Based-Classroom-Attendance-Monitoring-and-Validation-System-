@@ -4,7 +4,7 @@
 # // ==============================================================================
 # // Subsystem: Facilities & Instructional Infrastructure (RBAC: ADMIN ONLY)
 # // Description: Administrative controllers for managing campus classrooms, computer
-# //   laboratories, AVRs, and specialized instruction facilities.
+# //   laboratories, building-specific rooms, and specialized instruction facilities.
 # //   Handles listing, search/filter, AJAX create/update, soft-deactivation protection,
 # //   and JSON options for timetable and Section Builder integration.
 # // Security Reference: docs/02_SECURITY.md
@@ -20,12 +20,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from apps.core.decorators import role_required
-from apps.core.models import ClassSlot, Profile, Room
+from apps.core.models import ClassSlot, FacilityType, Profile, Room
 from apps.core.serializers import serialize_room
 from apps.core.services import (
     create_or_update_room,
     delete_or_deactivate_room,
 )
+
+
+# // Built-in types the scheduler and lab/lecture stats depend on.
+PROTECTED_FACILITY_CODES = {'LECTURE', 'LABORATORY'}
 
 
 def _attach_slot_counts(rooms):
@@ -81,6 +85,13 @@ def room_list(request):
     type_filter = request.GET.get('type', '').strip().upper()
     status_filter = request.GET.get('status', 'all').strip().lower()
 
+    facility_types = list(FacilityType.objects.all())
+    type_labels = {ft.code: ft.name for ft in facility_types}
+    type_counts = {
+        row['room_type']: row['c']
+        for row in Room.objects.values('room_type').annotate(c=Count('pk'))
+    }
+
     rooms_qs = Room.objects.order_by('room_type', 'code')
 
     if query:
@@ -89,7 +100,7 @@ def room_list(request):
             Q(name__icontains=query)
         )
 
-    if type_filter and type_filter in [c[0] for c in Room.ROOM_TYPE_CHOICES]:
+    if type_filter and type_filter in type_labels:
         rooms_qs = rooms_qs.filter(room_type=type_filter)
 
     if status_filter == 'active':
@@ -101,6 +112,8 @@ def room_list(request):
     page_number = request.GET.get('page', 1)
     rooms = paginator.get_page(page_number)
     _attach_slot_counts(rooms.object_list)
+    for room in rooms.object_list:
+        room.type_label = type_labels.get(room.room_type, room.get_room_type_display())
 
     # Single aggregate for the metric cards. Type counts include inactive rooms
     # so the cards always add up against Total Facilities; Active & Ready is
@@ -117,7 +130,18 @@ def room_list(request):
         'query': query,
         'type_filter': type_filter,
         'status_filter': status_filter,
-        'room_type_choices': Room.ROOM_TYPE_CHOICES,
+        'room_type_choices': [(ft.code, ft.name) for ft in facility_types],
+        'facility_types': facility_types,
+        'facility_types_admin': [
+            {
+                'id': ft.pk,
+                'code': ft.code,
+                'name': ft.name,
+                'room_count': type_counts.get(ft.code, 0),
+                'protected': ft.code in PROTECTED_FACILITY_CODES,
+            }
+            for ft in facility_types
+        ],
         'total_count': stats['total'],
         'active_count': stats['active'],
         'lab_count': stats['labs'],
@@ -236,3 +260,123 @@ def room_options_json(request):
 
     data = [serialize_room(r) for r in rooms_qs]
     return JsonResponse({'rooms': data})
+
+
+# // ==============================================================================
+# // FACILITY TYPES — registrar-managed room classification CRUD
+# // ==============================================================================
+
+
+def _facility_type_payload(ft, room_count=0):
+    return {
+        'id': ft.pk,
+        'code': ft.code,
+        'name': ft.name,
+        'sort_order': ft.sort_order,
+        'room_count': room_count,
+        'protected': ft.code in PROTECTED_FACILITY_CODES,
+    }
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def facility_type_save(request):
+    """
+    // [Admin Controller] Create / Update a Facility Type
+    """
+    import re
+
+    from django.db import IntegrityError
+
+    from apps.core.models import AuditEvent
+
+    type_id = request.POST.get('id', '').strip()
+    code = request.POST.get('code', '').strip().upper()
+    name = request.POST.get('name', '').strip()
+
+    if not code:
+        return JsonResponse({'status': 'error', 'error': 'Code is required (e.g. HSB).'}, status=400)
+    if not re.fullmatch(r'[A-Z0-9]+(?:-[A-Z0-9]+)*', code):
+        return JsonResponse({
+            'status': 'error',
+            'error': 'Code may only contain letters, digits, and single hyphens (e.g. HSB, HS-BLDG).',
+        }, status=400)
+    if len(code) > 20:
+        return JsonResponse({'status': 'error', 'error': 'Code must be 20 characters or fewer.'}, status=400)
+    if not name:
+        return JsonResponse({'status': 'error', 'error': 'Display name is required.'}, status=400)
+    if len(name) > 60:
+        return JsonResponse({'status': 'error', 'error': 'Display name must be 60 characters or fewer.'}, status=400)
+
+    if type_id:
+        ft = get_object_or_404(FacilityType, pk=int(type_id))
+        if code != ft.code and Room.objects.filter(room_type=ft.code).exists():
+            return JsonResponse({
+                'status': 'error',
+                'error': 'This type is already used by rooms, so its code cannot change. Rename the label instead.',
+            }, status=400)
+        if code != ft.code and FacilityType.objects.filter(code__iexact=code).exclude(pk=ft.pk).exists():
+            return JsonResponse({'status': 'error', 'error': f'"{code}" is already another facility type.'}, status=400)
+        action = 'UPDATE_FACILITY_TYPE'
+        message = f'Facility type "{name}" updated.'
+    else:
+        ft = FacilityType()
+        action = 'CREATE_FACILITY_TYPE'
+        message = f'Facility type "{name}" added.'
+
+    ft.code = code
+    ft.name = name
+    try:
+        ft.save()
+    except IntegrityError:
+        return JsonResponse({'status': 'error', 'error': f'"{code}" is already another facility type.'}, status=400)
+
+    AuditEvent.objects.create(
+        actor=request.user,
+        action=action,
+        object_type='FacilityType',
+        object_id=str(ft.pk),
+        reason=f'{ft.code} — {ft.name}',
+    )
+    return JsonResponse({
+        'status': 'success',
+        'message': message,
+        'type': _facility_type_payload(ft, Room.objects.filter(room_type=ft.code).count()),
+    })
+
+
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_POST
+def facility_type_delete(request, pk):
+    """
+    // [Admin Controller] Delete a Facility Type
+    // Refuses while rooms are assigned to it, and keeps the built-in four.
+    """
+    from apps.core.models import AuditEvent
+
+    ft = get_object_or_404(FacilityType, pk=pk)
+    if ft.code in PROTECTED_FACILITY_CODES:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'This is a built-in facility type. You can rename it, but not delete it.',
+        }, status=400)
+
+    used = Room.objects.filter(room_type__iexact=ft.code).count()
+    if used:
+        return JsonResponse({
+            'status': 'error',
+            'error': f'{used} room(s) still use "{ft.name}". Reassign them before deleting this type.',
+        }, status=400)
+
+    label = str(ft)
+    ft.delete()
+    AuditEvent.objects.create(
+        actor=request.user,
+        action='DELETE_FACILITY_TYPE',
+        object_type='FacilityType',
+        object_id=str(pk),
+        reason=label,
+    )
+    return JsonResponse({'status': 'success', 'message': f'Facility type "{label}" deleted.'})

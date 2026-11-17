@@ -9,8 +9,13 @@
 """
 
 from datetime import date, time, timedelta
+import io as _io
+import tempfile
+
+from PIL import Image
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -31,6 +36,14 @@ from apps.core.models import (
 from apps.core.views.excuse_views import EXCUSE_ADVANCE_DAYS, EXCUSE_BACKFILL_DAYS
 
 User = get_user_model()
+
+def _proof_png_bytes():
+    buffer = _io.BytesIO()
+    Image.new('RGB', (32, 32), (20, 120, 220)).save(buffer, format='PNG')
+    return buffer.getvalue()
+
+
+_PROOF_PNG = _proof_png_bytes()
 
 
 class AdvanceExcuseBase(TestCase):
@@ -80,14 +93,24 @@ class AdvanceExcuseBase(TestCase):
             created_by=self.teacher_user,
         )
 
-    def _file(self, session, reason='Medical appointment'):
-        return self.client.post(reverse('student_excuse_slips'), {
-            'session_id': session.pk,
-            'reason': reason,
-        })
+    def _file(self, session, reason='Medical appointment', proof=True):
+        data = {'session_id': session.pk, 'reason': reason}
+        if proof:
+            data['attachment'] = SimpleUploadedFile(
+                'proof.png', _PROOF_PNG, content_type='image/png',
+            )
+        with self.settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            return self.client.post(reverse('student_excuse_slips'), data)
 
 
 class AdvanceFilingTests(AdvanceExcuseBase):
+    def test_filing_without_proof_is_refused(self):
+        session = self._session(-1)
+
+        self._file(session, proof=False)
+
+        self.assertFalse(ExcuseSlip.objects.filter(session=session).exists())
+
     def test_future_session_can_be_excused_in_advance(self):
         session = self._session(5)
 

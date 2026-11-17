@@ -64,13 +64,25 @@ def parse_days(text):
 # being collapsed into a Main Building record.
 ROOM_MAP_ALLOWED_BUILDINGS = {'', 'CMAT', 'LABORATORY', 'MAIN BUILDING', 'MAIN'}
 
+# Building tags that own a prefixed Room.code namespace (migration 0036). The
+# label resolves to that building's own record instead of a Main Building code:
+#   'ROOM 22 · ELEM' -> ELEM-22, 'ROOM 112 · HS' -> HS-112,
+#   'ROOM 101 · COLLEGE' -> COLLEGE-101.
+# Gym labels need no prefix: 'GYM 3' already spells the canonical 'GYM-3'.
+BUILDING_CODE_PREFIXES = {'ELEM': 'ELEM', 'HS': 'HS', 'COLLEGE': 'COLLEGE'}
+
 
 def building_tag(label):
-    """'ROOM 101 \u00b7 COLLEGE' -> 'COLLEGE'; 'LAB 5' -> ''."""
+    """'ROOM 101 \u00b7 COLLEGE' -> 'COLLEGE'; 'LAB 5' -> ''; 'GYM 1 \u00b7 GYM 1' -> ''."""
     parts = str(label or '').split('\u00b7')
     if len(parts) < 2:
         return ''
-    return parts[-1].strip().upper()
+    tag = parts[-1].strip().upper()
+    # A doubled spelling ('GYM 1 · GYM 1') is a registrar typo, not a building
+    # tag: treat it as untagged so the base 'GYM 1' resolves normally.
+    if len(parts) == 2 and tag == parts[0].strip().upper():
+        return ''
+    return tag
 
 
 def room_code_candidates(label):
@@ -86,7 +98,12 @@ def room_code_candidates(label):
     if not base:
         return []
     candidates = [base, base.replace(' ', '-')]
-    if base.startswith('ROOM '):
+    tag = building_tag(label)
+    if tag in BUILDING_CODE_PREFIXES:
+        # 'ROOM 22 · ELEM' -> ELEM-22; 'ROOM 101 · COLLEGE' -> COLLEGE-101.
+        number = base[len('ROOM '):].strip() if base.startswith('ROOM ') else base
+        candidates.insert(0, f'{BUILDING_CODE_PREFIXES[tag]}-{number.replace(" ", "-")}')
+    elif base.startswith('ROOM '):
         tail = base[len('ROOM '):].strip()
         candidates.append(f'RM-{tail.replace(" ", "-")}')
         candidates.append(f'RM {tail}')
@@ -102,7 +119,8 @@ def resolve_room(label):
     """
     from apps.core.models import Room
 
-    if building_tag(label) not in ROOM_MAP_ALLOWED_BUILDINGS:
+    tag = building_tag(label)
+    if tag not in ROOM_MAP_ALLOWED_BUILDINGS and tag not in BUILDING_CODE_PREFIXES:
         return None
     candidates = room_code_candidates(label)
     if not candidates:
@@ -483,7 +501,15 @@ class Command(BaseCommand):
                                     occupied, weekday, starts_at, ends_at,
                                     profile.pk, room, class_obj.pk,
                                 ) != 'room'
-                            if room_allowed and room and existing.room != room:
+                            # A slot already bound to a Room keeps its canonical
+                            # code: overwriting the text with an unresolved
+                            # workbook label would desync room from room_ref
+                            # (migration 0036 bound many such labels).
+                            label_follows_file = (
+                                room_obj is not None or existing.room_ref_id is None
+                            )
+                            if (room_allowed and room and label_follows_file
+                                    and existing.room != room):
                                 existing.room = room
                                 relabel = True
                                 changed.append('room')

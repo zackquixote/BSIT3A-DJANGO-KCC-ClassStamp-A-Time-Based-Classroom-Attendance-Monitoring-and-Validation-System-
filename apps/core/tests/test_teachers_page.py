@@ -213,3 +213,103 @@ class TeacherFacultyIdTests(TeacherPageBase):
 
         self.assertEqual(response.status_code, 302)
         self.assertNotEqual(response.get('Location'), reverse('login'))
+
+
+class OptionalTeacherEmailTests(TeacherPageBase):
+    """Email is optional on Add Faculty Member; Faculty ID stays required."""
+
+    def _payload(self, **overrides):
+        data = {
+            'first_name': 'Juan',
+            'last_name': 'Dela Cruz',
+            'email': '',
+            'dept_id': str(self.department.id),
+            'employee_number': 'KCC-FAC-0900',
+            'is_active': '1',
+        }
+        data.update(overrides)
+        return data
+
+    def test_create_without_email_succeeds_and_uses_name_username(self):
+        response = self.client.post(reverse('teacher_create'), self._payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        profile = Profile.objects.get(employee_number='KCC-FAC-0900')
+        self.assertEqual(profile.role, Profile.ROLE_TEACHER)
+        self.assertEqual(profile.user.email, '')
+        self.assertEqual(profile.user.username, 'juan.dela.cruz')
+
+    def test_create_with_email_still_uses_email_prefix(self):
+        response = self.client.post(reverse('teacher_create'), self._payload(
+            first_name='Maria',
+            last_name='Santos',
+            email='msantos@kcc.edu.ph',
+            employee_number='KCC-FAC-0901',
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        user = User.objects.get(email='msantos@kcc.edu.ph')
+        self.assertEqual(user.username, 'msantos')
+
+    def test_invalid_email_still_rejected(self):
+        response = self.client.post(reverse('teacher_create'), self._payload(email='not-an-email'))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('valid email', response.json()['error'])
+        self.assertFalse(Profile.objects.filter(employee_number='KCC-FAC-0900').exists())
+
+    def test_duplicate_email_still_rejected(self):
+        self.client.post(reverse('teacher_create'), self._payload(
+            email='dup@kcc.edu.ph',
+            employee_number='KCC-FAC-0902',
+        ))
+        response = self.client.post(reverse('teacher_create'), self._payload(
+            email='dup@kcc.edu.ph',
+            employee_number='KCC-FAC-0903',
+        ))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Profile.objects.filter(employee_number='KCC-FAC-0902').count(), 1)
+        self.assertFalse(Profile.objects.filter(employee_number='KCC-FAC-0903').exists())
+
+    def test_update_can_clear_email(self):
+        self.client.post(reverse('teacher_create'), self._payload(
+            email='clearme@kcc.edu.ph',
+            employee_number='KCC-FAC-0904',
+        ))
+        profile = Profile.objects.get(employee_number='KCC-FAC-0904')
+
+        response = self.client.post(reverse('teacher_update', args=[profile.pk]), {
+            'first_name': 'Juan',
+            'last_name': 'Dela Cruz',
+            'email': '',
+            'dept_id': str(self.department.id),
+            'employee_number': 'KCC-FAC-0904',
+            'is_active': '1',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        profile.user.refresh_from_db()
+        self.assertEqual(profile.user.email, '')
+
+    def test_two_teachers_without_email_are_allowed(self):
+        self.client.post(reverse('teacher_create'), self._payload(employee_number='KCC-FAC-0905'))
+        response = self.client.post(reverse('teacher_create'), self._payload(
+            first_name='Ana',
+            last_name='Reyes',
+            employee_number='KCC-FAC-0906',
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            Profile.objects.filter(role=Profile.ROLE_TEACHER, user__email='').count() >= 2,
+            True,
+        )
+
+    def test_form_no_longer_marks_email_required(self):
+        response = self.client.get(reverse('teacher_list'))
+        body = response.content.decode('utf-8')
+        # The faculty modal email input must not carry the HTML required flag.
+        self.assertNotIn('id="teacherEmail" name="email" class="form-control" placeholder="e.g. msantos@kcc.edu.ph" autocomplete="email" required', body)
+        self.assertIn('Optional. Used for password reset', body)

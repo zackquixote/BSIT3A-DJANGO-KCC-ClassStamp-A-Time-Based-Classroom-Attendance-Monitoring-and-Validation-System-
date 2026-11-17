@@ -66,14 +66,12 @@ def provision_teacher_account(
     // Raises: ValueError on validation failure.
     """
     username = username.strip().lower()
-    email = email.strip().lower()
+    email = (email or '').strip().lower()
     first_name = first_name.strip()
     last_name = last_name.strip()
 
     if not username:
         raise ValueError('Username is required.')
-    if not email:
-        raise ValueError('Email address is required.')
     if not first_name or not last_name:
         raise ValueError('First name and Last name are required.')
 
@@ -84,15 +82,16 @@ def provision_teacher_account(
     if Profile.objects.filter(employee_number__iexact=employee_number).exists():
         raise ValueError(f'Faculty ID "{employee_number}" is already registered to another faculty member.')
 
-    try:
-        validate_email(email)
-    except ValidationError:
-        raise ValueError('A valid email address is required.')
+    if email:
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise ValueError('A valid email address is required.')
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValueError(f'Email "{email}" is already registered to another account.')
 
     if User.objects.filter(username__iexact=username).exists():
         raise ValueError(f'Username "{username}" is already taken.')
-    if User.objects.filter(email__iexact=email).exists():
-        raise ValueError(f'Email "{email}" is already registered to another account.')
 
     dept = get_object_or_404(Department, pk=dept_id)
 
@@ -167,20 +166,18 @@ def update_teacher_profile(
 
     first_name = first_name.strip()
     last_name = last_name.strip()
-    email = email.strip().lower()
+    email = (email or '').strip().lower()
 
     if not first_name or not last_name:
         raise ValueError('First name and Last name are required.')
-    if not email:
-        raise ValueError('Email address is required.')
 
-    try:
-        validate_email(email)
-    except ValidationError:
-        raise ValueError('A valid email address is required.')
-
-    if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
-        raise ValueError(f'Email "{email}" is already used by another account.')
+    if email:
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise ValueError('A valid email address is required.')
+        if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+            raise ValueError(f'Email "{email}" is already used by another account.')
 
     dept = get_object_or_404(Department, pk=dept_id)
 

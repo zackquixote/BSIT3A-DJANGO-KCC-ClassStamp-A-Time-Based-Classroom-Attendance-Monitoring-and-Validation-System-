@@ -98,6 +98,8 @@ urlpatterns = [
     path('rooms/', views.room_list, name='room_list'),
     path('rooms/save/', views.room_save, name='room_save'),
     path('rooms/delete/<int:pk>/', views.room_delete, name='room_delete'),
+    path('rooms/types/save/', views.facility_type_save, name='facility_type_save'),
+    path('rooms/types/<int:pk>/delete/', views.facility_type_delete, name='facility_type_delete'),
     path('rooms/<int:pk>/json/', views.room_detail_json, name='room_detail_json'),
     path('rooms/options/json/', views.room_options_json, name='room_options_json'),
 

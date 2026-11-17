@@ -24,6 +24,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from apps.core.services.class_join_service import generate_join_code
+from apps.core.services.schedule_service import detect_slot_conflicts
 
 from apps.core.models import (
     AcademicYear,
@@ -33,6 +34,7 @@ from apps.core.models import (
     ClassSlot,
     Curriculum,
     Department,
+    FacilityType,
     Profile,
     Program,
     Room,
@@ -1263,6 +1265,56 @@ def clone_classes_academic_year(actor, source_year, target_year) -> dict:
             })
             continue
 
+        # Re-check each meeting against the target term so a clone cannot
+        # silently double-book a teacher or a room that is already in use.
+        # Teacher clash: drop the meeting. Room clash: drop the meeting.
+        # If every meeting clashes, skip the whole class instead of copying
+        # an empty shell.
+        source_slots = list(
+            ClassSlot.objects.filter(
+                class_obj=source_class, is_active=True,
+            ).order_by('weekday', 'starts_at')
+        )
+        usable_slots = []
+        slot_notes = []
+        for slot in source_slots:
+            conflicts = detect_slot_conflicts(
+                teacher_profile_id=source_class.teacher_profile_id,
+                weekday=slot.weekday,
+                starts_at=slot.starts_at,
+                ends_at=slot.ends_at,
+                room=slot.room,
+                room_id=slot.room_ref_id,
+                academic_year=target,
+            )
+            teacher_clashes = [c for c in conflicts if c['type'] == 'teacher']
+            room_clashes = [c for c in conflicts if c['type'] == 'room']
+            if teacher_clashes:
+                c = teacher_clashes[0]
+                slot_notes.append(
+                    f'{slot.get_weekday_display()} {slot.starts_at}-{slot.ends_at} '
+                    f'teacher clash with {c["class_code"]}'
+                )
+                continue
+            if room_clashes:
+                c = room_clashes[0]
+                slot_notes.append(
+                    f'{slot.get_weekday_display()} {slot.starts_at}-{slot.ends_at} '
+                    f'room clash with {c["class_code"]}'
+                )
+                continue
+            usable_slots.append(slot)
+
+        if source_slots and not usable_slots:
+            errors.append({
+                'class_code': source_class.class_code,
+                'reason': (
+                    'Every copied meeting clashes in '
+                    + target.name + ': ' + '; '.join(slot_notes)
+                ),
+            })
+            continue
+
         try:
             with transaction.atomic():
                 new_class = Class.objects.create(
@@ -1281,10 +1333,7 @@ def clone_classes_academic_year(actor, source_year, target_year) -> dict:
                     join_code_created_at=None,
                 )
                 slot_count = 0
-                source_slots = ClassSlot.objects.filter(
-                    class_obj=source_class, is_active=True,
-                ).order_by('weekday', 'starts_at')
-                for slot in source_slots:
+                for slot in usable_slots:
                     ClassSlot.objects.create(
                         class_obj=new_class,
                         weekday=slot.weekday,
@@ -1305,6 +1354,11 @@ def clone_classes_academic_year(actor, source_year, target_year) -> dict:
                     'subject': source_class.subject.code if source_class.subject else '',
                     'slot_count': slot_count,
                 })
+                if slot_notes:
+                    errors.append({
+                        'class_code': source_class.class_code,
+                        'reason': 'Copied with skipped meetings: ' + '; '.join(slot_notes),
+                    })
         except Exception as exc:
             errors.append({
                 'class_code': source_class.class_code,
@@ -1514,9 +1568,12 @@ def create_or_update_room(
     if len(name) > 100:
         raise ValueError('Room name must be 100 characters or fewer.')
 
-    valid_types = [choice[0] for choice in Room.ROOM_TYPE_CHOICES]
+    valid_types = list(FacilityType.objects.values_list('code', flat=True))
     if room_type not in valid_types:
-        raise ValueError(f'Invalid room type "{room_type}". Must be one of: {", ".join(valid_types)}.')
+        raise ValueError(
+            f'Invalid facility type "{room_type}". Choose a configured facility type '
+            'from the Room Directory > Facility Types page.'
+        )
 
     try:
         capacity = int(capacity)
@@ -1532,9 +1589,11 @@ def create_or_update_room(
     if code_qs.exists():
         raise ValueError(f'Room code "{code}" is already in use.')
 
+    audit_reason = None
     if room_id:
         room = get_object_or_404(Room, pk=room_id)
         old_val = f'{room.code} - {room.name} ({room.room_type}, cap: {room.capacity}, active: {room.is_active})'
+        old_code = room.code
         room.code = code
         room.name = name
         room.room_type = room_type
@@ -1544,6 +1603,25 @@ def create_or_update_room(
         room.save()
         action = 'UPDATE_ROOM'
         msg = f'Room "{room.code}" updated successfully.'
+        if old_code != room.code:
+            # A renamed code must not leave the legacy `room` text behind:
+            # FK-bound slots are relabeled, and text-only slots spelled with
+            # the old code are adopted by the FK so the pair never drifts.
+            relabeled = ClassSlot.objects.filter(room_ref=room).exclude(room=room.code)
+            relabeled_count = relabeled.update(room=room.code)
+            adopted = ClassSlot.objects.filter(
+                room_ref__isnull=True, room__iexact=old_code,
+            )
+            adopted_count = adopted.update(room=room.code, room_ref=room)
+            if relabeled_count or adopted_count:
+                total = relabeled_count + adopted_count
+                msg += f' {total} schedule slot(s) follow the rename.'
+                audit_reason = (
+                    f'Code renamed {old_code} -> {room.code}; '
+                    f'{total} slot(s) relabeled'
+                )
+            else:
+                audit_reason = f'Code renamed {old_code} -> {room.code}'
     else:
         room = Room.objects.create(
             code=code,
@@ -1564,6 +1642,7 @@ def create_or_update_room(
         object_id=str(room.pk),
         old_value=old_val,
         new_value=f'{room.code} - {room.name} ({room.room_type}, cap: {room.capacity}, active: {room.is_active})',
+        reason=audit_reason,
     )
 
     return {'instance': room, 'action': action, 'message': msg}
