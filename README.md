@@ -15,7 +15,6 @@ ClassStamp includes defense-in-depth controls for authentication, authorization,
 
 ---
 
-# KCC ClassStamp - A Time-Based Classroom Attendance Monitoring and Validation System
 ## BSIT Capstone Project Concept Paper
 
 ## INTRODUCTION
@@ -30,7 +29,7 @@ The main objective of this project will be to design, develop, and evaluate KCC 
 
 ---
 
-## SPECIFIC OBJECTIVES
+### SPECIFIC OBJECTIVES
 Specifically, the project will pursue the following objectives while keeping teachers and administrators responsible for their existing duties and decisions:
 
 1. **User Account & Role-Based Access:** The project will provide secure user account and profile management with role-based access for system administrators, teachers or instructors, and students. An approval queue will organize student applications for administrator review; an authorized administrator will make each approval or rejection decision.
@@ -43,7 +42,7 @@ Specifically, the project will pursue the following objectives while keeping tea
 
 ---
 
-## SIGNIFICANCE OF THE PROJECT
+### SIGNIFICANCE OF THE PROJECT
 The proposed system will provide support and practical information to the following beneficiaries; it will not replace their roles or decision-making responsibilities:
 
 - **Subject Teachers and Instructors:** The system will support teachers who use laptops, attendance sheets, or both by assisting with attendance validation, tallying, monitoring, and report preparation. It will complement their current workflow, not replace their attendance-taking role, review, or decisions.
