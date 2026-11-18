@@ -132,4 +132,19 @@ class RoleBasedAccessMiddleware:
                 return True
             return False
 
-        return profile.role == required_role
+        if profile.role == required_role:
+            return True
+
+        # The teacher report pages are also the read-only export hub for
+        # administrators. Allow only those paths, not the rest of /teacher/.
+        if profile.role == Profile.ROLE_ADMIN and self._is_admin_report_path(request.path):
+            return True
+
+        return False
+
+    @staticmethod
+    def _is_admin_report_path(path: str) -> bool:
+        return (
+            path.startswith('/teacher/classes/')
+            and ('/matrix/' in path or '/term-export/' in path)
+        )

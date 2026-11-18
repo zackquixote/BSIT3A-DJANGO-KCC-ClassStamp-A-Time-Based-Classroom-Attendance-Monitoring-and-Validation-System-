@@ -14,6 +14,7 @@
 """
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -254,3 +255,55 @@ class AcademicYear(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class GradingPeriod(models.Model):
+    """
+    // [Model] Grading Period Window
+    // Prelim / Midterm / Finals dates for one academic term. Reports filter
+    // sessions by these windows instead of assuming "first 9 meetings".
+    """
+
+    CODE_PRELIM = 'PRELIM'
+    CODE_MIDTERM = 'MIDTERM'
+    CODE_FINALS = 'FINALS'
+    CODE_CHOICES = [
+        (CODE_PRELIM, 'Prelim'),
+        (CODE_MIDTERM, 'Midterm'),
+        (CODE_FINALS, 'Finals'),
+    ]
+
+    academic_year = models.ForeignKey(
+        AcademicYear,
+        on_delete=models.CASCADE,
+        related_name='grading_periods',
+        help_text="// Term these grading windows belong to",
+    )
+    code = models.CharField(max_length=10, choices=CODE_CHOICES)
+    start_date = models.DateField(help_text="// First day included in this grading period")
+    end_date = models.DateField(help_text="// Last day included in this grading period")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'core'
+        db_table = 'tblcs_grading_period'
+        unique_together = [('academic_year', 'code')]
+        ordering = ['academic_year', 'start_date']
+
+    def clean(self):
+        errors = {}
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            errors['end_date'] = 'The end date must be on or after the start date.'
+        if self.academic_year_id and self.start_date and self.end_date:
+            term = self.academic_year
+            if self.start_date < term.starts_on or self.end_date > term.ends_on:
+                errors['start_date'] = (
+                    f'Grading periods must fit inside {term.name} '
+                    f'({term.starts_on:%b %d, %Y} - {term.ends_on:%b %d, %Y}).'
+                )
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f'{self.academic_year.name} - {self.get_code_display()}'

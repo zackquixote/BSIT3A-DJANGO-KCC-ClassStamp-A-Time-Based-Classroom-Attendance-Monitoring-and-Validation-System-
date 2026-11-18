@@ -47,6 +47,7 @@ from apps.core.models import (
     ClassSession,
     ClassSlot,
     Enrollment,
+    GradingPeriod,
     OfflineBadge,
     Profile,
     StampAttempt,
@@ -61,6 +62,10 @@ from apps.core.services.anomaly_service import (
     detect_token_replay,
 )
 from apps.core.services.attendance_policy import absence_threshold_percent, policy_value
+from apps.core.services.attendance_report_service import (
+    available_grading_periods,
+    resolve_report_range,
+)
 from apps.core.services.attendance_service import build_attendance_matrix
 from apps.core.services.analytics_service import (
     PREDICTION_ALGORITHM_VERSION,
@@ -1629,20 +1634,51 @@ def teacher_class_term_export(request, class_id):
         messages.error(request, "You are not authorized to export attendance for this class section.")
         return redirect('teacher_dashboard')
 
+    period_code = request.GET.get('period', '').strip().lower()
     export_range = request.GET.get('range', 'all').strip().lower()
-    range_limits = {'midterm': 9, 'finals': 18}
-    range_cap = range_limits.get(export_range)
-    if export_range not in range_limits:
-        export_range = 'all'
-        range_cap = None
+    report_range = None
+    range_cap = None
+    sheet_label = 'Term Attendance'
+    file_prefix = 'all'
+
+    if period_code or export_range in ('week', 'custom'):
+        report_range = resolve_report_range(
+            class_obj,
+            period=period_code,
+            range_key=export_range if export_range in ('week', 'custom') else 'term',
+            start=request.GET.get('start', ''),
+            end=request.GET.get('end', ''),
+        )
+        if report_range['error']:
+            messages.error(request, report_range['error'])
+            return redirect('teacher_attendance_matrix', class_id=class_obj.pk)
+        file_prefix = period_code or export_range
+        sheet_label = (
+            f'{report_range["label"]} Attendance'
+            if period_code else
+            ('This Week Attendance' if export_range == 'week' else 'Custom Range Attendance')
+        )
 
     sessions = list(
         ClassSession.objects.filter(slot__class_obj=class_obj)
         .exclude(status=ClassSession.STATUS_CANCELED)
         .order_by('session_date')
     )
-    if range_cap is not None:
+    if report_range is not None:
+        if report_range['start']:
+            sessions = [s for s in sessions if s.session_date >= report_range['start']]
+        if report_range['end']:
+            sessions = [s for s in sessions if s.session_date <= report_range['end']]
+    elif export_range in ('midterm', 'finals'):
+        # Legacy meeting-count behaviour retained for bookmarked exports; the
+        # real Prelim/Midterm/Finals path uses ?period= and GradingPeriod dates.
+        range_cap = 9 if export_range == 'midterm' else 18
+        sheet_label = 'Midterm Attendance' if export_range == 'midterm' else 'Finals Attendance'
+        file_prefix = export_range
         sessions = sessions[:range_cap]
+    else:
+        export_range = 'all'
+        file_prefix = 'all'
 
     students = list(
         Enrollment.objects.filter(class_obj=class_obj, status=Enrollment.STATUS_ACTIVE)
@@ -1660,12 +1696,7 @@ def teacher_class_term_export(request, class_id):
 
     wb = Workbook()
     ws = wb.active
-    range_labels = {
-        'midterm': 'Midterm Attendance',
-        'finals': 'Finals Attendance',
-        'all': 'Term Attendance',
-    }
-    ws.title = range_labels[export_range]
+    ws.title = sheet_label
 
     header_fill = PatternFill('solid', fgColor='1F2937')
     header_font = Font(bold=True, color='FFFFFF')
@@ -1737,7 +1768,7 @@ def teacher_class_term_export(request, class_id):
     wb.save(output)
     output.seek(0)
 
-    filename = f"{export_range}_attendance_{class_obj.class_code}.xlsx"
+    filename = f"{file_prefix}_attendance_{class_obj.class_code}.xlsx"
     response = HttpResponse(
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1767,11 +1798,45 @@ def teacher_attendance_matrix(request, class_id):
         messages.error(request, "You are not authorized to view attendance for this class section.")
         return redirect('teacher_dashboard')
 
-    matrix = build_attendance_matrix(class_obj)
+    range_error = ''
+    report_range = resolve_report_range(
+        class_obj,
+        period=request.GET.get('period', ''),
+        range_key=request.GET.get('range', 'term'),
+        start=request.GET.get('start', ''),
+        end=request.GET.get('end', ''),
+    )
+    if report_range['error']:
+        range_error = report_range['error']
+        messages.error(request, range_error)
+        if request.GET.get('format'):
+            # Never hand back a whole-term file mislabeled as a period export.
+            return redirect('teacher_attendance_matrix', class_id=class_obj.pk)
+        report_range = resolve_report_range(class_obj, range_key='term')
+
+    matrix = build_attendance_matrix(
+        class_obj, start=report_range['start'], end=report_range['end'],
+    )
+    matrix['range_label'] = report_range['label']
+
+    report_params = {}
+    if report_range['key'] in ('prelim', 'midterm', 'finals'):
+        report_params['period'] = report_range['key']
+    elif report_range['key'] == 'week':
+        report_params['range'] = 'week'
+    elif report_range['key'] == 'custom':
+        report_params['range'] = 'custom'
+        report_params['start'] = report_range['start'].isoformat()
+        report_params['end'] = report_range['end'].isoformat()
+    report_query = urlencode(report_params)
+    export_suffix = f"_{report_range['key']}" if report_range['key'] != 'term' else ''
 
     if request.GET.get('format') == 'csv':
         response = HttpResponse(content_type='text/csv')
-        filename = f"attendance_matrix_{class_obj.class_code}_{timezone.localdate().strftime('%Y%m%d')}.csv"
+        filename = (
+            f"attendance_matrix_{class_obj.class_code}{export_suffix}_"
+            f"{timezone.localdate().strftime('%Y%m%d')}.csv"
+        )
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
         writer = SafeCsvWriter(response)
@@ -1802,7 +1867,7 @@ def teacher_attendance_matrix(request, class_id):
             messages.error(request, 'Unable to generate the PDF export.')
             return redirect('teacher_attendance_matrix', class_id=class_obj.pk)
         filename = (
-            f"attendance_matrix_{class_obj.class_code}_"
+            f"attendance_matrix_{class_obj.class_code}{export_suffix}_"
             f"{timezone.localdate().strftime('%Y%m%d')}.pdf"
         )
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
@@ -1837,10 +1902,21 @@ def teacher_attendance_matrix(request, class_id):
             if row['prediction'] is not None and row['prediction'] < threshold
         ]
 
+    grading_periods = available_grading_periods(class_obj)
+    configured_codes = {period.code for period in grading_periods}
+    period_options = [
+        {'code': code, 'label': label, 'configured': code in configured_codes}
+        for code, label in GradingPeriod.CODE_CHOICES
+    ]
     return render(request, 'core/teacher/matrix.html', {
         'class_obj': class_obj,
         **matrix,
         'student_rows': student_rows,
+        'report_range': report_range,
+        'report_query': report_query,
+        'range_error': range_error,
+        'grading_periods': grading_periods,
+        'period_options': period_options,
         'prediction_passing_threshold': threshold,
         'prediction_algorithm_version': PREDICTION_ALGORITHM_VERSION,
         'prediction_note': (

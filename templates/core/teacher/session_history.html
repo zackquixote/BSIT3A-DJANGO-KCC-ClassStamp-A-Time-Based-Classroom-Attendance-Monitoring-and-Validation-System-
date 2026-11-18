@@ -98,7 +98,9 @@
             </div>
           </td>
           <td>
-            <span class="badge badge--primary font-mono">{{ s.slot.class_obj.class_code }}</span>
+            <a href="{% url 'teacher_attendance_matrix' s.slot.class_obj_id %}"
+               class="badge badge--primary font-mono" style="text-decoration:none;"
+               title="Open Attendance Matrix and period reports">{{ s.slot.class_obj.class_code }}</a>
           </td>
           <td>
             <div class="font-semibold text-primary text-xs">{{ s.slot.class_obj.subject.code }}</div>

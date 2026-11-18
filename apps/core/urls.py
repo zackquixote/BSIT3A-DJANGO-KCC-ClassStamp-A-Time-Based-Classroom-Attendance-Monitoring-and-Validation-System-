@@ -137,6 +137,7 @@ urlpatterns = [
 
     # // Admin: Academic Year & Term Management
     path('academic-years/', views.academic_year_list, name='academic_year_list'),
+    path('academic-years/<int:pk>/grading-periods/', views.grading_periods, name='grading_periods'),
     path('academic-years/readiness/', views.curriculum_readiness_report, name='curriculum_readiness_report'),
     path('academic-years/readiness/export/<str:report_type>/', views.curriculum_readiness_export, name='curriculum_readiness_export'),
     path('academic-years/save/', views.academic_year_save, name='academic_year_save'),

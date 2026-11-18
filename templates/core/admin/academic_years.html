@@ -154,6 +154,10 @@
                     <span>Currently Active</span>
                   </div>
                   {% endif %}
+                  <a class="action-dropdown-item" href="{% url 'grading_periods' ay.id %}" style="text-decoration:none;">
+                    <i class="fas fa-calendar-range text-gold"></i>
+                    <span>Grading Periods</span>
+                  </a>
                   <div class="action-dropdown-divider"></div>
                   <button class="action-dropdown-item action-dropdown-item--danger js-delete-ay"
                           data-id="{{ ay.id }}" data-name="{{ ay.name }}">

@@ -12,10 +12,11 @@ from django.utils import timezone
 from apps.core.models import AttendanceRecord, ClassSession, Enrollment
 
 
-def build_attendance_matrix(class_obj):
+def build_attendance_matrix(class_obj, *, start=None, end=None):
     """
     // [Service] Aggregates every active enrollment and session for a class into
     // per-student status cells plus attendance tallies and compliance rates.
+    // start/end are inclusive session-date bounds for weekly/period exports.
     """
     enrollments = (
         Enrollment.objects
@@ -26,13 +27,18 @@ def build_attendance_matrix(class_obj):
 
     # Cancelled meetings never happened, so they must not inflate the
     # denominator used for per-student and overall attendance rates.
-    sessions = list(
+    session_qs = (
         ClassSession.objects
         .filter(slot__class_obj=class_obj)
         .exclude(status=ClassSession.STATUS_CANCELED)
         .select_related('slot')
         .order_by('session_date', 'opened_at')
     )
+    if start is not None:
+        session_qs = session_qs.filter(session_date__gte=start)
+    if end is not None:
+        session_qs = session_qs.filter(session_date__lte=end)
+    sessions = list(session_qs)
 
     records = (
         AttendanceRecord.objects

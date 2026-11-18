@@ -329,6 +329,7 @@ def build_attendance_matrix_pdf(class_obj, matrix, generated_by) -> bytes:
     story.append(Paragraph(
         f'Teacher: {teacher_name} · '
         f'Term: {class_obj.academic_year.name if class_obj.academic_year else "—"} · '
+        f'Report: {matrix.get("range_label", "Whole Term")} · '
         f'Overall rate: {overall_rate}%',
         styles['Normal'],
     ))

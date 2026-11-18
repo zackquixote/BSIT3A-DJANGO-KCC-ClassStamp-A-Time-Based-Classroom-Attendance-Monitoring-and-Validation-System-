@@ -1,0 +1,76 @@
+{% extends "theme/base.html" %}
+{% block title %}Grading Periods — {{ academic_year.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <div class="breadcrumb-nav">
+      <a href="{% url 'academic_year_list' %}"><i class="fas fa-calendar-days"></i> Academic Terms</a>
+      <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Grading Periods</span>
+    </div>
+    <h1 class="page-title">Grading Periods</h1>
+    <p class="page-subtitle">
+      {{ academic_year.name }} · these inclusive date windows drive the Prelim, Midterm,
+      and Finals attendance exports.
+    </p>
+  </div>
+  <a href="{% url 'academic_year_list' %}" class="btn btn-outline">
+    <i class="fas fa-arrow-left"></i> Academic Terms
+  </a>
+</div>
+
+<div class="card" style="max-width: 820px; padding: 22px;">
+  {% if error %}
+    <div class="toast toast--error mb-3">{{ error }}</div>
+  {% endif %}
+
+  <p class="text-muted text-sm mb-3">
+    Set the exact start and end dates for each grading period. Reports only count
+    class meetings whose <strong>session date</strong> falls inside the selected window.
+    The three periods must not overlap.
+  </p>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col" style="width: 22%;">Period</th>
+            <th scope="col" style="width: 39%;">Start Date</th>
+            <th scope="col" style="width: 39%;">End Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in period_rows %}
+            <tr>
+              <td>
+                <span class="font-semibold text-primary">{{ row.label }}</span>
+                <div class="text-xs text-muted">Inclusive range</div>
+              </td>
+              <td>
+                <input type="date" class="form-control" name="{{ row.code|lower }}_start"
+                       value="{{ row.start }}" required
+                       aria-label="{{ row.label }} start date">
+              </td>
+              <td>
+                <input type="date" class="form-control" name="{{ row.code|lower }}_end"
+                       value="{{ row.end }}" required
+                       aria-label="{{ row.label }} end date">
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center gap-2 mt-3" style="flex-wrap: wrap;">
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-floppy-disk"></i> Save Grading Periods
+      </button>
+      <a href="{% url 'academic_year_list' %}" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -2,13 +2,28 @@
 
 {% block title %}Attendance Matrix — {{ class_obj.class_code }} — KCC ClassStamp{% endblock %}
 
+{% block extra_css %}
+<style>
+  @media (max-width: 640px) {
+    .report-custom-form { margin-left: 0 !important; width: 100%; }
+    .report-custom-form .form-control { flex: 1 1 100%; width: 100% !important; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header mb-4">
   <div>
     <div class="flex items-center gap-2 mb-1">
+      {% if request.user.classstamp_profile.role == 'ADMIN' %}
+      <a href="{% url 'class_list' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Class Sections" aria-label="Back to Class Sections">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      {% else %}
       <a href="{% url 'teacher_session_history' %}" class="btn btn-outline btn-xs" style="padding: 4px 8px;" title="Back to Session History" aria-label="Back to Session History">
         <i class="fas fa-arrow-left"></i>
       </a>
+      {% endif %}
       <span class="badge badge--primary font-mono">{{ class_obj.class_code }}</span>
       <span class="badge badge--muted">{{ class_obj.subject.code }}</span>
       <span class="badge badge--outline">{{ class_obj.academic_year.name }}</span>
@@ -16,31 +31,77 @@
     <h1 class="page-title text-xl">Attendance Matrix</h1>
     <p class="page-subtitle text-xs">
       <i class="fas fa-chalkboard-user text-gold"></i> {{ class_obj.subject.name }}
-      &nbsp;•&nbsp; Read-only grid of enrolled students across all class meetings.
+      &nbsp;•&nbsp; Read-only grid of enrolled students for the selected report range.
     </p>
   </div>
 
-  <div class="flex items-center gap-2">
-    <a href="{% if at_risk_only %}{% url 'teacher_attendance_matrix' class_obj.id %}{% else %}{% url 'teacher_attendance_matrix' class_obj.id %}?at_risk_only=1{% endif %}" class="btn {% if at_risk_only %}btn-danger{% else %}btn-outline{% endif %}" title="Show only students whose predicted final attendance is below the institutional threshold">
+  <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?{% if report_query %}{{ report_query }}&{% endif %}at_risk_only={% if at_risk_only %}0{% else %}1{% endif %}"
+       class="btn {% if at_risk_only %}btn-danger{% else %}btn-outline{% endif %}"
+       title="Show only students whose predicted final attendance is below the institutional threshold">
       <i class="fas fa-triangle-exclamation"></i>
       {% if at_risk_only %}Showing {{ at_risk_count }} at-risk — show all{% else %}At-risk only ({{ at_risk_count }}){% endif %}
     </a>
-    <a href="{% url 'teacher_class_term_export' class_obj.id %}" class="btn btn-primary">
-      <i class="fas fa-file-excel"></i> Term Excel
+    <a href="{% url 'teacher_class_term_export' class_obj.id %}{% if report_query %}?{{ report_query }}{% endif %}" class="btn btn-primary">
+      <i class="fas fa-file-excel"></i> Excel
     </a>
-    <a href="{% url 'teacher_class_term_export' class_obj.id %}?range=midterm" class="btn btn-outline" title="First 9 meetings (Weeks 1-9)">
-      <i class="fas fa-file-excel"></i> Midterm
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?{% if report_query %}{{ report_query }}&{% endif %}format=csv" class="btn btn-outline">
+      <i class="fas fa-file-csv"></i> CSV
     </a>
-    <a href="{% url 'teacher_class_term_export' class_obj.id %}?range=finals" class="btn btn-outline" title="First 18 meetings (Weeks 1-18)">
-      <i class="fas fa-file-excel"></i> Finals
-    </a>
-    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?format=csv" class="btn btn-outline">
-      <i class="fas fa-file-csv"></i> Export CSV
-    </a>
-    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?format=pdf" class="btn btn-outline" title="Same matrix dataset as the CSV export, rendered as PDF">
-      <i class="fas fa-file-pdf"></i> Export PDF
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?{% if report_query %}{{ report_query }}&{% endif %}format=pdf" class="btn btn-outline" title="Same matrix dataset as the CSV export, rendered as PDF">
+      <i class="fas fa-file-pdf"></i> PDF
     </a>
   </div>
+</div>
+
+{% if range_error %}
+  <div class="toast toast--error mb-3">{{ range_error }}</div>
+{% endif %}
+
+<div class="card mb-3" style="padding: 12px 16px;">
+  <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+    <span class="text-muted text-xs font-semibold uppercase" style="letter-spacing:0.05em;">Report range</span>
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}"
+       class="btn btn-sm {% if report_range.key == 'term' %}btn-primary{% else %}btn-outline{% endif %}">Whole Term</a>
+    <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?range=week"
+       class="btn btn-sm {% if report_range.key == 'week' %}btn-primary{% else %}btn-outline{% endif %}">This Week</a>
+    {% for period in period_options %}
+      {% if period.configured %}
+        <a href="{% url 'teacher_attendance_matrix' class_obj.id %}?period={{ period.code|lower }}"
+           class="btn btn-sm {% if report_range.key == period.code|lower %}btn-primary{% else %}btn-outline{% endif %}">
+          {{ period.label }}
+        </a>
+      {% else %}
+        <span class="btn btn-sm btn-outline" style="opacity: 0.45; cursor: not-allowed;"
+              title="Set the {{ period.label }} dates in Academic Terms first">
+          {{ period.label }}
+        </span>
+      {% endif %}
+    {% endfor %}
+    <form method="get" action="{% url 'teacher_attendance_matrix' class_obj.id %}"
+          class="flex items-center gap-2 report-custom-form" style="flex-wrap: wrap; margin-left: auto;">
+      <input type="hidden" name="range" value="custom">
+      <input type="date" name="start" class="form-control" style="width: 145px;"
+             value="{% if report_range.key == 'custom' and report_range.start %}{{ report_range.start|date:'Y-m-d' }}{% endif %}"
+             aria-label="Custom range start">
+      <input type="date" name="end" class="form-control" style="width: 145px;"
+             value="{% if report_range.key == 'custom' and report_range.end %}{{ report_range.end|date:'Y-m-d' }}{% endif %}"
+             aria-label="Custom range end">
+      <button type="submit" class="btn btn-outline btn-sm"><i class="fas fa-filter"></i> Apply</button>
+    </form>
+  </div>
+  <p class="text-muted text-xs mb-0 mt-2">
+    Showing <strong class="text-primary">{{ report_range.label }}</strong>
+    · {{ total_sessions }} meeting{{ total_sessions|pluralize }}
+    {% if not grading_periods %}
+      · <span class="text-warning">Prelim/Midterm/Finals dates are not set for this term.</span>
+      {% if request.user.classstamp_profile.role == 'ADMIN' %}
+        <a href="{% url 'grading_periods' class_obj.academic_year_id %}">Set grading periods</a>
+      {% else %}
+        Ask an administrator to set them.
+      {% endif %}
+    {% endif %}
+  </p>
 </div>
 
 <!-- Telemetry Stat Grid -->

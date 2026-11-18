@@ -10,17 +10,21 @@
 # // ==============================================================================
 """
 
+from datetime import date
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_http_methods
 
 from apps.core.decorators import role_required
-from apps.core.models import AcademicYear, Class, Profile
+from apps.core.models import AcademicYear, AuditEvent, Class, GradingPeriod, Profile
 from apps.core.serializers.academic_serializers import serialize_academic_year
 from apps.core.services import (
     TermSwitchBlocked,
@@ -346,4 +350,102 @@ def academic_year_enable_join_codes(request):
         'message': result['message'],
         'enabled': result['enabled'],
         'skipped': result['skipped'],
+    })
+
+
+# // ==============================================================================
+# // VIEW: Grading Period Dates (/academic-years/<pk>/grading-periods/)
+# // ==============================================================================
+@login_required(login_url='login')
+@role_required(Profile.ROLE_ADMIN)
+@require_http_methods(['GET', 'POST'])
+def grading_periods(request, pk: int):
+    """
+    // Admin sets the exact Prelim / Midterm / Finals date windows for one term.
+    // Attendance reports filter sessions by these dates; without them, period
+    // exports cannot claim to be a real prelim/midterm/finals report.
+    """
+    ay = get_object_or_404(AcademicYear, pk=pk)
+    codes = [GradingPeriod.CODE_PRELIM, GradingPeriod.CODE_MIDTERM, GradingPeriod.CODE_FINALS]
+    labels = dict(GradingPeriod.CODE_CHOICES)
+    existing = {period.code: period for period in ay.grading_periods.all()}
+
+    form_values = {
+        code: {
+            'start': existing[code].start_date.isoformat() if code in existing else '',
+            'end': existing[code].end_date.isoformat() if code in existing else '',
+        }
+        for code in codes
+    }
+    error = ''
+
+    if request.method == 'POST':
+        parsed = {}
+        for code in codes:
+            start_raw = request.POST.get(f'{code.lower()}_start', '').strip()
+            end_raw = request.POST.get(f'{code.lower()}_end', '').strip()
+            form_values[code] = {'start': start_raw, 'end': end_raw}
+            if not start_raw or not end_raw:
+                error = f'Complete the start and end dates for {labels[code]}.'
+                break
+            try:
+                parsed[code] = (date.fromisoformat(start_raw), date.fromisoformat(end_raw))
+            except ValueError:
+                error = f'Use valid dates for {labels[code]}.'
+                break
+
+        if not error:
+            ordered = sorted(parsed.items(), key=lambda item: item[1][0])
+            for index, (code, (start, end)) in enumerate(ordered):
+                if start > end:
+                    error = f'{labels[code]} starts after it ends.'
+                    break
+                if start < ay.starts_on or end > ay.ends_on:
+                    error = (
+                        f'{labels[code]} must fit inside {ay.name} '
+                        f'({ay.starts_on:%b %d, %Y} - {ay.ends_on:%b %d, %Y}).'
+                    )
+                    break
+                if index and start <= ordered[index - 1][1][1]:
+                    error = (
+                        f'{labels[code]} overlaps {labels[ordered[index - 1][0]]}. '
+                        'Grading periods must not overlap.'
+                    )
+                    break
+
+        if not error:
+            with transaction.atomic():
+                for code, (start, end) in parsed.items():
+                    GradingPeriod.objects.update_or_create(
+                        academic_year=ay,
+                        code=code,
+                        defaults={'start_date': start, 'end_date': end},
+                    )
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    action='GRADING_PERIODS_UPDATED',
+                    object_type='AcademicYear',
+                    object_id=str(ay.pk),
+                    new_value='; '.join(
+                        f'{labels[code]}: {start.isoformat()}..{end.isoformat()}'
+                        for code, (start, end) in sorted(parsed.items(), key=lambda item: item[1][0])
+                    ),
+                    reason=f'Grading period dates set for {ay.name}',
+                )
+            messages.success(request, f'Grading periods saved for {ay.name}.')
+            return redirect('grading_periods', pk=ay.pk)
+
+    period_rows = [
+        {
+            'code': code,
+            'label': labels[code],
+            'start': form_values[code]['start'],
+            'end': form_values[code]['end'],
+        }
+        for code in codes
+    ]
+    return render(request, 'core/admin/grading_periods.html', {
+        'academic_year': ay,
+        'period_rows': period_rows,
+        'error': error,
     })

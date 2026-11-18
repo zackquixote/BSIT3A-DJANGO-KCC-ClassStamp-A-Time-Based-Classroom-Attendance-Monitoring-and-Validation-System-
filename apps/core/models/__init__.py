@@ -24,6 +24,7 @@
 from .academic import (
     AcademicYear,
     Curriculum,
+    GradingPeriod,
     CurriculumVersion,
     Department,
     Program,
@@ -79,6 +80,7 @@ from .messaging import Message
 __all__ = [
     # Academic
     'AcademicYear',
+    'GradingPeriod',
     'Curriculum',
     'CurriculumVersion',
     'Department',

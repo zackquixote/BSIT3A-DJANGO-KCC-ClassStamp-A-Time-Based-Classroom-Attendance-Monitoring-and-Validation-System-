@@ -255,6 +255,7 @@ from .academic_year_views import (
     academic_year_rollover,
     academic_year_clone,
     academic_year_enable_join_codes,
+    grading_periods,
 )
 from .readiness_views import (
     curriculum_readiness_export,
@@ -453,6 +454,7 @@ __all__ = [
     'academic_year_set_active',
     'academic_year_delete',
     'academic_year_get',
+    'grading_periods',
     'academic_year_rollover',
     'academic_year_clone',
     'academic_year_enable_join_codes',
