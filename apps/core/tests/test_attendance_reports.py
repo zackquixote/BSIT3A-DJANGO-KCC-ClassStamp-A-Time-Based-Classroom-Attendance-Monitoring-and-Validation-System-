@@ -200,6 +200,7 @@ class MatrixRangeTests(AttendanceReportFixture):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode('utf-8')
         self.assertIn('class="sidebar-link active"', body)
+        self.assertIn('Back to Session History', body)
         self.assertIn('href="/teacher/sessions/"', body)
         self.assertNotRegex(
             body,
