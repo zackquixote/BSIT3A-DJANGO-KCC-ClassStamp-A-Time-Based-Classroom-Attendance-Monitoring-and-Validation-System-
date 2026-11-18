@@ -137,7 +137,7 @@
 
     {% elif profile and profile.role == 'TEACHER' %}
       <span class="sidebar-section-label">Faculty Portal</span>
-      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name in 'teacher_dashboard teacher_session_scan teacher_session_summary' %}active{% endif %}">
+      <a href="{% url 'teacher_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'teacher_dashboard' %}active{% endif %}">
         {% icon "layout-dashboard" "sidebar-link-icon" %}
         <span>Dashboard</span>
       </a>
@@ -153,7 +153,7 @@
         {% icon "calendar-clock" "sidebar-link-icon" %}
         <span>Timetable &amp; Workload</span>
       </a>
-      <a href="{% url 'teacher_session_history' %}" class="sidebar-link {% if request.resolver_match.url_name in 'teacher_session_history teacher_session_history_export teacher_session_export' %}active{% endif %}">
+      <a href="{% url 'teacher_session_history' %}" class="sidebar-link {% if request.resolver_match.url_name in 'teacher_session_history teacher_session_history_export teacher_session_export teacher_session_summary' %}active{% endif %}">
         {% icon "history" "sidebar-link-icon" %}
         <span>Session History</span>
       </a>

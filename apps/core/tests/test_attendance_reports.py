@@ -193,6 +193,19 @@ class MatrixRangeTests(AttendanceReportFixture):
         self.assertEqual(len(week_columns), 2)
         self.assertIn('prelim_attendance_BSIT-3A-IT311.xlsx', response['Content-Disposition'])
 
+    def test_session_summary_keeps_session_history_sidebar_active(self):
+        response = self.client.get(
+            reverse('teacher_session_summary', args=[self.sessions['aug_10'].pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode('utf-8')
+        self.assertIn('class="sidebar-link active"', body)
+        self.assertIn('href="/teacher/sessions/"', body)
+        self.assertNotRegex(
+            body,
+            r'href="/teacher/dashboard/" class="sidebar-link active"',
+        )
+
     def test_other_teacher_cannot_export_report(self):
         self.client.force_login(self.other_teacher_user)
         response = self.client.get(
